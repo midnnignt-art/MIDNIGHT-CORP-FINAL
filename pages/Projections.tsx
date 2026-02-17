@@ -242,9 +242,9 @@ export const Projections: React.FC<ProjectionsProps> = ({ role }) => {
 
             {/* SCENARIOS */}
             <h2 className="text-xl font-black flex items-center gap-2 text-neon-purple mb-8">
-                <BarChart2 className="w-6 h-6" /> Simulaciones de Riesgo
+                <BarChart2 className="w-6 h-6" /> Simulaciones de Riesgo y Utilidad
             </h2>
-            <div className="space-y-12">
+            <div className="space-y-12 pb-20">
                 {scenarios.map((scenario, idx) => (
                     <div key={idx} className={`rounded-[2rem] overflow-hidden border ${scenario.isBreakEven ? 'border-amber-500 bg-amber-500/5' : 'border-white/5 bg-midnight-900'}`}>
                         <div className={`p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 ${scenario.isBreakEven ? 'bg-amber-500/20' : 'bg-white/5'}`}>
@@ -253,13 +253,76 @@ export const Projections: React.FC<ProjectionsProps> = ({ role }) => {
                                     {Math.round(scenario.percentage)}%
                                 </div>
                                 <div>
-                                    <h3 className={`text-xl font-black ${scenario.isBreakEven ? 'text-amber-500' : 'text-white'}`}>{scenario.isBreakEven ? 'PUNTO DE EQUILIBRIO' : `Escenario ${Math.round(scenario.percentage)}%`}</h3>
-                                    <p className="text-xs text-zinc-500">Recaudo Neto Proyectado: {formatCurrency(scenario.totalNetRevenue)}</p>
+                                    <h3 className={`text-xl font-black ${scenario.isBreakEven ? 'text-amber-500' : 'text-white'}`}>{scenario.isBreakEven ? 'PUNTO DE EQUILIBRIO' : `Escenario Venta: ${Math.round(scenario.percentage)}% del Aforo`}</h3>
+                                    <p className="text-xs text-zinc-500 font-bold uppercase tracking-wider">
+                                        Venta Total Estimada: {scenario.totalTickets} Tickets
+                                    </p>
                                 </div>
                             </div>
                             <div className="text-right">
-                                <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest">Utilidad Estimada</p>
-                                <p className={`text-2xl font-black ${scenario.utility >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{formatCurrency(scenario.utility)}</p>
+                                <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest">Utilidad Neta Proyectada</p>
+                                <p className={`text-3xl font-black ${scenario.utility >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{formatCurrency(scenario.utility)}</p>
+                            </div>
+                        </div>
+
+                        {/* DETAILED BREAKDOWN TABLE */}
+                        <div className="p-8 bg-black/20">
+                            <h4 className="text-xs font-black text-zinc-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                <Target size={14}/> Desglose de Metas por Localidad
+                            </h4>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left text-sm">
+                                    <thead className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider border-b border-white/5">
+                                        <tr>
+                                            <th className="pb-4 pl-4">Etapa / Localidad</th>
+                                            <th className="pb-4 text-right">Precio Ticket</th>
+                                            <th className="pb-4 text-right">Comisión (Est.)</th>
+                                            <th className="pb-4 text-right text-neon-blue">Neto Unitario</th>
+                                            <th className="pb-4 text-right">Meta Venta (Und)</th>
+                                            <th className="pb-4 text-right pr-4 text-emerald-500">Recaudo Neto Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/5 text-zinc-300">
+                                        {scenario.rows.map((row, rIdx) => (
+                                            <tr key={rIdx} className="hover:bg-white/5 transition-colors">
+                                                <td className="py-4 pl-4 font-bold text-white">{row.locality}</td>
+                                                <td className="py-4 text-right text-zinc-400">${row.price.toLocaleString()}</td>
+                                                <td className="py-4 text-right text-red-400">-${row.commission.toLocaleString()}</td>
+                                                <td className="py-4 text-right font-bold text-neon-blue">${row.netTicket.toLocaleString()}</td>
+                                                <td className="py-4 text-right font-bold text-white bg-white/5 rounded-lg">{row.units}</td>
+                                                <td className="py-4 text-right pr-4 font-black text-emerald-500">${row.totalNetRevenue.toLocaleString()}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                    <tfoot className="bg-white/5 font-bold">
+                                        <tr>
+                                            <td colSpan={4} className="py-4 pl-4 text-right text-zinc-500 uppercase text-xs tracking-widest">Totales Escenario</td>
+                                            <td className="py-4 text-right text-white">{scenario.totalTickets}</td>
+                                            <td className="py-4 text-right pr-4 text-emerald-400">${scenario.totalNetRevenue.toLocaleString()}</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+
+                        {/* FINANCIAL SUMMARY FOOTER */}
+                        <div className="bg-zinc-950 p-6 flex flex-col md:flex-row justify-between items-center gap-4 text-xs border-t border-white/5">
+                            <div className="flex flex-wrap gap-6">
+                                <div className="flex flex-col">
+                                    <span className="text-zinc-600 font-bold uppercase tracking-wider text-[10px]">Ticket Promedio</span>
+                                    <span className="text-white font-bold text-lg">${Math.round(scenario.avgTicket).toLocaleString()}</span>
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-zinc-600 font-bold uppercase tracking-wider text-[10px]">Gastos Fijos (Break Even)</span>
+                                    <span className="text-red-400 font-bold text-lg">-${scenario.totalFixedCosts.toLocaleString()}</span>
+                                </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-3 bg-zinc-900 px-4 py-2 rounded-xl border border-white/5">
+                                <span className="text-zinc-500 font-bold uppercase tracking-widest">Resultado:</span>
+                                <span className={`font-black text-sm uppercase px-2 py-1 rounded ${scenario.utility >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                                    {scenario.utility >= 0 ? 'RENTABLE' : 'DÉFICIT / RIESGO'}
+                                </span>
                             </div>
                         </div>
                     </div>
