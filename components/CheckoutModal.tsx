@@ -19,13 +19,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ event, isOpen, onC
   const tiers = getEventTiers(event.id);
 
   const handleComplete = async (data: any) => {
-      const orderItems = data.items.map((item: any) => ({
-          tierId: item.tier.id,
-          quantity: item.quantity
-      }));
-      
-      // Retornamos el resultado de la creación de la orden para que el modal muestre el éxito
-      return await createOrder(event.id, orderItems, 'digital', undefined, data.customerInfo);
+      // QuickCheckout ya devuelve los items con la estructura correcta:
+      // { tier_id, tier_name, quantity, unit_price, subtotal }
+      // createOrder espera exactamente eso.
+      return await createOrder(event.id, data.items, 'digital', undefined, data.customerInfo);
   };
 
   return (

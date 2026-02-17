@@ -142,7 +142,20 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   const handleManualSale = () => {
     if (!selectedEventId || cart.length === 0) return;
     if (!manualCustomerInfo.name || !manualCustomerInfo.email) return alert("Faltan datos.");
-    createOrder(selectedEventId, cart, 'cash', currentUser.id, manualCustomerInfo);
+    
+    // CORRECCIÓN: Hidratar el carrito con datos completos del tier (precio, nombre, subtotal)
+    const fullCartItems = cart.map(item => {
+        const tier = tiers.find(t => t.id === item.tierId);
+        return {
+            tier_id: item.tierId,
+            tier_name: tier?.name || 'Item Desconocido',
+            quantity: item.quantity,
+            unit_price: tier?.price || 0,
+            subtotal: (tier?.price || 0) * item.quantity
+        };
+    });
+
+    createOrder(selectedEventId, fullCartItems, 'cash', currentUser.id, manualCustomerInfo);
     setCart([]); setManualCustomerInfo({ name: '', email: '' });
     setShowManualSale(false); setSelectedEventId('');
   };
