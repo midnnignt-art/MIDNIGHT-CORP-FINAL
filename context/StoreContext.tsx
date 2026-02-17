@@ -152,9 +152,27 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         
         // 1. BACKDOOR ADMIN (Emergencia)
         if (c === 'ADMIN123') {
-             const adminUser = promoters.find(p => p.role === UserRole.ADMIN);
+             // Try to find admin in already loaded promoters, or fetch directly if needed
+             let adminUser = promoters.find(p => p.role === UserRole.ADMIN);
+             
+             if (!adminUser) {
+                 // Try fetching from DB if not in local state
+                 const { data } = await supabase.from('profiles').select('*').eq('role', 'ADMIN').single();
+                 if (data) {
+                    adminUser = {
+                        user_id: data.id,
+                        name: data.full_name,
+                        email: data.email,
+                        code: data.code,
+                        role: data.role,
+                        total_sales: data.total_sales || 0,
+                        total_commission_earned: data.total_commission_earned || 0
+                    };
+                 }
+             }
+
              const user = adminUser || {
-                 user_id: 'admin-local',
+                 user_id: 'admin-local', // Fallback, but dangerous for creating orders
                  name: 'Super Admin',
                  email: 'admin@midnight.com',
                  code: 'ADMIN123',
@@ -344,7 +362,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 if (tier) commission += (tier.commission_fixed || 0) * item.quantity;
             });
             
-            const attributedStaffId = staffId || localStorage.getItem('midnight_referral_code_id') || null;
+            // SANITIZE STAFF ID: Ensure it's a valid UUID, otherwise null.
+            // This prevents 'admin-local' or other invalid strings from crashing the DB insert.
+            const isValidUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+            
+            let finalStaffId = null;
+            if (staffId && isValidUUID(staffId)) {
+                finalStaffId = staffId;
+            } else {
+                 const storedId = localStorage.getItem('midnight_referral_code_id'); // Assuming this stores UUID
+                 if (storedId && isValidUUID(storedId)) {
+                     finalStaffId = storedId;
+                 }
+            }
 
             // 1. Insert Order
             const { data: order, error: orderError } = await supabase
@@ -357,9 +387,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     total: total,
                     status: 'completed',
                     payment_method: method,
-                    staff_id: attributedStaffId,
-                    commission_amount: attributedStaffId ? commission : 0,
-                    net_amount: total - (attributedStaffId ? commission : 0)
+                    staff_id: finalStaffId, // Use sanitized ID
+                    commission_amount: finalStaffId ? commission : 0,
+                    net_amount: total - (finalStaffId ? commission : 0)
                 })
                 .select()
                 .single();
@@ -400,22 +430,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }
 
             // 5. Update Promoter Stats
-            if (attributedStaffId) {
-                const promoter = promoters.find(p => p.user_id === attributedStaffId);
+            if (finalStaffId) {
+                const promoter = promoters.find(p => p.user_id === finalStaffId);
                 if (promoter) {
                     await supabase.from('profiles').update({
                         total_sales: (promoter.total_sales || 0) + total,
                         total_commission_earned: (promoter.total_commission_earned || 0) + commission
-                    }).eq('id', attributedStaffId);
+                    }).eq('id', finalStaffId);
                 }
             }
 
             await fetchData(); 
             return { ...order, items: cartItems };
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error creating order:", error);
-            alert("Hubo un error al procesar la orden.");
+            // More descriptive error for debugging
+            alert(`Hubo un error al procesar la orden: ${error.message || JSON.stringify(error)}`);
             return null;
         }
     };

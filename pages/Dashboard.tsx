@@ -42,7 +42,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   const isManager = currentUser.role === UserRole.MANAGER || isHead; 
   
   // --- IDENTIFICAR EL SQUAD DEL MANAGER ---
-  const myTeam = teams.find(t => t.manager_id === currentUser.id);
+  const myTeam = teams.find(t => t.manager_id === currentUser.user_id); // Use user_id
 
   // --- GENERADOR DE LINK INTELIGENTE ---
   const referralLink = `${window.location.origin}/?ref=${currentUser.code}`;
@@ -124,11 +124,11 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
         scopeOrders = orders;
         label = "Global (Red Completa)";
     } else if (isManager) {
-        const teamMemberIds = myTeam ? [currentUser.id, ...myTeam.members_ids] : [currentUser.id];
+        const teamMemberIds = myTeam ? [currentUser.user_id, ...myTeam.members_ids] : [currentUser.user_id];
         scopeOrders = orders.filter(o => o.staff_id && teamMemberIds.includes(o.staff_id));
         label = myTeam ? `Squad: ${myTeam.name}` : "Vista Manager";
     } else {
-        scopeOrders = orders.filter(o => o.staff_id === currentUser.id);
+        scopeOrders = orders.filter(o => o.staff_id === currentUser.user_id);
         label = "Rendimiento Personal";
     }
 
@@ -155,7 +155,8 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
         };
     });
 
-    createOrder(selectedEventId, fullCartItems, 'cash', currentUser.id, manualCustomerInfo);
+    // Use currentUser.user_id, not .id (Promoter type has user_id)
+    createOrder(selectedEventId, fullCartItems, 'cash', currentUser.user_id, manualCustomerInfo);
     setCart([]); setManualCustomerInfo({ name: '', email: '' });
     setShowManualSale(false); setSelectedEventId('');
   };
@@ -168,7 +169,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
           password: newStaffPassword, // ENVÍO DE CONTRASEÑA
           role: UserRole.PROMOTER, // 'PROMOTER'
           sales_team_id: myTeam.id, 
-          manager_id: currentUser.id 
+          manager_id: currentUser.user_id // Use user_id
       });
       setNewStaffName(''); setNewStaffCode(''); setNewStaffPassword(''); setShowRecruitmentModal(false);
   };
@@ -424,7 +425,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
               </div>
 
               <div className="space-y-8">
-                   <PromoterRanking promoters={promoters.filter(p => (myTeam?.members_ids.includes(p.user_id) || p.user_id === currentUser.id))} title="Top Squad Members" />
+                   <PromoterRanking promoters={promoters.filter(p => (myTeam?.members_ids.includes(p.user_id) || p.user_id === currentUser.user_id))} title="Top Squad Members" />
                    
                    <div className="bg-zinc-900 border border-white/5 p-8 rounded-[2.5rem] relative overflow-hidden">
                        <div className="absolute -right-4 -bottom-4 opacity-5 text-neon-blue rotate-12"><ShieldCheck size={120}/></div>
@@ -490,169 +491,6 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                   </motion.div>
               </div>
           )}
-      </AnimatePresence>
-
-      {/* AUDITORÍA DE STAFF INDIVIDUAL */}
-      <AnimatePresence>
-        {viewingStaffId && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md">
-                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-zinc-900 border border-white/10 p-8 rounded-[3rem] w-full max-w-2xl shadow-2xl relative">
-                    <button onClick={() => setViewingStaffId(null)} className="absolute top-8 right-8 text-zinc-600 hover:text-white"><X size={32}/></button>
-                    <div className="mb-8">
-                        <h2 className="text-3xl font-black text-white flex items-center gap-3"><History className="text-neon-blue" /> Auditoría de Ventas</h2>
-                        <p className="text-lg text-zinc-400 mt-2 font-bold">{staffDetails.name}</p>
-                    </div>
-                    <div className="bg-black/40 rounded-3xl border border-white/5 overflow-hidden max-h-[50vh] overflow-y-auto custom-scrollbar">
-                         {staffDetails.sales.length > 0 ? (
-                            <table className="w-full text-left">
-                                <thead className="bg-white/5 text-[10px] text-zinc-500 uppercase font-black tracking-widest sticky top-0 backdrop-blur-md">
-                                    <tr><th className="p-4">Fecha</th><th className="p-4">Cliente</th><th className="p-4 text-right">Total</th></tr>
-                                </thead>
-                                <tbody className="divide-y divide-white/5 text-sm">
-                                    {staffDetails.sales.map(order => (
-                                        <tr key={order.id} className="hover:bg-white/5 transition-colors">
-                                            <td className="p-4 text-zinc-400 whitespace-nowrap">{new Date(order.timestamp).toLocaleDateString()}</td>
-                                            <td className="p-4 font-bold text-white">{order.customer_name}</td>
-                                            <td className="p-4 text-right font-black text-neon-green">${order.total.toLocaleString()}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                         ) : (<div className="p-10 text-center text-zinc-500">Sin ventas registradas</div>)}
-                    </div>
-                </motion.div>
-            </div>
-        )}
-      </AnimatePresence>
-
-      {/* AUDITORÍA DE SQUAD (EQUIPO COMPLETO) */}
-      <AnimatePresence>
-        {teamAuditDetails && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md">
-                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-zinc-900 border border-white/10 p-8 rounded-[3rem] w-full max-w-4xl shadow-2xl relative flex flex-col max-h-[90vh]">
-                    <button onClick={() => setViewingTeamId(null)} className="absolute top-8 right-8 text-zinc-600 hover:text-white z-10"><X size={32}/></button>
-                    <div className="mb-8 flex-shrink-0">
-                        <div className="flex items-center gap-4 mb-2">
-                             <div className="w-14 h-14 bg-neon-purple/20 rounded-2xl flex items-center justify-center border border-neon-purple/20">
-                                 <Layers className="text-neon-purple w-7 h-7" />
-                             </div>
-                             <div>
-                                 <h2 className="text-3xl font-black text-white tracking-tight">AUDITORÍA SQUAD</h2>
-                                 <p className="text-sm font-bold text-zinc-500 uppercase tracking-widest">{teamAuditDetails.team.name}</p>
-                             </div>
-                        </div>
-                        <div className="flex gap-4 mt-4 text-xs font-bold text-zinc-400">
-                             <div className="bg-white/5 px-3 py-1 rounded-lg">Ventas Totales: <span className="text-white">{teamAuditDetails.orders.length}</span></div>
-                             <div className="bg-white/5 px-3 py-1 rounded-lg">Filtro: <span className="text-white uppercase">{selectedEventFilter === 'all' ? 'Todos los eventos' : 'Evento Seleccionado'}</span></div>
-                        </div>
-                    </div>
-
-                    <div className="bg-black/40 rounded-3xl border border-white/5 overflow-hidden flex-1 overflow-y-auto custom-scrollbar">
-                         {teamAuditDetails.orders.length > 0 ? (
-                            <table className="w-full text-left">
-                                <thead className="bg-white/5 text-[10px] text-zinc-500 uppercase font-black tracking-widest sticky top-0 backdrop-blur-md z-10">
-                                    <tr>
-                                        <th className="p-5">Fecha / Factura</th>
-                                        <th className="p-5">Vendedor (Staff)</th>
-                                        <th className="p-5">Cliente Final</th>
-                                        <th className="p-5">Items</th>
-                                        <th className="p-5 text-right">Total</th>
-                                        <th className="p-5 text-right text-emerald-500">Comisión</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-white/5 text-sm">
-                                    {teamAuditDetails.orders.map(order => {
-                                        const seller = promoters.find(p => p.user_id === order.staff_id);
-                                        return (
-                                            <tr key={order.id} className="hover:bg-white/5 transition-colors group">
-                                                <td className="p-5">
-                                                    <div className="font-mono text-xs text-zinc-400">{new Date(order.timestamp).toLocaleDateString()}</div>
-                                                    <div className="text-[10px] font-bold text-zinc-600 group-hover:text-neon-blue">{order.order_number}</div>
-                                                </td>
-                                                <td className="p-5">
-                                                    {seller ? (
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-black text-white">
-                                                                {seller.name.charAt(0)}
-                                                            </div>
-                                                            <span className="font-bold text-white text-xs">{seller.name}</span>
-                                                        </div>
-                                                    ) : <span className="text-zinc-600 italic">Desconocido</span>}
-                                                </td>
-                                                <td className="p-5">
-                                                    <div className="font-bold text-white text-xs">{order.customer_name}</div>
-                                                    <div className="text-[10px] text-zinc-500 truncate max-w-[120px]">{order.customer_email}</div>
-                                                </td>
-                                                <td className="p-5">
-                                                    <div className="space-y-1">
-                                                        {order.items.map((i, idx) => (
-                                                            <div key={idx} className="text-[10px] text-zinc-300 flex items-center gap-1">
-                                                                <Ticket size={10} className="text-neon-purple"/> {i.quantity}x {i.tier_name}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </td>
-                                                <td className="p-5 text-right font-black text-white">${order.total.toLocaleString()}</td>
-                                                <td className="p-5 text-right font-bold text-emerald-500">+${order.commission_amount.toLocaleString()}</td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                         ) : (
-                            <div className="h-full flex flex-col items-center justify-center text-zinc-600">
-                                <Layers size={48} className="mb-4 opacity-20"/>
-                                <p className="font-bold text-sm">Este equipo no registra ventas en el periodo seleccionado.</p>
-                            </div>
-                         )}
-                    </div>
-                </motion.div>
-            </div>
-        )}
-      </AnimatePresence>
-
-      {/* COBRO MANUAL */}
-      <AnimatePresence>
-        {showManualSale && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md">
-                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-zinc-900 border border-white/10 p-10 rounded-[3rem] w-full max-w-lg shadow-2xl relative">
-                    <button onClick={() => setShowManualSale(false)} className="absolute top-8 right-8 text-zinc-600 hover:text-white"><X size={32}/></button>
-                    <h2 className="text-3xl font-black text-white mb-8 text-center tracking-tighter uppercase">Cobro Manual</h2>
-                    <div className="space-y-6">
-                        <select value={selectedEventId} onChange={e => {setSelectedEventId(e.target.value); setCart([]);}} className="w-full bg-black border border-white/5 p-4 rounded-2xl text-white font-black text-center h-14 uppercase">
-                            <option value="">ELIJA EVENTO</option>
-                            {events.map(e => <option key={e.id} value={e.id}>{e.title}</option>)}
-                        </select>
-                        {selectedEventId && (
-                            <div className="space-y-2">
-                                {getEventTiers(selectedEventId).map(t => (
-                                    <div key={t.id} onClick={() => setCart(prev => {
-                                        const ex = prev.find(i => i.tierId === t.id);
-                                        if (ex) return prev.map(i => i.tierId === t.id ? {...i, quantity: i.quantity + 1} : i);
-                                        return [...prev, {tierId: t.id, quantity: 1}];
-                                    })} className="flex justify-between items-center p-4 bg-white/5 rounded-2xl cursor-pointer hover:bg-neon-blue/20 border border-white/5 transition-all">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-black text-white">
-                                                {cart.find(i => i.tierId === t.id)?.quantity || 0}
-                                            </div>
-                                            <p className="font-bold text-white uppercase text-sm">{t.name}</p>
-                                        </div>
-                                        <p className="text-neon-blue font-black">${t.price}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                        {cart.length > 0 && (
-                            <div className="space-y-3 pt-4 border-t border-white/5">
-                                <input value={manualCustomerInfo.name} onChange={e => setManualCustomerInfo({...manualCustomerInfo, name: e.target.value})} placeholder="NOMBRE CLIENTE" className="w-full bg-black border border-white/10 p-4 rounded-xl text-white text-xs font-bold" />
-                                <input value={manualCustomerInfo.email} onChange={e => setManualCustomerInfo({...manualCustomerInfo, email: e.target.value})} placeholder="CORREO" className="w-full bg-black border border-white/10 p-4 rounded-xl text-white text-xs font-bold" />
-                                <Button onClick={handleManualSale} fullWidth className="bg-white text-black font-black h-16 text-lg rounded-2xl mt-4">REGISTRAR PAGO (${cart.reduce((a, b) => a + (tiers.find(t => t.id === b.tierId)?.price || 0) * b.quantity, 0)})</Button>
-                            </div>
-                        )}
-                    </div>
-                </motion.div>
-            </div>
-        )}
       </AnimatePresence>
     </div>
   );
