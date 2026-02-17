@@ -211,7 +211,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const total = cartItems.reduce((acc, i) => acc + (i.unit_price * i.quantity), 0);
         
         // Atribución de venta
-        const attributedStaffId = staffId || localStorage.getItem('midnight_referral_code_id');
+        // FIX: Ensure it is string | undefined, never null
+        const attributedStaffId = staffId || localStorage.getItem('midnight_referral_code_id') || undefined;
         let commission = 0;
         
         cartItems.forEach(item => {

@@ -57,7 +57,7 @@ export default function EventHero({ event, className }: EventHeroProps) {
                 EARLY BIRD
               </Badge>
             )}
-            {event?.nft_benefits?.length > 0 && (
+            {event?.nft_benefits && event.nft_benefits.length > 0 && (
               <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">
                 NFT TICKET
               </Badge>
@@ -70,7 +70,7 @@ export default function EventHero({ event, className }: EventHeroProps) {
           </h1>
 
           {/* Artists */}
-          {event?.artists?.length > 0 && (
+          {event?.artists && event.artists.length > 0 && (
             <p className="text-lg text-zinc-300 mb-6">
               {event.artists.join(' • ')}
             </p>

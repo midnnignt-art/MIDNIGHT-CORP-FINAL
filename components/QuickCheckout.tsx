@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { motion as _motion, AnimatePresence } from 'framer-motion';
 import { Loader2, Shield, ChevronLeft, CheckCircle2, Mail, Download, Smartphone } from 'lucide-react';
@@ -13,7 +12,7 @@ const motion = _motion as any;
 interface QuickCheckoutProps {
   event: any;
   tiers: TicketTier[];
-  onComplete: (data: any) => Promise<Order>;
+  onComplete: (data: any) => Promise<Order | null>;
 }
 
 export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckoutProps) {
@@ -47,6 +46,10 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
         customerInfo, 
         items: selectedItems 
       });
+
+      if (!orderData) {
+        throw new Error("No se pudo crear la orden");
+      }
       
       // 2. Generar mensaje de bienvenida con IA para el éxito
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -59,6 +62,7 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
       setCompletedOrder(orderData);
       setStep(3); // Salto a éxito
     } catch (error) {
+      console.error(error);
       alert("Error en el proceso. Intente de nuevo.");
     } finally {
       setIsProcessing(false);
