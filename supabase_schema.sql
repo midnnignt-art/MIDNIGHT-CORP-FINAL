@@ -17,7 +17,6 @@ DROP TYPE IF EXISTS event_stage CASCADE;
 -- ==========================================
 -- 2. TIPOS DE DATOS (ENUMS - MAYÚSCULAS)
 -- ==========================================
--- Importante: Los valores coinciden exactamente con los del frontend (UserRole)
 CREATE TYPE user_role AS ENUM ('ADMIN', 'HEAD_OF_SALES', 'MANAGER', 'PROMOTER', 'GUEST');
 CREATE TYPE event_status AS ENUM ('draft', 'published', 'sold_out', 'cancelled', 'completed');
 CREATE TYPE event_stage AS ENUM ('early_bird', 'presale', 'general', 'door');
@@ -31,11 +30,11 @@ CREATE TABLE profiles (
   id UUID PRIMARY KEY, 
   email TEXT NOT NULL,
   full_name TEXT,
-  code TEXT UNIQUE, -- Código de referido único
-  password TEXT DEFAULT '1234', -- Contraseña para login manual
+  code TEXT UNIQUE,
+  password TEXT DEFAULT '1234',
   role user_role DEFAULT 'PROMOTER',
-  sales_team_id UUID, -- Se vincula más abajo
-  manager_id UUID REFERENCES profiles(id), -- Jerarquía: Quién lo reclutó
+  sales_team_id UUID,
+  manager_id UUID REFERENCES profiles(id),
   total_sales NUMERIC DEFAULT 0,
   total_commission_earned NUMERIC DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
@@ -49,7 +48,7 @@ CREATE TABLE sales_teams (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- C. VINCULACIÓN CIRCULAR (Staff <-> Equipos)
+-- C. VINCULACIÓN CIRCULAR
 ALTER TABLE profiles 
 ADD CONSTRAINT fk_sales_team 
 FOREIGN KEY (sales_team_id) REFERENCES sales_teams(id);
@@ -72,7 +71,7 @@ CREATE TABLE events (
   tickets_sold INTEGER DEFAULT 0,
   total_revenue NUMERIC DEFAULT 0,
   featured BOOLEAN DEFAULT false,
-  artists TEXT[], -- Array de artistas
+  artists TEXT[],
   tags TEXT[], 
   gallery TEXT[], 
   nft_benefits TEXT[], 
@@ -102,9 +101,9 @@ CREATE TABLE orders (
   customer_name TEXT NOT NULL,
   customer_email TEXT NOT NULL,
   total NUMERIC NOT NULL,
-  status TEXT DEFAULT 'completed',
-  payment_method TEXT DEFAULT 'digital',
-  staff_id UUID REFERENCES profiles(id), -- Atribución de venta a Staff
+  status TEXT DEFAULT 'completed', -- POR DEFECTO COMPLETADA (BETA)
+  payment_method TEXT DEFAULT 'cash',
+  staff_id UUID REFERENCES profiles(id),
   commission_amount NUMERIC DEFAULT 0,
   net_amount NUMERIC DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
@@ -133,7 +132,7 @@ CREATE TABLE event_costs (
 );
 
 -- ==========================================
--- 4. SEGURIDAD Y PERMISOS (RLS)
+-- 4. SEGURIDAD (RLS - ABIERTO PARA BETA)
 -- ==========================================
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
@@ -144,7 +143,6 @@ ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE event_costs ENABLE ROW LEVEL SECURITY;
 
--- Políticas permisivas para la aplicación (La lógica de negocio valida en frontend/backend)
 CREATE POLICY "Access profiles" ON profiles FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Access sales_teams" ON sales_teams FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Access events" ON events FOR ALL USING (true) WITH CHECK (true);
@@ -157,10 +155,10 @@ CREATE POLICY "Access event_costs" ON event_costs FOR ALL USING (true) WITH CHEC
 -- 5. DATOS SEMILLA (SEED DATA)
 -- ==========================================
 
--- A. Crear Super Admin (Rol en MAYÚSCULAS)
+-- A. Crear Super Admin (CON ID FIJO PARA EVITAR ERRORES DE LOGIN)
 INSERT INTO profiles (id, email, full_name, code, password, role)
 VALUES 
-(gen_random_uuid(), 'admin@midnight.com', 'Super Admin', 'ADMIN123', 'admin', 'ADMIN');
+('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'admin@midnight.com', 'Super Admin', 'ADMIN123', 'admin', 'ADMIN');
 
 -- B. Crear un Evento de Prueba
 INSERT INTO events (title, slug, description, event_date, doors_open, cover_image, status, total_capacity, city, venue)
@@ -177,7 +175,7 @@ VALUES (
   'Espacio 10-60'
 );
 
--- C. Crear Tickets para el evento de prueba
+-- C. Crear Tickets
 DO $$
 DECLARE last_event_id UUID;
 BEGIN

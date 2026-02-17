@@ -152,7 +152,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         
         // 1. BACKDOOR ADMIN (Emergencia)
         if (c === 'ADMIN123') {
-             // Try to find admin in already loaded promoters, or fetch directly if needed
+             // Try to find admin in already loaded promoters
              let adminUser = promoters.find(p => p.role === UserRole.ADMIN);
              
              if (!adminUser) {
@@ -171,8 +171,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                  }
              }
 
+             // FALLBACK: Use the STATIC UUID from the SQL seed.
+             // This ensures that even if fetch fails, the ID matches the DB constraint.
              const user = adminUser || {
-                 user_id: 'admin-local', // Fallback, but dangerous for creating orders
+                 user_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 
                  name: 'Super Admin',
                  email: 'admin@midnight.com',
                  code: 'ADMIN123',
@@ -363,20 +365,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             });
             
             // SANITIZE STAFF ID: Ensure it's a valid UUID, otherwise null.
-            // This prevents 'admin-local' or other invalid strings from crashing the DB insert.
             const isValidUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
             
             let finalStaffId = null;
             if (staffId && isValidUUID(staffId)) {
                 finalStaffId = staffId;
             } else {
-                 const storedId = localStorage.getItem('midnight_referral_code_id'); // Assuming this stores UUID
+                 const storedId = localStorage.getItem('midnight_referral_code_id');
                  if (storedId && isValidUUID(storedId)) {
                      finalStaffId = storedId;
                  }
             }
 
-            // 1. Insert Order
+            // 1. Insert Order (Force completed for Beta)
             const { data: order, error: orderError } = await supabase
                 .from('orders')
                 .insert({
@@ -385,9 +386,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     customer_name: customerInfo?.name || 'Anon',
                     customer_email: customerInfo?.email || 'anon@mail.com',
                     total: total,
-                    status: 'completed',
-                    payment_method: method,
-                    staff_id: finalStaffId, // Use sanitized ID
+                    status: 'completed', // FORZAMOS STATUS COMPLETADO (SIN PAGO REAL)
+                    payment_method: method || 'cash',
+                    staff_id: finalStaffId, 
                     commission_amount: finalStaffId ? commission : 0,
                     net_amount: total - (finalStaffId ? commission : 0)
                 })
@@ -407,7 +408,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }));
 
             const { error: itemsError } = await supabase.from('order_items').insert(itemsToInsert);
-            if (itemsError) throw itemsError;
+            if (itemsError) {
+                // Si falla al insertar items, probablemente los IDs de tiers están viejos.
+                // Intentamos eliminar la orden para no dejar basura y lanzamos error.
+                await supabase.from('orders').delete().eq('id', order.id);
+                throw itemsError;
+            }
 
             // 3. Update Inventory
             for (const item of cartItems) {
@@ -445,7 +451,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         } catch (error: any) {
             console.error("Error creating order:", error);
-            // More descriptive error for debugging
+            
+            // Handle Foreign Key errors specifically
+            if (error.code === '23503') { // PostgreSQL Foreign Key Violation
+                alert("DATOS DESACTUALIZADOS: Se ha reseteado la base de datos. La página se recargará para sincronizar los nuevos tickets.");
+                window.location.reload();
+                return null;
+            }
+
             alert(`Hubo un error al procesar la orden: ${error.message || JSON.stringify(error)}`);
             return null;
         }
