@@ -1,0 +1,25 @@
+{
+  "name": "lanzamiento of MIDNIGHT CORP",
+  "short_name": "Midnight",
+  "description": "Midnight Corp: Event Experience & Fintech Command Center.",
+  "icons": [
+    {
+      "src": "https://images.unsplash.com/photo-1514525253361-bee8a19740c1?w=192&h=192&fit=crop",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://images.unsplash.com/photo-1514525253361-bee8a19740c1?w=512&h=512&fit=crop",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#050505",
+  "background_color": "#050505",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
