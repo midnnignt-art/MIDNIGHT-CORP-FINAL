@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Menu, X, Settings, TrendingUp, LogIn, LogOut, User, Database, Zap, PieChart, Copy, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from './ui/button';
@@ -104,7 +103,7 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
                 <h2 className="text-2xl font-black text-white text-center mb-2">Acceso Midnight</h2>
                 <p className="text-zinc-500 text-xs text-center mb-6 uppercase font-bold tracking-widest">Authorized Personnel Only</p>
                 
-                {dbStatus === 'offline' && (
+                {dbStatus === 'local' && (
                     <div className="mb-6 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-3">
                         <AlertCircle className="text-amber-500 shrink-0 w-4 h-4 mt-0.5" />
                         <p className="text-[10px] text-amber-500 font-bold leading-tight uppercase">El sistema está offline. Usa ADMIN123 para entrar en modo de emergencia.</p>

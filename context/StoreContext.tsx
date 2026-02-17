@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { 
   Event, Promoter, TicketTier, Order, UserRole, SalesTeam, EventCost 
@@ -40,8 +39,8 @@ const INITIAL_TIERS: TicketTier[] = [
 ];
 
 const INITIAL_PROMOTERS: Promoter[] = [
-    { user_id: '000-admin', name: 'Midnight Admin', email: 'admin@midnight.com', code: 'ADMIN123', role: 'ADMIN', total_sales: 0, total_commission_earned: 0 },
-    { user_id: '001-manager', name: 'Jefe de Ventas', email: 'sales@midnight.com', code: 'SALES1', role: 'HEAD_OF_SALES', total_sales: 0, total_commission_earned: 0 }
+    { user_id: '000-admin', name: 'Midnight Admin', email: 'admin@midnight.com', code: 'ADMIN123', role: UserRole.ADMIN, total_sales: 0, total_commission_earned: 0 },
+    { user_id: '001-manager', name: 'Jefe de Ventas', email: 'sales@midnight.com', code: 'SALES1', role: UserRole.HEAD_OF_SALES, total_sales: 0, total_commission_earned: 0 }
 ];
 
 interface StoreContextType {
@@ -61,6 +60,7 @@ interface StoreContextType {
     deleteEvent: (id: string) => Promise<void>;
     addEventCost: (eventId: string, cost: Omit<EventCost, 'id' | 'event_id'>) => Promise<void>;
     deleteEventCost: (eventId: string, costId: string) => Promise<void>;
+    updateCostStatus: (eventId: string, costId: string, status: 'pending' | 'paid' | 'cancelled') => Promise<void>;
 
     addStaff: (staffData: any) => Promise<void>;
     deleteStaff: (id: string) => Promise<void>;
@@ -127,6 +127,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             status: 'published',
             tickets_sold: 0,
             total_revenue: 0,
+            available_funds: 0,
+            operational_reserve: 0,
+            commission_pool: 0,
+            featured: false,
+            tags: [],
+            artists: [],
+            nft_benefits: [],
             created_at: new Date().toISOString(),
             costs: []
         };
@@ -293,12 +300,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }));
     };
 
+    const updateCostStatus = async (eventId: string, costId: string, status: 'pending' | 'paid' | 'cancelled') => {
+        setEvents(prev => prev.map(e => {
+            if (e.id === eventId) {
+                return {
+                    ...e,
+                    costs: e.costs.map(c => c.id === costId ? { ...c, status } : c)
+                };
+            }
+            return e;
+        }));
+    };
+
     return (
         <StoreContext.Provider value={{
             events, tiers, promoters, orders, teams, currentUser, dbStatus,
             login, logout, getEventTiers, addEvent, updateEvent, deleteEvent,
             addStaff, deleteStaff, createTeam, createOrder, clearDatabase,
-            addEventCost, deleteEventCost
+            addEventCost, deleteEventCost, updateCostStatus
         }}>
             {children}
         </StoreContext.Provider>
