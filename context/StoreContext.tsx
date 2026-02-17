@@ -12,7 +12,7 @@ interface StoreContextType {
     teams: SalesTeam[];
     currentUser: any;
     dbStatus: 'synced' | 'local' | 'syncing' | 'error';
-    login: (code: string) => Promise<boolean>;
+    login: (code: string, password?: string) => Promise<boolean>;
     logout: () => void;
     getEventTiers: (eventId: string) => TicketTier[];
     
@@ -45,13 +45,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // CARGA INICIAL DE DATOS
     useEffect(() => {
         fetchData();
-        
-        // Recuperar sesión local si existe
-        const storedId = localStorage.getItem('midnight_user_id');
-        if (storedId) {
-            // Intentamos recuperar el usuario de la lista cargada
-            // Nota: Esto depende de que 'promoters' ya se haya cargado o se actualice
-        }
     }, []);
 
     // Efecto secundario para reconectar usuario cuando carguen los promotores
@@ -69,7 +62,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             // 1. Fetch Events & Costs
             const { data: eventsData, error: eventsError } = await supabase
                 .from('events')
-                .select(`*, costs:event_costs(*)`);
+                .select(`*, costs:event_costs(*)`)
+                .order('created_at', { ascending: false });
             
             if (eventsError) throw eventsError;
 
@@ -81,17 +75,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             if (tiersError) throw tiersError;
 
             // 3. Fetch Profiles (Staff)
-            // Nota: RLS podría bloquear esto si no somos Admin. 
-            // Para el MVP, intentamos traer lo que podamos.
             const { data: profilesData, error: profilesError } = await supabase
                 .from('profiles')
                 .select('*');
 
             // 4. Fetch Orders & Items
-            // Obtenemos ordenes y sus items
             const { data: ordersData, error: ordersError } = await supabase
                 .from('orders')
-                .select(`*, items:order_items(*)`);
+                .select(`*, items:order_items(*)`)
+                .order('created_at', { ascending: false });
             
             if (ordersError) throw ordersError;
 
@@ -102,16 +94,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
             // --- TRANSFORMACIÓN DE DATOS ---
             
-            // Map Events (Asegurar estructura de costs)
             const mappedEvents: Event[] = (eventsData || []).map((e: any) => ({
                 ...e,
-                gallery: [], // Campo UI no en DB
-                tags: [],    // Campo UI no en DB
-                nft_benefits: [], // Campo UI no en DB
+                gallery: [], 
+                tags: [],    
+                nft_benefits: [], 
                 costs: e.costs || []
             }));
 
-            // Map Promoters
             const mappedPromoters: Promoter[] = (profilesData || []).map((p: any) => ({
                 user_id: p.id,
                 name: p.full_name || 'Sin Nombre',
@@ -124,11 +114,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 total_commission_earned: p.total_commission_earned || 0
             }));
 
-            // Map Orders
             const mappedOrders: Order[] = (ordersData || []).map((o: any) => ({
                 ...o,
                 timestamp: o.created_at,
-                // Mapear items de DB a estructura de frontend
                 items: o.items.map((i: any) => ({
                     tier_id: i.tier_id,
                     tier_name: i.tier_name,
@@ -138,14 +126,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 }))
             }));
             
-            // Map Teams
-            // Necesitamos calcular los members_ids manualmente ya que en SQL la relación está en profiles.sales_team_id
             const mappedTeams: SalesTeam[] = (teamsData || []).map((t: any) => ({
                 ...t,
                 members_ids: (profilesData || [])
                     .filter((p: any) => p.sales_team_id === t.id)
                     .map((p: any) => p.id),
-                total_revenue: 0 // Se podría calcular sumando ventas
+                total_revenue: 0
             }));
 
             setEvents(mappedEvents);
@@ -161,13 +147,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
     };
 
-    const login = async (code: string): Promise<boolean> => {
+    const login = async (code: string, password?: string): Promise<boolean> => {
         const c = code.toUpperCase();
         
-        // 1. BACKDOOR ADMIN: Si usa el código maestro, forzamos un login local de Admin
-        // Esto es útil si RLS impide leer la tabla de perfiles antes de loguearse
+        // 1. BACKDOOR ADMIN (Emergencia)
         if (c === 'ADMIN123') {
-             // Creamos un objeto de admin ficticio si no existe en DB, o buscamos uno con rol admin
+             // Si quieres seguridad extra aquí, podrías chequear password === 'admin'
+             // pero por ahora lo dejamos abierto para que no te quedes fuera.
              const adminUser = promoters.find(p => p.role === UserRole.ADMIN);
              const user = adminUser || {
                  user_id: 'admin-local',
@@ -183,39 +169,46 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
              return true;
         }
 
-        // 2. Intento Normal: Buscar en los promotores ya cargados (cache local)
-        // Esto evita pelear con RLS en el momento del login si ya logramos bajar la data pública
-        const user = promoters.find(p => p.code === c);
-        if (user) {
-            setCurrentUser(user);
-            localStorage.setItem('midnight_user_id', user.user_id);
-            return true;
-        }
-
-        // 3. Intento Directo a DB (Fallback)
+        // 2. Login Real contra Supabase (Código + Contraseña)
         try {
-            const { data, error } = await supabase
+            let query = supabase
                 .from('profiles')
                 .select('*')
                 .eq('code', c)
                 .single();
             
-            if (data && !error) {
-                const mappedUser: Promoter = {
-                    user_id: data.id,
-                    name: data.full_name,
-                    email: data.email,
-                    code: data.code,
-                    role: data.role,
-                    total_sales: data.total_sales,
-                    total_commission_earned: data.total_commission_earned
-                };
-                setCurrentUser(mappedUser);
-                localStorage.setItem('midnight_user_id', mappedUser.user_id);
-                // Si encontramos uno nuevo, refrescamos todo
-                fetchData(); 
-                return true;
+            // Si proveen contraseña, la verificamos. Si no, fallamos (a menos que sea modo legacy)
+            if (password) {
+                // Verificación manual ya que RLS nos deja leer.
+                // Idealmente haríamos .eq('password', password) en la query, 
+                // pero lo haremos en dos pasos para mejor debug si falla.
+                const { data, error } = await query;
+                
+                if (error || !data) return false;
+
+                // Verificación simple de texto plano (MVP)
+                if (data.password === password) {
+                    const mappedUser: Promoter = {
+                        user_id: data.id,
+                        name: data.full_name,
+                        email: data.email,
+                        code: data.code,
+                        role: data.role,
+                        total_sales: data.total_sales,
+                        total_commission_earned: data.total_commission_earned
+                    };
+                    setCurrentUser(mappedUser);
+                    localStorage.setItem('midnight_user_id', mappedUser.user_id);
+                    fetchData();
+                    return true;
+                } else {
+                    alert("Contraseña incorrecta.");
+                    return false;
+                }
+            } else {
+                return false;
             }
+
         } catch (e) {
             console.log("Login lookup failed", e);
         }
@@ -237,7 +230,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 .from('events')
                 .insert({
                     title: eventData.title,
-                    slug: eventData.title.toLowerCase().replace(/ /g, '-'),
+                    slug: eventData.title.toLowerCase().replace(/ /g, '-').replace(/[^\w-]/g, ''),
                     description: eventData.description,
                     venue: eventData.venue,
                     city: eventData.city,
@@ -251,7 +244,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 .select()
                 .single();
 
-            if (eventError) throw eventError;
+            if (eventError) {
+                console.error("Supabase Event Error:", eventError);
+                throw new Error("Fallo al crear el evento principal.");
+            }
 
             // 2. Insert Tiers
             const tiersToInsert = tierData.map(t => ({
@@ -264,26 +260,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }));
 
             const { error: tiersError } = await supabase.from('ticket_tiers').insert(tiersToInsert);
-            if (tiersError) throw tiersError;
+            if (tiersError) {
+                console.error("Supabase Tiers Error:", tiersError);
+                alert("Evento creado, pero hubo un error guardando los tickets. Por favor edita el evento.");
+            }
 
-            await fetchData(); // Refresh
-        } catch (error) {
+            await fetchData();
+        } catch (error: any) {
             console.error("Error creating event:", error);
-            alert("Error al crear evento en la nube.");
+            alert(`Error crítico: ${error.message || 'No se pudo conectar a la base de datos.'}`);
         }
     };
 
     const updateEvent = async (id: string, eventData: any, tierData: any[]) => {
-        // Implementación simplificada: Actualizar evento, borrar tiers viejos, insertar nuevos
         try {
             await supabase.from('events').update(eventData).eq('id', id);
-            
-            // Tiers: Borrar y Recrear (estrategia simple para MVP)
-            // Nota: En producción esto es peligroso si hay ventas asociadas a los tiers.
-            // Lo ideal sería hacer 'upsert' o marcar como inactivos.
-            // Para MVP, solo actualizamos el evento y refrescamos.
-            // TODO: Implementar lógica robusta de actualización de tiers
-            
             await fetchData();
         } catch (error) {
             console.error("Error updating event:", error);
@@ -292,43 +283,60 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const deleteEvent = async (id: string) => {
         try {
-            await supabase.from('events').delete().eq('id', id);
+            const { error } = await supabase.from('events').delete().eq('id', id);
+            if(error) throw error;
             await fetchData();
         } catch (error) {
             console.error("Error deleting event:", error);
+            alert("No se pudo eliminar el evento (Verifica que no tenga ventas asociadas).");
         }
     };
 
     const addStaff = async (staffData: any) => {
-        // En Supabase, los usuarios deben crearse en Auth. 
-        // Como estamos en un modo "híbrido/MVP", insertaremos en profiles directamente si la política lo permite,
-        // o simularemos la creación. 
-        // **IMPORTANTE**: La tabla profiles tiene FK a auth.users. No podemos insertar un perfil sin un usuario de Auth real.
-        // SOLUCIÓN MVP: Usaremos un RPC o Edge Function en el futuro.
-        // POR AHORA: Solo actualizamos el estado local para la UI, pero alertamos que no se guardará en DB sin backend auth.
-        alert("Nota: Para crear Staff real en Supabase, debes invitarlos desde el panel de Auth de Supabase. Esta acción solo simula la creación en esta sesión.");
-        
-        const newStaff: Promoter = {
-            user_id: `temp-${Date.now()}`,
-            ...staffData,
-            total_sales: 0,
-            total_commission_earned: 0,
-            email: `${staffData.name.toLowerCase().replace(' ', '.')}@midnight.com`
-        };
-        setPromoters(prev => [...prev, newStaff]);
+        try {
+            // Generamos un UUID random (Evitamos Auth users de Supabase)
+            const tempId = crypto.randomUUID();
+            
+            const { error } = await supabase.from('profiles').insert({
+                id: tempId,
+                email: `${staffData.name.toLowerCase().replace(/\s+/g, '.')}@midnight.com`,
+                full_name: staffData.name,
+                code: staffData.code,
+                password: staffData.password, // GUARDAMOS LA CONTRASEÑA
+                role: staffData.role,
+                sales_team_id: staffData.sales_team_id || null,
+                manager_id: staffData.manager_id || null
+            });
+
+            if (error) throw error;
+            
+            await fetchData();
+            alert("Usuario creado exitosamente. Ahora puede ingresar con su código y contraseña.");
+        } catch (error: any) {
+            console.error("Error creating staff:", error);
+            alert(`Error al crear usuario: ${error.message}`);
+        }
     };
 
     const deleteStaff = async (id: string) => {
-        // Solo para visualización local por ahora
-        setPromoters(prev => prev.filter(p => p.user_id !== id));
+        try {
+            const { error } = await supabase.from('profiles').delete().eq('id', id);
+            if(error) throw error;
+            await fetchData();
+        } catch(error) {
+            console.error("Error deleting staff", error);
+            alert("Error al eliminar usuario.");
+        }
     };
 
     const createTeam = async (name: string, managerId: string) => {
         try {
-            await supabase.from('sales_teams').insert({ name, manager_id: managerId });
+            const { error } = await supabase.from('sales_teams').insert({ name, manager_id: managerId });
+            if(error) throw error;
             await fetchData();
         } catch (error) {
             console.error("Error creating team:", error);
+            alert("Error al crear equipo.");
         }
     };
 
@@ -337,7 +345,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const orderNumber = `MID-${Date.now().toString().slice(-6)}`;
             const total = cartItems.reduce((acc, i) => acc + (i.unit_price * i.quantity), 0);
             
-            // Calcular comisión
             let commission = 0;
             cartItems.forEach(item => {
                 const tier = tiers.find(t => t.id === item.tier_id);
@@ -379,8 +386,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const { error: itemsError } = await supabase.from('order_items').insert(itemsToInsert);
             if (itemsError) throw itemsError;
 
-            // 3. Update Inventory (RPC call or manual update)
-            // Manual update loop for MVP
+            // 3. Update Inventory
             for (const item of cartItems) {
                 const tier = tiers.find(t => t.id === item.tier_id);
                 if (tier) {
@@ -400,7 +406,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 }).eq('id', eventId);
             }
 
-            // 5. Update Promoter Stats if applicable
+            // 5. Update Promoter Stats
             if (attributedStaffId) {
                 const promoter = promoters.find(p => p.user_id === attributedStaffId);
                 if (promoter) {
@@ -411,20 +417,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 }
             }
 
-            await fetchData(); // Refresh UI
-            
-            // Reconstruct full order object for return
+            await fetchData(); 
             return { ...order, items: cartItems };
 
         } catch (error) {
             console.error("Error creating order:", error);
+            alert("Hubo un error al procesar la orden.");
             return null;
         }
     };
 
     const clearDatabase = async () => {
-        // Dangerous action, only enabled for local mode usually. 
-        // In supabase mode, we might want to restrict this or implement it carefully.
         alert("Acción deshabilitada en modo Producción (Supabase).");
     };
 

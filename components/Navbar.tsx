@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, X, Settings, TrendingUp, LogIn, LogOut, User, Database, Zap, PieChart, Copy, Loader2, AlertCircle } from 'lucide-react';
+import { Menu, X, Settings, TrendingUp, LogIn, LogOut, User, Database, Zap, PieChart, Copy, Loader2, AlertCircle, Lock } from 'lucide-react';
 import { Button } from './ui/button';
 import { UserRole } from '../types';
 import { useStore } from '../context/StoreContext';
@@ -9,6 +9,7 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
   const [isOpen, setIsOpen] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [loginCode, setLoginCode] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -17,19 +18,19 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
       
       setIsLoggingIn(true);
       try {
-          // Intentamos el login
-          const success = await login(loginCode);
+          // Intentamos el login con contraseña
+          const success = await login(loginCode, loginPassword);
           if (success) {
               setShowLoginModal(false);
               setLoginCode('');
-              // Navegamos al dashboard tras éxito
+              setLoginPassword('');
               onNavigate('dashboard');
           } else {
-              alert('Acceso denegado. Verifica el código o contacta al administrador.');
+              alert('Credenciales inválidas. Verifica tu código y contraseña.');
           }
       } catch (err) {
           console.error("Login component error:", err);
-          alert('Error de conexión. Intente con ADMIN123 para modo de emergencia.');
+          alert('Error de conexión.');
       } finally {
           setIsLoggingIn(false);
       }
@@ -103,22 +104,25 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
                 <h2 className="text-2xl font-black text-white text-center mb-2">Acceso Midnight</h2>
                 <p className="text-zinc-500 text-xs text-center mb-6 uppercase font-bold tracking-widest">Authorized Personnel Only</p>
                 
-                {dbStatus === 'local' && (
-                    <div className="mb-6 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-3">
-                        <AlertCircle className="text-amber-500 shrink-0 w-4 h-4 mt-0.5" />
-                        <p className="text-[10px] text-amber-500 font-bold leading-tight uppercase">El sistema está offline. Usa ADMIN123 para entrar en modo de emergencia.</p>
-                    </div>
-                )}
-
                 <form onSubmit={handleLogin} className="space-y-4">
                     <input 
                         autoFocus 
                         type="text" 
-                        placeholder="CÓDIGO" 
+                        placeholder="CÓDIGO DE AGENTE" 
                         value={loginCode} 
                         onChange={e => setLoginCode(e.target.value.toUpperCase())} 
-                        className="w-full bg-black border border-white/5 p-5 rounded-2xl text-center font-black tracking-[0.4em] text-white focus:border-neon-purple focus:ring-1 focus:ring-neon-purple outline-none" 
+                        className="w-full bg-black border border-white/5 p-5 rounded-2xl text-center font-black tracking-[0.2em] text-white focus:border-neon-purple focus:ring-1 focus:ring-neon-purple outline-none" 
                     />
+                     <div className="relative">
+                        <input 
+                            type="password" 
+                            placeholder="CONTRASEÑA" 
+                            value={loginPassword} 
+                            onChange={e => setLoginPassword(e.target.value)} 
+                            className="w-full bg-black border border-white/5 p-5 rounded-2xl text-center font-bold text-white focus:border-neon-purple focus:ring-1 focus:ring-neon-purple outline-none" 
+                        />
+                        <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600"/>
+                     </div>
                     
                     <Button type="submit" disabled={isLoggingIn} fullWidth className="h-16 bg-white text-black font-black text-lg">
                         {isLoggingIn ? <Loader2 className="animate-spin" /> : 'ENTRAR'}

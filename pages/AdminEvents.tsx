@@ -1,9 +1,8 @@
-
 import React, { useState, useMemo } from 'react';
 import { 
     Trash2, Plus, Pencil, Save, Users, ShieldCheck, 
     UserCog, BadgeCheck, Database, Download, Upload, AlertTriangle, 
-    HardDrive, RefreshCcw, Layers, Target, UserPlus, Calendar, MapPin, DollarSign, Ticket, Eye, ArrowLeft, Search, User, Filter, Share2, CheckCircle2, XCircle, MinusCircle
+    HardDrive, RefreshCcw, Layers, Target, UserPlus, Calendar, MapPin, DollarSign, Ticket, Eye, ArrowLeft, Search, User, Filter, Share2, CheckCircle2, XCircle, MinusCircle, Lock
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { Button } from '../components/ui/button';
@@ -44,6 +43,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
     const [selectedManagerId, setSelectedManagerId] = useState('');
     const [staffName, setStaffName] = useState('');
     const [staffCode, setStaffCode] = useState('');
+    const [staffPassword, setStaffPassword] = useState('');
     const [staffRole, setStaffRole] = useState<'promoter' | 'manager'>('promoter');
 
     if (role !== UserRole.ADMIN) {
@@ -104,7 +104,6 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
             cover_image: event.cover_image
         });
         const currentTiers = getEventTiers(event.id);
-        // Map to ensure fields exist
         setTierRows(currentTiers.map(t => ({
             name: t.name,
             price: t.price,
@@ -169,10 +168,10 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
     };
 
     const handleCreateStaff = () => {
-        if (!staffName || !staffCode) return alert("Completa Nombre y Código");
-        addStaff({ name: staffName, code: staffCode.toUpperCase(), role: staffRole }); 
-        setStaffName(''); setStaffCode('');
-        alert('Staff registrado');
+        if (!staffName || !staffCode || !staffPassword) return alert("Completa Nombre, Código y Contraseña");
+        addStaff({ name: staffName, code: staffCode.toUpperCase(), password: staffPassword, role: staffRole }); 
+        setStaffName(''); setStaffCode(''); setStaffPassword('');
+        alert('Staff registrado exitosamente');
     };
 
     return (
@@ -275,7 +274,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                 </div>
                             </div>
                             
-                            {/* --- SECCIÓN DE ETAPAS (RESTAURADA) --- */}
+                            {/* --- SECCIÓN DE ETAPAS --- */}
                             <div className="border-t border-white/10 pt-8 mb-8">
                                 <div className="flex justify-between items-center mb-6">
                                     <h3 className="text-xl font-black text-white flex items-center gap-2"><Ticket className="text-neon-purple"/> Etapas / Tickets</h3>
@@ -326,7 +325,8 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                 <h2 className="text-xl font-black mb-6 text-neon-blue">Autorizar Staff</h2>
                                 <div className="space-y-4">
                                     <input value={staffName} onChange={e => setStaffName(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white" placeholder="Nombre" />
-                                    <input value={staffCode} onChange={e => setStaffCode(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white uppercase" placeholder="CÓDIGO" />
+                                    <input value={staffCode} onChange={e => setStaffCode(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white uppercase" placeholder="CÓDIGO (USUARIO)" />
+                                    <input type="password" value={staffPassword} onChange={e => setStaffPassword(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white" placeholder="CONTRASEÑA" />
                                     
                                     <select value={staffRole} onChange={(e:any) => setStaffRole(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white uppercase">
                                         <option value="promoter">Promotor</option>
