@@ -1,16 +1,8 @@
 
-// import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 
-// --- OFFLINE MODE ACTIVATED ---
-// Supabase connection disabled by user request to return to local state management.
-// To re-enable, uncomment lines below and in StoreContext.
+// Credentials provided by the user
+const supabaseUrl = 'https://wlhqltksjbkrcyrksjlz.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsaHFsdGtzamJrcmN5cmtzamx6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyMDY3NzcsImV4cCI6MjA4Njc4Mjc3N30.honkLqrlMSkBUDv5nL3BlCvykcjlH-eac_IiC_l1n1g';
 
-// const supabaseUrl = '...';
-// const supabaseAnonKey = '...';
-
-// export const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-// Dummy export to prevent import errors in other files if any remain
-export const supabase = {
-    from: () => ({ select: () => ({}), insert: () => ({}), update: () => ({}), delete: () => ({}) })
-};
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
