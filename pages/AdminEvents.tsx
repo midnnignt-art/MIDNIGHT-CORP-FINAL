@@ -44,7 +44,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
     const [staffName, setStaffName] = useState('');
     const [staffCode, setStaffCode] = useState('');
     const [staffPassword, setStaffPassword] = useState('');
-    const [staffRole, setStaffRole] = useState<'promoter' | 'manager'>('promoter');
+    const [staffRole, setStaffRole] = useState<'PROMOTER' | 'MANAGER' | 'HEAD_OF_SALES'>('PROMOTER');
 
     if (role !== UserRole.ADMIN) {
         return <div className="pt-32 text-center text-red-500 font-bold">ACCESO NO AUTORIZADO</div>;
@@ -329,8 +329,8 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                     <input type="password" value={staffPassword} onChange={e => setStaffPassword(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white" placeholder="CONTRASEÑA" />
                                     
                                     <select value={staffRole} onChange={(e:any) => setStaffRole(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white uppercase">
-                                        <option value="promoter">Promotor</option>
-                                        <option value="manager">Manager</option>
+                                        <option value="PROMOTER">Promotor</option>
+                                        <option value="MANAGER">Manager</option>
                                         <option value="HEAD_OF_SALES">Head of Sales</option>
                                     </select>
 
@@ -345,7 +345,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                     <input value={newTeamName} onChange={e => setNewTeamName(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white" placeholder="Nombre del Equipo" />
                                     <select value={selectedManagerId} onChange={e => setSelectedManagerId(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white">
                                         <option value="">Seleccionar Manager</option>
-                                        {promoters.filter(p => p.role === 'manager' || p.role === 'HEAD_OF_SALES').map(p => (
+                                        {promoters.filter(p => p.role === 'MANAGER' || p.role === 'HEAD_OF_SALES').map(p => (
                                             <option key={p.user_id} value={p.user_id}>{p.name}</option>
                                         ))}
                                     </select>

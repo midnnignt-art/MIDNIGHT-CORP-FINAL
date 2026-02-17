@@ -152,8 +152,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         
         // 1. BACKDOOR ADMIN (Emergencia)
         if (c === 'ADMIN123') {
-             // Si quieres seguridad extra aquí, podrías chequear password === 'admin'
-             // pero por ahora lo dejamos abierto para que no te quedes fuera.
              const adminUser = promoters.find(p => p.role === UserRole.ADMIN);
              const user = adminUser || {
                  user_id: 'admin-local',
@@ -177,11 +175,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 .eq('code', c)
                 .single();
             
-            // Si proveen contraseña, la verificamos. Si no, fallamos (a menos que sea modo legacy)
             if (password) {
-                // Verificación manual ya que RLS nos deja leer.
-                // Idealmente haríamos .eq('password', password) en la query, 
-                // pero lo haremos en dos pasos para mejor debug si falla.
                 const { data, error } = await query;
                 
                 if (error || !data) return false;
@@ -202,7 +196,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     fetchData();
                     return true;
                 } else {
-                    alert("Contraseña incorrecta.");
                     return false;
                 }
             } else {
@@ -302,7 +295,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 email: `${staffData.name.toLowerCase().replace(/\s+/g, '.')}@midnight.com`,
                 full_name: staffData.name,
                 code: staffData.code,
-                password: staffData.password, // GUARDAMOS LA CONTRASEÑA
+                password: staffData.password || '1234', // GUARDAMOS LA CONTRASEÑA
                 role: staffData.role,
                 sales_team_id: staffData.sales_team_id || null,
                 manager_id: staffData.manager_id || null

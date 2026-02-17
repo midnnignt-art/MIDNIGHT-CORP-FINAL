@@ -28,10 +28,11 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   // Recruitment State (Manager scope)
   const [newStaffName, setNewStaffName] = useState('');
   const [newStaffCode, setNewStaffCode] = useState('');
+  const [newStaffPassword, setNewStaffPassword] = useState(''); // NEW PASSWORD FIELD
 
   // Detailed View State
   const [viewingStaffId, setViewingStaffId] = useState<string | null>(null);
-  const [viewingTeamId, setViewingTeamId] = useState<string | null>(null); // Nuevo estado para auditoría de equipos
+  const [viewingTeamId, setViewingTeamId] = useState<string | null>(null);
 
   if (!currentUser) return null;
 
@@ -90,7 +91,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
               commission,
               net: gross - commission
           };
-      }).filter(s => s.gross > 0 || s.role !== 'promoter');
+      }).filter(s => s.gross > 0 || s.role !== 'PROMOTER');
 
       const organicOrders = filteredOrders.filter(o => !o.staff_id);
       const organicGross = organicOrders.reduce((acc, o) => acc + o.total, 0);
@@ -105,7 +106,6 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
       if (!team) return null;
 
       const memberIds = [team.manager_id, ...team.members_ids];
-      // Filtrar órdenes del equipo y aplicar filtro de evento si está seleccionado
       const teamOrders = orders.filter(o => {
           const isTeamMember = o.staff_id && memberIds.includes(o.staff_id);
           const isEventMatch = selectedEventFilter === 'all' || o.event_id === selectedEventFilter;
@@ -148,9 +148,16 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   };
 
   const handleManagerRecruit = () => {
-      if (!newStaffName || !newStaffCode || !myTeam) return;
-      addStaff({ name: newStaffName, code: newStaffCode.toUpperCase(), role: 'promoter', sales_team_id: myTeam.id, manager_id: currentUser.id });
-      setNewStaffName(''); setNewStaffCode(''); setShowRecruitmentModal(false);
+      if (!newStaffName || !newStaffCode || !newStaffPassword || !myTeam) return;
+      addStaff({ 
+          name: newStaffName, 
+          code: newStaffCode.toUpperCase(), 
+          password: newStaffPassword, // ENVÍO DE CONTRASEÑA
+          role: UserRole.PROMOTER, // 'PROMOTER'
+          sales_team_id: myTeam.id, 
+          manager_id: currentUser.id 
+      });
+      setNewStaffName(''); setNewStaffCode(''); setNewStaffPassword(''); setShowRecruitmentModal(false);
   };
 
   const staffDetails = useMemo(() => {
@@ -464,6 +471,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                       <div className="space-y-4">
                           <input value={newStaffName} onChange={e => setNewStaffName(e.target.value)} className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold" placeholder="NOMBRE COMPLETO" />
                           <input value={newStaffCode} onChange={e => setNewStaffCode(e.target.value)} className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-mono uppercase font-bold" placeholder="CÓDIGO ÚNICO" />
+                          <input value={newStaffPassword} onChange={e => setNewStaffPassword(e.target.value)} type="password" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold" placeholder="ASIGNAR CONTRASEÑA" />
                           <Button onClick={handleManagerRecruit} fullWidth className="bg-white text-black font-black h-16 rounded-2xl mt-4">DAR DE ALTA</Button>
                       </div>
                   </motion.div>
