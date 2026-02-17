@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { UserRole, Promoter, SalesTeam, Order } from '../types';
 import { Button } from '../components/ui/button';
-import { Banknote, Award, Target, History, Users, Plus, X, Layers, UserPlus, TrendingUp, Sparkles, ChevronRight, Trash2, ShieldCheck, PieChart, Eye, Calendar, Ticket, ArrowRightLeft, ScrollText, Wallet, Link as LinkIcon, Copy, Share2, Check, Smartphone, User, Search, Filter } from 'lucide-react';
+import { Banknote, Award, Target, History, Users, Plus, X, Layers, UserPlus, TrendingUp, Sparkles, ChevronRight, Trash2, ShieldCheck, PieChart, Eye, Calendar, Ticket, ArrowRightLeft, ScrollText, Wallet, Link as LinkIcon, Copy, Share2, Check, Smartphone, User, Search, Filter, Loader2 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import PromoterRanking from '../components/PromoterRanking';
 import { motion as _motion, AnimatePresence } from 'framer-motion';
@@ -24,6 +24,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   const [selectedEventId, setSelectedEventId] = useState('');
   const [cart, setCart] = useState<{tierId: string, quantity: number}[]>([]);
   const [manualCustomerInfo, setManualCustomerInfo] = useState({ name: '', email: '' });
+  const [isProcessingSale, setIsProcessingSale] = useState(false);
 
   // Recruitment State (Manager scope)
   const [newStaffName, setNewStaffName] = useState('');
@@ -139,11 +140,12 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
     return { kpiSales: sales, kpiCommissions: commissions, kpiNetToSend: netToSend, scopeLabel: label };
   }, [orders, currentUser, teams, isHead, isManager, myTeam]);
 
-  const handleManualSale = () => {
+  const handleManualSale = async () => {
     if (!selectedEventId || cart.length === 0) return;
     if (!manualCustomerInfo.name || !manualCustomerInfo.email) return alert("Faltan datos.");
     
-    // CORRECCIÓN: Hidratar el carrito con datos completos del tier (precio, nombre, subtotal)
+    setIsProcessingSale(true);
+
     const fullCartItems = cart.map(item => {
         const tier = tiers.find(t => t.id === item.tierId);
         return {
@@ -155,10 +157,20 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
         };
     });
 
-    // Use currentUser.user_id, not .id (Promoter type has user_id)
-    createOrder(selectedEventId, fullCartItems, 'cash', currentUser.user_id, manualCustomerInfo);
-    setCart([]); setManualCustomerInfo({ name: '', email: '' });
-    setShowManualSale(false); setSelectedEventId('');
+    const total = fullCartItems.reduce((acc, item) => acc + item.subtotal, 0);
+
+    // Call createOrder safely. If staff ID is invalid, it will fallback to organic inside StoreContext.
+    const result = await createOrder(selectedEventId, fullCartItems, 'cash', currentUser.user_id, manualCustomerInfo);
+    
+    setIsProcessingSale(false);
+
+    if (result) {
+        setCart([]); 
+        setManualCustomerInfo({ name: '', email: '' });
+        setShowManualSale(false); 
+        setSelectedEventId('');
+        alert(`¡Venta Registrada Exitosamente!\nTotal: $${total.toLocaleString()}`);
+    }
   };
 
   const handleManagerRecruit = () => {
@@ -491,6 +503,181 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                   </motion.div>
               </div>
           )}
+      </AnimatePresence>
+
+      {/* AUDITORÍA DE STAFF INDIVIDUAL */}
+      <AnimatePresence>
+        {viewingStaffId && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md">
+                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-zinc-900 border border-white/10 p-8 rounded-[3rem] w-full max-w-2xl shadow-2xl relative">
+                    <button onClick={() => setViewingStaffId(null)} className="absolute top-8 right-8 text-zinc-600 hover:text-white"><X size={32}/></button>
+                    <div className="mb-8">
+                        <h2 className="text-3xl font-black text-white flex items-center gap-3"><History className="text-neon-blue" /> Auditoría de Ventas</h2>
+                        <p className="text-lg text-zinc-400 mt-2 font-bold">{staffDetails.name}</p>
+                    </div>
+                    <div className="bg-black/40 rounded-3xl border border-white/5 overflow-hidden max-h-[50vh] overflow-y-auto custom-scrollbar">
+                         {staffDetails.sales.length > 0 ? (
+                            <table className="w-full text-left">
+                                <thead className="bg-white/5 text-[10px] text-zinc-500 uppercase font-black tracking-widest sticky top-0 backdrop-blur-md">
+                                    <tr><th className="p-4">Fecha</th><th className="p-4">Cliente</th><th className="p-4 text-right">Total</th></tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5 text-sm">
+                                    {staffDetails.sales.map(order => (
+                                        <tr key={order.id} className="hover:bg-white/5 transition-colors">
+                                            <td className="p-4 text-zinc-400 whitespace-nowrap">{new Date(order.timestamp).toLocaleDateString()}</td>
+                                            <td className="p-4 font-bold text-white">{order.customer_name}</td>
+                                            <td className="p-4 text-right font-black text-neon-green">${order.total.toLocaleString()}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                         ) : (<div className="p-10 text-center text-zinc-500">Sin ventas registradas</div>)}
+                    </div>
+                </motion.div>
+            </div>
+        )}
+      </AnimatePresence>
+
+      {/* AUDITORÍA DE SQUAD (EQUIPO COMPLETO) */}
+      <AnimatePresence>
+        {teamAuditDetails && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md">
+                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-zinc-900 border border-white/10 p-8 rounded-[3rem] w-full max-w-4xl shadow-2xl relative flex flex-col max-h-[90vh]">
+                    <button onClick={() => setViewingTeamId(null)} className="absolute top-8 right-8 text-zinc-600 hover:text-white z-10"><X size={32}/></button>
+                    <div className="mb-8 flex-shrink-0">
+                        <div className="flex items-center gap-4 mb-2">
+                             <div className="w-14 h-14 bg-neon-purple/20 rounded-2xl flex items-center justify-center border border-neon-purple/20">
+                                 <Layers className="text-neon-purple w-7 h-7" />
+                             </div>
+                             <div>
+                                 <h2 className="text-3xl font-black text-white tracking-tight">AUDITORÍA SQUAD</h2>
+                                 <p className="text-sm font-bold text-zinc-500 uppercase tracking-widest">{teamAuditDetails.team.name}</p>
+                             </div>
+                        </div>
+                        <div className="flex gap-4 mt-4 text-xs font-bold text-zinc-400">
+                             <div className="bg-white/5 px-3 py-1 rounded-lg">Ventas Totales: <span className="text-white">{teamAuditDetails.orders.length}</span></div>
+                             <div className="bg-white/5 px-3 py-1 rounded-lg">Filtro: <span className="text-white uppercase">{selectedEventFilter === 'all' ? 'Todos los eventos' : 'Evento Seleccionado'}</span></div>
+                        </div>
+                    </div>
+
+                    <div className="bg-black/40 rounded-3xl border border-white/5 overflow-hidden flex-1 overflow-y-auto custom-scrollbar">
+                         {teamAuditDetails.orders.length > 0 ? (
+                            <table className="w-full text-left">
+                                <thead className="bg-white/5 text-[10px] text-zinc-500 uppercase font-black tracking-widest sticky top-0 backdrop-blur-md z-10">
+                                    <tr>
+                                        <th className="p-5">Fecha / Factura</th>
+                                        <th className="p-5">Vendedor (Staff)</th>
+                                        <th className="p-5">Cliente Final</th>
+                                        <th className="p-5">Items</th>
+                                        <th className="p-5 text-right">Total</th>
+                                        <th className="p-5 text-right text-emerald-500">Comisión</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5 text-sm">
+                                    {teamAuditDetails.orders.map(order => {
+                                        const seller = promoters.find(p => p.user_id === order.staff_id);
+                                        return (
+                                            <tr key={order.id} className="hover:bg-white/5 transition-colors group">
+                                                <td className="p-5">
+                                                    <div className="font-mono text-xs text-zinc-400">{new Date(order.timestamp).toLocaleDateString()}</div>
+                                                    <div className="text-[10px] font-bold text-zinc-600 group-hover:text-neon-blue">{order.order_number}</div>
+                                                </td>
+                                                <td className="p-5">
+                                                    {seller ? (
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-black text-white">
+                                                                {seller.name.charAt(0)}
+                                                            </div>
+                                                            <span className="font-bold text-white text-xs">{seller.name}</span>
+                                                        </div>
+                                                    ) : <span className="text-zinc-600 italic">Desconocido</span>}
+                                                </td>
+                                                <td className="p-5">
+                                                    <div className="font-bold text-white text-xs">{order.customer_name}</div>
+                                                    <div className="text-[10px] text-zinc-500 truncate max-w-[120px]">{order.customer_email}</div>
+                                                </td>
+                                                <td className="p-5">
+                                                    <div className="space-y-1">
+                                                        {order.items.map((i, idx) => (
+                                                            <div key={idx} className="text-[10px] text-zinc-300 flex items-center gap-1">
+                                                                <Ticket size={10} className="text-neon-purple"/> {i.quantity}x {i.tier_name}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </td>
+                                                <td className="p-5 text-right font-black text-white">${order.total.toLocaleString()}</td>
+                                                <td className="p-5 text-right font-bold text-emerald-500">+${order.commission_amount.toLocaleString()}</td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                         ) : (
+                            <div className="h-full flex flex-col items-center justify-center text-zinc-600">
+                                <Layers size={48} className="mb-4 opacity-20"/>
+                                <p className="font-bold text-sm">Este equipo no registra ventas en el periodo seleccionado.</p>
+                            </div>
+                         )}
+                    </div>
+                </motion.div>
+            </div>
+        )}
+      </AnimatePresence>
+
+      {/* COBRO MANUAL */}
+      <AnimatePresence>
+        {showManualSale && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md">
+                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-zinc-900 border border-white/10 p-10 rounded-[3rem] w-full max-w-lg shadow-2xl relative">
+                    <button onClick={() => !isProcessingSale && setShowManualSale(false)} disabled={isProcessingSale} className="absolute top-8 right-8 text-zinc-600 hover:text-white disabled:opacity-50"><X size={32}/></button>
+                    <h2 className="text-3xl font-black text-white mb-8 text-center tracking-tighter uppercase">Cobro Manual</h2>
+                    <div className="space-y-6">
+                        <select 
+                            value={selectedEventId} 
+                            onChange={e => {setSelectedEventId(e.target.value); setCart([]);}} 
+                            disabled={isProcessingSale}
+                            className="w-full bg-black border border-white/5 p-4 rounded-2xl text-white font-black text-center h-14 uppercase disabled:opacity-50"
+                        >
+                            <option value="">ELIJA EVENTO</option>
+                            {events.map(e => <option key={e.id} value={e.id}>{e.title}</option>)}
+                        </select>
+                        {selectedEventId && (
+                            <div className="space-y-2">
+                                {getEventTiers(selectedEventId).map(t => (
+                                    <div key={t.id} onClick={() => !isProcessingSale && setCart(prev => {
+                                        const ex = prev.find(i => i.tierId === t.id);
+                                        if (ex) return prev.map(i => i.tierId === t.id ? {...i, quantity: i.quantity + 1} : i);
+                                        return [...prev, {tierId: t.id, quantity: 1}];
+                                    })} className={`flex justify-between items-center p-4 bg-white/5 rounded-2xl cursor-pointer hover:bg-neon-blue/20 border border-white/5 transition-all ${isProcessingSale ? 'opacity-50 pointer-events-none' : ''}`}>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-black text-white">
+                                                {cart.find(i => i.tierId === t.id)?.quantity || 0}
+                                            </div>
+                                            <p className="font-bold text-white uppercase text-sm">{t.name}</p>
+                                        </div>
+                                        <p className="text-neon-blue font-black">${t.price}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        {cart.length > 0 && (
+                            <div className="space-y-3 pt-4 border-t border-white/5">
+                                <input disabled={isProcessingSale} value={manualCustomerInfo.name} onChange={e => setManualCustomerInfo({...manualCustomerInfo, name: e.target.value})} placeholder="NOMBRE CLIENTE" className="w-full bg-black border border-white/10 p-4 rounded-xl text-white text-xs font-bold disabled:opacity-50" />
+                                <input disabled={isProcessingSale} value={manualCustomerInfo.email} onChange={e => setManualCustomerInfo({...manualCustomerInfo, email: e.target.value})} placeholder="CORREO" className="w-full bg-black border border-white/10 p-4 rounded-xl text-white text-xs font-bold disabled:opacity-50" />
+                                <Button 
+                                    onClick={handleManualSale} 
+                                    disabled={isProcessingSale}
+                                    fullWidth 
+                                    className="bg-white text-black font-black h-16 text-lg rounded-2xl mt-4 disabled:opacity-70 disabled:cursor-not-allowed"
+                                >
+                                    {isProcessingSale ? <Loader2 className="animate-spin w-6 h-6"/> : `REGISTRAR PAGO ($${cart.reduce((a, b) => a + (tiers.find(t => t.id === b.tierId)?.price || 0) * b.quantity, 0).toLocaleString()})`}
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                </motion.div>
+            </div>
+        )}
       </AnimatePresence>
     </div>
   );

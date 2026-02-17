@@ -50,7 +50,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Efecto secundario para reconectar usuario cuando carguen los promotores
     useEffect(() => {
         const storedId = localStorage.getItem('midnight_user_id');
-        if (storedId && promoters.length > 0 && !currentUser) {
+        if (storedId && promoters.length >0 && !currentUser) {
             const user = promoters.find(p => p.user_id === storedId);
             if (user) setCurrentUser(user);
         }
@@ -172,7 +172,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
              }
 
              // FALLBACK: Use the STATIC UUID from the SQL seed.
-             // This ensures that even if fetch fails, the ID matches the DB constraint.
              const user = adminUser || {
                  user_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 
                  name: 'Super Admin',
@@ -187,7 +186,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
              return true;
         }
 
-        // 2. Login Real contra Supabase (Código + Contraseña)
+        // 2. Login Real contra Supabase
         try {
             let query = supabase
                 .from('profiles')
@@ -200,7 +199,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 
                 if (error || !data) return false;
 
-                // Verificación simple de texto plano (MVP)
                 if (data.password === password) {
                     const mappedUser: Promoter = {
                         user_id: data.id,
@@ -238,7 +236,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const addEvent = async (eventData: any, tierData: any[]) => {
         try {
-            // 1. Insert Event
             const { data: newEvent, error: eventError } = await supabase
                 .from('events')
                 .insert({
@@ -257,12 +254,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 .select()
                 .single();
 
-            if (eventError) {
-                console.error("Supabase Event Error:", eventError);
-                throw new Error("Fallo al crear el evento principal.");
-            }
+            if (eventError) throw eventError;
 
-            // 2. Insert Tiers
             const tiersToInsert = tierData.map(t => ({
                 event_id: newEvent.id,
                 name: t.name,
@@ -272,16 +265,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 stage: t.stage || 'general'
             }));
 
-            const { error: tiersError } = await supabase.from('ticket_tiers').insert(tiersToInsert);
-            if (tiersError) {
-                console.error("Supabase Tiers Error:", tiersError);
-                alert("Evento creado, pero hubo un error guardando los tickets. Por favor edita el evento.");
-            }
-
+            await supabase.from('ticket_tiers').insert(tiersToInsert);
             await fetchData();
         } catch (error: any) {
             console.error("Error creating event:", error);
-            alert(`Error crítico: ${error.message || 'No se pudo conectar a la base de datos.'}`);
+            alert(`Error crítico: ${error.message}`);
         }
     };
 
@@ -301,30 +289,26 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             await fetchData();
         } catch (error) {
             console.error("Error deleting event:", error);
-            alert("No se pudo eliminar el evento (Verifica que no tenga ventas asociadas).");
+            alert("No se pudo eliminar el evento.");
         }
     };
 
     const addStaff = async (staffData: any) => {
         try {
-            // Generamos un UUID random (Evitamos Auth users de Supabase)
             const tempId = crypto.randomUUID();
-            
             const { error } = await supabase.from('profiles').insert({
                 id: tempId,
                 email: `${staffData.name.toLowerCase().replace(/\s+/g, '.')}@midnight.com`,
                 full_name: staffData.name,
                 code: staffData.code,
-                password: staffData.password || '1234', // GUARDAMOS LA CONTRASEÑA
+                password: staffData.password || '1234',
                 role: staffData.role,
                 sales_team_id: staffData.sales_team_id || null,
                 manager_id: staffData.manager_id || null
             });
-
             if (error) throw error;
-            
             await fetchData();
-            alert("Usuario creado exitosamente. Ahora puede ingresar con su código y contraseña.");
+            alert("Usuario creado exitosamente.");
         } catch (error: any) {
             console.error("Error creating staff:", error);
             alert(`Error al crear usuario: ${error.message}`);
@@ -364,7 +348,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 if (tier) commission += (tier.commission_fixed || 0) * item.quantity;
             });
             
-            // SANITIZE STAFF ID: Ensure it's a valid UUID, otherwise null.
             const isValidUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
             
             let finalStaffId = null;
@@ -377,25 +360,48 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                  }
             }
 
-            // 1. Insert Order (Force completed for Beta)
-            const { data: order, error: orderError } = await supabase
+            const orderPayload = {
+                order_number: orderNumber,
+                event_id: eventId,
+                customer_name: customerInfo?.name || 'Anon',
+                customer_email: customerInfo?.email || 'anon@mail.com',
+                total: total,
+                status: 'completed', 
+                payment_method: method || 'cash',
+                staff_id: finalStaffId, 
+                commission_amount: finalStaffId ? commission : 0,
+                net_amount: total - (finalStaffId ? commission : 0)
+            };
+
+            // 1. Attempt Insert Order
+            let { data: order, error: orderError } = await supabase
                 .from('orders')
-                .insert({
-                    order_number: orderNumber,
-                    event_id: eventId,
-                    customer_name: customerInfo?.name || 'Anon',
-                    customer_email: customerInfo?.email || 'anon@mail.com',
-                    total: total,
-                    status: 'completed', // FORZAMOS STATUS COMPLETADO (SIN PAGO REAL)
-                    payment_method: method || 'cash',
-                    staff_id: finalStaffId, 
-                    commission_amount: finalStaffId ? commission : 0,
-                    net_amount: total - (finalStaffId ? commission : 0)
-                })
+                .insert(orderPayload)
                 .select()
                 .single();
 
+            // 1b. FALLBACK: If error is Foreign Key Violation (likely invalid Staff ID), try Organic
+            if (orderError && orderError.code === '23503' && finalStaffId) {
+                console.warn("Invalid Staff ID detected during order creation. Retrying as Organic Sale.");
+                const fallbackPayload = { 
+                    ...orderPayload, 
+                    staff_id: null, 
+                    commission_amount: 0, 
+                    net_amount: total 
+                };
+                
+                const retry = await supabase
+                    .from('orders')
+                    .insert(fallbackPayload)
+                    .select()
+                    .single();
+                
+                order = retry.data;
+                orderError = retry.error;
+            }
+
             if (orderError) throw orderError;
+            if (!order) throw new Error("Order creation failed - no data returned.");
 
             // 2. Insert Order Items
             const itemsToInsert = cartItems.map(item => ({
@@ -408,14 +414,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }));
 
             const { error: itemsError } = await supabase.from('order_items').insert(itemsToInsert);
+            
             if (itemsError) {
-                // Si falla al insertar items, probablemente los IDs de tiers están viejos.
-                // Intentamos eliminar la orden para no dejar basura y lanzamos error.
+                // If items insertion fails (likely due to stale tier IDs), cleanup and throw
                 await supabase.from('orders').delete().eq('id', order.id);
                 throw itemsError;
             }
 
-            // 3. Update Inventory
+            // 3. Update Inventory & Stats
             for (const item of cartItems) {
                 const tier = tiers.find(t => t.id === item.tier_id);
                 if (tier) {
@@ -426,7 +432,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 }
             }
 
-            // 4. Update Event Stats
+            // Update Event Revenue
             const event = events.find(e => e.id === eventId);
             if (event) {
                 await supabase.from('events').update({
@@ -435,14 +441,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 }).eq('id', eventId);
             }
 
-            // 5. Update Promoter Stats
-            if (finalStaffId) {
-                const promoter = promoters.find(p => p.user_id === finalStaffId);
+            // Update Promoter Stats (Only if staff was valid)
+            if (order.staff_id) {
+                const promoter = promoters.find(p => p.user_id === order.staff_id);
                 if (promoter) {
                     await supabase.from('profiles').update({
                         total_sales: (promoter.total_sales || 0) + total,
                         total_commission_earned: (promoter.total_commission_earned || 0) + commission
-                    }).eq('id', finalStaffId);
+                    }).eq('id', order.staff_id);
                 }
             }
 
@@ -452,20 +458,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         } catch (error: any) {
             console.error("Error creating order:", error);
             
-            // Handle Foreign Key errors specifically
-            if (error.code === '23503') { // PostgreSQL Foreign Key Violation
-                alert("DATOS DESACTUALIZADOS: Se ha reseteado la base de datos. La página se recargará para sincronizar los nuevos tickets.");
+            // Critical FK error (likely Event/Tier mismatch) requires refresh
+            if (error.code === '23503') { 
+                alert("DATOS DESACTUALIZADOS: Se ha detectado un cambio en la configuración del evento. La página se recargará.");
                 window.location.reload();
                 return null;
             }
 
-            alert(`Hubo un error al procesar la orden: ${error.message || JSON.stringify(error)}`);
+            alert(`Error al procesar la orden: ${error.message || 'Error desconocido'}`);
             return null;
         }
     };
 
     const clearDatabase = async () => {
-        alert("Acción deshabilitada en modo Producción (Supabase).");
+        alert("Acción deshabilitada.");
     };
 
     const addEventCost = async (eventId: string, cost: any) => {
