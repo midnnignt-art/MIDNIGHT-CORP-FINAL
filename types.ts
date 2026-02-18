@@ -1,3 +1,4 @@
+
 export enum UserRole {
   GUEST = 'GUEST',
   PROMOTER = 'PROMOTER', 

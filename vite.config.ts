@@ -6,8 +6,9 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     define: {
-      // Esto permite que el código siga usando process.env.API_KEY
-      'process.env.API_KEY': JSON.stringify(env.API_KEY)
+      // Esto permite que el código siga usando process.env.API_KEY y process.env.RESEND_API_KEY
+      'process.env.API_KEY': JSON.stringify(env.API_KEY),
+      'process.env.RESEND_API_KEY': JSON.stringify(env.RESEND_API_KEY)
     }
   };
 });

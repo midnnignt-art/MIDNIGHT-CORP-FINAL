@@ -5,35 +5,31 @@ import { UserRole } from '../types';
 import { useStore } from '../context/StoreContext';
 
 export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage: string; }> = ({ onNavigate, currentPage }) => {
-  const { currentUser, logout, login, dbStatus } = useStore();
-  const [isOpen, setIsOpen] = useState(false);
+  const { currentUser, login, logout, dbStatus } = useStore();
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [loginCode, setLoginCode] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [code, setCode] = useState('');
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!loginCode) return;
-      
-      setIsLoggingIn(true);
-      try {
-          // Intentamos el login con contraseña
-          const success = await login(loginCode, loginPassword);
-          if (success) {
-              setShowLoginModal(false);
-              setLoginCode('');
-              setLoginPassword('');
-              onNavigate('dashboard');
-          } else {
-              alert('Credenciales inválidas. Verifica tu código y contraseña.');
-          }
-      } catch (err) {
-          console.error("Login component error:", err);
-          alert('Error de conexión.');
-      } finally {
-          setIsLoggingIn(false);
-      }
+    e.preventDefault();
+    setIsLoading(true);
+    setLoginError(false);
+    
+    // Simular un pequeño delay de red
+    setTimeout(async () => {
+        const success = await login(code, password);
+        setIsLoading(false);
+        if (success) {
+            setShowLoginModal(false);
+            setCode('');
+            setPassword('');
+            onNavigate('dashboard');
+        } else {
+            setLoginError(true);
+        }
+    }, 500);
   };
   
   const handleQuickCopy = () => {
@@ -79,7 +75,7 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
 
       <div className="flex items-center gap-4">
         {!currentUser ? (
-            <Button onClick={() => setShowLoginModal(true)} className="bg-white text-black font-black h-11 px-6 rounded-xl">LOG STAFF</Button>
+            <Button onClick={() => setShowLoginModal(true)} className="bg-white text-black font-black h-11 px-6 rounded-xl">LOGIN STAFF</Button>
         ) : (
             <div className="flex items-center gap-4">
                 <div className="text-right hidden sm:block">
@@ -95,46 +91,44 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
     {showLoginModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl">
             <div className="w-full max-w-sm bg-zinc-900 border border-white/10 p-10 rounded-[2.5rem] shadow-2xl relative">
-                <div className="flex justify-center mb-8">
-                    <div className="w-20 h-20 bg-neon-purple/20 rounded-[2rem] flex items-center justify-center border border-neon-purple/20">
-                        <User size={40} className="text-neon-purple"/>
+                <button onClick={() => setShowLoginModal(false)} className="absolute top-6 right-6 text-zinc-600 hover:text-white"><X size={24}/></button>
+                
+                <div className="flex justify-center mb-6">
+                    <div className="w-20 h-20 bg-white/5 rounded-[2rem] flex items-center justify-center border border-white/10 relative">
+                        <Lock size={32} className="text-white"/>
+                        <div className="absolute inset-0 bg-neon-purple/20 blur-xl rounded-full"></div>
                     </div>
                 </div>
                 
-                <h2 className="text-2xl font-black text-white text-center mb-2">Acceso Midnight</h2>
-                <p className="text-zinc-500 text-xs text-center mb-6 uppercase font-bold tracking-widest">Authorized Personnel Only</p>
+                <h2 className="text-2xl font-black text-white text-center mb-2">Acceso Restringido</h2>
+                <p className="text-zinc-500 text-xs text-center mb-8 uppercase font-bold tracking-widest">Solo personal autorizado</p>
                 
                 <form onSubmit={handleLogin} className="space-y-4">
                     <input 
                         autoFocus 
                         type="text" 
                         placeholder="CÓDIGO DE AGENTE" 
-                        value={loginCode} 
-                        onChange={e => setLoginCode(e.target.value.toUpperCase())} 
-                        className="w-full bg-black border border-white/5 p-5 rounded-2xl text-center font-black tracking-[0.2em] text-white focus:border-neon-purple focus:ring-1 focus:ring-neon-purple outline-none" 
+                        value={code} 
+                        onChange={e => setCode(e.target.value)} 
+                        className="w-full bg-black border border-white/5 p-5 rounded-2xl text-center font-bold text-white focus:border-neon-purple focus:ring-1 focus:ring-neon-purple outline-none uppercase" 
                     />
-                     <div className="relative">
-                        <input 
-                            type="password" 
-                            placeholder="CONTRASEÑA" 
-                            value={loginPassword} 
-                            onChange={e => setLoginPassword(e.target.value)} 
-                            className="w-full bg-black border border-white/5 p-5 rounded-2xl text-center font-bold text-white focus:border-neon-purple focus:ring-1 focus:ring-neon-purple outline-none" 
-                        />
-                        <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600"/>
-                     </div>
+                    <input 
+                        type="password" 
+                        placeholder="CONTRASEÑA" 
+                        value={password} 
+                        onChange={e => setPassword(e.target.value)} 
+                        className="w-full bg-black border border-white/5 p-5 rounded-2xl text-center font-bold text-white focus:border-neon-purple focus:ring-1 focus:ring-neon-purple outline-none" 
+                    />
                     
-                    <Button type="submit" disabled={isLoggingIn} fullWidth className="h-16 bg-white text-black font-black text-lg">
-                        {isLoggingIn ? <Loader2 className="animate-spin" /> : 'ENTRAR'}
+                    {loginError && (
+                        <div className="flex items-center gap-2 justify-center text-red-500 text-xs font-bold animate-pulse">
+                            <AlertCircle size={12}/> Credenciales inválidas
+                        </div>
+                    )}
+
+                    <Button type="submit" disabled={isLoading} fullWidth className="h-16 bg-white text-black font-black text-lg">
+                        {isLoading ? <Loader2 className="animate-spin" /> : 'INICIAR SESIÓN'}
                     </Button>
-                    
-                    <button 
-                        type="button" 
-                        onClick={() => setShowLoginModal(false)} 
-                        className="w-full py-2 text-xs text-zinc-600 font-bold hover:text-white uppercase tracking-widest transition-colors"
-                    >
-                        Cancelar
-                    </button>
                 </form>
             </div>
         </div>

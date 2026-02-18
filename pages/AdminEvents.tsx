@@ -43,7 +43,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
     const [selectedManagerId, setSelectedManagerId] = useState('');
     const [staffName, setStaffName] = useState('');
     const [staffCode, setStaffCode] = useState('');
-    const [staffPassword, setStaffPassword] = useState('');
+    const [staffEmail, setStaffEmail] = useState(''); // NEW EMAIL FIELD
     const [staffRole, setStaffRole] = useState<'PROMOTER' | 'MANAGER' | 'HEAD_OF_SALES'>('PROMOTER');
 
     if (role !== UserRole.ADMIN) {
@@ -168,10 +168,10 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
     };
 
     const handleCreateStaff = () => {
-        if (!staffName || !staffCode || !staffPassword) return alert("Completa Nombre, Código y Contraseña");
-        addStaff({ name: staffName, code: staffCode.toUpperCase(), password: staffPassword, role: staffRole }); 
-        setStaffName(''); setStaffCode(''); setStaffPassword('');
-        alert('Staff registrado exitosamente');
+        if (!staffName || !staffCode || !staffEmail) return alert("Completa Nombre, Código y Email.");
+        addStaff({ name: staffName, code: staffCode.toUpperCase(), email: staffEmail, role: staffRole }); 
+        setStaffName(''); setStaffCode(''); setStaffEmail('');
+        alert('Staff registrado. Podrá ingresar vía Email OTP.');
     };
 
     return (
@@ -326,7 +326,9 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                 <div className="space-y-4">
                                     <input value={staffName} onChange={e => setStaffName(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white" placeholder="Nombre" />
                                     <input value={staffCode} onChange={e => setStaffCode(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white uppercase" placeholder="CÓDIGO (USUARIO)" />
-                                    <input type="password" value={staffPassword} onChange={e => setStaffPassword(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white" placeholder="CONTRASEÑA" />
+                                    
+                                    {/* CAMBIO: INPUT EMAIL REQUERIDO PARA OTP */}
+                                    <input type="email" value={staffEmail} onChange={e => setStaffEmail(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white" placeholder="EMAIL (Requerido para OTP)" />
                                     
                                     <select value={staffRole} onChange={(e:any) => setStaffRole(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white uppercase">
                                         <option value="PROMOTER">Promotor</option>
@@ -384,9 +386,10 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                         <div key={p.user_id} className="bg-zinc-900 border border-white/5 p-4 rounded-2xl flex justify-between items-center">
                                             <div>
                                                 <p className="font-bold">{p.name}</p>
-                                                <div className="flex gap-2 mt-1">
+                                                <div className="flex flex-col gap-1 mt-1">
                                                     <span className="text-neon-blue font-mono text-xs">[{p.code}]</span>
-                                                    <span className="text-zinc-500 text-xs uppercase">{p.role}</span>
+                                                    <span className="text-zinc-500 text-[10px]">{p.email}</span>
+                                                    <span className="text-zinc-500 text-xs uppercase font-bold">{p.role}</span>
                                                 </div>
                                             </div>
                                             <button onClick={() => deleteStaff(p.user_id)} className="text-zinc-700 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
