@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { 
     Trash2, Plus, Pencil, Save, Users, ShieldCheck, 
     UserCog, BadgeCheck, Database, Download, Upload, AlertTriangle, 
-    HardDrive, RefreshCcw, Layers, Target, UserPlus, Calendar, MapPin, DollarSign, Ticket, Eye, ArrowLeft, Search, User, Filter, Share2, CheckCircle2, XCircle, MinusCircle, Lock
+    HardDrive, RefreshCcw, Layers, Target, UserPlus, Calendar, MapPin, DollarSign, Ticket, Eye, ArrowLeft, Search, User, Filter, Share2, CheckCircle2, XCircle, MinusCircle, Lock, Key
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { Button } from '../components/ui/button';
@@ -41,9 +41,12 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
     // --- STATE: Squad/Staff Form ---
     const [newTeamName, setNewTeamName] = useState('');
     const [selectedManagerId, setSelectedManagerId] = useState('');
+    
+    // Staff Creation State
     const [staffName, setStaffName] = useState('');
-    const [staffCode, setStaffCode] = useState('');
-    const [staffEmail, setStaffEmail] = useState(''); // NEW EMAIL FIELD
+    const [staffCode, setStaffCode] = useState(''); // LOGIN CREDENTIAL 1
+    const [staffPassword, setStaffPassword] = useState('1234'); // LOGIN CREDENTIAL 2
+    const [staffEmail, setStaffEmail] = useState(''); 
     const [staffRole, setStaffRole] = useState<'PROMOTER' | 'MANAGER' | 'HEAD_OF_SALES'>('PROMOTER');
 
     if (role !== UserRole.ADMIN) {
@@ -168,10 +171,20 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
     };
 
     const handleCreateStaff = () => {
-        if (!staffName || !staffCode || !staffEmail) return alert("Completa Nombre, Código y Email.");
-        addStaff({ name: staffName, code: staffCode.toUpperCase(), email: staffEmail, role: staffRole }); 
-        setStaffName(''); setStaffCode(''); setStaffEmail('');
-        alert('Staff registrado. Podrá ingresar vía Email OTP.');
+        if (!staffName || !staffCode || !staffPassword) return alert("Nombre, Código y Contraseña son obligatorios para el acceso.");
+        // Email es opcional para Staff administrativo, pero requerido si quisieran recuperar cuenta (aunque aquí es acceso por código)
+        const finalEmail = staffEmail || `${staffCode.toLowerCase()}@midnight.staff`; 
+        
+        addStaff({ 
+            name: staffName, 
+            code: staffCode.toUpperCase(), 
+            password: staffPassword,
+            email: finalEmail, 
+            role: staffRole 
+        }); 
+        
+        setStaffName(''); setStaffCode(''); setStaffPassword('1234'); setStaffEmail('');
+        alert(`Staff registrado. Acceso con CÓDIGO: ${staffCode.toUpperCase()}`);
     };
 
     return (
@@ -323,24 +336,43 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                         <div className="space-y-8">
                             <div className="bg-zinc-900 border border-white/10 p-6 rounded-3xl">
                                 <h2 className="text-xl font-black mb-6 text-neon-blue">Autorizar Staff</h2>
+                                <p className="text-xs text-zinc-500 mb-4">Crea un código de acceso único para que el staff ingrese al Command Center.</p>
+                                
                                 <div className="space-y-4">
-                                    <input value={staffName} onChange={e => setStaffName(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white" placeholder="Nombre" />
-                                    <input value={staffCode} onChange={e => setStaffCode(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white uppercase" placeholder="CÓDIGO (USUARIO)" />
+                                    <div>
+                                        <label className="text-[10px] text-zinc-500 uppercase font-bold">Nombre Completo</label>
+                                        <input value={staffName} onChange={e => setStaffName(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white font-bold" placeholder="Ej: Juan Pérez" />
+                                    </div>
                                     
-                                    {/* CAMBIO: INPUT EMAIL REQUERIDO PARA OTP */}
-                                    <input type="email" value={staffEmail} onChange={e => setStaffEmail(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white" placeholder="EMAIL (Requerido para OTP)" />
+                                    <div>
+                                        <label className="text-[10px] text-zinc-500 uppercase font-bold text-neon-purple flex items-center gap-1"><Key size={10}/> Código de Acceso (Usuario)</label>
+                                        <input value={staffCode} onChange={e => setStaffCode(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white uppercase font-black tracking-wider text-center" placeholder="EJ: JUANP123" />
+                                    </div>
                                     
-                                    <select value={staffRole} onChange={(e:any) => setStaffRole(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white uppercase">
-                                        <option value="PROMOTER">Promotor</option>
-                                        <option value="MANAGER">Manager</option>
-                                        <option value="HEAD_OF_SALES">Head of Sales</option>
-                                    </select>
+                                    <div>
+                                        <label className="text-[10px] text-zinc-500 uppercase font-bold">Contraseña</label>
+                                        <input type="text" value={staffPassword} onChange={e => setStaffPassword(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white font-mono" placeholder="1234" />
+                                    </div>
 
-                                    <Button onClick={handleCreateStaff} fullWidth>REGISTRAR</Button>
+                                    <div>
+                                        <label className="text-[10px] text-zinc-500 uppercase font-bold">Email (Contacto Opcional)</label>
+                                        <input type="email" value={staffEmail} onChange={e => setStaffEmail(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-zinc-400 text-xs" placeholder="contacto@ejemplo.com" />
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="text-[10px] text-zinc-500 uppercase font-bold">Rol</label>
+                                        <select value={staffRole} onChange={(e:any) => setStaffRole(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white uppercase font-bold text-xs">
+                                            <option value="PROMOTER">Promotor</option>
+                                            <option value="MANAGER">Manager</option>
+                                            <option value="HEAD_OF_SALES">Head of Sales</option>
+                                        </select>
+                                    </div>
+
+                                    <Button onClick={handleCreateStaff} fullWidth className="bg-white text-black font-black mt-2">REGISTRAR STAFF</Button>
                                 </div>
                             </div>
 
-                            {/* --- SECCIÓN SQUADS RESTAURADA --- */}
+                            {/* --- SECCIÓN SQUADS --- */}
                             <div className="bg-zinc-900 border border-white/10 p-6 rounded-3xl">
                                 <h2 className="text-xl font-black mb-6 text-neon-purple">Crear Squad</h2>
                                 <div className="space-y-4">
@@ -387,7 +419,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                             <div>
                                                 <p className="font-bold">{p.name}</p>
                                                 <div className="flex flex-col gap-1 mt-1">
-                                                    <span className="text-neon-blue font-mono text-xs">[{p.code}]</span>
+                                                    <span className="text-neon-blue font-black text-xs">CODE: {p.code}</span>
                                                     <span className="text-zinc-500 text-[10px]">{p.email}</span>
                                                     <span className="text-zinc-500 text-xs uppercase font-bold">{p.role}</span>
                                                 </div>
