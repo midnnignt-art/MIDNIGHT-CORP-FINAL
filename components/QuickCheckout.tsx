@@ -103,25 +103,37 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
   const handlePayment = async () => {
     setIsProcessing(true);
     try {
+      // 1. Intentar crear la orden en base de datos
       const orderData = await onComplete({ 
         customerInfo: { name: name || 'Cliente Midnight', email }, 
         items: selectedItems 
       });
 
-      if (!orderData) throw new Error("No se pudo crear la orden");
+      if (!orderData) {
+         // Si falla, detenemos aquí. El error específico ya debió ser alertado por StoreContext.
+         setIsProcessing(false);
+         return; 
+      }
       
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Eres Midnight Corp. Genera un mensaje corto (15 palabras) de bienvenida VIP para ${name} que acaba de comprar tickets para ${event.title}. Tono cyber-punk elegante.`,
-      });
-      
-      setAiMessage(response.text || '¡Bienvenido a la experiencia Midnight!');
       setCompletedOrder(orderData);
+      
+      // 2. Intentar generar mensaje con IA (Opcional - No bloqueante)
+      try {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: `Eres Midnight Corp. Genera un mensaje corto (15 palabras) de bienvenida VIP para ${name} que acaba de comprar tickets para ${event.title}. Tono cyber-punk elegante.`,
+        });
+        setAiMessage(response.text || '¡Bienvenido a la experiencia Midnight!');
+      } catch (aiError) {
+        console.warn("AI Generation failed, skipping:", aiError);
+        setAiMessage('¡Acceso concedido! Bienvenido al protocolo.');
+      }
+
       setStep(3);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert("Error en el proceso de pago.");
+      alert(`Error crítico: ${error.message || 'Fallo desconocido'}`);
     } finally {
       setIsProcessing(false);
     }
