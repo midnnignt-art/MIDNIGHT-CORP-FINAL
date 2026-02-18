@@ -1,10 +1,10 @@
-
-
 import { Order, Event } from "../types";
 
 export const sendTicketEmail = async (order: Order, event: Event) => {
-  // Configured in vite.config.ts to support process.env replacement
+  // Configured in vite.config.ts
   const RESEND_KEY = process.env.RESEND_API_KEY;
+  // Si no has configurado VERIFIED_DOMAIN en .env, usa uno por defecto o 'resend.dev' si sigues probando
+  const DOMAIN = process.env.VERIFIED_DOMAIN || 'resend.dev'; 
 
   if (!RESEND_KEY) {
     console.warn("⚠️ FALTA API KEY: Configura VITE_RESEND_API_KEY en tu archivo .env");
@@ -19,15 +19,12 @@ export const sendTicketEmail = async (order: Order, event: Event) => {
     </div>
   `).join('');
 
-  // Generar Código QR Falso para el demo (apunta a la orden)
+  // Generar Código QR (apunta a la orden)
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${order.order_number}`;
 
-  // NOTA IMPORTANTE:
-  // Si NO tienes dominio verificado en Resend, el 'from' DEBE ser 'onboarding@resend.dev'
-  // y el 'to' DEBE ser tu propio email de registro para probar.
-  // Si ya verificaste dominio, cambia 'from' a 'tickets@tudominio.com'.
-  
-  const fromEmail = 'onboarding@resend.dev'; 
+  // IMPORTANTE: El 'from' debe coincidir con el dominio verificado en Resend.
+  // Ejemplo: 'tickets@midnighthq.com'
+  const fromEmail = `tickets@${DOMAIN}`; 
 
   try {
     const res = await fetch('https://api.resend.com/emails', {
@@ -38,7 +35,7 @@ export const sendTicketEmail = async (order: Order, event: Event) => {
       },
       body: JSON.stringify({
         from: `Midnight Corp <${fromEmail}>`,
-        to: [order.customer_email], // En modo testing, esto solo funciona si es TU email
+        to: [order.customer_email], // En producción (dominio verificado), esto envía a CUALQUIER email.
         subject: `CONFIRMADO: Acceso para ${event.title}`,
         html: `
           <!DOCTYPE html>

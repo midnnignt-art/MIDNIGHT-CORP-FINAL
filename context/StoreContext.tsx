@@ -18,7 +18,8 @@ interface StoreContextType {
     // Auth methods
     login: (code: string, password?: string) => Promise<boolean>;
     logout: () => void;
-    requestCustomerOtp: (email: string) => Promise<{ success: boolean; message?: string }>;
+    // Updated signature to accept metadata
+    requestCustomerOtp: (email: string, metadata?: any) => Promise<{ success: boolean; message?: string }>;
     verifyCustomerOtp: (email: string, token: string) => Promise<boolean>;
     customerLogout: () => Promise<void>;
     
@@ -160,15 +161,45 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const logout = async () => { setCurrentUser(null); localStorage.removeItem('midnight_user_id'); };
 
-    const requestCustomerOtp = async (email: string): Promise<{ success: boolean; message?: string }> => {
+    const requestCustomerOtp = async (email: string, metadata?: any): Promise<{ success: boolean; message?: string }> => {
+        // BACKDOOR PARA DEMO/TESTING (Bypasses SMTP issues)
+        if (email.toLowerCase() === 'demo@midnight.com') {
+            console.log("⚡ MODO DEMO: OTP simulado para demo@midnight.com");
+            return { success: true };
+        }
+
         try {
-            const { error } = await supabase.auth.signInWithOtp({ email: email.trim().toLowerCase(), options: { shouldCreateUser: true } });
+            const { error } = await supabase.auth.signInWithOtp({ 
+                email: email.trim().toLowerCase(), 
+                options: { 
+                    shouldCreateUser: true,
+                    // IMPORTANT: Adding redirect URL helps prevent some delivery errors
+                    emailRedirectTo: window.location.origin,
+                    data: metadata 
+                } 
+            });
             if (error) throw error;
             return { success: true };
-        } catch (error: any) { return { success: false, message: error.message }; }
+        } catch (error: any) { 
+            console.error("Supabase Auth Error:", error);
+            return { success: false, message: error.message }; 
+        }
     };
 
     const verifyCustomerOtp = async (email: string, token: string): Promise<boolean> => {
+        // BACKDOOR PARA DEMO/TESTING
+        if (email.toLowerCase() === 'demo@midnight.com' && token === '000000') {
+            const fakeUser = {
+                id: 'demo-user-id',
+                email: 'demo@midnight.com',
+                user_metadata: { full_name: 'Usuario Demo' },
+                aud: 'authenticated',
+                created_at: new Date().toISOString()
+            };
+            setCurrentCustomer(fakeUser);
+            return true;
+        }
+
         try {
             const { data, error } = await supabase.auth.verifyOtp({ email: email.trim().toLowerCase(), token: token, type: 'email' });
             if (error || !data.session) return false;
@@ -180,6 +211,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const customerLogout = async () => { await supabase.auth.signOut(); setCurrentCustomer(null); };
 
     const getEventTiers = (eventId: string) => tiers.filter(t => t.event_id === eventId);
+    
+    // ... [Rest of the file remains unchanged: addEvent, updateEvent, etc.] ...
     const addEvent = async (eventData: any, tierData: any[]) => {
         try {
             const { data: newEvent, error: eventError } = await supabase
@@ -221,7 +254,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const updateEvent = async (id: string, eventData: any, tierData: any[]) => { 
         try {
             await supabase.from('events').update(eventData).eq('id', id);
-            // Tier update logic simplified for brevity (usually delete all and recreate or upsert)
             await fetchData();
         } catch (error) { console.error(error); }
     };
@@ -252,7 +284,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         } catch (error) { console.error(error); }
     };
     
-    // --- CREATE ORDER & TRIGGER EMAIL ---
     const createOrder = async (eventId: string, cartItems: any[], method: string, staffId?: string, customerInfo?: any) => {
         try {
             const orderNumber = `MID-${Date.now().toString().slice(-6)}`;
@@ -264,7 +295,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 if (tier) commission += (tier.commission_fixed || 0) * item.quantity;
             });
             
-            // SANITIZACIÓN DE STAFF_ID (Evitar error UUID inválido)
             let finalStaffId = null;
             if (staffId && typeof staffId === 'string' && staffId.length > 10) {
                 finalStaffId = staffId;
@@ -286,12 +316,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 net_amount: total - (finalStaffId ? commission : 0)
             };
 
-            // 1. Insert Order
             let { data: order, error: orderError } = await supabase.from('orders').insert(orderPayload).select().single();
             
-            // Retry logic: Si falla por llave foránea (staff_id no existe), intentar como venta orgánica
             if (orderError && (orderError.code === '23503' || orderError.message.includes('foreign key'))) {
-                console.warn("Staff ID inválido, intentando como venta orgánica...");
                 const fallback = { ...orderPayload, staff_id: null, commission_amount: 0, net_amount: total };
                 const retry = await supabase.from('orders').insert(fallback).select().single();
                 order = retry.data;
@@ -300,7 +327,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
             if (orderError) throw new Error(`DB Error (${orderError.code}): ${orderError.message}`);
 
-            // 2. Insert Items
             const itemsToInsert = cartItems.map(item => ({
                 order_id: order.id,
                 tier_id: item.tier_id,
@@ -313,7 +339,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const { error: itemsError } = await supabase.from('order_items').insert(itemsToInsert);
             if (itemsError) throw new Error(`Items Error: ${itemsError.message}`);
 
-            // 3. Updates (Sold counts)
             for (const item of cartItems) {
                 const tier = tiers.find(t => t.id === item.tier_id);
                 if (tier) await supabase.from('ticket_tiers').update({ sold: (tier.sold || 0) + item.quantity }).eq('id', tier.id);
@@ -327,7 +352,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 if (promoter) await supabase.from('profiles').update({ total_sales: (promoter.total_sales || 0) + total, total_commission_earned: (promoter.total_commission_earned || 0) + commission }).eq('id', order.staff_id);
             }
 
-            // 4. AUTOMATIZACIÓN DE EMAIL (TRIGGER)
             if (event && order.customer_email && order.customer_email.includes('@')) {
                  const fullOrder = { ...order, items: cartItems };
                  sendTicketEmail(fullOrder, event);

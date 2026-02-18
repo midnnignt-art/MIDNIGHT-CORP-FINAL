@@ -63,11 +63,18 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
   // Helper para traducir errores de Supabase
   const translateError = (msg: string = '') => {
       const m = msg.toLowerCase();
-      if (m.includes('rate limit') || m.includes('too many requests')) return 'Demasiados intentos. Espera 60 segundos.';
+      if (m.includes('rate limit') || m.includes('too many requests')) return 'Límite de envíos. Usa el Modo Demo o espera.';
       if (m.includes('token has expired') || m.includes('invalid token')) return 'Código inválido o expirado.';
-      if (m.includes('error sending')) return 'Error de envío. Verifica tu SMTP o intenta más tarde.';
+      // Este es el error específico de SMTP mal configurado
+      if (m.includes('error sending')) return 'ERROR SMTP: Configura "SMTP Settings" en Supabase o usa demo@midnight.com';
       if (m.includes('security purposes')) return 'Bloqueo de seguridad. Espera unos minutos.';
-      return msg || 'Error desconocido. Intenta de nuevo.';
+      return msg || 'Error de conexión. Intenta de nuevo.';
+  };
+
+  const useDemoMode = () => {
+      setEmail('demo@midnight.com');
+      setName('Usuario Demo');
+      setAuthError('');
   };
 
   // AUTH HANDLERS
@@ -76,7 +83,8 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
     setIsAuthLoading(true);
     setAuthError('');
     
-    const res = await requestCustomerOtp(email);
+    // Pasamos el nombre para que quede guardado en auth.users meta_data
+    const res = await requestCustomerOtp(email, { full_name: name });
     setIsAuthLoading(false);
     
     if (res.success) {
@@ -180,10 +188,18 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
               <div className="space-y-4">
                 <Input placeholder="TU NOMBRE" value={name} onChange={e => setName(e.target.value)} className="h-14 bg-black border-white/10 text-white font-bold text-center" />
                 <Input placeholder="TU EMAIL" type="email" value={email} onChange={e => setEmail(e.target.value)} className="h-14 bg-black border-white/10 text-white font-bold text-center" />
+                
                 {authError && (
-                    <div className="flex items-center gap-2 justify-center bg-red-500/10 p-3 rounded-xl border border-red-500/20">
-                        <AlertTriangle size={16} className="text-red-400 flex-shrink-0" />
-                        <p className="text-red-400 text-xs font-bold text-left leading-tight">{authError}</p>
+                    <div className="flex flex-col gap-2 items-center justify-center bg-red-500/10 p-4 rounded-xl border border-red-500/20">
+                        <div className="flex items-center gap-2">
+                            <AlertTriangle size={16} className="text-red-400 flex-shrink-0" />
+                            <p className="text-red-400 text-xs font-bold text-left leading-tight">{authError}</p>
+                        </div>
+                        {authError.includes('SMTP') && (
+                            <button onClick={useDemoMode} className="text-[10px] bg-red-500/20 text-white px-3 py-1 rounded-lg uppercase font-bold hover:bg-red-500/40 mt-1">
+                                Usar Modo Demo
+                            </button>
+                        )}
                     </div>
                 )}
               </div>
@@ -218,7 +234,7 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
                   {isAuthLoading ? <Loader2 className="animate-spin"/> : 'VERIFICAR Y CONTINUAR'}
                </Button>
                
-               <p className="text-[10px] text-zinc-600 text-center uppercase font-bold cursor-pointer hover:text-zinc-400" onClick={handleRequestOtp}>¿No llegó? Reenviar código</p>
+               <p className="text-[10px] text-zinc-600 text-center uppercase font-bold cursor-pointer hover:text-zinc-400" onClick={handleRequestOtp}>¿No llegó? Reenviar código (Revisa Spam)</p>
             </motion.div>
           )}
 

@@ -1,7 +1,12 @@
 
 -- ==========================================
--- 1. LIMPIEZA TOTAL (RESET)
+-- 1. LIMPIEZA PROFUNDA (CRÍTICO: SOLUCIONA ERROR DE REGISTRO)
 -- ==========================================
+-- Esto elimina cualquier automatización antigua que intente copiar usuarios
+-- de auth.users a profiles, lo cual causaba el error "Database error saving new user".
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+DROP FUNCTION IF EXISTS public.handle_new_user();
+
 DROP TABLE IF EXISTS event_costs CASCADE;
 DROP TABLE IF EXISTS order_items CASCADE;
 DROP TABLE IF EXISTS orders CASCADE;
@@ -15,7 +20,7 @@ DROP TYPE IF EXISTS event_status CASCADE;
 DROP TYPE IF EXISTS event_stage CASCADE;
 
 -- ==========================================
--- 2. TIPOS DE DATOS (ENUMS - MAYÚSCULAS)
+-- 2. TIPOS DE DATOS
 -- ==========================================
 CREATE TYPE user_role AS ENUM ('ADMIN', 'HEAD_OF_SALES', 'MANAGER', 'PROMOTER', 'GUEST');
 CREATE TYPE event_status AS ENUM ('draft', 'published', 'sold_out', 'cancelled', 'completed');
@@ -25,13 +30,14 @@ CREATE TYPE event_stage AS ENUM ('early_bird', 'presale', 'general', 'door');
 -- 3. TABLAS MAESTRAS
 -- ==========================================
 
--- A. PERFILES (STAFF)
+-- A. PERFILES (SOLO STAFF: Admin, Managers, Promotores)
+-- Los clientes (compradores) NO se guardan aquí, viven en auth.users y orders.
 CREATE TABLE profiles (
   id UUID PRIMARY KEY, 
   email TEXT NOT NULL,
   full_name TEXT,
   code TEXT UNIQUE,
-  password TEXT DEFAULT '1234',
+  password TEXT DEFAULT '1234', -- Login manual simplificado para staff
   role user_role DEFAULT 'PROMOTER',
   sales_team_id UUID,
   manager_id UUID REFERENCES profiles(id),
@@ -40,7 +46,7 @@ CREATE TABLE profiles (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- B. EQUIPOS DE VENTA (SQUADS)
+-- B. EQUIPOS DE VENTA
 CREATE TABLE sales_teams (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
@@ -48,7 +54,7 @@ CREATE TABLE sales_teams (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- C. VINCULACIÓN CIRCULAR
+-- C. RELACIÓN STAFF <-> EQUIPO
 ALTER TABLE profiles 
 ADD CONSTRAINT fk_sales_team 
 FOREIGN KEY (sales_team_id) REFERENCES sales_teams(id);
@@ -78,7 +84,7 @@ CREATE TABLE events (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- E. TIERS (Etapas/Localidades)
+-- E. TIERS (Localidades/Etapas)
 CREATE TABLE ticket_tiers (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   event_id UUID REFERENCES events(id) ON DELETE CASCADE NOT NULL,
@@ -101,15 +107,15 @@ CREATE TABLE orders (
   customer_name TEXT NOT NULL,
   customer_email TEXT NOT NULL,
   total NUMERIC NOT NULL,
-  status TEXT DEFAULT 'completed', -- POR DEFECTO COMPLETADA (BETA)
+  status TEXT DEFAULT 'completed', 
   payment_method TEXT DEFAULT 'cash',
-  staff_id UUID REFERENCES profiles(id),
+  staff_id UUID REFERENCES profiles(id), -- NULL si es venta orgánica (cliente directo)
   commission_amount NUMERIC DEFAULT 0,
   net_amount NUMERIC DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- G. ITEMS DE ORDEN (Detalle)
+-- G. ITEMS DE ORDEN
 CREATE TABLE order_items (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   order_id UUID REFERENCES orders(id) ON DELETE CASCADE NOT NULL,
@@ -120,7 +126,7 @@ CREATE TABLE order_items (
   subtotal NUMERIC NOT NULL
 );
 
--- H. COSTOS DEL EVENTO
+-- H. COSTOS Y GASTOS
 CREATE TABLE event_costs (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   event_id UUID REFERENCES events(id) ON DELETE CASCADE NOT NULL,
@@ -132,8 +138,10 @@ CREATE TABLE event_costs (
 );
 
 -- ==========================================
--- 4. SEGURIDAD (RLS - ABIERTO PARA BETA)
+-- 4. SEGURIDAD (RLS) - MODO BETA ABIERTO
 -- ==========================================
+-- Habilitamos acceso completo para que la app funcione fluidamente con la API Key pública.
+-- En producción real, estas políticas deben ser más restrictivas.
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sales_teams ENABLE ROW LEVEL SECURITY;
@@ -152,15 +160,14 @@ CREATE POLICY "Access order_items" ON order_items FOR ALL USING (true) WITH CHEC
 CREATE POLICY "Access event_costs" ON event_costs FOR ALL USING (true) WITH CHECK (true);
 
 -- ==========================================
--- 5. DATOS SEMILLA (SEED DATA)
+-- 5. DATOS INICIALES (SEED)
 -- ==========================================
 
--- A. Crear Super Admin (CON ID FIJO PARA EVITAR ERRORES DE LOGIN)
+-- Admin Principal (ID fijo para evitar conflictos)
 INSERT INTO profiles (id, email, full_name, code, password, role)
-VALUES 
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'admin@midnight.com', 'Super Admin', 'ADMIN123', 'admin', 'ADMIN');
+VALUES ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'admin@midnight.com', 'Super Admin', 'ADMIN123', 'admin', 'ADMIN');
 
--- B. Crear un Evento de Prueba
+-- Evento de Lanzamiento
 INSERT INTO events (title, slug, description, event_date, doors_open, cover_image, status, total_capacity, city, venue)
 VALUES (
   'Midnight Launch Party', 
@@ -175,7 +182,7 @@ VALUES (
   'Espacio 10-60'
 );
 
--- C. Crear Tickets
+-- Tickets para el evento
 DO $$
 DECLARE last_event_id UUID;
 BEGIN

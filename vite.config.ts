@@ -8,7 +8,8 @@ export default defineConfig(({ mode }) => {
     define: {
       // Esto permite que el código siga usando process.env.API_KEY y process.env.RESEND_API_KEY
       'process.env.API_KEY': JSON.stringify(env.API_KEY),
-      'process.env.RESEND_API_KEY': JSON.stringify(env.RESEND_API_KEY)
+      'process.env.RESEND_API_KEY': JSON.stringify(env.RESEND_API_KEY),
+      'process.env.VERIFIED_DOMAIN': JSON.stringify(env.VERIFIED_DOMAIN)
     }
   };
 });
