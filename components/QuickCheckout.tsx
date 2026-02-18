@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion as _motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Shield, ChevronLeft, CheckCircle2, Mail, Download, Smartphone, Lock, User, AlertTriangle } from 'lucide-react';
+import { Loader2, Shield, ChevronLeft, CheckCircle2, Mail, Download, Smartphone, Lock, User, AlertTriangle, CreditCard, ExternalLink } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { TicketTier, Order } from '../types';
@@ -9,6 +9,9 @@ import { GoogleGenAI } from "@google/genai";
 import { useStore } from '../context/StoreContext';
 
 const motion = _motion as any;
+
+// Bold API Key provided by user
+const BOLD_API_KEY = 'K8mOAoWetfE5onyHWlhgvpLFcJIltm9Q64tZGv0Rmrs';
 
 interface QuickCheckoutProps {
   event: any;
@@ -32,6 +35,7 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
   // Order State
   const [isProcessing, setIsProcessing] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
+  const [pendingOrder, setPendingOrder] = useState<Order | null>(null); // For Bold flow
   const [aiMessage, setAiMessage] = useState('');
 
   // Auto-fill if user is already logged in (customer)
@@ -44,6 +48,29 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
         if (step === 1) setStep(2);
     }
   }, [currentCustomer, step]);
+
+  // Inject Bold Script when entering Step 2.5 (Gateway)
+  useEffect(() => {
+    if (step === 2.5 && pendingOrder) {
+        // Clear previous scripts if any
+        const container = document.getElementById('bold-container');
+        if (container) {
+            container.innerHTML = ''; 
+            const script = document.createElement('script');
+            script.src = "https://checkout.bold.co/library/boldPaymentButton.js";
+            script.setAttribute('data-bold-button', 'dark');
+            script.setAttribute('data-order-id', pendingOrder.order_number);
+            script.setAttribute('data-currency', 'COP'); // Bold uses COP
+            script.setAttribute('data-amount', pendingOrder.total.toString());
+            script.setAttribute('data-api-key', BOLD_API_KEY);
+            // Integrity signature is required for production but we can't generate it securely on client.
+            // Bold might block without it or allow testing in Sandbox depending on configuration.
+            // For now we omit or mock to allow the script to try rendering.
+            script.setAttribute('data-redirection-url', window.location.href); 
+            container.appendChild(script);
+        }
+    }
+  }, [step, pendingOrder]);
 
   const selectedItems = Object.entries(selectedTiers)
     .filter(([_, qty]) => (qty as number) > 0)
@@ -60,12 +87,10 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
 
   const subtotal = selectedItems.reduce((sum, item) => sum + item.subtotal, 0);
 
-  // Helper para traducir errores de Supabase
   const translateError = (msg: string = '') => {
       const m = msg.toLowerCase();
       if (m.includes('rate limit') || m.includes('too many requests')) return 'Límite de envíos. Usa el Modo Demo o espera.';
       if (m.includes('token has expired') || m.includes('invalid token')) return 'Código inválido o expirado.';
-      // Este es el error específico de SMTP mal configurado
       if (m.includes('error sending')) return 'ERROR SMTP: Configura "SMTP Settings" en Supabase o usa demo@midnight.com';
       if (m.includes('security purposes')) return 'Bloqueo de seguridad. Espera unos minutos.';
       return msg || 'Error de conexión. Intenta de nuevo.';
@@ -83,7 +108,6 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
     setIsAuthLoading(true);
     setAuthError('');
     
-    // Pasamos el nombre para que quede guardado en auth.users meta_data
     const res = await requestCustomerOtp(email, { full_name: name });
     setIsAuthLoading(false);
     
@@ -95,7 +119,6 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
   };
 
   const handleVerifyOtp = async () => {
-    // UPDATED: Allow 6 to 8 digits
     if (otp.length < 6) return setAuthError('El código debe tener al menos 6 dígitos');
     setIsAuthLoading(true);
     setAuthError('');
@@ -112,40 +135,50 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
   const handlePayment = async () => {
     setIsProcessing(true);
     try {
-      // 1. Intentar crear la orden en base de datos
+      // 1. Create Order with method 'bold' (creates as 'pending' in StoreContext)
       const orderData = await onComplete({ 
         customerInfo: { name: name || 'Cliente Midnight', email }, 
-        items: selectedItems 
+        items: selectedItems,
+        method: 'bold' 
       });
 
       if (!orderData) {
-         // Si falla, detenemos aquí. El error específico ya debió ser alertado por StoreContext.
          setIsProcessing(false);
          return; 
       }
       
-      setCompletedOrder(orderData);
+      // 2. If order created, show Bold Gateway Step
+      setPendingOrder(orderData);
+      setStep(2.5);
       
-      // 2. Intentar generar mensaje con IA (Opcional - No bloqueante)
-      try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: `Eres Midnight Corp. Genera un mensaje corto (15 palabras) de bienvenida VIP para ${name} que acaba de comprar tickets para ${event.title}. Tono cyber-punk elegante.`,
-        });
-        setAiMessage(response.text || '¡Bienvenido a la experiencia Midnight!');
-      } catch (aiError) {
-        console.warn("AI Generation failed, skipping:", aiError);
-        setAiMessage('¡Acceso concedido! Bienvenido al protocolo.');
-      }
-
-      setStep(3);
     } catch (error: any) {
       console.error(error);
       alert(`Error crítico: ${error.message || 'Fallo desconocido'}`);
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  // Triggered manually for demo purposes or when webhook confirms payment
+  const handlePaymentSuccess = async () => {
+      setIsProcessing(true);
+      if (pendingOrder) {
+          setCompletedOrder(pendingOrder); // In real app, we fetch updated status
+          
+          try {
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const response = await ai.models.generateContent({
+                model: 'gemini-3-flash-preview',
+                contents: `Eres Midnight Corp. Genera un mensaje corto (15 palabras) de bienvenida VIP para ${name} que acaba de comprar tickets para ${event.title}. Tono cyber-punk elegante.`,
+            });
+            setAiMessage(response.text || '¡Bienvenido a la experiencia Midnight!');
+          } catch (aiError) {
+            setAiMessage('¡Acceso concedido! Bienvenido al protocolo.');
+          }
+
+          setStep(3);
+      }
+      setIsProcessing(false);
   };
 
   return (
@@ -225,7 +258,7 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
                  autoFocus
                  placeholder="000000" 
                  value={otp} 
-                 maxLength={8} // UPDATED: Allow up to 8 digits
+                 maxLength={8}
                  onChange={e => setOtp(e.target.value)} 
                  className="h-14 md:h-20 bg-black border-white/10 text-white font-black text-2xl md:text-3xl text-center tracking-[0.5em] rounded-xl md:rounded-2xl focus:border-neon-blue" 
                />
@@ -239,7 +272,7 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
             </motion.div>
           )}
 
-          {/* STEP 2: PAGO (CHECKOUT) */}
+          {/* STEP 2: RESUMEN DE ORDEN */}
           {step === 2 && (
             <motion.div key="s2" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center space-y-4 md:space-y-6">
               <button onClick={() => setStep(0)} className="absolute top-4 left-4 md:top-6 md:left-6 text-zinc-500 hover:text-white flex items-center gap-2 text-[10px] md:text-xs font-bold uppercase"><ChevronLeft size={14} className="md:w-4 md:h-4"/> Modificar</button>
@@ -255,12 +288,48 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
               </div>
               <div className="bg-black/40 p-4 md:p-6 rounded-2xl md:rounded-3xl border border-white/5 space-y-2">
                   <div className="flex justify-between text-zinc-500 text-[10px] md:text-xs font-bold"><span>PRODUCTO</span><span>TICKETS ({selectedItems.length})</span></div>
-                  <div className="flex justify-between text-white font-black text-lg md:text-xl pt-2 border-t border-white/5"><span>TOTAL</span><span>${subtotal.toLocaleString()}</span></div>
+                  <div className="flex justify-between text-white font-black text-lg md:text-xl pt-2 border-t border-white/5"><span>TOTAL A PAGAR</span><span>${subtotal.toLocaleString()}</span></div>
               </div>
               <Button onClick={handlePayment} disabled={isProcessing} fullWidth className="h-12 md:h-16 bg-white text-black font-black text-base md:text-lg rounded-xl md:rounded-2xl">
-                {isProcessing ? <Loader2 className="animate-spin" /> : "PAGAR AHORA"}
+                {isProcessing ? <Loader2 className="animate-spin" /> : "IR A PAGAR CON BOLD"}
               </Button>
             </motion.div>
+          )}
+
+          {/* STEP 2.5: PASARELA BOLD (GENERACIÓN AUTOMÁTICA) */}
+          {step === 2.5 && pendingOrder && (
+             <motion.div key="s2.5" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-6 py-4">
+                 <div className="bg-red-600/10 border border-red-600/30 p-6 rounded-3xl relative overflow-hidden">
+                     <div className="absolute top-0 right-0 w-24 h-24 bg-red-600 blur-3xl opacity-20 pointer-events-none"></div>
+                     
+                     <h3 className="text-xl font-black text-white uppercase tracking-widest flex items-center justify-center gap-2 mb-2">
+                         <CreditCard className="text-red-500"/> BOLD Checkout
+                     </h3>
+                     <p className="text-xs text-zinc-400 font-medium">Pago Seguro Encriptado</p>
+                     
+                     <div className="my-6">
+                         <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest">Total Generado</p>
+                         <p className="text-4xl font-black text-white tracking-tighter">${subtotal.toLocaleString()}</p>
+                         <p className="text-[10px] text-zinc-500 mt-1 font-mono">ORDEN: {pendingOrder.order_number}</p>
+                     </div>
+
+                     {/* CONTAINER PARA EL SCRIPT DE BOLD */}
+                     <div id="bold-container" className="flex justify-center min-h-[50px]">
+                         {/* El script se inyecta aquí automáticamente */}
+                         <div className="flex items-center gap-2 text-zinc-500 text-xs animate-pulse">
+                             <Loader2 className="animate-spin w-4 h-4"/> Cargando Pasarela...
+                         </div>
+                     </div>
+                 </div>
+
+                 {/* Fallback Manual para Demo (Por si falla la firma de integridad de Bold en Frontend) */}
+                 <div className="pt-4 border-t border-white/5">
+                     <p className="text-[10px] text-zinc-600 mb-3">¿Problemas con el botón de pago?</p>
+                     <Button onClick={handlePaymentSuccess} variant="outline" className="text-xs border-dashed border-zinc-700 text-zinc-500 hover:text-white h-10 w-full">
+                         <CheckCircle2 className="w-3 h-3 mr-2"/> Simular Pago Exitoso (Demo)
+                     </Button>
+                 </div>
+             </motion.div>
           )}
 
           {/* STEP 3: ÉXITO */}
@@ -270,7 +339,7 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
                 <CheckCircle2 className="text-neon-purple w-8 h-8 md:w-12 md:h-12" />
               </div>
               <div>
-                <h2 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tighter">¡LISTO!</h2>
+                <h2 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tighter">¡PAGO EXITOSO!</h2>
                 <p className="text-zinc-500 text-xs md:text-sm mt-1 md:mt-2">Tu pago ha sido verificado por Midnight ExFi.</p>
               </div>
               

@@ -34,8 +34,8 @@ interface StoreContextType {
     addStaff: (staffData: any) => Promise<void>;
     deleteStaff: (id: string) => Promise<void>;
     createTeam: (name: string, managerId: string) => Promise<void>;
-    updateStaffTeam: (userId: string, teamId: string | null) => Promise<void>; // NEW
-    deleteTeam: (teamId: string) => Promise<void>; // NEW
+    updateStaffTeam: (userId: string, teamId: string | null) => Promise<void>;
+    deleteTeam: (teamId: string) => Promise<void>;
     createOrder: (eventId: string, cartItems: any[], method: string, staffId?: string, customerInfo?: any) => Promise<Order | null>;
     clearDatabase: () => Promise<void>;
 }
@@ -325,13 +325,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                  if (storedId) finalStaffId = storedId;
             }
 
+            // Determines initial status based on payment method
+            const initialStatus = method === 'bold' ? 'pending' : 'completed';
+
             const orderPayload = {
                 order_number: orderNumber,
                 event_id: eventId,
                 customer_name: finalName,
                 customer_email: finalEmail,
                 total: total,
-                status: 'completed', 
+                status: initialStatus, 
                 payment_method: method || 'cash',
                 staff_id: finalStaffId, 
                 commission_amount: finalStaffId ? commission : 0,
@@ -361,26 +364,35 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const { error: itemsError } = await supabase.from('order_items').insert(itemsToInsert);
             if (itemsError) throw new Error(`Items Error: ${itemsError.message}`);
 
-            for (const item of cartItems) {
-                const tier = tiers.find(t => t.id === item.tier_id);
-                if (tier) await supabase.from('ticket_tiers').update({ sold: (tier.sold || 0) + item.quantity }).eq('id', tier.id);
-            }
-            
-            const event = events.find(e => e.id === eventId);
-            if (event) await supabase.from('events').update({ tickets_sold: (event.tickets_sold || 0) + cartItems.reduce((a:any,b:any)=>a+b.quantity,0), total_revenue: (event.total_revenue || 0) + total }).eq('id', eventId);
+            // Only update inventory and sales stats if order is completed (not pending payment)
+            if (initialStatus === 'completed') {
+                for (const item of cartItems) {
+                    const tier = tiers.find(t => t.id === item.tier_id);
+                    if (tier) await supabase.from('ticket_tiers').update({ sold: (tier.sold || 0) + item.quantity }).eq('id', tier.id);
+                }
+                
+                const event = events.find(e => e.id === eventId);
+                if (event) await supabase.from('events').update({ tickets_sold: (event.tickets_sold || 0) + cartItems.reduce((a:any,b:any)=>a+b.quantity,0), total_revenue: (event.total_revenue || 0) + total }).eq('id', eventId);
 
-            if (order.staff_id) {
-                const promoter = promoters.find(p => p.user_id === order.staff_id);
-                if (promoter) await supabase.from('profiles').update({ total_sales: (promoter.total_sales || 0) + total, total_commission_earned: (promoter.total_commission_earned || 0) + commission }).eq('id', order.staff_id);
-            }
+                if (order.staff_id) {
+                    const promoter = promoters.find(p => p.user_id === order.staff_id);
+                    if (promoter) await supabase.from('profiles').update({ total_sales: (promoter.total_sales || 0) + total, total_commission_earned: (promoter.total_commission_earned || 0) + commission }).eq('id', order.staff_id);
+                }
 
-            if (event && order.customer_email && order.customer_email.includes('@')) {
-                 const fullOrder = { ...order, items: cartItems };
-                 sendTicketEmail(fullOrder, event);
+                if (event && order.customer_email && order.customer_email.includes('@')) {
+                     // FIX: Map the DB created_at to timestamp property required by Order interface
+                     const fullOrder = { 
+                         ...order, 
+                         items: cartItems,
+                         timestamp: order.created_at 
+                     };
+                     sendTicketEmail(fullOrder, event);
+                }
             }
 
             await fetchData(); 
-            return { ...order, items: cartItems };
+            // FIX: Ensure returned object has required properties
+            return { ...order, items: cartItems, timestamp: order.created_at };
 
         } catch (error: any) {
             console.error("Order Creation Failed:", error);
