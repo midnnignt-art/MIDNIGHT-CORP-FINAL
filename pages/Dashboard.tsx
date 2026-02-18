@@ -194,7 +194,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
           const breakdown = calculateBreakdown(organicOrders);
 
           // Members: Web Direct + Admins
-          const organicMembers = [];
+          const organicMembers: any[] = []; // Explicit typing or any to allow mix
 
           // Web Direct (NULL staff_id)
           const webOrders = organicOrders.filter(o => !o.staff_id);
@@ -206,8 +206,11 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                    organicMembers.push({
                       user_id: 'web_direct',
                       name: 'Venta Web / Directa',
+                      email: 'system@midnight.corp', // FIX: Added mandatory email
                       code: 'SYSTEM',
-                      role: 'PLATFORM',
+                      role: UserRole.ADMIN, // FIX: Use valid enum role
+                      total_sales: wGross, // FIX: Added mandatory field
+                      total_commission_earned: wComm, // FIX: Added mandatory field
                       gross: wGross,
                       commission: wComm,
                       net: wGross - wComm,
