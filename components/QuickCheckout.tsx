@@ -95,7 +95,8 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
   };
 
   const handleVerifyOtp = async () => {
-    if (otp.length < 6) return setAuthError('El código debe tener 6 dígitos');
+    // UPDATED: Allow 6 to 8 digits
+    if (otp.length < 6) return setAuthError('El código debe tener al menos 6 dígitos');
     setIsAuthLoading(true);
     setAuthError('');
     const success = await verifyCustomerOtp(email, otp);
@@ -217,14 +218,14 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
                
                <div className="text-center">
                    <h3 className="text-2xl font-black text-white uppercase tracking-tighter">Verificar Email</h3>
-                   <p className="text-zinc-500 text-sm mt-2">Introduce el código de 6 dígitos enviado a <br/><span className="text-white font-bold">{email}</span></p>
+                   <p className="text-zinc-500 text-sm mt-2">Introduce el código de verificación enviado a <br/><span className="text-white font-bold">{email}</span></p>
                </div>
 
                <Input 
                  autoFocus
                  placeholder="000000" 
                  value={otp} 
-                 maxLength={6}
+                 maxLength={8} // UPDATED: Allow up to 8 digits
                  onChange={e => setOtp(e.target.value)} 
                  className="h-20 bg-black border-white/10 text-white font-black text-3xl text-center tracking-[0.5em] rounded-2xl focus:border-neon-blue" 
                />
