@@ -34,6 +34,8 @@ interface StoreContextType {
     addStaff: (staffData: any) => Promise<void>;
     deleteStaff: (id: string) => Promise<void>;
     createTeam: (name: string, managerId: string) => Promise<void>;
+    updateStaffTeam: (userId: string, teamId: string | null) => Promise<void>; // NEW
+    deleteTeam: (teamId: string) => Promise<void>; // NEW
     createOrder: (eventId: string, cartItems: any[], method: string, staffId?: string, customerInfo?: any) => Promise<Order | null>;
     clearDatabase: () => Promise<void>;
 }
@@ -212,7 +214,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const getEventTiers = (eventId: string) => tiers.filter(t => t.event_id === eventId);
     
-    // ... [Rest of the file remains unchanged: addEvent, updateEvent, etc.] ...
     const addEvent = async (eventData: any, tierData: any[]) => {
         try {
             const { data: newEvent, error: eventError } = await supabase
@@ -283,11 +284,32 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             await fetchData();
         } catch (error) { console.error(error); }
     };
+
+    const updateStaffTeam = async (userId: string, teamId: string | null) => {
+        try {
+            await supabase.from('profiles').update({ sales_team_id: teamId }).eq('id', userId);
+            await fetchData();
+        } catch (error) { console.error(error); }
+    };
+
+    const deleteTeam = async (teamId: string) => {
+        try {
+            // Unassign members first
+            await supabase.from('profiles').update({ sales_team_id: null }).eq('sales_team_id', teamId);
+            // Delete team
+            await supabase.from('sales_teams').delete().eq('id', teamId);
+            await fetchData();
+        } catch (error) { console.error(error); }
+    };
     
     const createOrder = async (eventId: string, cartItems: any[], method: string, staffId?: string, customerInfo?: any) => {
         try {
             const orderNumber = `MID-${Date.now().toString().slice(-6)}`;
             const total = cartItems.reduce((acc, i) => acc + (i.unit_price * i.quantity), 0);
+            
+            // NORMALIZATION: Ensure email is lowercase and trimmed
+            const finalEmail = (customerInfo?.email || 'anon@mail.com').toLowerCase().trim();
+            const finalName = customerInfo?.name || 'Anon';
             
             let commission = 0;
             cartItems.forEach(item => {
@@ -306,8 +328,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const orderPayload = {
                 order_number: orderNumber,
                 event_id: eventId,
-                customer_name: customerInfo?.name || 'Anon',
-                customer_email: customerInfo?.email || 'anon@mail.com',
+                customer_name: finalName,
+                customer_email: finalEmail,
                 total: total,
                 status: 'completed', 
                 payment_method: method || 'cash',
@@ -377,7 +399,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             events, tiers, promoters, orders, teams, currentUser, currentCustomer, dbStatus,
             login, logout, requestCustomerOtp, verifyCustomerOtp, customerLogout,
             getEventTiers, addEvent, updateEvent, deleteEvent,
-            addStaff, deleteStaff, createTeam, createOrder, clearDatabase,
+            addStaff, deleteStaff, createTeam, updateStaffTeam, deleteTeam, createOrder, clearDatabase,
             addEventCost, deleteEventCost, updateCostStatus
         }}>
             {children}

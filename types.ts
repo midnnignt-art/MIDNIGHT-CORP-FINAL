@@ -1,4 +1,5 @@
 
+
 export enum UserRole {
   GUEST = 'GUEST',
   PROMOTER = 'PROMOTER', 
@@ -74,6 +75,7 @@ export interface Order {
   customer_name: string;
   total: number;
   status: 'pending' | 'completed' | 'failed';
+  payment_method?: string;
   items: {
     tier_id: string;
     tier_name: string;

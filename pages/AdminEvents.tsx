@@ -2,11 +2,15 @@ import React, { useState, useMemo } from 'react';
 import { 
     Trash2, Plus, Pencil, Save, Users, ShieldCheck, 
     UserCog, BadgeCheck, Database, Download, Upload, AlertTriangle, 
-    HardDrive, RefreshCcw, Layers, Target, UserPlus, Calendar, MapPin, DollarSign, Ticket, Eye, ArrowLeft, Search, User, Filter, Share2, CheckCircle2, XCircle, MinusCircle, Lock, Key
+    HardDrive, RefreshCcw, Layers, Target, UserPlus, Calendar, MapPin, DollarSign, Ticket, Eye, ArrowLeft, Search, User, Filter, Share2, CheckCircle2, XCircle, MinusCircle, Lock, Key, X, UserMinus, UserCheck
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { Button } from '../components/ui/button';
 import { UserRole, TicketTier, EventCost, Event, Promoter, SalesTeam, Order } from '../types';
+import { Progress } from '../components/ui/progress';
+import { motion as _motion, AnimatePresence } from 'framer-motion';
+
+const motion = _motion as any;
 
 interface AdminEventsProps {
     role: UserRole;
@@ -15,7 +19,7 @@ interface AdminEventsProps {
 export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
     const { 
         events, addEvent, updateEvent, deleteEvent, getEventTiers,
-        promoters, addStaff, deleteStaff, teams, createTeam,
+        promoters, addStaff, deleteStaff, teams, createTeam, updateStaffTeam, deleteTeam,
         orders, dbStatus, clearDatabase
     } = useStore();
     
@@ -41,6 +45,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
     // --- STATE: Squad/Staff Form ---
     const [newTeamName, setNewTeamName] = useState('');
     const [selectedManagerId, setSelectedManagerId] = useState('');
+    const [viewingTeamEditId, setViewingTeamEditId] = useState<string | null>(null);
     
     // Staff Creation State
     const [staffName, setStaffName] = useState('');
@@ -62,6 +67,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
         const eventOrders = orders.filter(o => o.event_id === selectedAuditId);
         const tiers = getEventTiers(selectedAuditId);
 
+        // Ranking
         const rankingMap: {[key: string]: {name: string, tickets: number, revenue: number}} = {};
         eventOrders.forEach(o => {
             const pid = o.staff_id || 'organica';
@@ -77,8 +83,38 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
             .sort(([, a], [, b]) => b.tickets - a.tickets)
             .map(([id, data]) => ({ id, ...data }));
 
-        return { event, eventOrders, tiers, sortedRanking };
+        // Breakdown por Etapa (Tiers)
+        const tierStats = tiers.map(tier => {
+            const sold = eventOrders.reduce((acc, o) => {
+                return acc + o.items.filter(i => i.tier_id === tier.id).reduce((s, i) => s + i.quantity, 0);
+            }, 0);
+            return {
+                ...tier,
+                realSold: sold,
+                progress: Math.min((sold / tier.quantity) * 100, 100)
+            };
+        });
+
+        // Stage Groups (Early Bird, Presale, etc)
+        const stageGroups = Array.from(new Set(tiers.map(t => t.stage))).map(stage => {
+            const stageTiers = tierStats.filter(t => t.stage === stage);
+            const totalQty = stageTiers.reduce((acc, t) => acc + t.quantity, 0);
+            const totalSold = stageTiers.reduce((acc, t) => acc + t.realSold, 0);
+            return {
+                stage: stage,
+                totalQty,
+                totalSold,
+                progress: totalQty > 0 ? (totalSold / totalQty) * 100 : 0
+            };
+        });
+
+        return { event, eventOrders, tiers, sortedRanking, tierStats, stageGroups };
     }, [selectedAuditId, events, orders, promoters]);
+
+    // --- HELPER: TEAM EDITING ---
+    const teamToEdit = teams.find(t => t.id === viewingTeamEditId);
+    const teamMembers = promoters.filter(p => p.sales_team_id === viewingTeamEditId);
+    const availableStaff = promoters.filter(p => !p.sales_team_id && p.role !== UserRole.ADMIN);
 
     // --- HANDLERS: Event ---
     const handleAddTierRow = () => {
@@ -187,6 +223,53 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
         alert(`Staff registrado. Acceso con CÓDIGO: ${staffCode.toUpperCase()}`);
     };
 
+    const handleDeleteTeam = async (id: string) => {
+        if (confirm('¿Eliminar equipo? Los miembros quedarán como independientes.')) {
+            await deleteTeam(id);
+            setViewingTeamEditId(null);
+        }
+    };
+
+    const handleExportDatabase = () => {
+        if (!auditData) return;
+        
+        let csvContent = "data:text/csv;charset=utf-8,";
+        // Header Row
+        csvContent += "Nombre Cliente,Correo Electronico,Cantidad,Tipo Boleta,Valor Total,Fecha Compra,Medio Pago,Promotor,Etapa\n";
+        
+        auditData.eventOrders.forEach(order => {
+            const promoterName = promoters.find(p => p.user_id === order.staff_id)?.name || 'Venta Directa';
+            
+            // For each item in the order, we could list them differently, but usually we just list items
+            // However, to be precise with "Tipo de Boleta" and "Etapa", we iterate items.
+            order.items.forEach(item => {
+                const tier = auditData.tiers.find(t => t.id === item.tier_id);
+                const stage = tier?.stage || 'general';
+                
+                // Construct Row
+                const row = [
+                    order.customer_name,
+                    order.customer_email,
+                    item.quantity,
+                    item.tier_name,
+                    item.subtotal,
+                    new Date(order.timestamp).toLocaleString(),
+                    order.payment_method,
+                    promoterName,
+                    stage
+                ];
+                csvContent += row.join(",") + "\n";
+            });
+        });
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `DB_Ventas_${auditData.event.title}.csv`);
+        document.body.appendChild(link);
+        link.click();
+    };
+
     return (
         <div className="min-h-screen pt-24 px-4 max-w-7xl mx-auto pb-12">
             
@@ -246,17 +329,57 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                         </div>
                     ) : selectedAuditId && auditData ? (
                         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            <button onClick={() => setSelectedAuditId(null)} className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors font-bold uppercase text-xs tracking-widest mb-8">
-                                <ArrowLeft size={20}/> Volver
-                            </button>
+                            <div className="flex justify-between items-center mb-8">
+                                <button onClick={() => setSelectedAuditId(null)} className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors font-bold uppercase text-xs tracking-widest">
+                                    <ArrowLeft size={20}/> Volver
+                                </button>
+                                <Button onClick={handleExportDatabase} className="bg-emerald-500 text-black font-black text-xs">
+                                    <Download className="mr-2 w-4 h-4"/> EXPORTAR BASE DE DATOS
+                                </Button>
+                            </div>
+                            
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                <div className="lg:col-span-2 space-y-8">
+                                    {/* PROGRESS BAR PER STAGE */}
+                                    <div className="bg-zinc-900 border border-white/10 p-8 rounded-[2.5rem]">
+                                        <h3 className="text-xl font-black text-white mb-6">Progreso Comercial por Etapa</h3>
+                                        <div className="space-y-6">
+                                            {auditData.stageGroups.map(stage => (
+                                                <div key={stage.stage} className="space-y-2">
+                                                    <div className="flex justify-between items-end">
+                                                        <span className="text-xs font-bold text-white uppercase tracking-widest">{stage.stage.replace('_', ' ')}</span>
+                                                        <span className="text-xs font-mono text-zinc-400">{stage.totalSold} / {stage.totalQty}</span>
+                                                    </div>
+                                                    <Progress value={stage.progress} className="h-3 bg-zinc-800" />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    
+                                    {/* DETAIL TIERS */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        {auditData.tierStats.map(t => (
+                                            <div key={t.id} className="bg-zinc-900/50 p-4 rounded-2xl border border-white/5">
+                                                <p className="text-xs text-zinc-500 uppercase font-bold">{t.name}</p>
+                                                <p className="text-xl font-black text-white mt-1">{t.realSold} <span className="text-xs font-normal text-zinc-600">vendidos</span></p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
                                 <div className="lg:col-span-1 space-y-8">
                                     <div className="bg-zinc-900 border border-white/10 p-8 rounded-[2.5rem]">
                                         <h3 className="text-xl font-black text-white mb-6">Ranking del Evento</h3>
-                                        {auditData.sortedRanking.map((rank, idx) => (
+                                        {auditData.sortedRanking.slice(0, 10).map((rank, idx) => (
                                             <div key={rank.id} className="flex items-center justify-between p-3 bg-white/5 rounded-2xl mb-2">
-                                                <span className="text-sm font-bold text-white">{rank.name}</span>
-                                                <p className="text-sm font-black text-neon-green">${rank.revenue.toLocaleString()}</p>
+                                                <div className="flex items-center gap-3">
+                                                    <span className="text-xs font-black text-zinc-600 w-4">{idx + 1}</span>
+                                                    <span className="text-sm font-bold text-white">{rank.name}</span>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-xs font-black text-neon-green">${rank.revenue.toLocaleString()}</p>
+                                                    <p className="text-[9px] text-zinc-500">{rank.tickets} tickets</p>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -314,6 +437,19 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                             </div>
                                             <div className="md:col-span-2 flex justify-end">
                                                 <button onClick={() => handleRemoveTierRow(idx)} className="text-zinc-600 hover:text-red-500 transition-colors"><MinusCircle/></button>
+                                            </div>
+                                            <div className="md:col-span-12">
+                                                 <label className="text-[10px] text-zinc-500 uppercase font-bold">Tipo de Etapa (Sistema)</label>
+                                                 <select 
+                                                    value={tier.stage} 
+                                                    onChange={e => handleTierChange(idx, 'stage', e.target.value)}
+                                                    className="w-full bg-black border border-white/10 p-2 rounded text-xs text-white uppercase font-bold mt-1"
+                                                 >
+                                                     <option value="early_bird">Early Bird</option>
+                                                     <option value="presale">Preventa</option>
+                                                     <option value="general">General</option>
+                                                     <option value="door">Puerta</option>
+                                                 </select>
                                             </div>
                                         </div>
                                     ))}
@@ -401,7 +537,9 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                                     <h4 className="font-bold text-white">{team.name}</h4>
                                                     <p className="text-xs text-zinc-500 mt-1">Manager: {promoters.find(p => p.user_id === team.manager_id)?.name || 'N/A'}</p>
                                                 </div>
-                                                <BadgeCheck className="text-neon-purple w-5 h-5"/>
+                                                <button onClick={() => setViewingTeamEditId(team.id)} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl text-zinc-400 hover:text-white transition-colors">
+                                                    <Pencil className="w-4 h-4"/>
+                                                </button>
                                             </div>
                                             <div className="mt-4 pt-4 border-t border-white/5 flex gap-2">
                                                  <span className="text-[10px] bg-white/10 px-2 py-1 rounded text-white">{team.members_ids.length} Miembros</span>
@@ -464,6 +602,82 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                     </div>
                 </div>
             )}
+
+            {/* TEAM EDIT MODAL */}
+            <AnimatePresence>
+                {viewingTeamEditId && teamToEdit && (
+                    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md">
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-zinc-900 border border-white/10 p-6 md:p-8 rounded-[2.5rem] w-full max-w-2xl shadow-2xl relative max-h-[90vh] overflow-y-auto custom-scrollbar">
+                            <button onClick={() => setViewingTeamEditId(null)} className="absolute top-6 right-6 text-zinc-600 hover:text-white"><X size={24}/></button>
+                            
+                            <div className="mb-6">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <Users className="text-neon-purple w-6 h-6"/>
+                                    <h2 className="text-2xl font-black text-white uppercase">Editar Squad</h2>
+                                </div>
+                                <p className="text-xl font-bold text-white">{teamToEdit.name}</p>
+                                <p className="text-xs text-zinc-500 uppercase mt-1">Manager: {promoters.find(p => p.user_id === teamToEdit.manager_id)?.name}</p>
+                            </div>
+
+                            <div className="space-y-6">
+                                {/* MIEMBROS ACTUALES */}
+                                <div className="bg-black/40 p-4 rounded-3xl border border-white/5">
+                                    <h4 className="text-xs font-black text-zinc-500 uppercase mb-4 flex items-center gap-2"><UserCheck size={14}/> Miembros Actuales</h4>
+                                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                                        {teamMembers.length === 0 && <p className="text-center text-zinc-600 text-xs py-4">Sin miembros.</p>}
+                                        {teamMembers.map(member => (
+                                            <div key={member.user_id} className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-2xl border border-white/5">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center text-xs font-bold text-white">
+                                                        {member.name.charAt(0)}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-bold text-white">{member.name}</p>
+                                                        <p className="text-[9px] text-zinc-500 font-mono">{member.code}</p>
+                                                    </div>
+                                                </div>
+                                                <button onClick={() => updateStaffTeam(member.user_id, null)} className="p-2 hover:bg-red-500/10 text-zinc-500 hover:text-red-500 rounded-lg transition-colors" title="Remover del equipo">
+                                                    <UserMinus size={16}/>
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* STAFF DISPONIBLE */}
+                                <div className="bg-black/40 p-4 rounded-3xl border border-white/5">
+                                    <h4 className="text-xs font-black text-zinc-500 uppercase mb-4 flex items-center gap-2"><UserPlus size={14}/> Agregar Staff Disponible</h4>
+                                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                                        {availableStaff.length === 0 && <p className="text-center text-zinc-600 text-xs py-4">No hay staff disponible.</p>}
+                                        {availableStaff.map(staff => (
+                                            <div key={staff.user_id} className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-2xl border border-white/5">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center text-xs font-bold text-white">
+                                                        {staff.name.charAt(0)}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-bold text-white">{staff.name}</p>
+                                                        <p className="text-[9px] text-zinc-500 font-mono">{staff.code}</p>
+                                                    </div>
+                                                </div>
+                                                <button onClick={() => updateStaffTeam(staff.user_id, teamToEdit.id)} className="p-2 hover:bg-neon-green/10 text-zinc-500 hover:text-neon-green rounded-lg transition-colors" title="Agregar al equipo">
+                                                    <Plus size={16}/>
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="pt-4 border-t border-white/10">
+                                    <Button onClick={() => handleDeleteTeam(teamToEdit.id)} fullWidth variant="danger" className="font-black text-xs h-12">
+                                        <Trash2 className="mr-2 w-4 h-4"/> ELIMINAR SQUAD COMPLETO
+                                    </Button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };
