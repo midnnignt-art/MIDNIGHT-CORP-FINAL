@@ -173,8 +173,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 email: email.trim().toLowerCase(), 
                 options: { 
                     shouldCreateUser: true,
-                    // IMPORTANT: Adding redirect URL helps prevent some delivery errors
-                    emailRedirectTo: window.location.origin,
+                    // REMOVED emailRedirectTo to avoid confusion with Magic Links in some email clients
+                    // emailRedirectTo: window.location.origin, 
                     data: metadata 
                 } 
             });
