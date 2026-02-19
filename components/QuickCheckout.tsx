@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion as _motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Shield, ChevronLeft, CheckCircle2, Mail, Download, Smartphone, Lock, User, AlertTriangle, CreditCard, ExternalLink } from 'lucide-react';
+import { Loader2, Shield, ChevronLeft, CheckCircle2, Mail, Download, Smartphone, Lock, User, AlertTriangle, CreditCard, ExternalLink, Link as LinkIcon, RefreshCcw } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { TicketTier, Order } from '../types';
@@ -10,7 +10,7 @@ import { useStore } from '../context/StoreContext';
 
 const motion = _motion as any;
 
-// Bold API Key provided by user
+// Identity Key provided by user for Sandbox Environment
 const BOLD_API_KEY = 'K8mOAoWetfE5onyHWlhgvpLFcJIltm9Q64tZGv0Rmrs';
 
 interface QuickCheckoutProps {
@@ -35,8 +35,13 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
   // Order State
   const [isProcessing, setIsProcessing] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
-  const [pendingOrder, setPendingOrder] = useState<Order | null>(null); // For Bold flow
+  const [pendingOrder, setPendingOrder] = useState<Order | null>(null); 
   const [aiMessage, setAiMessage] = useState('');
+  
+  // Bold Integration State
+  const [gatewayStatus, setGatewayStatus] = useState<'idle' | 'loading' | 'link_created' | 'error'>('idle');
+  const [gatewayMessage, setGatewayMessage] = useState('');
+  const [integrationId, setIntegrationId] = useState<string | null>(null);
 
   // Auto-fill if user is already logged in (customer)
   useEffect(() => {
@@ -49,28 +54,82 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
     }
   }, [currentCustomer, step]);
 
-  // Inject Bold Script when entering Step 2.5 (Gateway)
+  // INITIATE BOLD API FLOW
   useEffect(() => {
-    if (step === 2.5 && pendingOrder) {
-        // Clear previous scripts if any
-        const container = document.getElementById('bold-container');
-        if (container) {
-            container.innerHTML = ''; 
-            const script = document.createElement('script');
-            script.src = "https://checkout.bold.co/library/boldPaymentButton.js";
-            script.setAttribute('data-bold-button', 'dark');
-            script.setAttribute('data-order-id', pendingOrder.order_number);
-            script.setAttribute('data-currency', 'COP'); // Bold uses COP
-            script.setAttribute('data-amount', pendingOrder.total.toString());
-            script.setAttribute('data-api-key', BOLD_API_KEY);
-            // Integrity signature is required for production but we can't generate it securely on client.
-            // Bold might block without it or allow testing in Sandbox depending on configuration.
-            // For now we omit or mock to allow the script to try rendering.
-            script.setAttribute('data-redirection-url', window.location.href); 
-            container.appendChild(script);
-        }
+    if (step === 2.5 && pendingOrder && gatewayStatus === 'idle') {
+        initiateBoldTransaction();
     }
-  }, [step, pendingOrder]);
+  }, [step, pendingOrder, gatewayStatus]);
+
+  const initiateBoldTransaction = async () => {
+      setGatewayStatus('loading');
+      setGatewayMessage('Conectando con Bold API...');
+      
+      try {
+          // 1. Fetch available terminals (Dataphones)
+          // Required even for Pay By Link according to documentation
+          const termRes = await fetch('https://integrations.api.bold.co/payments/binded-terminals', {
+              method: 'GET',
+              headers: { 'Authorization': `x-api-key ${BOLD_API_KEY}` }
+          });
+
+          if (!termRes.ok) throw new Error('Error al conectar con Bold (Check API Key)');
+          
+          const termData = await termRes.json();
+          const terminal = termData.payload?.available_terminals?.[0];
+
+          if (!terminal) {
+              throw new Error('No hay terminales/datáfonos activos asociados a esta cuenta Bold.');
+          }
+
+          setGatewayMessage('Generando enlace de pago...');
+
+          // 2. Create Transaction (PAY_BY_LINK)
+          const payload = {
+            amount: {
+                currency: "COP",
+                total_amount: Math.round(pendingOrder!.total),
+                taxes: [], // Optional/Empty for simplicity in this integration
+                tip_amount: 0
+            },
+            payment_method: "PAY_BY_LINK", // Force Web Link generation
+            terminal_model: terminal.terminal_model,
+            terminal_serial: terminal.terminal_serial,
+            reference: pendingOrder!.order_number,
+            user_email: "pagos@midnight.corp", // Merchant email
+            description: `Compra Tickets: ${pendingOrder!.order_number}`,
+            payer: {
+                email: email, // Customer email to receive the link
+                // phone_number and document omitted to keep flow simple, but recommended for production
+            }
+          };
+
+          const payRes = await fetch('https://integrations.api.bold.co/payments/app-checkout', {
+              method: 'POST',
+              headers: { 
+                  'Authorization': `x-api-key ${BOLD_API_KEY}`,
+                  'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(payload)
+          });
+
+          const payData = await payRes.json();
+
+          if (!payRes.ok) {
+              console.error("Bold API Error:", payData);
+              throw new Error(payData.errors?.[0]?.message || 'Transacción rechazada por Bold.');
+          }
+
+          setIntegrationId(payData.payload.integration_id);
+          setGatewayStatus('link_created');
+          setGatewayMessage('¡Enlace de pago enviado a tu correo!');
+
+      } catch (error: any) {
+          console.error("Bold Integration Error:", error);
+          setGatewayStatus('error');
+          setGatewayMessage(error.message || "Error de comunicación con pasarela.");
+      }
+  };
 
   const selectedItems = Object.entries(selectedTiers)
     .filter(([_, qty]) => (qty as number) > 0)
@@ -147,7 +206,6 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
          return; 
       }
       
-      // 2. If order created, show Bold Gateway Step
       setPendingOrder(orderData);
       setStep(2.5);
       
@@ -296,16 +354,16 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
             </motion.div>
           )}
 
-          {/* STEP 2.5: PASARELA BOLD (GENERACIÓN AUTOMÁTICA) */}
+          {/* STEP 2.5: PASARELA BOLD (API INTEGRATION FLOW) */}
           {step === 2.5 && pendingOrder && (
              <motion.div key="s2.5" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-6 py-4">
-                 <div className="bg-red-600/10 border border-red-600/30 p-6 rounded-3xl relative overflow-hidden">
-                     <div className="absolute top-0 right-0 w-24 h-24 bg-red-600 blur-3xl opacity-20 pointer-events-none"></div>
+                 
+                 {/* Estado de la Pasarela */}
+                 <div className={`p-6 rounded-3xl relative overflow-hidden transition-colors duration-500 ${gatewayStatus === 'error' ? 'bg-red-600/10 border border-red-600/30' : 'bg-zinc-800 border border-white/5'}`}>
                      
                      <h3 className="text-xl font-black text-white uppercase tracking-widest flex items-center justify-center gap-2 mb-2">
-                         <CreditCard className="text-red-500"/> BOLD Checkout
+                         <CreditCard className={gatewayStatus === 'error' ? 'text-red-500' : 'text-neon-blue'}/> BOLD API
                      </h3>
-                     <p className="text-xs text-zinc-400 font-medium">Pago Seguro Encriptado</p>
                      
                      <div className="my-6">
                          <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest">Total Generado</p>
@@ -313,20 +371,44 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
                          <p className="text-[10px] text-zinc-500 mt-1 font-mono">ORDEN: {pendingOrder.order_number}</p>
                      </div>
 
-                     {/* CONTAINER PARA EL SCRIPT DE BOLD */}
-                     <div id="bold-container" className="flex justify-center min-h-[50px]">
-                         {/* El script se inyecta aquí automáticamente */}
-                         <div className="flex items-center gap-2 text-zinc-500 text-xs animate-pulse">
-                             <Loader2 className="animate-spin w-4 h-4"/> Cargando Pasarela...
-                         </div>
+                     <div className="flex flex-col items-center justify-center min-h-[50px] gap-2">
+                         {gatewayStatus === 'loading' && (
+                             <div className="flex items-center gap-2 text-zinc-400 text-xs animate-pulse">
+                                 <Loader2 className="animate-spin w-4 h-4"/> {gatewayMessage}
+                             </div>
+                         )}
+                         {gatewayStatus === 'error' && (
+                             <div className="flex flex-col items-center gap-2 text-red-400 text-[10px] font-bold">
+                                 <AlertTriangle size={16}/> {gatewayMessage}
+                             </div>
+                         )}
+                         {gatewayStatus === 'link_created' && (
+                             <div className="flex flex-col items-center gap-2 animate-in zoom-in">
+                                 <div className="w-10 h-10 bg-emerald-500/20 rounded-full flex items-center justify-center text-emerald-500 mb-1">
+                                    <LinkIcon size={20}/>
+                                 </div>
+                                 <p className="text-emerald-400 text-xs font-bold">{gatewayMessage}</p>
+                                 <p className="text-[10px] text-zinc-500 max-w-[200px]">El enlace ha sido enviado a {email}. Realiza el pago y confirma abajo.</p>
+                             </div>
+                         )}
                      </div>
                  </div>
 
-                 {/* Fallback Manual para Demo (Por si falla la firma de integridad de Bold en Frontend) */}
-                 <div className="pt-4 border-t border-white/5">
-                     <p className="text-[10px] text-zinc-600 mb-3">¿Problemas con el botón de pago?</p>
-                     <Button onClick={handlePaymentSuccess} variant="outline" className="text-xs border-dashed border-zinc-700 text-zinc-500 hover:text-white h-10 w-full">
-                         <CheckCircle2 className="w-3 h-3 mr-2"/> Simular Pago Exitoso (Demo)
+                 {/* Botones de Acción / Fallback */}
+                 <div className="pt-4 border-t border-white/5 animate-in fade-in slide-in-from-bottom-2 duration-500 space-y-3">
+                     {gatewayStatus === 'error' && (
+                        <Button onClick={initiateBoldTransaction} variant="outline" className="h-10 text-xs w-full mb-2">
+                            <RefreshCcw className="w-3 h-3 mr-2"/> REINTENTAR CONEXIÓN
+                        </Button>
+                     )}
+
+                     <Button 
+                        onClick={handlePaymentSuccess} 
+                        variant={gatewayStatus === 'link_created' ? 'primary' : 'outline'}
+                        fullWidth
+                        className={`text-xs h-12 font-black rounded-xl ${gatewayStatus === 'link_created' ? 'bg-emerald-500 text-black hover:bg-emerald-400' : 'border-dashed border-zinc-700 text-zinc-500 hover:text-white'}`}
+                     >
+                         <CheckCircle2 className="w-4 h-4 mr-2"/> {gatewayStatus === 'link_created' ? "YA PAGUÉ (CONFIRMAR)" : "Simular Pago Exitoso (Demo)"}
                      </Button>
                  </div>
              </motion.div>

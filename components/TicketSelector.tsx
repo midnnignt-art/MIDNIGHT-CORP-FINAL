@@ -84,7 +84,7 @@ export default function TicketSelector({ tiers, selectedTiers, onSelect, classNa
                 )}
 
                 <p className="text-xs text-zinc-500 mt-2">
-                  {isSoldOut ? 'Sold Out' : `${available} available`}
+                  {isSoldOut ? 'Sold Out' : `${available} disponibles`}
                 </p>
               </div>
 
@@ -94,7 +94,7 @@ export default function TicketSelector({ tiers, selectedTiers, onSelect, classNa
                   <p className="text-2xl font-bold text-white">
                     ${tier.price.toLocaleString()}
                   </p>
-                  <p className="text-[10px] text-zinc-500 uppercase">USD</p>
+                  <p className="text-[10px] text-zinc-500 uppercase font-black">COP</p>
                 </div>
 
                 {!isSoldOut && (

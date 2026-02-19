@@ -15,7 +15,7 @@ interface CommissionCalculatorProps {
 }
 
 export default function CommissionCalculator({ 
-  defaultTicketPrice = 100,
+  defaultTicketPrice = 50000,
   defaultOperationalPercent = 5,
   defaultCommissionPercent = 10,
   className 
@@ -86,7 +86,7 @@ export default function CommissionCalculator({
         {/* Inputs */}
         <div className="grid sm:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <label className="text-xs text-zinc-500 uppercase tracking-wider">Precio Ticket</label>
+            <label className="text-xs text-zinc-500 uppercase tracking-wider">Precio Ticket (COP)</label>
             <div className="relative">
               <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
               <Input

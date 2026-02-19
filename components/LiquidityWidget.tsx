@@ -78,7 +78,7 @@ export default function LiquidityWidget({
           <p className="text-4xl font-bold text-white tracking-tight">
             {formatCurrency(totalBalance)}
           </p>
-          <p className="text-sm text-zinc-500 mt-1">USD (Bruto)</p>
+          <p className="text-sm text-zinc-500 mt-1">COP (Bruto)</p>
         </div>
 
         {/* Balance breakdown */}
