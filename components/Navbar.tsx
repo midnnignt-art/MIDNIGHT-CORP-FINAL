@@ -90,7 +90,7 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
 
   const handleQuickCopy = () => {
       if(currentUser?.code) {
-          const link = `${window.location.origin}/?ref=${currentUser.code}`;
+          const link = `https://midnightcorp.click/?ref=${currentUser.code}`;
           navigator.clipboard.writeText(link);
           alert('Link copiado al portapapeles');
       }

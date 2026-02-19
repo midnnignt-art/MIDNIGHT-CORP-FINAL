@@ -160,7 +160,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const c = code.toUpperCase();
         if (c === 'ADMIN123') {
              // UUID Fijo para el Admin Principal
-             const user = { user_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', name: 'Super Admin', email: 'admin@midnight.com', code: 'ADMIN123', role: UserRole.ADMIN, total_sales: 0, total_commission_earned: 0 };
+             const user = { user_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', name: 'Super Admin', email: 'admin@midnightcorp.click', code: 'ADMIN123', role: UserRole.ADMIN, total_sales: 0, total_commission_earned: 0 };
              setCurrentUser(user);
              localStorage.setItem('midnight_user_id', user.user_id);
              return true;

@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
       terminal_model: terminal.terminal_model,
       terminal_serial: terminal.terminal_serial,
       reference: orderId,
-      user_email: "pagos@midnight.corp",
+      user_email: "pagos@midnightcorp.click",
       description: description,
       payer: {
           email: email

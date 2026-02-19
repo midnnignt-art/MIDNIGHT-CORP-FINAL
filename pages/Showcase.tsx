@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { EventCard } from '../components/EventCard';
 import { useStore } from '../context/StoreContext';
 import { Event, UserRole } from '../types';
-import { Ticket, Sparkles, UserCheck, PlusCircle, Grid, Wallet, Crown, Zap } from 'lucide-react';
+import { Ticket, Sparkles, UserCheck, PlusCircle, Grid, Wallet, Crown, Zap, ArrowRight } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import TicketWallet from '../components/TicketWallet';
 import { motion } from 'framer-motion';
@@ -30,35 +30,35 @@ export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
   return (
     <div className="min-h-screen pt-20 md:pt-24 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       
-      {/* PERSONALIZED LANDING HERO (Si hay referido) */}
+      {/* PERSONALIZED LANDING HERO (COMPACT VERSION) */}
       {referralInfo ? (
-          <div className="mb-8 rounded-3xl bg-gradient-to-r from-zinc-900 to-black border border-white/10 relative overflow-hidden animate-in fade-in zoom-in duration-700 shadow-2xl shadow-neon-purple/5">
-              <div className="absolute top-0 right-0 p-24 bg-neon-purple/10 blur-[80px] rounded-full pointer-events-none"></div>
+          <div className="mb-8 rounded-2xl bg-zinc-900/90 border border-white/10 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-2xl shadow-neon-purple/5 relative overflow-hidden animate-in fade-in slide-in-from-top-4 duration-700">
+              {/* Decorative Elements */}
+              <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-neon-purple via-transparent to-transparent"></div>
+              <div className="absolute -right-10 -top-10 w-32 h-32 bg-neon-purple/10 blur-[50px] rounded-full pointer-events-none"></div>
               
-              <div className="relative z-10 flex flex-col md:flex-row items-center justify-between py-6 px-6 md:px-10 gap-6">
-                  <div className="text-center md:text-left flex-1">
-                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 backdrop-blur-md mb-2">
-                          <Crown className="w-3 h-3 text-amber-500 fill-amber-500" />
-                          <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Acceso VIP Activado</span>
-                      </div>
-                      
-                      <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-none mb-2">
-                          INVITADO POR {referralInfo.name.split(' ')[0].toUpperCase()}
-                      </h1>
-                      
-                      <p className="text-xs md:text-sm text-zinc-400 font-medium max-w-md">
-                          Enlace exclusivo verificado. Tienes prioridad en la fila virtual y acceso a tickets reservados.
-                      </p>
+              <div className="flex items-center gap-4 z-10 text-center sm:text-left relative w-full sm:w-auto justify-center sm:justify-start">
+                  <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center border border-amber-500/20 shrink-0 hidden sm:flex">
+                      <Crown className="w-5 h-5 text-amber-500" />
                   </div>
-
-                  <div className="flex items-center gap-4">
-                      <div className="px-5 py-2 bg-zinc-950/50 rounded-xl border border-white/10 flex items-center gap-4 backdrop-blur-sm">
-                          <div className="flex flex-col text-right">
-                              <span className="text-[9px] text-zinc-500 uppercase font-black">Código</span>
-                              <span className="text-base font-mono font-bold text-white tracking-widest">{referralInfo.code}</span>
-                          </div>
-                          <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_#10b981] animate-pulse"></div>
+                  <div>
+                      <div className="flex items-center gap-2 justify-center sm:justify-start mb-0.5">
+                          <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/10">Acceso VIP Activado</span>
                       </div>
+                      <h1 className="text-sm md:text-lg font-bold text-white leading-tight flex items-center gap-1">
+                          Invitado por <span className="font-black text-white">{referralInfo.name.split(' ')[0].toUpperCase()}</span>
+                      </h1>
+                  </div>
+              </div>
+
+              <div className="flex items-center gap-3 z-10 w-full sm:w-auto bg-black/40 sm:bg-transparent p-2 sm:p-0 rounded-xl justify-between sm:justify-end border border-white/5 sm:border-0">
+                  <span className="text-[10px] text-zinc-500 font-bold uppercase sm:hidden ml-2">Código</span>
+                  <div className="flex items-center gap-3 bg-zinc-950/80 px-4 py-2 rounded-xl border border-white/10">
+                      <div className="text-right">
+                          <p className="text-[9px] text-zinc-500 uppercase font-black leading-none mb-0.5 hidden sm:block">Código Activo</p>
+                          <p className="text-xs sm:text-sm font-mono font-black text-neon-purple tracking-widest leading-none">{referralInfo.code}</p>
+                      </div>
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"></div>
                   </div>
               </div>
           </div>

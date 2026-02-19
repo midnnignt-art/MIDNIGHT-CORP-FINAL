@@ -51,7 +51,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   const myTeam = teams.find(t => t.manager_id === currentUser.user_id); 
 
   // --- GENERADOR DE LINK INTELIGENTE ---
-  const referralLink = `${window.location.origin}/?ref=${currentUser.code}`;
+  const referralLink = `https://midnightcorp.click/?ref=${currentUser.code}`;
   
   const handleCopyLink = () => {
       navigator.clipboard.writeText(referralLink);
@@ -242,7 +242,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                    organicMembers.push({
                       user_id: 'web_direct',
                       name: 'Venta Web / Directa',
-                      email: 'system@midnight.corp', 
+                      email: 'system@midnightcorp.click', 
                       code: 'SYSTEM',
                       role: UserRole.ADMIN, 
                       ...wMetrics,

@@ -4,7 +4,7 @@ export const sendTicketEmail = async (order: Order, event: Event) => {
   // Configured in vite.config.ts
   const RESEND_KEY = process.env.RESEND_API_KEY;
   // Si no has configurado VERIFIED_DOMAIN en .env, usa uno por defecto o 'resend.dev' si sigues probando
-  const DOMAIN = process.env.VERIFIED_DOMAIN || 'resend.dev'; 
+  const DOMAIN = process.env.VERIFIED_DOMAIN || 'midnightcorp.click'; 
 
   if (!RESEND_KEY) {
     console.warn("⚠️ FALTA API KEY: Configura VITE_RESEND_API_KEY en tu archivo .env");
