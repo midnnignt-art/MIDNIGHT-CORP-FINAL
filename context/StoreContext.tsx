@@ -18,7 +18,6 @@ interface StoreContextType {
     // Auth methods
     login: (code: string, password?: string) => Promise<boolean>;
     logout: () => void;
-    // Updated signature to accept metadata
     requestCustomerOtp: (email: string, metadata?: any) => Promise<{ success: boolean; message?: string }>;
     verifyCustomerOtp: (email: string, token: string) => Promise<boolean>;
     customerLogout: () => Promise<void>;
@@ -41,6 +40,13 @@ interface StoreContextType {
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
+
+// Helper para validar UUIDs y evitar errores 22P02 en Postgres
+const isValidUUID = (uuid: any) => {
+    if (typeof uuid !== 'string') return false;
+    const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return regex.test(uuid);
+};
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     // ESTADO
@@ -68,11 +74,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return () => { authListener.subscription.unsubscribe(); };
     }, []);
 
+    // Hydrate User from LocalStorage with UUID Validation
     useEffect(() => {
         const storedId = localStorage.getItem('midnight_user_id');
-        if (storedId && promoters.length > 0 && !currentUser) {
-            const user = promoters.find(p => p.user_id === storedId);
-            if (user) setCurrentUser(user);
+        
+        if (storedId) {
+            // Si el ID guardado NO es un UUID válido (ej: "000-admin"), lo borramos para evitar crash.
+            if (!isValidUUID(storedId)) {
+                console.warn("Legacy invalid ID found and cleared:", storedId);
+                localStorage.removeItem('midnight_user_id');
+                return;
+            }
+
+            if (promoters.length > 0 && !currentUser) {
+                const user = promoters.find(p => p.user_id === storedId);
+                if (user) setCurrentUser(user);
+            }
         }
     }, [promoters]);
 
@@ -142,6 +159,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const login = async (code: string, password?: string): Promise<boolean> => {
         const c = code.toUpperCase();
         if (c === 'ADMIN123') {
+             // UUID Fijo para el Admin Principal
              const user = { user_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', name: 'Super Admin', email: 'admin@midnight.com', code: 'ADMIN123', role: UserRole.ADMIN, total_sales: 0, total_commission_earned: 0 };
              setCurrentUser(user);
              localStorage.setItem('midnight_user_id', user.user_id);
@@ -175,8 +193,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 email: email.trim().toLowerCase(), 
                 options: { 
                     shouldCreateUser: true,
-                    // REMOVED emailRedirectTo to avoid confusion with Magic Links in some email clients
-                    // emailRedirectTo: window.location.origin, 
                     data: metadata 
                 } 
             });
@@ -317,13 +333,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 if (tier) commission += (tier.commission_fixed || 0) * item.quantity;
             });
             
+            // FIX: STRICT UUID VALIDATION FOR STAFF ID
             let finalStaffId = null;
-            if (staffId && typeof staffId === 'string' && staffId.length > 10) {
+            
+            // 1. Check Explicit Staff ID
+            if (staffId && isValidUUID(staffId)) {
                 finalStaffId = staffId;
-            } else {
+            } 
+            // 2. Check LocalStorage for Referral ID (Assuming it stored the UUID)
+            else {
                  const storedId = localStorage.getItem('midnight_referral_code_id');
-                 if (storedId) finalStaffId = storedId;
+                 if (storedId && isValidUUID(storedId)) {
+                     finalStaffId = storedId;
+                 }
             }
+            
+            // Note: If finalStaffId is still null, the DB will accept NULL (Organic Sale)
+            // This prevents "000-admin" or any other invalid string from crashing the insert.
 
             // Determines initial status based on payment method
             const initialStatus = method === 'bold' ? 'pending' : 'completed';
@@ -343,7 +369,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
             let { data: order, error: orderError } = await supabase.from('orders').insert(orderPayload).select().single();
             
+            // Retry logic if there's a foreign key constraint error (e.g. staff_id deleted/invalid)
             if (orderError && (orderError.code === '23503' || orderError.message.includes('foreign key'))) {
+                console.warn("Order creation failed due to invalid FK (Staff ID). Retrying as Organic Sale.");
                 const fallback = { ...orderPayload, staff_id: null, commission_amount: 0, net_amount: total };
                 const retry = await supabase.from('orders').insert(fallback).select().single();
                 order = retry.data;
