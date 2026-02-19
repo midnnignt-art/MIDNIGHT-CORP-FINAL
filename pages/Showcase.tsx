@@ -32,29 +32,32 @@ export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
       
       {/* PERSONALIZED LANDING HERO (Si hay referido) */}
       {referralInfo ? (
-          <div className="mb-12 rounded-[2.5rem] bg-gradient-to-br from-zinc-900 via-zinc-900 to-black border border-white/10 relative overflow-hidden animate-in fade-in zoom-in duration-700">
-              <div className="absolute top-0 right-0 p-32 bg-neon-purple/20 blur-[100px] rounded-full pointer-events-none"></div>
-              <div className="absolute bottom-0 left-0 p-32 bg-blue-600/10 blur-[100px] rounded-full pointer-events-none"></div>
+          <div className="mb-8 rounded-3xl bg-gradient-to-r from-zinc-900 to-black border border-white/10 relative overflow-hidden animate-in fade-in zoom-in duration-700 shadow-2xl shadow-neon-purple/5">
+              <div className="absolute top-0 right-0 p-24 bg-neon-purple/10 blur-[80px] rounded-full pointer-events-none"></div>
               
-              <div className="relative z-10 flex flex-col items-center justify-center py-16 px-6 text-center">
-                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md mb-6">
-                      <Crown className="w-4 h-4 text-amber-400 fill-amber-400" />
-                      <span className="text-xs font-bold text-amber-400 uppercase tracking-widest">Lista de Invitados VIP</span>
+              <div className="relative z-10 flex flex-col md:flex-row items-center justify-between py-6 px-6 md:px-10 gap-6">
+                  <div className="text-center md:text-left flex-1">
+                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 backdrop-blur-md mb-2">
+                          <Crown className="w-3 h-3 text-amber-500 fill-amber-500" />
+                          <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Acceso VIP Activado</span>
+                      </div>
+                      
+                      <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-none mb-2">
+                          INVITADO POR {referralInfo.name.split(' ')[0].toUpperCase()}
+                      </h1>
+                      
+                      <p className="text-xs md:text-sm text-zinc-400 font-medium max-w-md">
+                          Enlace exclusivo verificado. Tienes prioridad en la fila virtual y acceso a tickets reservados.
+                      </p>
                   </div>
-                  
-                  <h1 className="text-4xl md:text-6xl font-black text-white mb-4 tracking-tighter">
-                      HOLA, SOY {referralInfo.name.split(' ')[0].toUpperCase()}
-                  </h1>
-                  
-                  <p className="text-lg md:text-xl text-zinc-400 max-w-2xl mx-auto mb-8 font-medium">
-                      Has activado mi enlace de acceso exclusivo. <br/>
-                      Disfruta de la experiencia Midnight con prioridad.
-                  </p>
 
-                  <div className="flex items-center gap-3">
-                      <div className="px-6 py-3 bg-zinc-800 rounded-xl border border-white/5 flex flex-col items-center">
-                          <span className="text-[10px] text-zinc-500 uppercase font-black">Código Activo</span>
-                          <span className="text-lg font-mono font-bold text-white tracking-widest">{referralInfo.code}</span>
+                  <div className="flex items-center gap-4">
+                      <div className="px-5 py-2 bg-zinc-950/50 rounded-xl border border-white/10 flex items-center gap-4 backdrop-blur-sm">
+                          <div className="flex flex-col text-right">
+                              <span className="text-[9px] text-zinc-500 uppercase font-black">Código</span>
+                              <span className="text-base font-mono font-bold text-white tracking-widest">{referralInfo.code}</span>
+                          </div>
+                          <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_#10b981] animate-pulse"></div>
                       </div>
                   </div>
               </div>
