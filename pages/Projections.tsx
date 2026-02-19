@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
-import { UserRole, Event, TicketTier, EventCost } from '../types';
+import { UserRole, Event, TicketTier, EventCost, Order } from '../types';
 import { 
     TrendingUp, Target, Wallet, BarChart2, Activity, Zap, 
     Plus, Trash2, ShieldAlert, Receipt, DollarSign, Briefcase, 
-    Users, Palette, Truck, HelpCircle, CheckCircle2, Clock, Ticket
+    Users, Palette, Truck, HelpCircle, CheckCircle2, Clock, Ticket, Coins, Laptop
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { motion as _motion, AnimatePresence } from 'framer-motion';
@@ -38,7 +38,7 @@ interface ScenarioResult {
 }
 
 export const Projections: React.FC<ProjectionsProps> = ({ role }) => {
-    const { events, getEventTiers, addEventCost, deleteEventCost, updateCostStatus, orders } = useStore();
+    const { events, getEventTiers, addEventCost, deleteEventCost, updateCostStatus, orders, promoters, teams } = useStore();
     const [selectedEventId, setSelectedEventId] = useState<string>('');
     const [scenarios, setScenarios] = useState<ScenarioResult[]>([]);
     
@@ -137,13 +137,94 @@ export const Projections: React.FC<ProjectionsProps> = ({ role }) => {
 
     const formatCurrency = (val: number) => `$${val.toLocaleString()}`;
 
-    // --- KPIs REALES CALCULADOS DESDE ÓRDENES ---
-    const eventOrders = orders.filter(o => o.event_id === selectedEventId);
-    const realRevenue = eventOrders.reduce((acc, o) => acc + o.total, 0);
-    const realCommissions = eventOrders.reduce((acc, o) => acc + o.commission_amount, 0);
-    const realNet = realRevenue - realCommissions;
+    // --- KPIs REALES: Replicando Lógica Exacta del Dashboard ---
+    const realMetrics = useMemo(() => {
+        if (!selectedEventId) return { cash: 0, digital: 0, comms: 0, net: 0, revenue: 0 };
+        
+        // --- LOGICA DE LIQUIDACIÓN MAESTRA (COPIA EXACTA DE DASHBOARD) ---
+        
+        // 1. Filtrar Ordenes del Evento
+        const filteredOrders = orders.filter(o => o.event_id === selectedEventId);
+
+        // 2. Definir Helper de Cálculo (Igual al Dashboard)
+        const calculateMetrics = (subsetOrders: Order[], forceNoCommission = false) => {
+            const digitalOrders = subsetOrders.filter(o => o.payment_method !== 'cash');
+            const cashOrders = subsetOrders.filter(o => o.payment_method === 'cash');
+
+            const digitalGross = digitalOrders.reduce((acc, o) => acc + o.total, 0);
+            const cashGross = cashOrders.reduce((acc, o) => acc + o.total, 0);
+            
+            // CRITICAL: Force No Commission for Organic/Admin group
+            const totalCommission = forceNoCommission ? 0 : subsetOrders.reduce((acc, o) => acc + o.commission_amount, 0);
+            
+            // LIQUIDACIÓN REAL: Efectivo Recaudado - Comisiones Totales
+            const netLiquidation = cashGross - totalCommission;
+            
+            return { digitalGross, cashGross, totalCommission, netLiquidation };
+        };
+
+        let grandTotal = { digitalGross: 0, cashGross: 0, totalCommission: 0, netLiquidation: 0 };
+
+        // Identify Managers to exclude from Independents
+        const teamManagerIds = teams.map(t => t.manager_id).filter(id => id);
+
+        // 3. Procesar Squads
+        teams.forEach(team => {
+            const memberIds = [team.manager_id, ...team.members_ids];
+            const teamOrders = filteredOrders.filter(o => o.staff_id && memberIds.includes(o.staff_id));
+            const metrics = calculateMetrics(teamOrders);
+            
+            grandTotal.digitalGross += metrics.digitalGross;
+            grandTotal.cashGross += metrics.cashGross;
+            grandTotal.totalCommission += metrics.totalCommission;
+            grandTotal.netLiquidation += metrics.netLiquidation;
+        });
+
+        // 4. Procesar Independientes
+        const independentPromoters = promoters.filter(p => 
+            !p.sales_team_id && 
+            p.role !== UserRole.ADMIN &&
+            !teamManagerIds.includes(p.user_id) // FIX: Ensure managers are not counted twice
+        );
+
+        if (independentPromoters.length > 0) {
+            const indepOrders = filteredOrders.filter(o => o.staff_id && independentPromoters.some(p => p.user_id === o.staff_id));
+            const metrics = calculateMetrics(indepOrders);
+            
+            grandTotal.digitalGross += metrics.digitalGross;
+            grandTotal.cashGross += metrics.cashGross;
+            grandTotal.totalCommission += metrics.totalCommission;
+            grandTotal.netLiquidation += metrics.netLiquidation;
+        }
+
+        // 5. Procesar Orgánico + Admin
+        const adminPromoters = promoters.filter(p => p.role === UserRole.ADMIN);
+        const adminIds = adminPromoters.map(p => p.user_id);
+        if (!adminIds.includes('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11')) adminIds.push('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
+
+        const organicOrders = filteredOrders.filter(o => !o.staff_id || adminIds.includes(o.staff_id));
+        if (organicOrders.length > 0) {
+             const metrics = calculateMetrics(organicOrders, true); // Force No Commission
+             grandTotal.digitalGross += metrics.digitalGross;
+             grandTotal.cashGross += metrics.cashGross;
+             grandTotal.totalCommission += metrics.totalCommission;
+             grandTotal.netLiquidation += metrics.netLiquidation;
+        }
+
+        return {
+            cash: grandTotal.cashGross,
+            digital: grandTotal.digitalGross,
+            comms: grandTotal.totalCommission,
+            net: grandTotal.netLiquidation,
+            revenue: grandTotal.cashGross + grandTotal.digitalGross
+        };
+
+    }, [orders, selectedEventId, teams, promoters]);
+
     const realFixedCosts = selectedEvent?.costs?.reduce((a,b)=>a+b.amount,0) || 0;
-    const realUtility = realNet - realFixedCosts;
+    
+    // Utilidad: Total Revenue - Costos Fijos - Comisiones Reales
+    const realUtility = realMetrics.revenue - realFixedCosts - realMetrics.comms;
 
     return (
         <div className="min-h-screen pt-24 pb-12 px-4 max-w-7xl mx-auto">
@@ -164,22 +245,51 @@ export const Projections: React.FC<ProjectionsProps> = ({ role }) => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                <div className="bg-zinc-900 border border-white/5 p-6 rounded-3xl">
-                    <p className="text-[10px] text-zinc-500 uppercase font-black tracking-[0.2em] mb-1">Caja Neta Actual</p>
-                    <p className="text-2xl font-black text-white">{formatCurrency(realNet)}</p>
-                    <p className="text-[9px] text-zinc-600 mt-1 uppercase">Ventas Directas + Red neta</p>
+                
+                {/* CAJA NETA (KPI PRINCIPAL) */}
+                <div className="bg-zinc-900 border border-white/5 p-6 rounded-3xl relative overflow-hidden group">
+                     <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform"><Wallet size={40}/></div>
+                    <p className="text-[10px] text-zinc-500 uppercase font-black tracking-[0.2em] mb-1">Caja Neta (Liquidación)</p>
+                    <p className="text-2xl font-black text-white">{formatCurrency(realMetrics.net)}</p>
+                    <p className="text-[9px] text-zinc-600 mt-1 uppercase font-bold">Efectivo Recaudado - Comis. Totales</p>
                 </div>
-                <div className="bg-zinc-900 border border-white/5 p-6 rounded-3xl">
-                    <p className="text-[10px] text-zinc-500 uppercase font-black tracking-[0.2em] mb-1">Presupuesto Gastos</p>
-                    <p className="text-2xl font-black text-red-500">{formatCurrency(realFixedCosts)}</p>
+
+                {/* BREAKDOWN VENTAS */}
+                <div className="bg-zinc-900 border border-white/5 p-6 rounded-3xl relative overflow-hidden group">
+                    <p className="text-[10px] text-zinc-500 uppercase font-black tracking-[0.2em] mb-2">Desglose Ingresos</p>
+                    <div className="space-y-2">
+                        <div className="flex justify-between items-center text-xs">
+                            <span className="text-amber-500 font-bold flex items-center gap-1"><Coins size={10}/> Efectivo</span>
+                            <span className="text-white font-bold">{formatCurrency(realMetrics.cash)}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-xs">
+                            <span className="text-purple-400 font-bold flex items-center gap-1"><Laptop size={10}/> Digital</span>
+                            <span className="text-white font-bold">{formatCurrency(realMetrics.digital)}</span>
+                        </div>
+                    </div>
                 </div>
-                <div className={`p-6 rounded-3xl border ${realUtility >= 0 ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
+
+                {/* UTILIDAD REAL */}
+                <div className={`p-6 rounded-3xl border relative overflow-hidden group ${realUtility >= 0 ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
+                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform"><Activity size={40}/></div>
                     <p className="text-[10px] text-zinc-500 uppercase font-black tracking-[0.2em] mb-1">Utilidad en Tiempo Real</p>
                     <p className={`text-2xl font-black ${realUtility >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{formatCurrency(realUtility)}</p>
+                    <p className="text-[9px] text-zinc-500 mt-1 uppercase font-bold">Total Ventas - Costos - Comisiones</p>
                 </div>
+
+                {/* COSTOS Y COMISIONES */}
                 <div className="bg-zinc-900 border border-white/5 p-6 rounded-3xl">
-                    <p className="text-[10px] text-zinc-500 uppercase font-black tracking-[0.2em] mb-1">Comisiones Pagadas</p>
-                    <p className="text-2xl font-black text-amber-500">{formatCurrency(realCommissions)}</p>
+                     <p className="text-[10px] text-zinc-500 uppercase font-black tracking-[0.2em] mb-2">Salidas</p>
+                     <div className="space-y-2">
+                         <div className="flex justify-between items-center text-xs">
+                             <span className="text-red-400 font-bold">Gastos Fijos</span>
+                             <span className="text-white font-bold">-{formatCurrency(realFixedCosts)}</span>
+                         </div>
+                         <div className="flex justify-between items-center text-xs">
+                             <span className="text-amber-500 font-bold">Comisiones</span>
+                             <span className="text-white font-bold">-{formatCurrency(realMetrics.comms)}</span>
+                         </div>
+                     </div>
                 </div>
             </div>
 

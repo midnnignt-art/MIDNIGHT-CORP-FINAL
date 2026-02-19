@@ -7,11 +7,9 @@ import { TicketTier, Order } from '../types';
 import TicketSelector from './TicketSelector';
 import { GoogleGenAI } from "@google/genai";
 import { useStore } from '../context/StoreContext';
+import { supabase } from '../lib/supabase';
 
 const motion = _motion as any;
-
-// Identity Key provided by user for Sandbox Environment
-const BOLD_API_KEY = 'K8mOAoWetfE5onyHWlhgvpLFcJIltm9Q64tZGv0Rmrs';
 
 interface QuickCheckoutProps {
   event: any;
@@ -63,70 +61,40 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
 
   const initiateBoldTransaction = async () => {
       setGatewayStatus('loading');
-      setGatewayMessage('Conectando con Bold API...');
+      setGatewayMessage('Conectando con Pasarela Segura...');
       
       try {
-          // 1. Fetch available terminals (Dataphones)
-          // Required even for Pay By Link according to documentation
-          const termRes = await fetch('https://integrations.api.bold.co/payments/binded-terminals', {
-              method: 'GET',
-              headers: { 'Authorization': `x-api-key ${BOLD_API_KEY}` }
-          });
-
-          if (!termRes.ok) throw new Error('Error al conectar con Bold (Check API Key)');
-          
-          const termData = await termRes.json();
-          const terminal = termData.payload?.available_terminals?.[0];
-
-          if (!terminal) {
-              throw new Error('No hay terminales/datáfonos activos asociados a esta cuenta Bold.');
-          }
-
-          setGatewayMessage('Generando enlace de pago...');
-
-          // 2. Create Transaction (PAY_BY_LINK)
-          const payload = {
-            amount: {
-                currency: "COP",
-                total_amount: Math.round(pendingOrder!.total),
-                taxes: [], // Optional/Empty for simplicity in this integration
-                tip_amount: 0
-            },
-            payment_method: "PAY_BY_LINK", // Force Web Link generation
-            terminal_model: terminal.terminal_model,
-            terminal_serial: terminal.terminal_serial,
-            reference: pendingOrder!.order_number,
-            user_email: "pagos@midnight.corp", // Merchant email
-            description: `Compra Tickets: ${pendingOrder!.order_number}`,
-            payer: {
-                email: email, // Customer email to receive the link
-                // phone_number and document omitted to keep flow simple, but recommended for production
+          // LLAMADA A SUPABASE EDGE FUNCTION (PROXY)
+          const { data, error } = await supabase.functions.invoke('create-bold-payment', {
+            body: {
+                amount: Math.round(pendingOrder!.total),
+                orderId: pendingOrder!.order_number,
+                email: email,
+                description: `Compra Tickets: ${pendingOrder!.order_number} - ${event.title}`
             }
-          };
-
-          const payRes = await fetch('https://integrations.api.bold.co/payments/app-checkout', {
-              method: 'POST',
-              headers: { 
-                  'Authorization': `x-api-key ${BOLD_API_KEY}`,
-                  'Content-Type': 'application/json'
-              },
-              body: JSON.stringify(payload)
           });
 
-          const payData = await payRes.json();
-
-          if (!payRes.ok) {
-              console.error("Bold API Error:", payData);
-              throw new Error(payData.errors?.[0]?.message || 'Transacción rechazada por Bold.');
+          if (error) {
+              console.error("Supabase Function Error:", error);
+              // Detección específica si la función no existe (404)
+              if (error.message && error.message.includes('not found')) {
+                  throw new Error("⚠️ SISTEMA: La función de pagos no está desplegada en Supabase. Ejecuta: 'npx supabase functions deploy create-bold-payment'");
+              }
+              throw new Error("Error de conexión segura con el servidor de pagos.");
           }
 
-          setIntegrationId(payData.payload.integration_id);
+          if (data.error) {
+              throw new Error(data.error);
+          }
+
+          setIntegrationId(data.payload.integration_id);
           setGatewayStatus('link_created');
           setGatewayMessage('¡Enlace de pago enviado a tu correo!');
 
       } catch (error: any) {
           console.error("Bold Integration Error:", error);
           setGatewayStatus('error');
+          // Mensaje amigable para el usuario final
           setGatewayMessage(error.message || "Error de comunicación con pasarela.");
       }
   };

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { UserRole, Promoter, SalesTeam, Order } from '../types';
 import { Button } from '../components/ui/button';
-import { Banknote, Award, Target, History, Users, Plus, X, Layers, UserPlus, TrendingUp, Sparkles, ChevronRight, Trash2, ShieldCheck, PieChart, Eye, Calendar, Ticket, ArrowRightLeft, ScrollText, Wallet, Link as LinkIcon, Copy, Share2, Check, Smartphone, User, Search, Filter, Loader2, Download, BarChart, AlertTriangle, CreditCard, Mail, Globe } from 'lucide-react';
+import { Banknote, Award, Target, History, Users, Plus, X, Layers, UserPlus, TrendingUp, Sparkles, ChevronRight, Trash2, ShieldCheck, PieChart, Eye, Calendar, Ticket, ArrowRightLeft, ScrollText, Wallet, Link as LinkIcon, Copy, Share2, Check, Smartphone, User, Search, Filter, Loader2, Download, BarChart, AlertTriangle, CreditCard, Mail, Globe, MessageCircle, ChevronDown, ChevronUp, Laptop, Coins } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import PromoterRanking from '../components/PromoterRanking';
 import { motion as _motion, AnimatePresence } from 'framer-motion';
@@ -17,7 +17,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   const [linkCopied, setLinkCopied] = useState(false);
 
   // Filters & Tabs
-  const [selectedEventFilter, setSelectedEventFilter] = useState<string>(''); // Empty by default to force selection
+  const [selectedEventFilter, setSelectedEventFilter] = useState<string>(''); 
   const [staffSearch, setStaffSearch] = useState('');
 
   // Ranking Filters
@@ -31,7 +31,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   const [manualCustomerInfo, setManualCustomerInfo] = useState({ name: '', email: '' });
   const [isProcessingSale, setIsProcessingSale] = useState(false);
 
-  // Recruitment State (Manager scope)
+  // Recruitment State
   const [newStaffName, setNewStaffName] = useState('');
   const [newStaffCode, setNewStaffCode] = useState('');
   const [newStaffPassword, setNewStaffPassword] = useState(''); 
@@ -39,15 +39,15 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   // Detailed View State
   const [viewingStaffId, setViewingStaffId] = useState<string | null>(null);
   const [viewingTeamId, setViewingTeamId] = useState<string | null>(null);
+  const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null);
 
   if (!currentUser) return null;
 
-  // PERMISOS MAESTROS
+  // PERMISOS
   const isAdmin = currentUser.role === UserRole.ADMIN;
   const isHead = currentUser.role === UserRole.HEAD_OF_SALES || isAdmin;
   const isManager = currentUser.role === UserRole.MANAGER || isHead; 
   
-  // --- IDENTIFICAR EL SQUAD DEL MANAGER ---
   const myTeam = teams.find(t => t.manager_id === currentUser.user_id); 
 
   // --- GENERADOR DE LINK INTELIGENTE ---
@@ -60,22 +60,27 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   };
 
   const handleShareWhatsapp = () => {
-      const text = `¡Hola! Consigue tus entradas oficiales para los eventos de Midnight Corp aquí: ${referralLink}`;
+      const text = `¡Hola! Aquí tienes mi link oficial para los eventos de Midnight. Compra tus tickets seguros aquí: ${referralLink}`;
       window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   // --- EXPORTAR LIQUIDACIÓN CSV ---
-  const handleExportLiquidation = (data: any[]) => {
+  const handleExportLiquidation = (data: any[], totals: any) => {
       if (!selectedEventFilter) return alert("Selecciona un evento primero.");
       const eventName = events.find(e => e.id === selectedEventFilter)?.title || 'Evento';
       
       let csvContent = "data:text/csv;charset=utf-8,";
       // Headers
-      csvContent += "Squad,Manager,Bruto Total,Comision,Neto a Pagar,Tickets Totales\n";
+      csvContent += "Squad,Manager,Ventas Digital($),Ventas Efectivo($),Recaudo Efectivo,Comision Total,A Liquidar (Neto)\n";
       
       data.forEach(row => {
-          csvContent += `${row.name},${row.manager_name || 'N/A'},${row.gross},${row.commission},${row.net},${row.ordersCount || 0}\n`;
+          csvContent += `${row.name},${row.manager_name || 'N/A'},${row.digitalGross},${row.cashGross},${row.cashGross},${row.commission},${row.net}\n`;
       });
+      
+      // Footer Row
+      if(totals) {
+         csvContent += `TOTALES,,${totals.digitalGross},${totals.cashGross},${totals.cashGross},${totals.totalCommission},${totals.netLiquidation}\n`; 
+      }
 
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement("a");
@@ -109,24 +114,52 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
           return breakdown;
       };
 
+      // Helper para calcular métricas corregidas: Cash vs Digital
+      const calculateMetrics = (subsetOrders: Order[], forceNoCommission = false) => {
+          const digitalOrders = subsetOrders.filter(o => o.payment_method !== 'cash');
+          const cashOrders = subsetOrders.filter(o => o.payment_method === 'cash');
+
+          const digitalQty = digitalOrders.reduce((acc, o) => acc + o.items.reduce((sum, i) => sum + i.quantity, 0), 0);
+          const digitalGross = digitalOrders.reduce((acc, o) => acc + o.total, 0);
+
+          const cashQty = cashOrders.reduce((acc, o) => acc + o.items.reduce((sum, i) => sum + i.quantity, 0), 0);
+          const cashGross = cashOrders.reduce((acc, o) => acc + o.total, 0);
+
+          const totalSales = digitalGross + cashGross;
+          const totalQty = digitalQty + cashQty;
+          
+          // CRITICAL FIX: If forceNoCommission (Admin/System) is true, commission is 0.
+          const totalCommission = forceNoCommission ? 0 : subsetOrders.reduce((acc, o) => acc + o.commission_amount, 0);
+          
+          // LIQUIDACIÓN REAL: Efectivo Recaudado - Comisiones Totales
+          const netLiquidation = cashGross - totalCommission;
+          
+          return { 
+              digitalQty, digitalGross, 
+              cashQty, cashGross, 
+              totalSales, totalQty, 
+              totalCommission, netLiquidation 
+          };
+      };
+
       // 1. Procesar Squads Reales
       const teamStats = teams.map(team => {
           const memberIds = [team.manager_id, ...team.members_ids];
           const teamOrders = filteredOrders.filter(o => o.staff_id && memberIds.includes(o.staff_id));
-          const gross = teamOrders.reduce((acc, o) => acc + o.total, 0);
-          const commission = teamOrders.reduce((acc, o) => acc + o.commission_amount, 0);
+          
+          const metrics = calculateMetrics(teamOrders);
           const breakdown = calculateBreakdown(teamOrders);
           
           const members = promoters.filter(p => memberIds.includes(p.user_id)).map(p => {
               const staffOrders = filteredOrders.filter(o => o.staff_id === p.user_id);
-              const pGross = staffOrders.reduce((acc, o) => acc + o.total, 0);
-              const pComm = staffOrders.reduce((acc, o) => acc + o.commission_amount, 0);
+              const mMetrics = calculateMetrics(staffOrders);
               return {
                   ...p,
-                  gross: pGross,
-                  commission: pComm,
-                  net: pGross - pComm,
-                  breakdown: calculateBreakdown(staffOrders)
+                  ...mMetrics, // Spread metrics (digitalGross, cashGross, netLiquidation, etc)
+                  commission: mMetrics.totalCommission,
+                  net: mMetrics.netLiquidation,
+                  breakdown: calculateBreakdown(staffOrders),
+                  orders: staffOrders
               };
           });
 
@@ -135,86 +168,88 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
               name: team.name,
               manager_name: promoters.find(p => p.user_id === team.manager_id)?.name,
               isVirtual: false,
-              gross,
-              commission,
-              net: gross - commission,
-              ordersCount: teamOrders.reduce((acc, o) => acc + o.items.reduce((sum, i) => sum + i.quantity, 0), 0),
+              ...metrics, // Spread metrics
+              commission: metrics.totalCommission,
+              net: metrics.netLiquidation,
+              ordersCount: metrics.totalQty,
               breakdown,
               members
           };
       });
 
-      // 2. Procesar Promotores Independientes (Sin Squad, Excluyendo Admin)
-      const independentPromoters = promoters.filter(p => !p.sales_team_id && p.role !== UserRole.ADMIN);
+      // Identify Managers to exclude from Independents
+      const teamManagerIds = teams.map(t => t.manager_id).filter(id => id);
+
+      // 2. Procesar Promotores Independientes
+      // FIX: Exclude managers from independent list
+      const independentPromoters = promoters.filter(p => 
+        !p.sales_team_id && 
+        p.role !== UserRole.ADMIN &&
+        !teamManagerIds.includes(p.user_id)
+      );
+      
       if (independentPromoters.length > 0) {
           const indepOrders = filteredOrders.filter(o => o.staff_id && independentPromoters.some(p => p.user_id === o.staff_id));
-          const gross = indepOrders.reduce((acc, o) => acc + o.total, 0);
-          const commission = indepOrders.reduce((acc, o) => acc + o.commission_amount, 0);
+          const metrics = calculateMetrics(indepOrders);
           const breakdown = calculateBreakdown(indepOrders);
 
           const members = independentPromoters.map(p => {
               const staffOrders = filteredOrders.filter(o => o.staff_id === p.user_id);
-              const pGross = staffOrders.reduce((acc, o) => acc + o.total, 0);
-              const pComm = staffOrders.reduce((acc, o) => acc + o.commission_amount, 0);
+              const mMetrics = calculateMetrics(staffOrders);
               return {
                   ...p,
-                  gross: pGross,
-                  commission: pComm,
-                  net: pGross - pComm,
-                  breakdown: calculateBreakdown(staffOrders)
+                  ...mMetrics,
+                  commission: mMetrics.totalCommission,
+                  net: mMetrics.netLiquidation,
+                  breakdown: calculateBreakdown(staffOrders),
+                  orders: staffOrders
               };
-          }).filter(m => m.gross > 0 || m.role === UserRole.PROMOTER);
+          }).filter(m => m.totalSales > 0 || m.role === UserRole.PROMOTER);
 
           teamStats.push({
               id: 'virtual_independent',
               name: 'SIN SQUAD / INDEPENDIENTES',
               manager_name: 'Gestión Directa',
               isVirtual: true,
-              gross,
-              commission,
-              net: gross - commission,
-              ordersCount: indepOrders.reduce((acc, o) => acc + o.items.reduce((sum, i) => sum + i.quantity, 0), 0),
+              ...metrics,
+              commission: metrics.totalCommission,
+              net: metrics.netLiquidation,
+              ordersCount: metrics.totalQty,
               breakdown,
               members
           });
       }
 
       // 3. Procesar Orgánico + Admin
-      // Ventas donde staff_id es NULL o pertenece a un ADMIN
       const adminPromoters = promoters.filter(p => p.role === UserRole.ADMIN);
       const adminIds = adminPromoters.map(p => p.user_id);
-      // Fallback Admin ID hardcoded in StoreContext
       if (!adminIds.includes('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11')) adminIds.push('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
 
       const organicOrders = filteredOrders.filter(o => !o.staff_id || adminIds.includes(o.staff_id));
 
       if (organicOrders.length > 0) {
-          const gross = organicOrders.reduce((acc, o) => acc + o.total, 0);
-          const commission = organicOrders.reduce((acc, o) => acc + o.commission_amount, 0);
+          // CRITICAL: Force No Commission for Organic/Admin group
+          const metrics = calculateMetrics(organicOrders, true);
           const breakdown = calculateBreakdown(organicOrders);
 
-          // Members: Web Direct + Admins
-          const organicMembers: any[] = []; // Explicit typing or any to allow mix
+          const organicMembers: any[] = []; 
 
-          // Web Direct (NULL staff_id)
+          // Web Direct
           const webOrders = organicOrders.filter(o => !o.staff_id);
           if (webOrders.length > 0 || organicOrders.length > 0) {
-               // Always show Web Direct row if there are orders, or if we want to show it exists
                if(webOrders.length > 0) {
-                   const wGross = webOrders.reduce((acc, o) => acc + o.total, 0);
-                   const wComm = webOrders.reduce((acc, o) => acc + o.commission_amount, 0);
+                   const wMetrics = calculateMetrics(webOrders, true); // Force 0 Commission
                    organicMembers.push({
                       user_id: 'web_direct',
                       name: 'Venta Web / Directa',
-                      email: 'system@midnight.corp', // FIX: Added mandatory email
+                      email: 'system@midnight.corp', 
                       code: 'SYSTEM',
-                      role: UserRole.ADMIN, // FIX: Use valid enum role
-                      total_sales: wGross, // FIX: Added mandatory field
-                      total_commission_earned: wComm, // FIX: Added mandatory field
-                      gross: wGross,
-                      commission: wComm,
-                      net: wGross - wComm,
-                      breakdown: calculateBreakdown(webOrders)
+                      role: UserRole.ADMIN, 
+                      ...wMetrics,
+                      commission: wMetrics.totalCommission,
+                      net: wMetrics.netLiquidation,
+                      breakdown: calculateBreakdown(webOrders),
+                      orders: webOrders
                    });
                }
           }
@@ -223,14 +258,14 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
           adminPromoters.forEach(admin => {
               const aOrders = organicOrders.filter(o => o.staff_id === admin.user_id);
               if (aOrders.length > 0) {
-                  const aGross = aOrders.reduce((acc, o) => acc + o.total, 0);
-                  const aComm = aOrders.reduce((acc, o) => acc + o.commission_amount, 0);
+                  const aMetrics = calculateMetrics(aOrders, true); // Force 0 Commission
                   organicMembers.push({
                       ...admin,
-                      gross: aGross,
-                      commission: aComm,
-                      net: aGross - aComm,
-                      breakdown: calculateBreakdown(aOrders)
+                      ...aMetrics,
+                      commission: aMetrics.totalCommission,
+                      net: aMetrics.netLiquidation,
+                      breakdown: calculateBreakdown(aOrders),
+                      orders: aOrders
                   });
               }
           });
@@ -240,35 +275,34 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
               name: 'ORGANICO / MIDNIGHT',
               manager_name: 'Sistema Central',
               isVirtual: true,
-              gross,
-              commission,
-              net: gross - commission,
-              ordersCount: organicOrders.reduce((acc, o) => acc + o.items.reduce((sum, i) => sum + i.quantity, 0), 0),
+              ...metrics,
+              commission: metrics.totalCommission, // Will be 0
+              net: metrics.netLiquidation, // Will equal cashGross
+              ordersCount: metrics.totalQty,
               breakdown,
               members: organicMembers
           });
       }
 
-      return { allTeams: teamStats, stages };
-  }, [orders, teams, promoters, isHead, selectedEventFilter, tiers]);
+      // --- CALCULAR TOTALES GLOBALES ---
+      const grandTotals = teamStats.reduce((acc, team) => ({
+          digitalQty: acc.digitalQty + team.digitalQty,
+          digitalGross: acc.digitalGross + team.digitalGross,
+          cashQty: acc.cashQty + team.cashQty,
+          cashGross: acc.cashGross + team.cashGross,
+          totalCommission: acc.totalCommission + team.commission,
+          netLiquidation: acc.netLiquidation + team.net
+      }), { digitalQty: 0, digitalGross: 0, cashQty: 0, cashGross: 0, totalCommission: 0, netLiquidation: 0 });
 
-  // ... (rest of the file remains unchanged) ...
-  // --- DATOS PARA AUDITORÍA DE SQUAD (Pop-up) ---
-  const selectedSquadDetails = useMemo(() => {
-      if (!viewingTeamId || !globalLiquidationData) return null;
-      return globalLiquidationData.allTeams.find(t => t.id === viewingTeamId);
-  }, [viewingTeamId, globalLiquidationData]);
+      return { allTeams: teamStats, stages, grandTotals };
+  }, [orders, teams, promoters, isHead, selectedEventFilter, tiers]);
 
   // --- LOGICA RANKING GENERAL ---
   const generalRankingData = useMemo(() => {
       let filteredOrders = orders;
-
-      // Filter by Event
       if (rankingFilterEvent !== 'all') {
           filteredOrders = filteredOrders.filter(o => o.event_id === rankingFilterEvent);
       }
-
-      // Filter by Date
       if (rankingDateStart) {
           filteredOrders = filteredOrders.filter(o => new Date(o.timestamp) >= new Date(rankingDateStart));
       }
@@ -287,19 +321,32 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
               ...p,
               ticketsSold,
               revenue,
-              orders: myOrders // For Audit
+              orders: myOrders
           };
-      }).filter(p => p.ticketsSold > 0).sort((a,b) => b.ticketsSold - a.ticketsSold); // Sort by Tickets (Units)
+      }).filter(p => p.ticketsSold > 0).sort((a,b) => b.ticketsSold - a.ticketsSold); 
 
       return stats;
   }, [orders, promoters, rankingFilterEvent, rankingDateStart, rankingDateEnd]);
 
 
-  // --- CÁLCULO DE MÉTRICAS (KPIs) POR ROL ---
+  // --- CÁLCULO DE MÉTRICAS (KPIs) - SIEMPRE SINCRONIZADO CON TABLA ---
   const { kpiSales, kpiCommissions, kpiNetToSend, scopeLabel } = useMemo(() => {
     let scopeOrders: typeof orders = [];
     let label = "";
 
+    // 1. SI ESTAMOS EN MODO LIQUIDACIÓN DE EVENTO (ADMIN/HEAD + EVENTO SELECCIONADO)
+    // Usamos directamente los totales de la tabla para garantizar consistencia 100%
+    if (isHead && selectedEventFilter && globalLiquidationData) {
+        const t = globalLiquidationData.grandTotals;
+        return {
+            kpiSales: t.digitalGross + t.cashGross,
+            kpiCommissions: t.totalCommission,
+            kpiNetToSend: t.netLiquidation,
+            scopeLabel: `Liquidación: ${events.find(e => e.id === selectedEventFilter)?.title}`
+        };
+    }
+
+    // 2. CÁLCULO GENERAL (SIN FILTRO DE EVENTO O PARA OTROS ROLES)
     if (isHead) {
         scopeOrders = orders;
         label = "Global (Red Completa)";
@@ -313,15 +360,43 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
     }
 
     const sales = scopeOrders.reduce((acc, o) => acc + o.total, 0);
-    const commissions = scopeOrders.reduce((acc, o) => acc + o.commission_amount, 0);
-    const netToSend = sales - commissions;
+    
+    // Identify Admins to exclude from commission sum (SAME LOGIC AS TABLE)
+    const adminIds = promoters.filter(p => p.role === UserRole.ADMIN).map(p => p.user_id);
+    if (!adminIds.includes('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11')) adminIds.push('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
+
+    const commissions = scopeOrders.reduce((acc, o) => {
+        // If order belongs to an Admin or has no staff (organic), commission is 0 for KPI
+        if (!o.staff_id || adminIds.includes(o.staff_id)) {
+            return acc;
+        }
+        return acc + o.commission_amount;
+    }, 0);
+    
+    const cashSales = scopeOrders.filter(o => o.payment_method === 'cash').reduce((acc, o) => acc + o.total, 0);
+    const netToSend = cashSales - commissions;
 
     return { kpiSales: sales, kpiCommissions: commissions, kpiNetToSend: netToSend, scopeLabel: label };
-  }, [orders, currentUser, teams, isHead, isManager, myTeam]);
+  }, [orders, currentUser, teams, isHead, isManager, myTeam, promoters, selectedEventFilter, globalLiquidationData]);
+
+  const updateCart = (tierId: string, qty: number) => {
+      if (qty === 0) {
+          setCart(prev => prev.filter(c => c.tierId !== tierId));
+      } else {
+          setCart(prev => {
+              const existing = prev.find(c => c.tierId === tierId);
+              if (existing) {
+                  return prev.map(c => c.tierId === tierId ? { ...c, quantity: qty } : c);
+              } else {
+                  return [...prev, { tierId, quantity: qty }];
+              }
+          });
+      }
+  };
 
   const handleManualSale = async () => {
     if (!selectedEventId || cart.length === 0) return;
-    if (!manualCustomerInfo.name || !manualCustomerInfo.email) return alert("Faltan datos.");
+    if (!manualCustomerInfo.name) return alert("Nombre del cliente obligatorio.");
     
     setIsProcessingSale(true);
 
@@ -337,8 +412,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
     });
 
     const total = fullCartItems.reduce((acc, item) => acc + item.subtotal, 0);
-
-    // Call createOrder safely. If staff ID is invalid, it will fallback to organic inside StoreContext.
+    // Email is optional for manual cash sales, StoreContext handles fallback
     const result = await createOrder(selectedEventId, fullCartItems, 'cash', currentUser.user_id, manualCustomerInfo);
     
     setIsProcessingSale(false);
@@ -357,45 +431,13 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
       addStaff({ 
           name: newStaffName, 
           code: newStaffCode.toUpperCase(), 
-          password: newStaffPassword, // ENVÍO DE CONTRASEÑA
-          role: UserRole.PROMOTER, // 'PROMOTER'
+          password: newStaffPassword, 
+          role: UserRole.PROMOTER, 
           sales_team_id: myTeam.id, 
-          manager_id: currentUser.user_id // Use user_id
+          manager_id: currentUser.user_id 
       });
       setNewStaffName(''); setNewStaffCode(''); setNewStaffPassword(''); setShowRecruitmentModal(false);
   };
-
-  const staffDetails = useMemo(() => {
-      if (!viewingStaffId) return { name: '', sales: [], stats: {tickets: 0, revenue: 0} };
-      
-      let staffOrders: Order[] = [];
-      let promoterName = '';
-
-      if (viewingStaffId === 'web_direct') {
-          promoterName = 'Venta Web / Directa';
-          // Filter where staff_id is null or empty
-          staffOrders = orders.filter(o => !o.staff_id);
-      } else {
-          const promoter = promoters.find(p => p.user_id === viewingStaffId);
-          promoterName = promoter?.name || 'Desconocido';
-          staffOrders = orders.filter(o => o.staff_id === viewingStaffId);
-      }
-      
-      // Filter by Event (global filter)
-      if (rankingFilterEvent !== 'all') {
-          staffOrders = staffOrders.filter(o => o.event_id === rankingFilterEvent);
-      } else if (selectedEventFilter) {
-          // If viewing from the Liquidation Module (which requires an event selected), prioritize that
-          staffOrders = staffOrders.filter(o => o.event_id === selectedEventFilter);
-      }
-      
-      const sortedSales = staffOrders.sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      
-      const tickets = sortedSales.reduce((acc, o) => acc + o.items.reduce((s, i) => s + i.quantity, 0), 0);
-      const revenue = sortedSales.reduce((acc, o) => acc + o.total, 0);
-
-      return { name: promoterName, sales: sortedSales, stats: {tickets, revenue} };
-  }, [viewingStaffId, promoters, orders, rankingFilterEvent, selectedEventFilter]);
 
   return (
     <div className="min-h-screen pt-20 md:pt-24 px-4 max-w-7xl mx-auto pb-20">
@@ -425,21 +467,49 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
         </div>
       </div>
 
+      {/* --- SHARE LINK SECTION (NUEVO) --- */}
+      <div className="mb-8 md:mb-12 bg-gradient-to-r from-zinc-900 to-black border border-white/10 rounded-[2rem] p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-32 bg-neon-purple/5 blur-3xl rounded-full pointer-events-none"></div>
+          
+          <div className="relative z-10">
+              <h3 className="text-xl md:text-2xl font-black text-white flex items-center gap-3">
+                  <Globe className="text-neon-blue w-6 h-6"/> TU LANDING PAGE
+              </h3>
+              <p className="text-zinc-500 text-sm mt-1 max-w-lg">
+                  Usa este enlace exclusivo. Los clientes verán una página de bienvenida personalizada y las ventas se te atribuirán automáticamente.
+              </p>
+          </div>
+
+          <div className="relative z-10 flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+              <div className="flex items-center bg-black border border-white/10 rounded-xl px-4 py-3 min-w-[200px] md:min-w-[300px]">
+                  <p className="text-xs text-zinc-400 font-mono truncate flex-1">{referralLink}</p>
+              </div>
+              <div className="flex gap-2">
+                  <Button onClick={handleCopyLink} className={`font-bold h-12 transition-all ${linkCopied ? 'bg-emerald-500 text-black' : 'bg-white text-black'}`}>
+                      {linkCopied ? <Check size={18}/> : <Copy size={18}/>}
+                  </Button>
+                  <Button onClick={handleShareWhatsapp} className="bg-[#25D366] text-white font-bold h-12 px-4">
+                      <MessageCircle size={20} className="mr-2"/> WHATSAPP
+                  </Button>
+              </div>
+          </div>
+      </div>
+
       {/* --- KPI SECTION --- */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8 md:mb-12">
         <div className="bg-zinc-900/50 border border-white/5 p-4 md:p-8 rounded-[1.5rem] md:rounded-[2rem] relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-4 md:p-6 opacity-5 group-hover:scale-110 transition-transform"><TrendingUp size={40} className="md:w-16 md:h-16"/></div>
-            <p className="text-[9px] md:text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-1 md:mb-2">Ventas Brutas</p>
+            <p className="text-[9px] md:text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-1 md:mb-2">Ventas Totales (Global)</p>
             <p className="text-2xl md:text-4xl font-black text-white">${kpiSales.toLocaleString()}</p>
         </div>
         <div className="bg-zinc-900/50 border border-white/5 p-4 md:p-8 rounded-[1.5rem] md:rounded-[2rem] border-neon-blue/20 group">
             <div className="absolute top-0 right-0 p-4 md:p-6 opacity-5 group-hover:scale-110 transition-transform text-neon-blue"><Wallet size={40} className="md:w-16 md:h-16"/></div>
-            <p className="text-[9px] md:text-[10px] text-neon-blue font-black uppercase tracking-widest mb-1 md:mb-2">Neto a Liquidar</p>
+            <p className="text-[9px] md:text-[10px] text-neon-blue font-black uppercase tracking-widest mb-1 md:mb-2">A Liquidar (Efectivo - Comis.)</p>
             <p className="text-2xl md:text-4xl font-black text-white">${kpiNetToSend.toLocaleString()}</p>
         </div>
         <div className="bg-zinc-900/50 border border-white/5 p-4 md:p-8 rounded-[1.5rem] md:rounded-[2rem] border-emerald-500/20 group">
             <div className="absolute top-0 right-0 p-4 md:p-6 opacity-5 group-hover:scale-110 transition-transform text-emerald-500"><Award size={40} className="md:w-16 md:h-16"/></div>
-            <p className="text-[9px] md:text-[10px] text-emerald-500 font-black uppercase tracking-widest mb-1 md:mb-2">Comisiones Totales</p>
+            <p className="text-[9px] md:text-[10px] text-emerald-500 font-black uppercase tracking-widest mb-1 md:mb-2">Comisiones Ganadas</p>
             <p className="text-2xl md:text-4xl font-black text-white">${kpiCommissions.toLocaleString()}</p>
         </div>
       </div>
@@ -452,7 +522,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                       <h2 className="text-xl md:text-2xl font-black text-white flex items-center gap-3">
                         <ShieldCheck className="text-neon-purple w-5 h-5 md:w-6 md:h-6" /> Liquidación Maestra
                       </h2>
-                      <p className="text-xs text-zinc-500 mt-1 font-bold uppercase tracking-widest">Selecciona un evento para auditar.</p>
+                      <p className="text-xs text-zinc-500 mt-1 font-bold uppercase tracking-widest">Calculada sobre: Efectivo Recaudado - Comisiones Totales.</p>
                   </div>
                   <div className="flex gap-2 md:gap-3 w-full md:w-auto">
                       <div className="relative flex-1 md:w-64">
@@ -481,7 +551,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                       <div className="bg-zinc-900/50 border border-white/5 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden">
                           <div className="p-5 md:p-8 border-b border-white/5 bg-white/[0.02] flex justify-between items-center">
                               <h3 className="text-lg font-black text-white uppercase tracking-tighter">Liquidación por Equipos</h3>
-                              <Button onClick={() => handleExportLiquidation(globalLiquidationData.allTeams)} size="sm" variant="outline" className="text-[10px]">
+                              <Button onClick={() => handleExportLiquidation(globalLiquidationData.allTeams, globalLiquidationData.grandTotals)} size="sm" variant="outline" className="text-[10px]">
                                   <Download size={14} className="mr-2"/> EXPORTAR
                               </Button>
                           </div>
@@ -489,13 +559,12 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                               <table className="w-full text-left">
                                   <thead className="bg-black/40 text-[9px] md:text-[10px] text-zinc-500 uppercase font-black tracking-widest">
                                       <tr>
-                                          <th className="p-3 md:p-6">Squad / Grupo</th>
-                                          {globalLiquidationData.stages.map(s => (
-                                              <th key={s} className="p-3 md:p-6 text-right whitespace-nowrap">{s.replace('_',' ')} (Qty/$)</th>
-                                          ))}
-                                          <th className="p-3 md:p-6 text-right">Bruto Total</th>
-                                          <th className="p-3 md:p-6 text-right text-emerald-500">Comisión</th>
-                                          <th className="p-3 md:p-6 text-right text-neon-blue">A Pagar</th>
+                                          <th className="p-3 md:p-6">Squad / Manager</th>
+                                          <th className="p-3 md:p-6 text-right text-purple-400">Digital (Qty/$)</th>
+                                          <th className="p-3 md:p-6 text-right text-amber-400">Efectivo (Qty/$)</th>
+                                          <th className="p-3 md:p-6 text-right text-white">Recaudo Efectivo</th>
+                                          <th className="p-3 md:p-6 text-right text-emerald-500">Comis. Total</th>
+                                          <th className="p-3 md:p-6 text-right text-neon-blue">A Liquidar (Neto)</th>
                                           <th className="p-3 md:p-6 text-center">Auditoría</th>
                                       </tr>
                                   </thead>
@@ -506,25 +575,47 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                                                   <div className={`font-black text-white ${team.id === 'virtual_organic' ? 'text-neon-purple text-base' : team.isVirtual ? 'text-amber-500 text-sm' : ''}`}>{team.name}</div>
                                                   <div className="text-[9px] text-zinc-500 font-bold uppercase mt-1">Mgr: {team.manager_name || 'N/A'}</div>
                                               </td>
-                                              {globalLiquidationData.stages.map(s => {
-                                                  const data = team.breakdown[s];
-                                                  return (
-                                                      <td key={s} className="p-3 md:p-6 text-right text-zinc-400">
-                                                          <div className="font-bold text-white">{data.qty} und</div>
-                                                          <div className="text-[9px]">${data.total.toLocaleString()}</div>
-                                                      </td>
-                                                  );
-                                              })}
-                                              <td className="p-3 md:p-6 text-right font-bold text-white">${team.gross.toLocaleString()}</td>
+                                              
+                                              {/* Digital Column */}
+                                              <td className="p-3 md:p-6 text-right text-purple-400/80">
+                                                  <div className="font-bold">{team.digitalQty} und</div>
+                                                  <div className="text-[9px]">${team.digitalGross.toLocaleString()}</div>
+                                              </td>
+
+                                              {/* Cash Column */}
+                                              <td className="p-3 md:p-6 text-right text-amber-400/80">
+                                                  <div className="font-bold">{team.cashQty} und</div>
+                                                  <div className="text-[9px]">${team.cashGross.toLocaleString()}</div>
+                                              </td>
+                                              
+                                              {/* Cash Held (Same as Cash Gross) */}
+                                              <td className="p-3 md:p-6 text-right font-bold text-white border-l border-white/5">${team.cashGross.toLocaleString()}</td>
+                                              
                                               <td className="p-3 md:p-6 text-right font-bold text-emerald-500">${team.commission.toLocaleString()}</td>
-                                              <td className="p-3 md:p-6 text-right font-black text-neon-blue text-base">${team.net.toLocaleString()}</td>
+                                              <td className="p-3 md:p-6 text-right font-black text-neon-blue text-base border-l border-white/5 bg-white/[0.02]">${team.net.toLocaleString()}</td>
                                               <td className="p-3 md:p-6 text-center">
-                                                  <button onClick={() => setViewingTeamId(team.id)} className="p-2 bg-white/5 rounded-lg md:rounded-xl hover:bg-neon-purple/20 text-zinc-500 hover:text-neon-purple transition-all border border-transparent hover:border-neon-purple/20 flex items-center justify-center mx-auto">
+                                                  <button onClick={() => { setViewingTeamId(team.id); setExpandedMemberId(null); }} className="p-2 bg-white/5 rounded-lg md:rounded-xl hover:bg-neon-purple/20 text-zinc-500 hover:text-neon-purple transition-all border border-transparent hover:border-neon-purple/20 flex items-center justify-center mx-auto">
                                                       <Users size={14} className="md:w-4 md:h-4 mr-2"/> Miembros
                                                   </button>
                                               </td>
                                           </tr>
                                       ))}
+                                      {/* TOTALS ROW */}
+                                      <tr className="bg-white/5 font-black border-t-2 border-white/10">
+                                          <td className="p-3 md:p-6 text-white uppercase tracking-widest">TOTALES</td>
+                                          <td className="p-3 md:p-6 text-right text-purple-400">
+                                              <div>{globalLiquidationData.grandTotals.digitalQty} und</div>
+                                              <div className="text-[10px]">${globalLiquidationData.grandTotals.digitalGross.toLocaleString()}</div>
+                                          </td>
+                                          <td className="p-3 md:p-6 text-right text-amber-400">
+                                              <div>{globalLiquidationData.grandTotals.cashQty} und</div>
+                                              <div className="text-[10px]">${globalLiquidationData.grandTotals.cashGross.toLocaleString()}</div>
+                                          </td>
+                                          <td className="p-3 md:p-6 text-right text-white border-l border-white/10">${globalLiquidationData.grandTotals.cashGross.toLocaleString()}</td>
+                                          <td className="p-3 md:p-6 text-right text-emerald-500">${globalLiquidationData.grandTotals.totalCommission.toLocaleString()}</td>
+                                          <td className="p-3 md:p-6 text-right text-neon-blue text-lg border-l border-white/10">${globalLiquidationData.grandTotals.netLiquidation.toLocaleString()}</td>
+                                          <td className="p-3 md:p-6"></td>
+                                      </tr>
                                   </tbody>
                               </table>
                           </div>
@@ -534,7 +625,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
           </div>
       )}
 
-      {/* --- RANKING GENERAL (NUEVO MÓDULO) --- */}
+      {/* RANKING GENERAL (NUEVO MÓDULO) */}
       <div className="mt-12 bg-zinc-900 border border-white/5 rounded-[2.5rem] p-6 md:p-8">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
               <div>
@@ -603,80 +694,225 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
           </div>
       </div>
 
-      {/* SECCIÓN MANAGER: MI EQUIPO DIRECTO (VISTA ESTÁNDAR) */}
-      {isManager && !isAdmin && (
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 md:gap-8 mb-20 mt-12">
-              <div className="xl:col-span-2 space-y-6 md:space-y-8">
-                  <div className="bg-zinc-900/50 border border-white/5 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden shadow-2xl">
-                      <div className="p-5 md:p-8 border-b border-white/5 bg-white/[0.02] flex justify-between items-center">
-                          <div>
-                              <h3 className="text-lg md:text-xl font-black text-white flex items-center gap-3">
-                                  <Users className="text-neon-blue w-5 h-5 md:w-6 md:h-6" /> Mi Equipo
-                              </h3>
-                              <p className="text-xs text-zinc-500 mt-1 font-bold">Rendimiento de reclutas.</p>
-                          </div>
-                          <div className="text-right">
-                              <p className="text-[9px] md:text-[10px] text-zinc-500 uppercase font-black">Miembros</p>
-                              <p className="text-xl md:text-2xl font-black text-white">{myTeam?.members_ids.length || 0}</p>
-                          </div>
-                      </div>
-                      
-                      <div className="overflow-x-auto">
-                          <table className="w-full text-left">
-                              <thead className="bg-black/40 text-[9px] md:text-[10px] text-zinc-500 uppercase font-black tracking-widest">
-                                  <tr>
-                                      <th className="p-3 md:p-6">Staff</th>
-                                      <th className="p-3 md:p-6 text-right">Bruto</th>
-                                      <th className="p-3 md:p-6 text-right text-emerald-500">Comisión</th>
-                                      <th className="p-3 md:p-6 text-right text-neon-blue">A Liquidar</th>
-                                      <th className="p-3 md:p-6 text-center">Acción</th>
-                                  </tr>
-                              </thead>
-                              <tbody className="divide-y divide-white/5 text-xs md:text-sm">
-                                  {promoters.filter(p => myTeam?.members_ids.includes(p.user_id)).map(member => (
-                                      <tr key={member.user_id} className="hover:bg-white/[0.02] transition-colors">
-                                          <td className="p-3 md:p-6">
-                                              <div className="font-bold text-white">{member.name}</div>
-                                              <div className="text-[9px] md:text-[10px] text-zinc-500 font-mono tracking-widest uppercase">{member.code}</div>
-                                          </td>
-                                          <td className="p-3 md:p-6 text-right font-bold text-white">${member.total_sales.toLocaleString()}</td>
-                                          <td className="p-3 md:p-6 text-right font-bold text-emerald-500">${member.total_commission_earned.toLocaleString()}</td>
-                                          <td className="p-3 md:p-6 text-right font-black text-neon-blue">${(member.total_sales - member.total_commission_earned).toLocaleString()}</td>
-                                          <td className="p-3 md:p-6 text-center">
-                                              <button onClick={() => setViewingStaffId(member.user_id)} className="p-2 bg-white/5 rounded-lg md:rounded-xl text-zinc-500 hover:text-white hover:bg-white/10 transition-all">
-                                                  <Eye size={14} className="md:w-4 md:h-4"/>
-                                              </button>
-                                          </td>
-                                      </tr>
-                                  ))}
-                                  {(!myTeam || myTeam.members_ids.length === 0) && (
-                                      <tr>
-                                          <td colSpan={5} className="p-12 text-center text-zinc-600 italic">No tienes integrantes en tu equipo todavía.</td>
-                                      </tr>
-                                  )}
-                              </tbody>
-                          </table>
-                      </div>
-                  </div>
-              </div>
+      {/* MODAL VENTA MANUAL */}
+      <AnimatePresence>
+        {showManualSale && (
+             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-zinc-900 border border-white/10 p-6 md:p-8 rounded-[2.5rem] w-full max-w-lg shadow-2xl relative overflow-hidden">
+                    <button onClick={() => setShowManualSale(false)} className="absolute top-6 right-6 text-zinc-600 hover:text-white"><X size={24}/></button>
+                    
+                    <div className="mb-6">
+                        <h2 className="text-2xl font-black text-white flex items-center gap-3">
+                            <Banknote className="text-neon-blue"/> Venta Manual
+                        </h2>
+                        <p className="text-xs text-zinc-500 font-bold uppercase mt-1">Registrar venta en efectivo (Taquilla/Física)</p>
+                    </div>
 
-              <div className="space-y-6 md:space-y-8">
-                   <PromoterRanking promoters={promoters.filter(p => (myTeam?.members_ids.includes(p.user_id) || p.user_id === currentUser.user_id))} title="Top Squad Members" />
+                    <div className="space-y-4">
+                        <div>
+                            <label className="text-[10px] text-zinc-500 uppercase font-bold mb-1 block">Seleccionar Evento</label>
+                            <select 
+                                value={selectedEventId} 
+                                onChange={e => { setSelectedEventId(e.target.value); setCart([]); }} 
+                                className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-bold focus:border-neon-blue outline-none"
+                            >
+                                <option value="">-- Seleccionar --</option>
+                                {events.map(e => <option key={e.id} value={e.id}>{e.title}</option>)}
+                            </select>
+                        </div>
+
+                        {selectedEventId && (
+                            <div className="bg-black/20 p-4 rounded-2xl border border-white/5 max-h-48 overflow-y-auto custom-scrollbar">
+                                <label className="text-[10px] text-zinc-500 uppercase font-bold mb-3 block">Tickets Disponibles</label>
+                                <div className="space-y-3">
+                                    {getEventTiers(selectedEventId).map(tier => {
+                                        const inCart = cart.find(c => c.tierId === tier.id)?.quantity || 0;
+                                        return (
+                                            <div key={tier.id} className="flex justify-between items-center bg-zinc-800/50 p-2 rounded-lg">
+                                                <div>
+                                                    <p className="text-xs font-bold text-white">{tier.name}</p>
+                                                    <p className="text-[10px] text-zinc-500">${tier.price.toLocaleString()}</p>
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    <button onClick={() => updateCart(tier.id, Math.max(0, inCart - 1))} className="w-6 h-6 bg-zinc-700 rounded-full text-white hover:bg-zinc-600 flex items-center justify-center font-bold">-</button>
+                                                    <span className="font-bold text-white w-4 text-center text-sm">{inCart}</span>
+                                                    <button onClick={() => updateCart(tier.id, inCart + 1)} className="w-6 h-6 bg-zinc-700 rounded-full text-white hover:bg-zinc-600 flex items-center justify-center font-bold">+</button>
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-[10px] text-zinc-500 uppercase font-bold mb-1 block">Cliente (Nombre)</label>
+                                <input value={manualCustomerInfo.name} onChange={e => setManualCustomerInfo({...manualCustomerInfo, name: e.target.value})} className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-bold" placeholder="Nombre" />
+                            </div>
+                            <div>
+                                <label className="text-[10px] text-zinc-500 uppercase font-bold mb-1 block">Email (Opcional)</label>
+                                <input value={manualCustomerInfo.email} onChange={e => setManualCustomerInfo({...manualCustomerInfo, email: e.target.value})} className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-bold" placeholder="Email" />
+                            </div>
+                        </div>
+
+                        <div className="bg-neon-blue/10 p-4 rounded-xl border border-neon-blue/20 flex justify-between items-center mt-4">
+                            <span className="text-neon-blue font-bold uppercase text-xs">Total a Recibir</span>
+                            <span className="text-2xl font-black text-white">
+                                ${cart.reduce((acc, item) => {
+                                     const t = tiers.find(t => t.id === item.tierId);
+                                     return acc + ((t?.price || 0) * item.quantity);
+                                }, 0).toLocaleString()}
+                            </span>
+                        </div>
+
+                        <Button onClick={handleManualSale} disabled={isProcessingSale || cart.length === 0 || !selectedEventId} fullWidth className="bg-white text-black font-black h-14 text-sm rounded-xl hover:bg-zinc-200">
+                            {isProcessingSale ? <Loader2 className="animate-spin"/> : 'CONFIRMAR VENTA (EFECTIVO)'}
+                        </Button>
+                    </div>
+                </motion.div>
+             </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL AUDITORIA EQUIPO */}
+      <AnimatePresence>
+        {viewingTeamId && globalLiquidationData && (
+            <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md">
+                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-zinc-900 border border-white/10 p-6 md:p-8 rounded-[2.5rem] w-full max-w-6xl shadow-2xl relative max-h-[90vh] overflow-y-auto custom-scrollbar">
+                   <button onClick={() => { setViewingTeamId(null); setExpandedMemberId(null); }} className="absolute top-6 right-6 text-zinc-600 hover:text-white"><X size={24}/></button>
                    
-                   <div className="bg-zinc-900 border border-white/5 p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] relative overflow-hidden">
-                       <div className="absolute -right-4 -bottom-4 opacity-5 text-neon-blue rotate-12"><ShieldCheck size={100}/></div>
-                       <h4 className="text-base md:text-lg font-black text-white mb-4">Manual de Manager</h4>
-                       <ul className="text-[10px] md:text-xs text-zinc-500 space-y-3 font-bold">
-                           <li className="flex gap-2 items-start"><span className="text-neon-blue">•</span> Como líder, eres responsable de la liquidación de tu equipo ante la dirección.</li>
-                           <li className="flex gap-2 items-start"><span className="text-neon-blue">•</span> El sistema atribuye ventas automáticas si el cliente usa el link de tus reclutas.</li>
-                           <li className="flex gap-2 items-start"><span className="text-neon-blue">•</span> Las ventas directas midnight tienen $0 comisión.</li>
-                       </ul>
-                   </div>
-              </div>
-          </div>
-      )}
-      
-      {/* ... (rest of Dashboard.tsx) ... */}
+                   {(() => {
+                       const team = globalLiquidationData.allTeams.find(t => t.id === viewingTeamId);
+                       if (!team) return null;
+                       
+                       return (
+                           <>
+                               <div className="mb-8">
+                                   <h2 className="text-2xl font-black text-white flex items-center gap-3">
+                                       <Users className="text-neon-purple"/> {team.name}
+                                   </h2>
+                                   <p className="text-zinc-500 font-bold uppercase text-xs mt-1">Desglose por Miembro - {events.find(e => e.id === selectedEventFilter)?.title}</p>
+                                   <p className="text-emerald-500 text-[10px] font-bold mt-2 uppercase tracking-widest bg-emerald-500/10 px-3 py-1 rounded-full inline-block border border-emerald-500/20">
+                                       Click en un miembro para ver detalle de clientes
+                                   </p>
+                               </div>
+
+                               <div className="overflow-x-auto">
+                                   <table className="w-full text-left">
+                                       <thead className="bg-white/5 text-[9px] md:text-[10px] text-zinc-500 uppercase font-black tracking-widest">
+                                           <tr>
+                                               <th className="p-4">Miembro</th>
+                                               <th className="p-4 text-right text-purple-400">Digital</th>
+                                               <th className="p-4 text-right text-amber-400">Efectivo</th>
+                                               <th className="p-4 text-right">Recaudo Total (Efect.)</th>
+                                               <th className="p-4 text-right text-emerald-500">Comis. Total</th>
+                                               <th className="p-4 text-right text-neon-blue">A Liquidar</th>
+                                               <th className="p-4 w-10"></th>
+                                           </tr>
+                                       </thead>
+                                       <tbody className="divide-y divide-white/5 text-xs md:text-sm">
+                                           {team.members.map((member: any) => (
+                                               <React.Fragment key={member.user_id}>
+                                                   <tr 
+                                                       className={`hover:bg-white/[0.05] cursor-pointer transition-colors ${expandedMemberId === member.user_id ? 'bg-white/[0.05]' : ''}`}
+                                                       onClick={() => setExpandedMemberId(expandedMemberId === member.user_id ? null : member.user_id)}
+                                                    >
+                                                       <td className="p-4">
+                                                           <div className="font-bold text-white flex items-center gap-2">
+                                                               {member.name}
+                                                               {member.orders.length > 0 && <span className="bg-zinc-800 text-[9px] text-zinc-400 px-1.5 py-0.5 rounded-full">{member.orders.length}</span>}
+                                                           </div>
+                                                           <div className="text-[9px] text-zinc-500">{member.role}</div>
+                                                       </td>
+                                                       
+                                                       {/* Digital Breakdown */}
+                                                       <td className="p-4 text-right text-purple-400/80">
+                                                           <div className="font-bold">{member.digitalQty} und</div>
+                                                           <div className="text-[9px]">${member.digitalGross.toLocaleString()}</div>
+                                                       </td>
+
+                                                       {/* Cash Breakdown */}
+                                                       <td className="p-4 text-right text-amber-400/80">
+                                                           <div className="font-bold">{member.cashQty} und</div>
+                                                           <div className="text-[9px]">${member.cashGross.toLocaleString()}</div>
+                                                       </td>
+
+                                                       <td className="p-4 text-right font-bold text-white border-l border-white/5">${member.cashGross.toLocaleString()}</td>
+                                                       <td className="p-4 text-right font-bold text-emerald-500">${member.commission.toLocaleString()}</td>
+                                                       <td className="p-4 text-right font-black text-neon-blue bg-white/[0.02]">${member.net.toLocaleString()}</td>
+                                                       <td className="p-4 text-center">
+                                                           {expandedMemberId === member.user_id ? <ChevronUp size={16} className="text-zinc-500"/> : <ChevronDown size={16} className="text-zinc-500"/>}
+                                                       </td>
+                                                   </tr>
+                                                   {/* EXPANDED ROW: DETALLE DE VENTAS */}
+                                                   {expandedMemberId === member.user_id && (
+                                                       <tr className="bg-black/40 animate-in fade-in duration-300">
+                                                           <td colSpan={10} className="p-4 md:p-6 border-y border-white/5 shadow-inner">
+                                                               <div className="bg-zinc-900 border border-white/5 rounded-2xl overflow-hidden">
+                                                                   <div className="bg-zinc-800/50 p-3 border-b border-white/5 flex items-center gap-2">
+                                                                       <ScrollText size={14} className="text-neon-purple"/>
+                                                                       <span className="text-xs font-black text-white uppercase tracking-widest">Registro de Ventas ({member.name})</span>
+                                                                   </div>
+                                                                   <div className="max-h-64 overflow-y-auto custom-scrollbar">
+                                                                       {member.orders && member.orders.length > 0 ? (
+                                                                            <table className="w-full text-left text-[10px] md:text-xs">
+                                                                                <thead className="bg-black/20 text-zinc-500 uppercase font-bold sticky top-0 backdrop-blur-sm">
+                                                                                    <tr>
+                                                                                        <th className="p-3">Fecha</th>
+                                                                                        <th className="p-3">Cliente</th>
+                                                                                        <th className="p-3">Items (Etapa)</th>
+                                                                                        <th className="p-3 text-right">Método</th>
+                                                                                        <th className="p-3 text-right">Total</th>
+                                                                                    </tr>
+                                                                                </thead>
+                                                                                <tbody className="divide-y divide-white/5 text-zinc-300">
+                                                                                    {member.orders.map((o: any) => (
+                                                                                        <tr key={o.id} className="hover:bg-white/5">
+                                                                                            <td className="p-3 text-zinc-500">{new Date(o.timestamp).toLocaleDateString()} {new Date(o.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
+                                                                                            <td className="p-3 font-bold text-white">{o.customer_name}</td>
+                                                                                            <td className="p-3">
+                                                                                                <div className="flex flex-col gap-1">
+                                                                                                    {o.items.map((i:any, idx:number) => (
+                                                                                                        <div key={idx} className="flex items-center gap-2">
+                                                                                                            <span className="bg-white/10 px-1.5 py-0.5 rounded text-[9px] text-zinc-300 font-bold">{i.quantity}x</span>
+                                                                                                            <span>{i.tier_name}</span>
+                                                                                                        </div>
+                                                                                                    ))}
+                                                                                                </div>
+                                                                                            </td>
+                                                                                            <td className="p-3 text-right text-[9px] uppercase font-bold text-zinc-500">
+                                                                                                {o.payment_method === 'cash' ? 
+                                                                                                    <span className="text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full">Efectivo</span> : 
+                                                                                                    <span className="text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-full">Digital</span>
+                                                                                                }
+                                                                                            </td>
+                                                                                            <td className="p-3 text-right font-mono font-bold text-white">${o.total.toLocaleString()}</td>
+                                                                                        </tr>
+                                                                                    ))}
+                                                                                </tbody>
+                                                                            </table>
+                                                                       ) : (
+                                                                           <div className="p-8 text-center text-zinc-600 font-bold uppercase text-xs">Sin ventas registradas en este periodo</div>
+                                                                       )}
+                                                                   </div>
+                                                               </div>
+                                                           </td>
+                                                       </tr>
+                                                   )}
+                                               </React.Fragment>
+                                           ))}
+                                       </tbody>
+                                   </table>
+                               </div>
+                           </>
+                       );
+                   })()}
+                </motion.div>
+            </div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 };

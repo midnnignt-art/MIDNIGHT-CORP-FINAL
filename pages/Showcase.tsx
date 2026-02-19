@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { EventCard } from '../components/EventCard';
 import { useStore } from '../context/StoreContext';
 import { Event, UserRole } from '../types';
-import { Ticket, Sparkles, UserCheck, PlusCircle, Grid, Wallet } from 'lucide-react';
+import { Ticket, Sparkles, UserCheck, PlusCircle, Grid, Wallet, Crown, Zap } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import TicketWallet from '../components/TicketWallet';
 import { motion } from 'framer-motion';
@@ -30,35 +30,46 @@ export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
   return (
     <div className="min-h-screen pt-20 md:pt-24 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       
-      {/* Banner de Referido */}
-      {referralInfo && (
-          <div className="mb-8 md:mb-12 rounded-2xl md:rounded-3xl bg-gradient-to-r from-zinc-900 to-midnight-950 border border-white/10 p-1 animate-in fade-in slide-in-from-top-4">
-              <div className="rounded-[1rem] md:rounded-[1.3rem] bg-black/40 backdrop-blur-sm p-3 md:p-6 flex flex-col md:flex-row items-center justify-between gap-3 md:gap-4">
-                  <div className="flex items-center gap-3 md:gap-4">
-                      <div className="w-8 h-8 md:w-12 md:h-12 rounded-full bg-gradient-to-br from-neon-purple to-blue-600 flex items-center justify-center text-white font-bold shadow-lg shadow-neon-purple/20">
-                          <UserCheck className="w-4 h-4 md:w-6 md:h-6" />
-                      </div>
-                      <div>
-                          <p className="text-zinc-400 text-[10px] md:text-xs uppercase tracking-widest font-bold">Acceso VIP Invitado por</p>
-                          <h3 className="text-lg md:text-2xl font-black text-white">{referralInfo.name}</h3>
-                      </div>
+      {/* PERSONALIZED LANDING HERO (Si hay referido) */}
+      {referralInfo ? (
+          <div className="mb-12 rounded-[2.5rem] bg-gradient-to-br from-zinc-900 via-zinc-900 to-black border border-white/10 relative overflow-hidden animate-in fade-in zoom-in duration-700">
+              <div className="absolute top-0 right-0 p-32 bg-neon-purple/20 blur-[100px] rounded-full pointer-events-none"></div>
+              <div className="absolute bottom-0 left-0 p-32 bg-blue-600/10 blur-[100px] rounded-full pointer-events-none"></div>
+              
+              <div className="relative z-10 flex flex-col items-center justify-center py-16 px-6 text-center">
+                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md mb-6">
+                      <Crown className="w-4 h-4 text-amber-400 fill-amber-400" />
+                      <span className="text-xs font-bold text-amber-400 uppercase tracking-widest">Lista de Invitados VIP</span>
                   </div>
-                  <div className="px-3 py-1.5 md:px-4 md:py-2 bg-white/5 rounded-full border border-white/5">
-                      <span className="text-[10px] md:text-xs text-zinc-500 font-mono">CODE: {referralInfo.code}</span>
+                  
+                  <h1 className="text-4xl md:text-6xl font-black text-white mb-4 tracking-tighter">
+                      HOLA, SOY {referralInfo.name.split(' ')[0].toUpperCase()}
+                  </h1>
+                  
+                  <p className="text-lg md:text-xl text-zinc-400 max-w-2xl mx-auto mb-8 font-medium">
+                      Has activado mi enlace de acceso exclusivo. <br/>
+                      Disfruta de la experiencia Midnight con prioridad.
+                  </p>
+
+                  <div className="flex items-center gap-3">
+                      <div className="px-6 py-3 bg-zinc-800 rounded-xl border border-white/5 flex flex-col items-center">
+                          <span className="text-[10px] text-zinc-500 uppercase font-black">Código Activo</span>
+                          <span className="text-lg font-mono font-bold text-white tracking-widest">{referralInfo.code}</span>
+                      </div>
                   </div>
               </div>
           </div>
+      ) : (
+          /* HERO STANDARD (Si no hay referido) */
+          <div className="text-center mb-8 md:mb-12 space-y-2 md:space-y-4">
+            <h1 className="text-3xl md:text-7xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-600">
+              DUEÑOS DE LA NOCHE.
+            </h1>
+            <p className="text-gray-400 max-w-2xl mx-auto text-sm md:text-lg italic px-4">
+              Experiencias curadas para la vanguardia moderna.
+            </p>
+          </div>
       )}
-
-      {/* Hero Section */}
-      <div className="text-center mb-8 md:mb-12 space-y-2 md:space-y-4">
-        <h1 className="text-3xl md:text-7xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-600">
-          DUEÑOS DE LA NOCHE.
-        </h1>
-        <p className="text-gray-400 max-w-2xl mx-auto text-sm md:text-lg italic px-4">
-          Experiencias curadas para la vanguardia moderna.
-        </p>
-      </div>
 
       {/* TABS DE NAVEGACIÓN */}
       <div className="flex justify-center mb-8 md:mb-12">
@@ -67,7 +78,7 @@ export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
                   onClick={() => setActiveTab('events')}
                   className={`relative z-10 px-4 py-1.5 md:px-6 md:py-2 rounded-full text-[10px] md:text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'events' ? 'text-black' : 'text-zinc-500 hover:text-white'}`}
                >
-                   <span className="flex items-center gap-2"><Grid size={12} className="md:w-[14px] md:h-[14px]"/> Eventos</span>
+                   <span className="flex items-center gap-2"><Grid size={12} className="md:w-[14px] md:h-[14px]"/> Cartelera</span>
                </button>
                <button 
                   onClick={() => setActiveTab('wallet')}

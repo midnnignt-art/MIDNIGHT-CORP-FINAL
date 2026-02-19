@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { Showcase } from './pages/Showcase';
@@ -18,22 +17,30 @@ const App: React.FC = () => {
   
   const [referralToast, setReferralToast] = useState<{show: boolean, name: string}>({show: false, name: ''});
 
+  // Lógica de Atribución de Referidos (Landing Page Personalizada)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const refCode = params.get('ref');
     
-    if (refCode) {
+    // Si hay promotores cargados y un código en la URL
+    if (refCode && promoters.length > 0) {
       const code = refCode.toUpperCase();
-      localStorage.setItem('midnight_referral_code', code);
-      
       const promoter = promoters.find(p => p.code === code);
+      
       if (promoter) {
+          // 1. Guardar Código para la UI
+          localStorage.setItem('midnight_referral_code', code);
+          // 2. IMPORTANTE: Guardar ID para la Base de Datos (Comisiones)
+          localStorage.setItem('midnight_referral_code_id', promoter.user_id);
+          
           setReferralToast({ show: true, name: promoter.name });
+          
+          // Limpiar la URL para que se vea limpia pero manteniendo la sesión
+          const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+          window.history.pushState({path: newUrl}, '', newUrl);
+
           setTimeout(() => setReferralToast({ show: false, name: '' }), 5000);
       }
-      
-      const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-      window.history.pushState({path: newUrl}, '', newUrl);
     }
   }, [promoters]);
 
