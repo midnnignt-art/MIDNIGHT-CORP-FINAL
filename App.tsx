@@ -4,6 +4,7 @@ import { Showcase } from './pages/Showcase';
 import { Dashboard } from './pages/Dashboard';
 import { AdminEvents } from './pages/AdminEvents';
 import { Projections } from './pages/Projections';
+import { SuccessPage } from './pages/SuccessPage'; // Importar nueva página
 import { CheckoutModal } from './components/CheckoutModal';
 import { UserRole, Event } from './types';
 import { useStore } from './context/StoreContext';
@@ -16,6 +17,9 @@ const App: React.FC = () => {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   
   const [referralToast, setReferralToast] = useState<{show: boolean, name: string}>({show: false, name: ''});
+
+  // Check for Success Page redirect from Bold
+  const isSuccessPage = window.location.pathname === '/gracias';
 
   // Lógica de Atribución de Referidos (Landing Page Personalizada)
   useEffect(() => {
@@ -63,6 +67,11 @@ const App: React.FC = () => {
   const handlePurchaseComplete = () => {
       setIsCheckoutOpen(false);
   };
+
+  // Si la ruta es /gracias, mostramos el componente dedicado
+  if (isSuccessPage) {
+      return <SuccessPage />;
+  }
 
   return (
     <div className="min-h-screen bg-midnight-950 text-white font-sans selection:bg-neon-purple selection:text-white relative">

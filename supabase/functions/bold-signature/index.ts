@@ -10,46 +10,47 @@ const corsHeaders = {
 
 // @ts-ignore
 Deno.serve(async (req) => {
-  // 1. Manejo de CORS (Permitir que tu frontend llame a esta función)
+  // 1. Manejo de CORS
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    // 2. Recibir datos del Frontend
-    const { amount, orderId, currency = 'COP' } = await req.json()
+    const body = await req.json();
+    // Aceptamos orderId o order_id para compatibilidad
+    const amount = body.amount;
+    const orderId = body.orderId || body.order_id;
+    const currency = body.currency || 'COP';
 
     if (!amount || !orderId) {
-        throw new Error("Faltan datos requeridos: amount y orderId");
+        throw new Error("Faltan datos requeridos: amount y orderId (o order_id)");
     }
 
-    // 3. Preparar la cadena para encriptar
-    // REGLA BOLD: Concatenar OrderId + Monto(Sin decimales) + Moneda + Secreto
-    const amountStr = String(Math.round(Number(amount))); // Ej: "30000"
-    const orderIdStr = String(orderId);                   // Ej: "MID-123456"
-    const currencyStr = String(currency);                 // Ej: "COP"
+    // 2. Preparar cadena (Concatenación exacta requerida por Bold)
+    const amountStr = String(Math.round(Number(amount))); 
+    const orderIdStr = String(orderId);                   
+    const currencyStr = String(currency);                 
 
     const textToHash = `${orderIdStr}${amountStr}${currencyStr}${BOLD_SECRET_KEY}`;
     
-    // 4. Generar el Hash SHA-256 (Criptografía nativa del servidor)
+    // 3. Generar SHA-256
     const encoder = new TextEncoder();
     const data = encoder.encode(textToHash);
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     
-    // 5. Convertir a Hexadecimal (Lo que pide Bold)
+    // 4. Hexadecimal
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const integritySignature = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-    console.log(`✅ Firma generada exitosamente para orden: ${orderIdStr}`);
+    console.log(`✅ Firma generada para orden: ${orderIdStr}`);
 
-    // 6. Devolver el hash al Frontend
-    return new Response(JSON.stringify({ integritySignature }), {
+    return new Response(JSON.stringify({ integritySignature, hash: integritySignature }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
 
   } catch (error: any) {
-    console.error("❌ Error generando firma Bold:", error.message);
+    console.error("❌ Error en bold-signature:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,

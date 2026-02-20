@@ -5,7 +5,9 @@ import { Event, UserRole } from '../types';
 import { Ticket, Sparkles, UserCheck, PlusCircle, Grid, Wallet, Crown, Zap, ArrowRight } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import TicketWallet from '../components/TicketWallet';
-import { motion } from 'framer-motion';
+import { motion as _motion } from 'framer-motion';
+
+const motion = _motion as any;
 
 interface ShowcaseProps {
   onBuy: (event: Event) => void;
