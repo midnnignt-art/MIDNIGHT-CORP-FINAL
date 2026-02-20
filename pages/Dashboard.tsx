@@ -426,17 +426,31 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
     }
   };
 
-  const handleManagerRecruit = () => {
-      if (!newStaffName || !newStaffCode || !newStaffPassword || !myTeam) return;
-      addStaff({ 
-          name: newStaffName, 
-          code: newStaffCode.toUpperCase(), 
-          password: newStaffPassword, 
-          role: UserRole.PROMOTER, 
-          sales_team_id: myTeam.id, 
-          manager_id: currentUser.user_id 
-      });
-      setNewStaffName(''); setNewStaffCode(''); setNewStaffPassword(''); setShowRecruitmentModal(false);
+  const handleManagerRecruit = async () => {
+      if (!newStaffName || !newStaffCode || !newStaffPassword) {
+          return alert("Por favor completa todos los campos.");
+      }
+
+      if (!myTeam) {
+          return alert("NO PUEDES RECLUTAR: No tienes un Squad (Equipo) asignado en el sistema.\n\nPide al Administrador que cree tu equipo en la sección 'Estructura Staff' y te asigne como Manager.");
+      }
+
+      try {
+          await addStaff({ 
+              name: newStaffName, 
+              code: newStaffCode.toUpperCase(), 
+              password: newStaffPassword, 
+              role: UserRole.PROMOTER, 
+              sales_team_id: myTeam.id, 
+              manager_id: currentUser.user_id 
+          });
+          
+          alert(`¡${newStaffName} ha sido reclutado a tu Squad!`);
+          setNewStaffName(''); setNewStaffCode(''); setNewStaffPassword(''); setShowRecruitmentModal(false);
+      } catch (error: any) {
+          console.error("Error recruiting:", error);
+          alert("Error al registrar promotor. Intenta nuevamente.");
+      }
   };
 
   return (
@@ -768,6 +782,49 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
 
                         <Button onClick={handleManualSale} disabled={isProcessingSale || cart.length === 0 || !selectedEventId} fullWidth className="bg-white text-black font-black h-14 text-sm rounded-xl hover:bg-zinc-200">
                             {isProcessingSale ? <Loader2 className="animate-spin"/> : 'CONFIRMAR VENTA (EFECTIVO)'}
+                        </Button>
+                    </div>
+                </motion.div>
+             </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL RECLUTAMIENTO (MANAGER) */}
+      <AnimatePresence>
+        {showRecruitmentModal && (
+             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-zinc-900 border border-white/10 p-6 md:p-8 rounded-[2.5rem] w-full max-w-md shadow-2xl relative overflow-hidden">
+                    <button onClick={() => setShowRecruitmentModal(false)} className="absolute top-6 right-6 text-zinc-600 hover:text-white"><X size={24}/></button>
+                    
+                    <div className="mb-6">
+                        <h2 className="text-2xl font-black text-white flex items-center gap-3">
+                            <UserPlus className="text-neon-purple"/> Reclutar Staff
+                        </h2>
+                        <p className="text-xs text-zinc-500 font-bold uppercase mt-1">Agregar promotor a tu Squad</p>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div>
+                            <label className="text-[10px] text-zinc-500 uppercase font-bold mb-1 block">Nombre Completo</label>
+                            <input value={newStaffName} onChange={e => setNewStaffName(e.target.value)} className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-bold focus:border-neon-purple outline-none" placeholder="Ej: Ana María" />
+                        </div>
+                        <div>
+                            <label className="text-[10px] text-zinc-500 uppercase font-bold mb-1 block">Código de Acceso (Usuario)</label>
+                            <input value={newStaffCode} onChange={e => setNewStaffCode(e.target.value)} className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-black uppercase tracking-widest text-center focus:border-neon-purple outline-none" placeholder="EJ: ANA2024" />
+                        </div>
+                        <div>
+                            <label className="text-[10px] text-zinc-500 uppercase font-bold mb-1 block">Contraseña</label>
+                            <input type="text" value={newStaffPassword} onChange={e => setNewStaffPassword(e.target.value)} className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-mono focus:border-neon-purple outline-none" placeholder="1234" />
+                        </div>
+
+                        <div className="bg-zinc-800/50 p-4 rounded-xl border border-white/5 mt-2">
+                            <p className="text-[10px] text-zinc-400 leading-relaxed">
+                                <span className="text-neon-purple font-bold">NOTA:</span> El nuevo promotor quedará asignado automáticamente a tu equipo <strong>{myTeam?.name || 'Actual'}</strong> y podrás ver sus ventas en tiempo real.
+                            </p>
+                        </div>
+
+                        <Button onClick={handleManagerRecruit} disabled={!newStaffName || !newStaffCode || !newStaffPassword} fullWidth className="bg-white text-black font-black h-14 text-sm rounded-xl hover:bg-zinc-200 mt-2">
+                            REGISTRAR PROMOTOR
                         </Button>
                     </div>
                 </motion.div>
