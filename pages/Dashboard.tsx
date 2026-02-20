@@ -485,10 +485,14 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
       }
 
       try {
+          // Generate a fake email for the system if not provided
+          const systemEmail = `${newStaffCode.toLowerCase()}@midnight.staff`;
+
           await addStaff({ 
               name: newStaffName, 
               code: newStaffCode.toUpperCase(), 
               password: newStaffPassword, 
+              email: systemEmail,
               role: UserRole.PROMOTER, 
               sales_team_id: targetTeamId, 
               manager_id: targetManagerId 
@@ -499,7 +503,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
           setNewStaffName(''); setNewStaffCode(''); setNewStaffPassword(''); setShowRecruitmentModal(false);
       } catch (error: any) {
           console.error("Error recruiting:", error);
-          alert("Error al registrar promotor. Intenta nuevamente.");
+          alert(`Error al registrar promotor: ${error.message || 'Intenta nuevamente'}`);
       }
   };
 

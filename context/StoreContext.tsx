@@ -331,7 +331,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     
     const addStaff = async (staffData: any) => {
         try {
-            await supabase.from('profiles').insert({
+            const { error } = await supabase.from('profiles').insert({
                 id: crypto.randomUUID(),
                 email: staffData.email,
                 full_name: staffData.name,
@@ -341,8 +341,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 sales_team_id: staffData.sales_team_id,
                 manager_id: staffData.manager_id
             });
+            
+            if (error) throw error;
             await fetchData();
-        } catch (error) { console.error(error); }
+        } catch (error) { 
+            console.error("Error adding staff:", error);
+            throw error; // Re-throw to handle in UI
+        }
     };
     
     const deleteStaff = async (id: string) => { await supabase.from('profiles').delete().eq('id', id); await fetchData(); };
