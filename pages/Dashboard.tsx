@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { UserRole, Promoter, SalesTeam, Order } from '../types';
 import { Button } from '../components/ui/button';
-import { Banknote, Award, Target, History, Users, Plus, X, Layers, UserPlus, TrendingUp, Sparkles, ChevronRight, Trash2, ShieldCheck, PieChart, Eye, Calendar, Ticket, ArrowRightLeft, ScrollText, Wallet, Link as LinkIcon, Copy, Share2, Check, Smartphone, User, Search, Filter, Loader2, Download, BarChart, AlertTriangle, CreditCard, Mail, Globe, MessageCircle, ChevronDown, ChevronUp, Laptop, Coins } from 'lucide-react';
+import { Banknote, Award, Target, History, Users, Plus, X, Layers, UserPlus, TrendingUp, Sparkles, ChevronRight, Trash2, ShieldCheck, PieChart, Eye, Calendar, Ticket, ArrowRightLeft, ScrollText, Wallet, Link as LinkIcon, Copy, Share2, Check, Smartphone, User, Search, Filter, Loader2, Download, BarChart, AlertTriangle, CreditCard, Mail, Globe, MessageCircle, ChevronDown, ChevronUp, Laptop, Coins, UserCheck } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import PromoterRanking from '../components/PromoterRanking';
 import { motion as _motion, AnimatePresence } from 'framer-motion';
@@ -36,6 +36,8 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   const [newStaffCode, setNewStaffCode] = useState('');
   const [newStaffPassword, setNewStaffPassword] = useState(''); 
   const [selectedRecruitmentTeamId, setSelectedRecruitmentTeamId] = useState<string>('');
+  const [recruitmentMode, setRecruitmentMode] = useState<'create' | 'link'>('create');
+  const [selectedStaffIdToLink, setSelectedStaffIdToLink] = useState<string>('');
 
   // Detailed View State
   const [viewingStaffId, setViewingStaffId] = useState<string | null>(null);
@@ -50,6 +52,9 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   const isManager = currentUser.role === UserRole.MANAGER || isHead; 
   
   const myTeam = teams.find(t => t.manager_id === currentUser.user_id); 
+  
+  // Staff disponible para vincular (sin equipo asignado)
+  const availableStaffToLink = promoters.filter(p => !p.sales_team_id && p.role !== UserRole.ADMIN);
 
   // Initialize recruitment team selection when modal opens
   const openRecruitmentModal = () => {
@@ -58,6 +63,8 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
       } else {
           setSelectedRecruitmentTeamId('');
       }
+      setRecruitmentMode('create');
+      setSelectedStaffIdToLink('');
       setShowRecruitmentModal(true);
   };
 
@@ -435,6 +442,27 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
         setSelectedEventId('');
         alert(`¡Venta Registrada Exitosamente!\nTotal: $${total.toLocaleString()}`);
     }
+  };
+
+  const handleLinkExistingStaff = async () => {
+      if (!selectedStaffIdToLink) return alert("Selecciona un promotor disponible.");
+      if (!selectedRecruitmentTeamId) return alert("Selecciona un Squad de destino.");
+
+      const staff = promoters.find(p => p.user_id === selectedStaffIdToLink);
+      const team = teams.find(t => t.id === selectedRecruitmentTeamId);
+
+      if (!staff || !team) return;
+
+      try {
+          // Update staff team
+          await useStore().updateStaffTeam(staff.user_id, team.id);
+          
+          alert(`¡${staff.name} ha sido vinculado al Squad ${team.name}!`);
+          setSelectedStaffIdToLink(''); setShowRecruitmentModal(false);
+      } catch (error: any) {
+          console.error("Error linking staff:", error);
+          alert("Error al vincular promotor.");
+      }
   };
 
   const handleManagerRecruit = async () => {
@@ -822,47 +850,106 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                         <h2 className="text-2xl font-black text-white flex items-center gap-3">
                             <UserPlus className="text-neon-purple"/> Reclutar Staff
                         </h2>
-                        <p className="text-xs text-zinc-500 font-bold uppercase mt-1">Agregar promotor a tu Squad</p>
+                        <p className="text-xs text-zinc-500 font-bold uppercase mt-1">Gestionar miembros de tu Squad</p>
                     </div>
 
-                    <div className="space-y-4">
-                        <div>
-                            <label className="text-[10px] text-zinc-500 uppercase font-bold mb-1 block">Nombre Completo</label>
-                            <input value={newStaffName} onChange={e => setNewStaffName(e.target.value)} className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-bold focus:border-neon-purple outline-none" placeholder="Ej: Ana María" />
-                        </div>
-                        <div>
-                            <label className="text-[10px] text-zinc-500 uppercase font-bold mb-1 block">Código de Acceso (Usuario)</label>
-                            <input value={newStaffCode} onChange={e => setNewStaffCode(e.target.value)} className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-black uppercase tracking-widest text-center focus:border-neon-purple outline-none" placeholder="EJ: ANA2024" />
-                        </div>
-                        <div>
-                            <label className="text-[10px] text-zinc-500 uppercase font-bold mb-1 block">Contraseña</label>
-                            <input type="text" value={newStaffPassword} onChange={e => setNewStaffPassword(e.target.value)} className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-mono focus:border-neon-purple outline-none" placeholder="1234" />
-                        </div>
-
-                        <div>
-                            <label className="text-[10px] text-zinc-500 uppercase font-bold mb-1 block">Asignar a Squad</label>
-                            <select 
-                                value={selectedRecruitmentTeamId} 
-                                onChange={e => setSelectedRecruitmentTeamId(e.target.value)}
-                                className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-bold focus:border-neon-purple outline-none appearance-none"
-                            >
-                                <option value="">-- Independiente (Sin Squad) --</option>
-                                {teams.map(team => (
-                                    <option key={team.id} value={team.id}>{team.name}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div className="bg-zinc-800/50 p-4 rounded-xl border border-white/5 mt-2">
-                            <p className="text-[10px] text-zinc-400 leading-relaxed">
-                                <span className="text-neon-purple font-bold">NOTA:</span> {selectedRecruitmentTeamId ? `El promotor será asignado al equipo seleccionado.` : `El promotor quedará como Independiente (sin Manager directo).`}
-                            </p>
-                        </div>
-
-                        <Button onClick={handleManagerRecruit} disabled={!newStaffName || !newStaffCode || !newStaffPassword} fullWidth className="bg-white text-black font-black h-14 text-sm rounded-xl hover:bg-zinc-200 mt-2">
-                            REGISTRAR PROMOTOR
-                        </Button>
+                    {/* TABS */}
+                    <div className="flex bg-black/40 p-1 rounded-xl mb-6 border border-white/5">
+                        <button 
+                            onClick={() => setRecruitmentMode('create')}
+                            className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${recruitmentMode === 'create' ? 'bg-neon-purple text-white shadow-lg shadow-neon-purple/20' : 'text-zinc-500 hover:text-white'}`}
+                        >
+                            Nuevo Ingreso
+                        </button>
+                        <button 
+                            onClick={() => setRecruitmentMode('link')}
+                            className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${recruitmentMode === 'link' ? 'bg-neon-blue text-black shadow-lg shadow-neon-blue/20' : 'text-zinc-500 hover:text-white'}`}
+                        >
+                            Vincular Existente
+                        </button>
                     </div>
+
+                    {recruitmentMode === 'create' ? (
+                        <div className="space-y-4 animate-in fade-in slide-in-from-left-4 duration-300">
+                            <div>
+                                <label className="text-[10px] text-zinc-500 uppercase font-bold mb-1 block">Nombre Completo</label>
+                                <input value={newStaffName} onChange={e => setNewStaffName(e.target.value)} className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-bold focus:border-neon-purple outline-none" placeholder="Ej: Ana María" />
+                            </div>
+                            <div>
+                                <label className="text-[10px] text-zinc-500 uppercase font-bold mb-1 block">Código de Acceso (Usuario)</label>
+                                <input value={newStaffCode} onChange={e => setNewStaffCode(e.target.value)} className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-black uppercase tracking-widest text-center focus:border-neon-purple outline-none" placeholder="EJ: ANA2024" />
+                            </div>
+                            <div>
+                                <label className="text-[10px] text-zinc-500 uppercase font-bold mb-1 block">Contraseña</label>
+                                <input type="text" value={newStaffPassword} onChange={e => setNewStaffPassword(e.target.value)} className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-mono focus:border-neon-purple outline-none" placeholder="1234" />
+                            </div>
+
+                            <div>
+                                <label className="text-[10px] text-zinc-500 uppercase font-bold mb-1 block">Asignar a Squad</label>
+                                <select 
+                                    value={selectedRecruitmentTeamId} 
+                                    onChange={e => setSelectedRecruitmentTeamId(e.target.value)}
+                                    className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-bold focus:border-neon-purple outline-none appearance-none"
+                                >
+                                    <option value="">-- Independiente (Sin Squad) --</option>
+                                    {teams.map(team => (
+                                        <option key={team.id} value={team.id}>{team.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="bg-zinc-800/50 p-4 rounded-xl border border-white/5 mt-2">
+                                <p className="text-[10px] text-zinc-400 leading-relaxed">
+                                    <span className="text-neon-purple font-bold">NOTA:</span> {selectedRecruitmentTeamId ? `El promotor será asignado al equipo seleccionado.` : `El promotor quedará como Independiente (sin Manager directo).`}
+                                </p>
+                            </div>
+
+                            <Button onClick={handleManagerRecruit} disabled={!newStaffName || !newStaffCode || !newStaffPassword} fullWidth className="bg-white text-black font-black h-14 text-sm rounded-xl hover:bg-zinc-200 mt-2">
+                                REGISTRAR PROMOTOR
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                            <div className="bg-neon-blue/10 p-4 rounded-xl border border-neon-blue/20 mb-4">
+                                <p className="text-[10px] text-neon-blue font-bold leading-relaxed flex items-center gap-2">
+                                    <UserCheck size={14}/> Selecciona un promotor disponible para unirlo a tu equipo.
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="text-[10px] text-zinc-500 uppercase font-bold mb-1 block">Promotor Disponible</label>
+                                <select 
+                                    value={selectedStaffIdToLink} 
+                                    onChange={e => setSelectedStaffIdToLink(e.target.value)}
+                                    className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-bold focus:border-neon-blue outline-none appearance-none"
+                                >
+                                    <option value="">-- Seleccionar Promotor --</option>
+                                    {availableStaffToLink.map(p => (
+                                        <option key={p.user_id} value={p.user_id}>{p.name} ({p.code})</option>
+                                    ))}
+                                </select>
+                                {availableStaffToLink.length === 0 && <p className="text-[9px] text-red-500 mt-1 font-bold">No hay promotores disponibles.</p>}
+                            </div>
+
+                            <div>
+                                <label className="text-[10px] text-zinc-500 uppercase font-bold mb-1 block">Squad de Destino</label>
+                                <select 
+                                    value={selectedRecruitmentTeamId} 
+                                    onChange={e => setSelectedRecruitmentTeamId(e.target.value)}
+                                    className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-bold focus:border-neon-blue outline-none appearance-none"
+                                >
+                                    <option value="">-- Seleccionar Squad --</option>
+                                    {teams.map(team => (
+                                        <option key={team.id} value={team.id}>{team.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <Button onClick={handleLinkExistingStaff} disabled={!selectedStaffIdToLink || !selectedRecruitmentTeamId} fullWidth className="bg-neon-blue text-black font-black h-14 text-sm rounded-xl hover:bg-neon-blue/80 mt-2">
+                                VINCULAR AL EQUIPO
+                            </Button>
+                        </div>
+                    )}
                 </motion.div>
              </motion.div>
         )}
