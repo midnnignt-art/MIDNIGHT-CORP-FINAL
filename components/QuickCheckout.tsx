@@ -65,39 +65,52 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
       setGatewayMessage('Conectando con Bold...');
       
       try {
-          const amount = Math.round(pendingOrder!.total);
-          const orderId = pendingOrder!.order_number;
+          const rawAmount = pendingOrder!.total;
+          const rawOrderId = pendingOrder!.order_number;
+
+          console.log("Iniciando firma para:", rawOrderId, rawAmount);
 
           // 1. Obtener Firma de Integridad (SHA256) desde Supabase Edge Function (Endpoint: bold-signature)
           const { data, error } = await supabase.functions.invoke('bold-signature', {
             body: {
-                amount: amount,
-                orderId: orderId, // Enviamos orderId, la función soporta ambos
+                amount: rawAmount,
+                orderId: rawOrderId, 
                 currency: 'COP'
             }
           });
 
-          if (error || !data.integritySignature) {
-              console.error("Supabase Edge Function Error:", error);
+          if (error) {
+              console.error("Supabase Function Error:", error);
+              throw new Error("Error de conexión al generar firma.");
+          }
+
+          if (!data || !data.integritySignature) {
               throw new Error("No se pudo generar la firma de seguridad.");
           }
 
+          // Usamos los valores normalizados que devolvió el backend para asegurar coincidencia exacta
           const signature = data.integritySignature;
+          const finalAmountStr = data.normalizedAmount; 
+          const finalOrderId = data.normalizedOrderId;
+          
           const apiKey = "K8mOAoWetfE5onyHWlhgvpLFcJIltm9Q64tZGv0Rmrs"; // Bold Identity Key (Pública)
 
           // 2. Inyectar Script de Bold Oficial
           const container = document.getElementById("bold-button-container");
           if (!container) throw new Error("Interfaz de pago no lista.");
-          container.innerHTML = ''; // Limpiar intentos previos
+          
+          // Limpiar intentos previos para evitar duplicados
+          container.innerHTML = ''; 
 
           const script = document.createElement("script");
           script.src = "https://checkout.bold.co/library/boldPaymentButton.js";
           
           // --- CONFIGURACIÓN DEL BOTÓN BOLD ---
+          // IMPORTANTE: data-amount debe ser EXACTAMENTE el mismo string usado para el hash
           script.setAttribute("data-bold-button", "dark");
-          script.setAttribute("data-order-id", orderId);
+          script.setAttribute("data-order-id", finalOrderId);
           script.setAttribute("data-currency", "COP");
-          script.setAttribute("data-amount", amount.toString());
+          script.setAttribute("data-amount", finalAmountStr);
           script.setAttribute("data-api-key", apiKey);
           script.setAttribute("data-integrity-signature", signature);
           script.setAttribute("data-redirection-url", "https://midnightcorp.click/gracias");
