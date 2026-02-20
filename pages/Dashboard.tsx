@@ -318,9 +318,13 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   // --- LOGICA RANKING GENERAL ---
   const generalRankingData = useMemo(() => {
       let filteredOrders = orders;
+      
+      // 1. FILTER BY EVENT
       if (rankingFilterEvent !== 'all') {
           filteredOrders = filteredOrders.filter(o => o.event_id === rankingFilterEvent);
       }
+      
+      // 2. FILTER BY DATE
       if (rankingDateStart) {
           filteredOrders = filteredOrders.filter(o => new Date(o.timestamp) >= new Date(rankingDateStart));
       }
@@ -330,7 +334,16 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
           filteredOrders = filteredOrders.filter(o => new Date(o.timestamp) <= endDate);
       }
 
-      const stats = promoters.map(p => {
+      // 3. FILTER BY SCOPE (MANAGER VIEW)
+      let scopePromoters = promoters;
+      if (isManager && !isHead && myTeam) {
+          // If Manager (but not Head/Admin), only show members of their team + themselves
+          const teamMemberIds = [myTeam.manager_id, ...myTeam.members_ids];
+          scopePromoters = promoters.filter(p => teamMemberIds.includes(p.user_id));
+          // Also filter orders to only those from this team (though logic below does it by promoter)
+      }
+
+      const stats = scopePromoters.map(p => {
           const myOrders = filteredOrders.filter(o => o.staff_id === p.user_id);
           const ticketsSold = myOrders.reduce((acc, o) => acc + o.items.reduce((sum, i) => sum + i.quantity, 0), 0);
           const revenue = myOrders.reduce((acc, o) => acc + o.total, 0);
@@ -344,7 +357,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
       }).filter(p => p.ticketsSold > 0).sort((a,b) => b.ticketsSold - a.ticketsSold); 
 
       return stats;
-  }, [orders, promoters, rankingFilterEvent, rankingDateStart, rankingDateEnd]);
+  }, [orders, promoters, rankingFilterEvent, rankingDateStart, rankingDateEnd, isManager, isHead, myTeam]);
 
 
   // --- CÁLCULO DE MÉTRICAS (KPIs) - SIEMPRE SINCRONIZADO CON TABLA ---
@@ -693,74 +706,260 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
           </div>
       )}
 
-      {/* RANKING GENERAL (NUEVO MÓDULO) */}
-      <div className="mt-12 bg-zinc-900 border border-white/5 rounded-[2.5rem] p-6 md:p-8">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
-              <div>
-                  <h2 className="text-xl md:text-2xl font-black text-white flex items-center gap-3">
-                      <BarChart className="text-amber-500 w-6 h-6" /> Ranking General de Ventas
-                  </h2>
-                  <p className="text-xs text-zinc-500 mt-1 font-bold">Rendimiento individual por unidades y revenue.</p>
+      {/* --- PANEL LIQUIDACIÓN MANAGER (SOLO MANAGER, NO HEAD/ADMIN) --- */}
+      {isManager && !isHead && myTeam && (
+          <div className="space-y-6 md:space-y-8 mb-20 animate-in fade-in slide-in-from-bottom-6 duration-700">
+              <div className="flex flex-col md:flex-row justify-between items-end gap-4 md:gap-6 bg-zinc-900/30 p-5 md:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-white/5">
+                  <div className="flex-1 w-full">
+                      <h2 className="text-xl md:text-2xl font-black text-white flex items-center gap-3">
+                        <ShieldCheck className="text-neon-purple w-5 h-5 md:w-6 md:h-6" /> Liquidación de Squad: {myTeam.name}
+                      </h2>
+                      <p className="text-xs text-zinc-500 mt-1 font-bold uppercase tracking-widest">Calculada sobre: Efectivo Recaudado - Comisiones Totales.</p>
+                  </div>
+                  <div className="flex gap-2 md:gap-3 w-full md:w-auto">
+                      <div className="relative flex-1 md:w-64">
+                          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 w-3 h-3 md:w-4 md:h-4"/>
+                          <select 
+                            value={selectedEventFilter} 
+                            onChange={e => setSelectedEventFilter(e.target.value)}
+                            className="w-full bg-black border border-white/10 rounded-xl pl-8 md:pl-10 pr-4 h-10 md:h-12 text-[10px] md:text-xs font-black text-white uppercase appearance-none focus:border-neon-purple outline-none cursor-pointer"
+                          >
+                              <option value="">SELECCIONAR EVENTO (REQUERIDO)</option>
+                              {events.map(e => <option key={e.id} value={e.id}>{e.title}</option>)}
+                          </select>
+                      </div>
+                  </div>
               </div>
-              <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
-                  <select 
-                      value={rankingFilterEvent} 
-                      onChange={e => setRankingFilterEvent(e.target.value)}
-                      className="bg-black border border-white/10 rounded-xl px-4 h-10 text-[10px] md:text-xs font-bold text-white uppercase focus:border-amber-500 outline-none"
-                  >
-                      <option value="all">TODO EL HISTÓRICO</option>
-                      {events.map(e => <option key={e.id} value={e.id}>{e.title}</option>)}
-                  </select>
-                  <input 
-                      type="date"
-                      value={rankingDateStart}
-                      onChange={e => setRankingDateStart(e.target.value)}
-                      className="bg-black border border-white/10 rounded-xl px-4 h-10 text-[10px] md:text-xs text-white"
-                  />
-                  <input 
-                      type="date"
-                      value={rankingDateEnd}
-                      onChange={e => setRankingDateEnd(e.target.value)}
-                      className="bg-black border border-white/10 rounded-xl px-4 h-10 text-[10px] md:text-xs text-white"
-                  />
-              </div>
-          </div>
 
-          <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                  <thead className="bg-black/40 text-[9px] md:text-[10px] text-zinc-500 uppercase font-black tracking-widest">
-                      <tr>
-                          <th className="p-4 rounded-l-xl">#</th>
-                          <th className="p-4">Promotor</th>
-                          <th className="p-4 text-right">Tickets (Und)</th>
-                          <th className="p-4 text-right">Revenue Generado</th>
-                          <th className="p-4 rounded-r-xl text-center">Auditoría</th>
-                      </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5 text-xs md:text-sm">
-                      {generalRankingData.map((p, idx) => (
-                          <tr key={p.user_id} className="hover:bg-white/5 transition-colors group">
-                              <td className="p-4 font-black text-amber-500 text-lg">{idx + 1}</td>
-                              <td className="p-4">
-                                  <div className="font-bold text-white">{p.name}</div>
-                                  <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded text-zinc-400">{p.role}</span>
-                              </td>
-                              <td className="p-4 text-right font-black text-white text-base">{p.ticketsSold}</td>
-                              <td className="p-4 text-right font-bold text-emerald-500">${p.revenue.toLocaleString()}</td>
-                              <td className="p-4 text-center">
-                                  <button onClick={() => setViewingStaffId(p.user_id)} className="p-2 bg-zinc-800 hover:bg-white/20 rounded-lg text-white transition-all text-[10px] font-bold uppercase flex items-center gap-1 mx-auto">
-                                      <History size={12}/> Ver Detalle
-                                  </button>
-                              </td>
-                          </tr>
-                      ))}
-                      {generalRankingData.length === 0 && (
-                          <tr><td colSpan={5} className="p-8 text-center text-zinc-600 font-bold uppercase">No hay datos para este filtro</td></tr>
-                      )}
-                  </tbody>
-              </table>
+              {!selectedEventFilter ? (
+                  <div className="text-center py-20 border-2 border-dashed border-white/5 rounded-[2rem]">
+                      <AlertTriangle className="mx-auto text-zinc-600 mb-4" />
+                      <p className="text-zinc-500 font-bold uppercase text-sm">Debes seleccionar un evento para ver la liquidación de tu equipo.</p>
+                  </div>
+              ) : (
+                  // REUSE THE SAME LOGIC BUT FILTERED FOR THIS TEAM
+                  (() => {
+                      // Calculate metrics specifically for this team and event
+                      const teamMemberIds = [myTeam.manager_id, ...myTeam.members_ids];
+                      const teamOrders = orders.filter(o => o.event_id === selectedEventFilter && o.staff_id && teamMemberIds.includes(o.staff_id));
+                      
+                      // Helper metrics (duplicated from global logic for local scope)
+                      const calculateLocalMetrics = (subsetOrders: Order[]) => {
+                          const digitalOrders = subsetOrders.filter(o => o.payment_method !== 'cash');
+                          const cashOrders = subsetOrders.filter(o => o.payment_method === 'cash');
+                          const digitalQty = digitalOrders.reduce((acc, o) => acc + o.items.reduce((sum, i) => sum + i.quantity, 0), 0);
+                          const digitalGross = digitalOrders.reduce((acc, o) => acc + o.total, 0);
+                          const cashQty = cashOrders.reduce((acc, o) => acc + o.items.reduce((sum, i) => sum + i.quantity, 0), 0);
+                          const cashGross = cashOrders.reduce((acc, o) => acc + o.total, 0);
+                          const totalCommission = subsetOrders.reduce((acc, o) => acc + o.commission_amount, 0);
+                          const netLiquidation = cashGross - totalCommission;
+                          return { digitalQty, digitalGross, cashQty, cashGross, totalCommission, netLiquidation };
+                      };
+
+                      const teamMetrics = calculateLocalMetrics(teamOrders);
+
+                      // Member breakdown
+                      const members = promoters.filter(p => teamMemberIds.includes(p.user_id)).map(p => {
+                          const staffOrders = teamOrders.filter(o => o.staff_id === p.user_id);
+                          const mMetrics = calculateLocalMetrics(staffOrders);
+                          return { ...p, ...mMetrics, orders: staffOrders };
+                      });
+
+                      return (
+                          <div className="bg-zinc-900/50 border border-white/5 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden">
+                              <div className="p-5 md:p-8 border-b border-white/5 bg-white/[0.02] flex justify-between items-center">
+                                  <h3 className="text-lg font-black text-white uppercase tracking-tighter">Desglose por Miembro</h3>
+                                  <Button onClick={() => handleExportLiquidation([{name: myTeam.name, manager_name: currentUser.name, ...teamMetrics, net: teamMetrics.netLiquidation}], teamMetrics)} size="sm" variant="outline" className="text-[10px]">
+                                      <Download size={14} className="mr-2"/> EXPORTAR
+                                  </Button>
+                              </div>
+                              <div className="overflow-x-auto">
+                                  <table className="w-full text-left">
+                                      <thead className="bg-black/40 text-[9px] md:text-[10px] text-zinc-500 uppercase font-black tracking-widest">
+                                          <tr>
+                                              <th className="p-3 md:p-6">Miembro</th>
+                                              <th className="p-3 md:p-6 text-right text-purple-400">Digital (Qty/$)</th>
+                                              <th className="p-3 md:p-6 text-right text-amber-400">Efectivo (Qty/$)</th>
+                                              <th className="p-3 md:p-6 text-right text-white">Recaudo Efectivo</th>
+                                              <th className="p-3 md:p-6 text-right text-emerald-500">Comis. Total</th>
+                                              <th className="p-3 md:p-6 text-right text-neon-blue">A Liquidar (Neto)</th>
+                                          </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-white/5 text-xs md:text-sm">
+                                          {members.map(member => (
+                                              <tr key={member.user_id} className="hover:bg-white/[0.02] transition-colors">
+                                                  <td className="p-3 md:p-6 font-bold text-white">
+                                                      {member.name} <span className="text-[9px] text-zinc-500 ml-1">({member.role})</span>
+                                                  </td>
+                                                  <td className="p-3 md:p-6 text-right text-purple-400/80">
+                                                      <div className="font-bold">{member.digitalQty} und</div>
+                                                      <div className="text-[9px]">${member.digitalGross.toLocaleString()}</div>
+                                                  </td>
+                                                  <td className="p-3 md:p-6 text-right text-amber-400/80">
+                                                      <div className="font-bold">{member.cashQty} und</div>
+                                                      <div className="text-[9px]">${member.cashGross.toLocaleString()}</div>
+                                                  </td>
+                                                  <td className="p-3 md:p-6 text-right font-bold text-white border-l border-white/5">${member.cashGross.toLocaleString()}</td>
+                                                  <td className="p-3 md:p-6 text-right font-bold text-emerald-500">${member.totalCommission.toLocaleString()}</td>
+                                                  <td className="p-3 md:p-6 text-right font-black text-neon-blue text-base border-l border-white/5 bg-white/[0.02]">${member.netLiquidation.toLocaleString()}</td>
+                                              </tr>
+                                          ))}
+                                          {/* TOTAL ROW */}
+                                          <tr className="bg-white/5 font-black border-t-2 border-white/10">
+                                              <td className="p-3 md:p-6 text-white uppercase tracking-widest">TOTAL SQUAD</td>
+                                              <td className="p-3 md:p-6 text-right text-purple-400">
+                                                  <div>{teamMetrics.digitalQty} und</div>
+                                                  <div className="text-[10px]">${teamMetrics.digitalGross.toLocaleString()}</div>
+                                              </td>
+                                              <td className="p-3 md:p-6 text-right text-amber-400">
+                                                  <div>{teamMetrics.cashQty} und</div>
+                                                  <div className="text-[10px]">${teamMetrics.cashGross.toLocaleString()}</div>
+                                              </td>
+                                              <td className="p-3 md:p-6 text-right text-white border-l border-white/10">${teamMetrics.cashGross.toLocaleString()}</td>
+                                              <td className="p-3 md:p-6 text-right text-emerald-500">${teamMetrics.totalCommission.toLocaleString()}</td>
+                                              <td className="p-3 md:p-6 text-right text-neon-blue text-lg border-l border-white/10">${teamMetrics.netLiquidation.toLocaleString()}</td>
+                                          </tr>
+                                      </tbody>
+                                  </table>
+                              </div>
+                          </div>
+                      );
+                  })()
+              )}
           </div>
-      </div>
+      )}
+
+      {/* RANKING GENERAL (OCULTO PARA PROMOTORES) */}
+      {currentUser.role !== UserRole.PROMOTER && (
+          <div className="mt-12 bg-zinc-900 border border-white/5 rounded-[2.5rem] p-6 md:p-8">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+                  <div>
+                      <h2 className="text-xl md:text-2xl font-black text-white flex items-center gap-3">
+                          <BarChart className="text-amber-500 w-6 h-6" /> Ranking General de Ventas
+                      </h2>
+                      <p className="text-xs text-zinc-500 mt-1 font-bold">Rendimiento individual por unidades y revenue.</p>
+                  </div>
+                  <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+                      <select 
+                          value={rankingFilterEvent} 
+                          onChange={e => setRankingFilterEvent(e.target.value)}
+                          className="bg-black border border-white/10 rounded-xl px-4 h-10 text-[10px] md:text-xs font-bold text-white uppercase focus:border-amber-500 outline-none"
+                      >
+                          <option value="all">TODO EL HISTÓRICO</option>
+                          {events.map(e => <option key={e.id} value={e.id}>{e.title}</option>)}
+                      </select>
+                      <input 
+                          type="date"
+                          value={rankingDateStart}
+                          onChange={e => setRankingDateStart(e.target.value)}
+                          className="bg-black border border-white/10 rounded-xl px-4 h-10 text-[10px] md:text-xs text-white"
+                      />
+                      <input 
+                          type="date"
+                          value={rankingDateEnd}
+                          onChange={e => setRankingDateEnd(e.target.value)}
+                          className="bg-black border border-white/10 rounded-xl px-4 h-10 text-[10px] md:text-xs text-white"
+                      />
+                  </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                      <thead className="bg-black/40 text-[9px] md:text-[10px] text-zinc-500 uppercase font-black tracking-widest">
+                          <tr>
+                              <th className="p-4 rounded-l-xl">#</th>
+                              <th className="p-4">Promotor</th>
+                              <th className="p-4 text-right">Tickets (Und)</th>
+                              <th className="p-4 text-right">Revenue Generado</th>
+                              <th className="p-4 rounded-r-xl text-center">Auditoría</th>
+                          </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5 text-xs md:text-sm">
+                          {generalRankingData.map((p, idx) => (
+                              <tr key={p.user_id} className="hover:bg-white/5 transition-colors group">
+                                  <td className="p-4 font-black text-amber-500 text-lg">{idx + 1}</td>
+                                  <td className="p-4">
+                                      <div className="font-bold text-white">{p.name}</div>
+                                      <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded text-zinc-400">{p.role}</span>
+                                  </td>
+                                  <td className="p-4 text-right font-black text-white text-base">{p.ticketsSold}</td>
+                                  <td className="p-4 text-right font-bold text-emerald-500">${p.revenue.toLocaleString()}</td>
+                                  <td className="p-4 text-center">
+                                      <button onClick={() => setViewingStaffId(p.user_id)} className="p-2 bg-zinc-800 hover:bg-white/20 rounded-lg text-white transition-all text-[10px] font-bold uppercase flex items-center gap-1 mx-auto">
+                                          <History size={12}/> Ver Detalle
+                                      </button>
+                                  </td>
+                              </tr>
+                          ))}
+                          {generalRankingData.length === 0 && (
+                              <tr><td colSpan={5} className="p-8 text-center text-zinc-600 font-bold uppercase">No hay datos para este filtro</td></tr>
+                          )}
+                      </tbody>
+                  </table>
+              </div>
+          </div>
+      )}
+
+      {/* TABLA MIS VENTAS (PROMOTORES Y MANAGERS) */}
+      {(currentUser.role === UserRole.PROMOTER || currentUser.role === UserRole.MANAGER) && (
+          <div className="mt-12 bg-zinc-900 border border-white/5 rounded-[2.5rem] p-6 md:p-8">
+              <div className="mb-8">
+                  <h2 className="text-xl md:text-2xl font-black text-white flex items-center gap-3">
+                      <ScrollText className="text-neon-blue w-6 h-6" /> Mis Ventas & Clientes
+                  </h2>
+                  <p className="text-xs text-zinc-500 mt-1 font-bold">Registro detallado de tus ventas personales.</p>
+              </div>
+
+              <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                      <thead className="bg-black/40 text-[9px] md:text-[10px] text-zinc-500 uppercase font-black tracking-widest">
+                          <tr>
+                              <th className="p-4 rounded-l-xl">Fecha</th>
+                              <th className="p-4">Cliente</th>
+                              <th className="p-4">Items / Etapa</th>
+                              <th className="p-4 text-right">Total</th>
+                              <th className="p-4 rounded-r-xl text-center">Estado</th>
+                          </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5 text-xs md:text-sm">
+                          {orders.filter(o => o.staff_id === currentUser.user_id).sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).map(order => (
+                              <tr key={order.id} className="hover:bg-white/5 transition-colors">
+                                  <td className="p-4 text-zinc-400">
+                                      {new Date(order.timestamp).toLocaleDateString()} <br/>
+                                      <span className="text-[10px]">{new Date(order.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                  </td>
+                                  <td className="p-4">
+                                      <div className="font-bold text-white">{order.customer_name}</div>
+                                      <div className="text-[10px] text-zinc-500">{order.customer_email || 'Sin email'}</div>
+                                  </td>
+                                  <td className="p-4">
+                                      <div className="flex flex-col gap-1">
+                                          {order.items.map((item, idx) => (
+                                              <div key={idx} className="flex items-center gap-2 text-[11px]">
+                                                  <span className="bg-white/10 px-1.5 py-0.5 rounded text-white font-bold">{item.quantity}x</span>
+                                                  <span className="text-zinc-300">{item.tier_name}</span>
+                                              </div>
+                                          ))}
+                                      </div>
+                                  </td>
+                                  <td className="p-4 text-right font-black text-emerald-500">
+                                      ${order.total.toLocaleString()}
+                                  </td>
+                                  <td className="p-4 text-center">
+                                      <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full ${order.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-zinc-800 text-zinc-500'}`}>
+                                          {order.status === 'completed' ? 'Aprobado' : order.status}
+                                      </span>
+                                  </td>
+                              </tr>
+                          ))}
+                          {orders.filter(o => o.staff_id === currentUser.user_id).length === 0 && (
+                              <tr><td colSpan={5} className="p-8 text-center text-zinc-600 font-bold uppercase">Aún no has realizado ventas personales.</td></tr>
+                          )}
+                      </tbody>
+                  </table>
+              </div>
+          </div>
+      )}
 
       {/* MODAL VENTA MANUAL */}
       <AnimatePresence>
