@@ -38,86 +38,78 @@ export default function TicketSelector({ tiers, selectedTiers, onSelect, classNa
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
             className={cn(
-              "relative p-4 rounded-2xl border-2 transition-all duration-300",
+              "relative p-6 rounded-none border transition-all duration-500",
               isSelected 
-                ? "border-white bg-white/10 shadow-lg shadow-white/5" 
-                : "border-zinc-800 bg-zinc-900/50 hover:border-zinc-700",
-              isSoldOut && "opacity-50 pointer-events-none"
+                ? "border-moonlight bg-moonlight/5 shadow-[0_0_30px_rgba(242,242,242,0.05)]" 
+                : "border-moonlight/10 bg-void hover:border-moonlight/30",
+              isSoldOut && "opacity-30 pointer-events-none"
             )}
           >
             {/* Stage badge */}
             {tier.stage === 'early_bird' && (
-              <div className="absolute -top-2 left-4 px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-[10px] font-bold text-black flex items-center gap-1">
+              <div className="absolute -top-3 left-6 px-3 py-1 bg-eclipse text-[8px] font-black text-moonlight uppercase tracking-[0.2em] flex items-center gap-2">
                 <Sparkles className="w-3 h-3" />
-                EARLY BIRD
+                Early Bird
               </div>
             )}
 
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start justify-between gap-6">
               {/* Tier info */}
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-white">{tier.name}</h3>
+                <div className="flex items-center gap-3">
+                  <h3 className="text-lg font-black text-moonlight uppercase tracking-tight">{tier.name}</h3>
                   {isSelected && (
                     <motion.div
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
-                      className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center"
+                      className="w-5 h-5 rounded-full bg-eclipse flex items-center justify-center"
                     >
-                      <Check className="w-3 h-3 text-black" />
+                      <Check className="w-3 h-3 text-moonlight" />
                     </motion.div>
                   )}
                 </div>
                 
                 {tier.description && (
-                  <p className="text-sm text-zinc-400 mt-1">{tier.description}</p>
+                  <p className="text-[10px] text-moonlight/40 mt-2 font-light tracking-wide leading-relaxed uppercase">{tier.description}</p>
                 )}
 
                 {tier.perks?.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
+                  <div className="flex flex-wrap gap-2 mt-4">
                     {tier.perks.slice(0, 3).map((perk, i) => (
-                      <span key={i} className="px-2 py-0.5 text-[10px] rounded-full bg-zinc-800 text-zinc-400">
+                      <span key={i} className="px-2 py-0.5 text-[8px] border border-moonlight/10 text-moonlight/30 uppercase tracking-widest">
                         {perk}
                       </span>
                     ))}
                   </div>
                 )}
-
-                <p className="text-xs text-zinc-500 mt-2">
-                  {isSoldOut ? 'Sold Out' : `${available} disponibles`}
-                </p>
               </div>
 
               {/* Price & quantity */}
-              <div className="text-right flex flex-col items-end gap-3">
+              <div className="text-right flex flex-col items-end gap-4">
                 <div>
-                  <p className="text-2xl font-bold text-white">
+                  <p className="text-2xl font-black text-moonlight tabular-nums">
                     ${tier.price.toLocaleString()}
                   </p>
-                  <p className="text-[10px] text-zinc-500 uppercase font-black">COP</p>
+                  <p className="text-[9px] text-moonlight/30 uppercase font-light tracking-[0.3em]">COP</p>
                 </div>
 
                 {!isSoldOut && (
-                  <div className="flex items-center gap-2 bg-zinc-800 rounded-full p-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 rounded-full hover:bg-zinc-700"
+                  <div className="flex items-center gap-4 bg-white/5 p-1 border border-moonlight/10">
+                    <button
+                      className="h-8 w-8 flex items-center justify-center text-moonlight/40 hover:text-moonlight transition-colors"
                       onClick={() => handleQuantityChange(tier.id, -1)}
                       disabled={selected <= 0}
                     >
                       <Minus className="w-4 h-4" />
-                    </Button>
-                    <span className="w-8 text-center font-semibold text-white">{selected}</span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 rounded-full hover:bg-zinc-700"
+                    </button>
+                    <span className="w-6 text-center font-black text-moonlight tabular-nums text-sm">{selected}</span>
+                    <button
+                      className="h-8 w-8 flex items-center justify-center text-moonlight/40 hover:text-moonlight transition-colors"
                       onClick={() => handleQuantityChange(tier.id, 1)}
                       disabled={selected >= Math.min(10, available)}
                     >
                       <Plus className="w-4 h-4" />
-                    </Button>
+                    </button>
                   </div>
                 )}
               </div>

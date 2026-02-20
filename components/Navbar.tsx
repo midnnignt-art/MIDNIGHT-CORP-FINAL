@@ -98,66 +98,86 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
 
   return (
     <>
-    <nav className="fixed top-0 left-0 right-0 z-[80] bg-black/80 backdrop-blur-2xl border-b border-white/5 px-4 md:px-6 h-16 md:h-20 flex items-center justify-between">
-      <div className="flex items-center gap-4 md:gap-10">
-          <div className="cursor-pointer" onClick={() => onNavigate('home')}>
-            <span className="text-lg md:text-2xl font-black tracking-tighter text-white">MIDNIGHT <span className="text-zinc-600 text-[10px] md:text-xs font-normal">CORP</span></span>
-          </div>
-
-          <div className="hidden lg:flex items-center gap-3 px-4 py-2 bg-zinc-900/50 rounded-full border border-white/5">
-            <div className={`w-2 h-2 rounded-full ${dbStatus === 'synced' ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-amber-500 animate-pulse'}`}></div>
-            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">{dbStatus === 'synced' ? 'Engine Online' : 'Syncing...'}</span>
-          </div>
-      </div>
-
-      {/* DESKTOP NAVIGATION */}
-      <div className="hidden md:flex items-center gap-6">
-        <button onClick={() => onNavigate('home')} className={`text-xs font-black uppercase tracking-widest ${currentPage === 'home' ? 'text-white' : 'text-zinc-500'}`}>Vitrina</button>
-        
+    <nav className="fixed top-0 left-0 right-0 z-[80] bg-transparent px-6 md:px-12 h-20 md:h-24 flex items-center justify-between pointer-events-none">
+      {/* LEFT NAV */}
+      <div className="flex items-center gap-6 md:gap-8 pointer-events-auto">
+        <button 
+          onClick={() => onNavigate('home')} 
+          className={`text-[10px] font-light tracking-[0.4em] uppercase transition-colors ${currentPage === 'home' ? 'text-moonlight' : 'text-moonlight/40 hover:text-moonlight'}`}
+        >
+          Vitrina
+        </button>
         {currentUser && (
-            <button onClick={() => onNavigate('dashboard')} className={`text-xs font-black uppercase tracking-widest ${currentPage === 'dashboard' ? 'text-white' : 'text-zinc-500'}`}>Command Center</button>
-        )}
-        
-        {currentUser?.role === UserRole.ADMIN && (
-            <>
-                <button onClick={() => onNavigate('admin-events')} className={`text-xs font-black uppercase tracking-widest flex items-center gap-2 ${currentPage === 'admin-events' ? 'text-neon-purple' : 'text-zinc-500'}`}>
-                    <Settings size={14}/> Backoffice
-                </button>
-                <button onClick={() => onNavigate('projections')} className={`text-xs font-black uppercase tracking-widest flex items-center gap-2 ${currentPage === 'projections' ? 'text-neon-green' : 'text-zinc-500'}`}>
-                    <PieChart size={14}/> Finanzas
-                </button>
-            </>
+          <button 
+            onClick={() => onNavigate('dashboard')} 
+            className={`text-[10px] font-light tracking-[0.4em] uppercase transition-colors ${currentPage === 'dashboard' ? 'text-moonlight' : 'text-moonlight/40 hover:text-moonlight'}`}
+          >
+            Command
+          </button>
         )}
       </div>
 
-      <div className="flex items-center gap-3">
-        {/* CUSTOMER STATUS (Mobile & Desktop) */}
-        {currentCustomer && !currentUser && (
-             <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-zinc-900 rounded-full border border-white/5">
-                 <div className="w-2 h-2 bg-neon-blue rounded-full"></div>
-                 <span className="text-xs font-bold text-white">{currentCustomer.email}</span>
-                 <button onClick={customerLogout} className="ml-2 text-zinc-500 hover:text-white"><LogOut size={12}/></button>
-             </div>
+      {/* CENTRAL LOGO */}
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-auto flex items-center gap-4">
+        {/* STATUS INDICATOR */}
+        <div className="hidden md:flex items-center gap-2 px-3 py-1 border border-moonlight/10 bg-void/50 backdrop-blur-sm">
+          <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${dbStatus === 'synced' ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]'}`} />
+          <span className="text-[8px] font-black tracking-[0.2em] uppercase text-moonlight/40">
+            {dbStatus === 'synced' ? 'Online' : 'Offline'}
+          </span>
+        </div>
+
+        <div className="flex flex-col items-center cursor-pointer" onClick={() => onNavigate('home')}>
+          <span className="text-xl md:text-3xl font-black tracking-[-0.1em] text-moonlight">MIDNIGHT</span>
+          <span className="text-[8px] font-light tracking-[0.8em] text-moonlight/30 uppercase -mt-1 ml-1">Worldwide</span>
+        </div>
+      </div>
+
+      {/* RIGHT NAV */}
+      <div className="flex items-center gap-4 md:gap-8 pointer-events-auto">
+        {currentUser?.role === UserRole.ADMIN && (
+          <div className="hidden lg:flex items-center gap-4 mr-4 border-r border-moonlight/10 pr-6">
+            <button 
+              onClick={() => onNavigate('admin-events')} 
+              className={`text-[10px] font-light tracking-[0.4em] uppercase transition-colors flex items-center gap-2 ${currentPage === 'admin-events' ? 'text-eclipse' : 'text-moonlight/40 hover:text-moonlight'}`}
+            >
+              <Settings size={12}/> Backoffice
+            </button>
+            <button 
+              onClick={() => onNavigate('projections')} 
+              className={`text-[10px] font-light tracking-[0.4em] uppercase transition-colors flex items-center gap-2 ${currentPage === 'projections' ? 'text-moonlight' : 'text-moonlight/40 hover:text-moonlight'}`}
+            >
+              <PieChart size={12}/> Finanzas
+            </button>
+          </div>
         )}
 
         {!currentUser ? (
-            <Button onClick={() => setShowAccessModal(true)} className="bg-white text-black font-black h-9 md:h-11 px-3 md:px-6 rounded-lg md:rounded-xl flex items-center gap-2 text-xs md:text-sm">
-                <User size={14} className="md:w-4 md:h-4"/> <span className="inline">ACCESO</span>
-            </Button>
+          <button 
+            onClick={() => setShowAccessModal(true)} 
+            className="text-[10px] font-light tracking-[0.4em] uppercase text-moonlight/40 hover:text-moonlight transition-colors"
+          >
+            Acceso
+          </button>
         ) : (
-            <div className="flex items-center gap-3 md:gap-4">
-                <div className="text-right hidden sm:block">
-                    <p className="text-[9px] font-black text-zinc-500 uppercase tracking-tighter leading-none">{currentUser.role === 'ADMIN' ? 'SUPER ADMIN' : currentUser.role}</p>
-                    <p className="text-sm font-bold text-white cursor-pointer hover:text-neon-blue transition-colors" onClick={handleQuickCopy} title="Clic para copiar Link de Venta">{currentUser.name}</p>
-                </div>
-                <button onClick={logout} className="p-3 bg-zinc-900 rounded-xl hover:bg-red-500/10 hover:text-red-500 transition-all hidden md:block"><LogOut size={18}/></button>
-                
-                {/* MOBILE MENU TOGGLE */}
-                <button onClick={() => setMobileMenuOpen(true)} className="md:hidden p-2 text-white bg-zinc-900 rounded-lg border border-white/10">
-                    <Menu size={20} />
-                </button>
+          <div className="flex items-center gap-6">
+            <div className="text-right hidden md:block">
+              <p className="text-[8px] font-black text-moonlight/40 uppercase tracking-widest leading-none mb-1">{currentUser.role}</p>
+              <p className="text-[10px] font-bold text-moonlight uppercase tracking-wider">{currentUser.name.split(' ')[0]}</p>
             </div>
+            <button 
+              onClick={logout} 
+              className="text-moonlight/40 hover:text-red-500 transition-colors"
+            >
+              <LogOut size={16}/>
+            </button>
+          </div>
         )}
+        
+        {/* MOBILE MENU TOGGLE */}
+        <button onClick={() => setMobileMenuOpen(true)} className="md:hidden text-moonlight">
+          <Menu size={20} />
+        </button>
       </div>
     </nav>
 
@@ -173,54 +193,54 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
                 </div>
                 
                 <div className="flex-1 space-y-3 overflow-y-auto">
-                    <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest mb-2">Navegación</p>
+                    <p className="text-[10px] text-moonlight/30 uppercase font-black tracking-[0.4em] mb-4">Navegación</p>
                     
-                    <button onClick={() => handleMobileNavigate('home')} className={`w-full text-left p-4 rounded-2xl border flex items-center justify-between group ${currentPage === 'home' ? 'bg-white text-black border-white' : 'bg-zinc-900 border-white/5 text-zinc-400'}`}>
-                        <span className="font-black text-sm uppercase flex items-center gap-3"><Home size={18}/> Vitrina</span>
-                        <ChevronRight size={16} className={currentPage === 'home' ? 'text-black' : 'text-zinc-600'} />
+                    <button onClick={() => handleMobileNavigate('home')} className={`w-full text-left p-4 rounded-none border flex items-center justify-between group ${currentPage === 'home' ? 'bg-moonlight text-void border-moonlight' : 'bg-void border-moonlight/10 text-moonlight/40'}`}>
+                        <span className="font-black text-sm uppercase flex items-center gap-3 tracking-widest"><Home size={18}/> Vitrina</span>
+                        <ChevronRight size={16} className={currentPage === 'home' ? 'text-void' : 'text-moonlight/20'} />
                     </button>
 
                     {currentUser && (
-                        <button onClick={() => handleMobileNavigate('dashboard')} className={`w-full text-left p-4 rounded-2xl border flex items-center justify-between group ${currentPage === 'dashboard' ? 'bg-white text-black border-white' : 'bg-zinc-900 border-white/5 text-zinc-400'}`}>
-                             <span className="font-black text-sm uppercase flex items-center gap-3"><LayoutDashboard size={18}/> Command Center</span>
-                             <ChevronRight size={16} className={currentPage === 'dashboard' ? 'text-black' : 'text-zinc-600'} />
+                        <button onClick={() => handleMobileNavigate('dashboard')} className={`w-full text-left p-4 rounded-none border flex items-center justify-between group ${currentPage === 'dashboard' ? 'bg-moonlight text-void border-moonlight' : 'bg-void border-moonlight/10 text-moonlight/40'}`}>
+                             <span className="font-black text-sm uppercase flex items-center gap-3 tracking-widest"><LayoutDashboard size={18}/> Command Center</span>
+                             <ChevronRight size={16} className={currentPage === 'dashboard' ? 'text-void' : 'text-moonlight/20'} />
                         </button>
                     )}
 
                     {currentUser?.role === UserRole.ADMIN && (
                         <>
-                            <button onClick={() => handleMobileNavigate('admin-events')} className={`w-full text-left p-4 rounded-2xl border flex items-center justify-between group ${currentPage === 'admin-events' ? 'bg-neon-purple text-white border-neon-purple' : 'bg-zinc-900 border-white/5 text-zinc-400'}`}>
-                                <span className="font-black text-sm uppercase flex items-center gap-3"><Settings size={18}/> Backoffice</span>
-                                <ChevronRight size={16} className={currentPage === 'admin-events' ? 'text-white' : 'text-zinc-600'} />
+                            <button onClick={() => handleMobileNavigate('admin-events')} className={`w-full text-left p-4 rounded-none border flex items-center justify-between group ${currentPage === 'admin-events' ? 'bg-eclipse text-moonlight border-eclipse' : 'bg-void border-moonlight/10 text-moonlight/40'}`}>
+                                <span className="font-black text-sm uppercase flex items-center gap-3 tracking-widest"><Settings size={18}/> Backoffice</span>
+                                <ChevronRight size={16} className={currentPage === 'admin-events' ? 'text-moonlight' : 'text-moonlight/20'} />
                             </button>
-                            <button onClick={() => handleMobileNavigate('projections')} className={`w-full text-left p-4 rounded-2xl border flex items-center justify-between group ${currentPage === 'projections' ? 'bg-neon-green text-black border-neon-green' : 'bg-zinc-900 border-white/5 text-zinc-400'}`}>
-                                <span className="font-black text-sm uppercase flex items-center gap-3"><PieChart size={18}/> Finanzas</span>
-                                <ChevronRight size={16} className={currentPage === 'projections' ? 'text-black' : 'text-zinc-600'} />
+                            <button onClick={() => handleMobileNavigate('projections')} className={`w-full text-left p-4 rounded-none border flex items-center justify-between group ${currentPage === 'projections' ? 'bg-moonlight text-void border-moonlight' : 'bg-void border-moonlight/10 text-moonlight/40'}`}>
+                                <span className="font-black text-sm uppercase flex items-center gap-3 tracking-widest"><PieChart size={18}/> Finanzas</span>
+                                <ChevronRight size={16} className={currentPage === 'projections' ? 'text-void' : 'text-moonlight/20'} />
                             </button>
                         </>
                     )}
                 </div>
 
-                <div className="pt-6 border-t border-white/10">
+                <div className="pt-6 border-t border-moonlight/10">
                     {currentUser ? (
-                        <div className="bg-zinc-900 p-3 rounded-xl flex items-center justify-between">
+                        <div className="bg-white/5 p-4 rounded-none flex items-center justify-between border border-moonlight/10">
                             <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center font-bold text-white text-xs">
-                                    {currentUser.name.charAt(0)}
+                                <div className="w-10 h-10 rounded-full bg-eclipse flex items-center justify-center font-black text-moonlight text-xs">
+                                    {currentUser.name.charAt(0).toUpperCase()}
                                 </div>
                                 <div>
-                                    <p className="font-bold text-white text-xs">{currentUser.name}</p>
-                                    <p className="text-[9px] text-zinc-500 uppercase">{currentUser.role}</p>
+                                    <p className="font-black text-moonlight text-xs uppercase tracking-wider">{currentUser.name}</p>
+                                    <p className="text-[9px] text-moonlight/30 uppercase tracking-widest">{currentUser.role}</p>
                                 </div>
                             </div>
-                            <button onClick={logout} className="p-2 bg-black rounded-lg text-red-500 hover:bg-red-500/10 transition-colors">
+                            <button onClick={logout} className="p-2 bg-void border border-moonlight/10 text-red-500 hover:bg-red-500/10 transition-colors">
                                 <LogOut size={16}/>
                             </button>
                         </div>
                     ) : (
-                        <Button fullWidth onClick={() => { setMobileMenuOpen(false); setShowAccessModal(true); }} className="h-12 font-black bg-white text-black text-sm">
-                            INICIAR SESIÓN
-                        </Button>
+                        <button onClick={() => { setMobileMenuOpen(false); setShowAccessModal(true); }} className="w-full h-14 font-black bg-moonlight text-void text-sm uppercase tracking-[0.4em]">
+                            Iniciar Sesión
+                        </button>
                     )}
                 </div>
             </div>

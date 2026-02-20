@@ -74,21 +74,21 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-midnight-950 text-white font-sans selection:bg-neon-purple selection:text-white relative">
+    <div className="min-h-screen bg-void text-moonlight font-sans selection:bg-eclipse selection:text-white relative">
       <Navbar 
         onNavigate={handleNavigate}
         currentPage={currentPage}
       />
 
       {referralToast.show && (
-          <div className="fixed top-24 right-0 left-0 md:left-auto md:right-6 z-[90] flex justify-center md:justify-end animate-in slide-in-from-top-5 duration-500">
-              <div className="bg-emerald-500/10 border border-emerald-500/20 backdrop-blur-md text-emerald-400 px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4">
-                  <div className="bg-emerald-500/20 p-2 rounded-full">
-                      <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+          <div className="fixed top-24 right-0 left-0 md:left-auto md:right-12 z-[90] flex justify-center md:justify-end animate-in slide-in-from-top-5 duration-500">
+              <div className="bg-eclipse/20 border border-eclipse/30 backdrop-blur-xl text-moonlight px-8 py-5 rounded-none shadow-[0_0_50px_rgba(73,15,124,0.2)] flex items-center gap-5">
+                  <div className="bg-eclipse/40 p-2.5 rounded-full">
+                      <CheckCircle2 className="w-5 h-5 text-moonlight" />
                   </div>
                   <div>
-                      <p className="text-xs font-bold uppercase tracking-wider text-emerald-500">Invitación Aplicada</p>
-                      <p className="text-sm text-white">Estás siendo atendido por <span className="font-bold">{referralToast.name}</span></p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.3em] text-moonlight/40 mb-1">Invitación Aplicada</p>
+                      <p className="text-sm text-moonlight font-light tracking-wide">Atendido por <span className="font-black">{referralToast.name.toUpperCase()}</span></p>
                   </div>
               </div>
           </div>
@@ -96,9 +96,11 @@ const App: React.FC = () => {
 
       <main>
         {currentPage === 'home' && <Showcase onBuy={handleBuyTicket} onNavigate={handleNavigate} />}
-        {currentPage === 'dashboard' && <Dashboard role={currentUser?.role || UserRole.GUEST} />}
-        {currentPage === 'admin-events' && <AdminEvents role={currentUser?.role || UserRole.GUEST} />}
-        {currentPage === 'projections' && <Projections role={currentUser?.role || UserRole.GUEST} />}
+        <div className={currentPage === 'home' ? '' : 'pt-24 px-6 md:px-12 max-w-7xl mx-auto pb-20'}>
+          {currentPage === 'dashboard' && <Dashboard role={currentUser?.role || UserRole.GUEST} />}
+          {currentPage === 'admin-events' && <AdminEvents role={currentUser?.role || UserRole.GUEST} />}
+          {currentPage === 'projections' && <Projections role={currentUser?.role || UserRole.GUEST} />}
+        </div>
       </main>
 
       <CheckoutModal 

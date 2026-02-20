@@ -17,54 +17,58 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onBuy }) => {
   const minPrice = tiers.length > 0 ? Math.min(...tiers.map(t => t.price)) : 0;
 
   return (
-    <div className="group relative overflow-hidden rounded-[1.5rem] md:rounded-2xl bg-midnight-900 border border-white/5 transition-all hover:border-white/20 hover:shadow-2xl hover:shadow-neon-purple/10">
+    <div className="group relative overflow-hidden rounded-none bg-void border border-moonlight/10 transition-all duration-500 hover:border-eclipse hover:shadow-[0_0_50px_rgba(73,15,124,0.1)]">
       {/* Image Container */}
-      <div className="relative aspect-[4/5] sm:aspect-square overflow-hidden">
+      <div className="relative aspect-[4/5] overflow-hidden">
         <img 
           src={event.cover_image} 
           alt={event.title} 
-          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-80 group-hover:opacity-100"
+          className="h-full w-full object-cover transition-transform duration-1000 group-hover:scale-110 opacity-60 group-hover:opacity-100"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-midnight-950 via-midnight-950/20 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-void via-void/20 to-transparent" />
         
         {/* Floating Tag */}
-        <div className="absolute top-3 right-3 md:top-4 md:right-4 bg-white/10 backdrop-blur-md px-2.5 py-0.5 md:px-3 md:py-1 rounded-full border border-white/10">
-          <span className="text-[10px] md:text-xs font-bold tracking-widest uppercase text-white">
+        <div className="absolute top-4 right-4 bg-eclipse px-3 py-1 border border-moonlight/10">
+          <span className="text-[10px] font-black tracking-widest uppercase text-moonlight">
             {event.status === 'sold_out' ? 'Agotado' : event.current_stage.replace('_', ' ').toUpperCase()}
           </span>
         </div>
       </div>
 
       {/* Content */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 flex flex-col gap-3 md:gap-4">
+      <div className="p-6 flex flex-col gap-6">
         <div>
-          <h3 className="text-xl md:text-2xl font-bold text-white mb-1 tracking-tight truncate">{event.title}</h3>
-          <p className="text-gray-400 text-xs md:text-sm line-clamp-2 mb-3 md:mb-4">{event.description}</p>
+          <h3 className="text-2xl font-black text-moonlight mb-2 uppercase tracking-tight truncate">{event.title}</h3>
+          <p className="text-moonlight/40 text-[10px] font-light tracking-wide line-clamp-2 mb-4 uppercase leading-relaxed">{event.description}</p>
           
-          <div className="flex flex-col gap-1.5 md:gap-2 text-xs md:text-sm text-gray-300">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-3 h-3 md:w-4 md:h-4 text-neon-purple" />
+          <div className="flex flex-col gap-2 text-[10px] text-moonlight/60 uppercase tracking-widest font-light">
+            <div className="flex items-center gap-3">
+              <Calendar className="w-3 h-3 text-eclipse" />
               <span>{new Date(event.event_date).toLocaleDateString()} • {event.doors_open}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <MapPin className="w-3 h-3 md:w-4 md:h-4 text-neon-blue" />
+            <div className="flex items-center gap-3">
+              <MapPin className="w-3 h-3 text-eclipse" />
               <span>{event.venue}, {event.city}</span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-between pt-3 md:pt-4 border-t border-white/10">
+        <div className="flex items-center justify-between pt-6 border-t border-moonlight/10">
           <div className="flex flex-col">
-            <span className="text-[10px] md:text-xs text-gray-500 uppercase">Desde</span>
-            <span className="text-lg md:text-xl font-bold text-white">${minPrice}</span>
+            <span className="text-[9px] text-moonlight/30 uppercase tracking-widest font-light">Desde</span>
+            <span className="text-xl font-black text-moonlight tabular-nums">${minPrice.toLocaleString()}</span>
           </div>
-          <Button 
+          <button 
             onClick={() => onBuy(event)}
             disabled={event.status === 'sold_out'}
-            className="group-hover:bg-white group-hover:text-black transition-colors h-9 md:h-10 text-xs md:text-sm"
+            className={`px-6 py-2 text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${
+              event.status === 'sold_out' 
+                ? 'bg-white/5 text-moonlight/20 cursor-not-allowed' 
+                : 'bg-moonlight text-void hover:bg-eclipse hover:text-moonlight'
+            }`}
           >
-            {event.status === 'sold_out' ? 'Lista de Espera' : 'Comprar'}
-          </Button>
+            {event.status === 'sold_out' ? 'Sold Out' : 'Tickets'}
+          </button>
         </div>
       </div>
     </div>

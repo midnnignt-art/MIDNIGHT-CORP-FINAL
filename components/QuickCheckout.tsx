@@ -218,146 +218,158 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
   };
 
   return (
-    <div className="bg-zinc-900/95 backdrop-blur-2xl rounded-[2rem] md:rounded-[2.5rem] border border-white/10 overflow-hidden w-full max-w-md mx-auto shadow-2xl relative">
+    <div className="bg-void/95 backdrop-blur-2xl rounded-none border border-moonlight/10 overflow-hidden w-full max-w-md mx-auto shadow-[0_0_100px_rgba(0,0,0,0.5)] relative">
       
       {currentCustomer && step < 2.5 && (
-          <div className="absolute top-4 right-4 md:top-6 md:right-6 z-20">
-              <button onClick={customerLogout} className="text-[9px] md:text-[10px] font-bold text-zinc-500 hover:text-red-400 uppercase">Cerrar Sesión</button>
+          <div className="absolute top-6 right-8 z-20">
+              <button onClick={customerLogout} className="text-[10px] font-black text-moonlight/30 hover:text-red-500 uppercase tracking-widest">Logout</button>
           </div>
       )}
 
-      <div className="p-5 md:p-8">
+      <div className="p-8 md:p-12">
         <AnimatePresence mode="wait">
           
           {/* STEP 0: SELECCIÓN */}
           {step === 0 && (
-            <motion.div key="s0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4 md:space-y-6">
-              <h3 className="text-xl md:text-2xl font-black text-white uppercase tracking-tighter">Entradas</h3>
+            <motion.div key="s0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-8">
+              <h3 className="text-2xl md:text-3xl font-black text-moonlight uppercase tracking-tighter">Entradas</h3>
               <TicketSelector tiers={tiers} selectedTiers={selectedTiers} onSelect={setSelectedTiers} />
-              <div className="flex justify-between items-center py-3 md:py-4 border-t border-white/5">
-                <span className="text-zinc-500 font-bold text-xs uppercase">Total a pagar</span>
-                <span className="text-2xl md:text-3xl font-black text-white">${subtotal.toLocaleString()}</span>
+              <div className="flex justify-between items-center py-6 border-t border-moonlight/10">
+                <span className="text-moonlight/40 font-light text-[10px] uppercase tracking-[0.3em]">Total</span>
+                <span className="text-3xl md:text-4xl font-black text-moonlight tabular-nums">${subtotal.toLocaleString()}</span>
               </div>
-              <Button onClick={() => setStep(currentCustomer ? 2 : 1)} disabled={selectedItems.length === 0} fullWidth className="h-12 md:h-16 bg-white text-black font-black text-base md:text-lg rounded-xl md:rounded-2xl">CONTINUAR</Button>
+              <button 
+                onClick={() => setStep(currentCustomer ? 2 : 1)} 
+                disabled={selectedItems.length === 0} 
+                className="w-full h-16 bg-moonlight text-void font-black text-sm uppercase tracking-[0.5em] hover:bg-moonlight/90 transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+              >
+                Continuar
+              </button>
             </motion.div>
           )}
 
           {/* STEP 1: AUTH (EMAIL & PHONE) */}
           {step === 1 && (
-            <motion.div key="s1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4 md:space-y-6">
-              <button onClick={() => setStep(0)} className="text-zinc-500 hover:text-white flex items-center gap-2 text-[10px] md:text-xs font-bold uppercase"><ChevronLeft size={14} className="md:w-4 md:h-4"/> Volver</button>
+            <motion.div key="s1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-8">
+              <button onClick={() => setStep(0)} className="text-moonlight/40 hover:text-moonlight flex items-center gap-2 text-[10px] font-light uppercase tracking-[0.3em] transition-colors"><ChevronLeft size={14}/> Volver</button>
               
               <div className="text-center">
-                  <div className="w-12 h-12 md:w-16 md:h-16 bg-neon-blue/20 rounded-2xl flex items-center justify-center mx-auto mb-3 md:mb-4 border border-neon-blue/20">
-                      <Lock className="text-neon-blue w-6 h-6 md:w-8 md:h-8" />
-                  </div>
-                  <h3 className="text-xl md:text-2xl font-black text-white uppercase tracking-tighter">Tus Datos</h3>
-                  <p className="text-zinc-500 text-xs md:text-sm mt-1 md:mt-2">Necesarios para enviar tus tickets.</p>
+                  <h3 className="text-2xl md:text-3xl font-black text-moonlight uppercase tracking-tighter">Tus Datos</h3>
+                  <p className="text-moonlight/40 text-[10px] font-light tracking-[0.2em] uppercase mt-2">Para el envío de tickets</p>
               </div>
               
-              <div className="space-y-3 md:space-y-4">
+              <div className="space-y-4">
                 <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 w-4 h-4"/>
-                    <Input placeholder="NOMBRE COMPLETO" value={name} onChange={e => setName(e.target.value)} className="pl-10 h-10 md:h-12 bg-black border-white/10 text-white font-bold text-xs md:text-sm" />
+                    <Input placeholder="NOMBRE COMPLETO" value={name} onChange={e => setName(e.target.value)} className="h-14 bg-void border-moonlight/10 text-moonlight font-bold text-xs uppercase tracking-widest focus:border-eclipse rounded-none" />
                 </div>
                 <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 w-4 h-4"/>
-                    <Input placeholder="CORREO ELECTRÓNICO" type="email" value={email} onChange={e => setEmail(e.target.value.toLowerCase())} className="pl-10 h-10 md:h-12 bg-black border-white/10 text-white font-bold text-xs md:text-sm" />
+                    <Input placeholder="CORREO ELECTRÓNICO" type="email" value={email} onChange={e => setEmail(e.target.value.toLowerCase())} className="h-14 bg-void border-moonlight/10 text-moonlight font-bold text-xs uppercase tracking-widest focus:border-eclipse rounded-none" />
                 </div>
                 <div className="relative">
-                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 w-4 h-4"/>
-                    <Input placeholder="TELÉFONO / CELULAR" type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="pl-10 h-10 md:h-12 bg-black border-white/10 text-white font-bold text-xs md:text-sm" />
+                    <Input placeholder="TELÉFONO / CELULAR" type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="h-14 bg-void border-moonlight/10 text-moonlight font-bold text-xs uppercase tracking-widest focus:border-eclipse rounded-none" />
                 </div>
 
-                {authError && <p className="text-red-400 text-xs text-center font-bold bg-red-500/10 p-2 rounded">{authError}</p>}
+                {authError && <p className="text-red-500 text-[10px] text-center font-black uppercase tracking-widest bg-red-500/10 p-3">{authError}</p>}
               </div>
               
-              <Button onClick={handleRequestOtp} disabled={!email || !name || isAuthLoading} fullWidth className="h-12 md:h-16 bg-neon-blue text-black font-black text-base md:text-lg rounded-xl md:rounded-2xl">
-                  {isAuthLoading ? <Loader2 className="animate-spin"/> : 'CONTINUAR'}
-              </Button>
+              <button 
+                onClick={handleRequestOtp} 
+                disabled={!email || !name || isAuthLoading} 
+                className="w-full h-16 bg-eclipse text-moonlight font-black text-sm uppercase tracking-[0.5em] hover:bg-eclipse/80 transition-all disabled:opacity-20"
+              >
+                  {isAuthLoading ? <Loader2 className="animate-spin mx-auto"/> : 'Continuar'}
+              </button>
             </motion.div>
           )}
 
           {/* STEP 1.5: AUTH (OTP) */}
           {step === 1.5 && (
-            <motion.div key="s1.5" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4 md:space-y-6">
-               <button onClick={() => setStep(1)} className="text-zinc-500 hover:text-white flex items-center gap-2 text-[10px] md:text-xs font-bold uppercase"><ChevronLeft size={14} className="md:w-4 md:h-4"/> Corregir Datos</button>
+            <motion.div key="s1.5" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-8">
+               <button onClick={() => setStep(1)} className="text-moonlight/40 hover:text-moonlight flex items-center gap-2 text-[10px] font-light uppercase tracking-[0.3em] transition-colors"><ChevronLeft size={14}/> Corregir</button>
                
                <div className="text-center">
-                   <h3 className="text-xl md:text-2xl font-black text-white uppercase tracking-tighter">Verificar Email</h3>
-                   <p className="text-zinc-500 text-xs md:text-sm mt-1 md:mt-2">Código enviado a <span className="text-white font-bold">{email}</span></p>
+                   <h3 className="text-2xl md:text-3xl font-black text-moonlight uppercase tracking-tighter">Verificar</h3>
+                   <p className="text-moonlight/40 text-[10px] font-light tracking-[0.2em] uppercase mt-2">Código enviado a {email}</p>
                </div>
 
-               <Input autoFocus placeholder="000000" value={otp} maxLength={8} onChange={e => setOtp(e.target.value)} className="h-14 md:h-20 bg-black border-white/10 text-white font-black text-2xl md:text-3xl text-center tracking-[0.5em] rounded-xl md:rounded-2xl focus:border-neon-blue" />
-               {authError && <p className="text-red-400 text-xs font-bold text-center">{authError}</p>}
+               <Input autoFocus placeholder="000000" value={otp} maxLength={8} onChange={e => setOtp(e.target.value)} className="h-20 bg-void border-moonlight/10 text-moonlight font-black text-3xl text-center tracking-[0.5em] focus:border-eclipse rounded-none" />
+               {authError && <p className="text-red-500 text-[10px] font-black uppercase tracking-widest text-center">{authError}</p>}
 
-               <Button onClick={handleVerifyOtp} disabled={otp.length < 6 || isAuthLoading} fullWidth className="h-12 md:h-16 bg-emerald-500 text-black font-black text-base md:text-lg rounded-xl md:rounded-2xl">
-                  {isAuthLoading ? <Loader2 className="animate-spin"/> : 'VERIFICAR'}
-               </Button>
+               <button 
+                onClick={handleVerifyOtp} 
+                disabled={otp.length < 6 || isAuthLoading} 
+                className="w-full h-16 bg-moonlight text-void font-black text-sm uppercase tracking-[0.5em] hover:bg-moonlight/90 transition-all"
+               >
+                  {isAuthLoading ? <Loader2 className="animate-spin mx-auto"/> : 'Verificar'}
+               </button>
             </motion.div>
           )}
 
           {/* STEP 2: RESUMEN */}
           {step === 2 && (
-            <motion.div key="s2" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center space-y-4 md:space-y-6">
-              <button onClick={() => setStep(0)} className="absolute top-4 left-4 md:top-6 md:left-6 text-zinc-500 hover:text-white flex items-center gap-2 text-[10px] md:text-xs font-bold uppercase"><ChevronLeft size={14} className="md:w-4 md:h-4"/> Modificar</button>
+            <motion.div key="s2" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center space-y-8">
+              <button onClick={() => setStep(0)} className="absolute top-6 left-8 text-moonlight/40 hover:text-moonlight flex items-center gap-2 text-[10px] font-light uppercase tracking-[0.3em] transition-colors"><ChevronLeft size={14}/> Modificar</button>
               
-              <div className="w-16 h-16 md:w-20 md:h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto border border-emerald-500/20 mt-2 md:mt-4">
-                <Shield className="text-emerald-500 w-8 h-8 md:w-10 md:h-10" />
+              <div className="w-20 h-20 bg-eclipse/10 rounded-full flex items-center justify-center mx-auto border border-eclipse/20 mt-4">
+                <Shield className="text-eclipse w-10 h-10" />
               </div>
               <div>
-                <h3 className="text-xl md:text-2xl font-black text-white uppercase tracking-tighter">Pasarela Segura</h3>
-                <p className="text-zinc-500 text-xs md:text-sm mt-1 md:mt-2 flex items-center justify-center gap-2">
+                <h3 className="text-2xl md:text-3xl font-black text-moonlight uppercase tracking-tighter">Pasarela Segura</h3>
+                <p className="text-moonlight/40 text-[10px] font-light tracking-[0.2em] uppercase mt-2 flex items-center justify-center gap-2">
                     <User size={12}/> {name}
                 </p>
               </div>
-              <div className="bg-black/40 p-4 md:p-6 rounded-2xl md:rounded-3xl border border-white/5 space-y-2">
-                  <div className="flex justify-between text-zinc-500 text-[10px] md:text-xs font-bold"><span>PRODUCTO</span><span>TICKETS ({selectedItems.length})</span></div>
-                  <div className="flex justify-between text-white font-black text-lg md:text-xl pt-2 border-t border-white/5"><span>TOTAL A PAGAR</span><span>${subtotal.toLocaleString()}</span></div>
+              <div className="bg-white/5 p-8 border border-moonlight/5 space-y-4">
+                  <div className="flex justify-between text-moonlight/40 text-[10px] font-light tracking-[0.3em] uppercase"><span>Producto</span><span>Tickets ({selectedItems.length})</span></div>
+                  <div className="flex justify-between text-moonlight font-black text-xl pt-4 border-t border-moonlight/10 tabular-nums"><span>Total</span><span>${subtotal.toLocaleString()}</span></div>
               </div>
-              <Button onClick={handlePayment} disabled={isProcessing} fullWidth className="h-12 md:h-16 bg-white text-black font-black text-base md:text-lg rounded-xl md:rounded-2xl">
-                {isProcessing ? <Loader2 className="animate-spin" /> : "IR A PAGAR CON BOLD"}
-              </Button>
+              <button 
+                onClick={handlePayment} 
+                disabled={isProcessing} 
+                className="w-full h-16 bg-eclipse text-moonlight font-black text-sm uppercase tracking-[0.5em] hover:bg-eclipse/80 transition-all shadow-[0_0_40px_rgba(73,15,124,0.3)]"
+              >
+                {isProcessing ? <Loader2 className="animate-spin mx-auto" /> : "Ir a Pagar"}
+              </button>
             </motion.div>
           )}
 
           {/* STEP 2.5: BOLD WIDGET CONTAINER */}
           {step === 2.5 && pendingOrder && (
-             <motion.div key="s2.5" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-6 py-4">
+             <motion.div key="s2.5" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-8 py-4">
                  
-                 <div className={`p-6 rounded-3xl relative overflow-hidden transition-colors duration-500 ${gatewayStatus === 'error' ? 'bg-red-600/10 border border-red-600/30' : 'bg-zinc-800 border border-white/5'}`}>
+                 <div className={`p-8 transition-colors duration-500 ${gatewayStatus === 'error' ? 'bg-red-600/10 border border-red-600/30' : 'bg-white/5 border border-moonlight/10'}`}>
                      
-                     <h3 className="text-xl font-black text-white uppercase tracking-widest flex items-center justify-center gap-2 mb-2">
-                         <CreditCard className="text-neon-blue"/> PAGO SEGURO
+                     <h3 className="text-xl font-black text-moonlight uppercase tracking-[0.3em] flex items-center justify-center gap-3 mb-4">
+                         <CreditCard className="text-eclipse"/> Pago Seguro
                      </h3>
                      
-                     <div className="my-6">
-                         <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest">Total a Pagar</p>
-                         <p className="text-4xl font-black text-white tracking-tighter">${subtotal.toLocaleString()}</p>
-                         <p className="text-[10px] text-zinc-500 mt-1 font-mono">ORDEN: {pendingOrder.order_number}</p>
+                     <div className="my-8">
+                         <p className="text-[10px] text-moonlight/40 uppercase font-light tracking-[0.4em] mb-2">Total a Pagar</p>
+                         <p className="text-5xl font-black text-moonlight tracking-tighter tabular-nums">${subtotal.toLocaleString()}</p>
+                         <p className="text-[10px] text-moonlight/30 mt-4 font-mono tracking-widest uppercase">Orden: {pendingOrder.order_number}</p>
                      </div>
 
-                     <div className="flex flex-col items-center justify-center min-h-[60px] gap-2">
+                     <div className="flex flex-col items-center justify-center min-h-[80px] gap-4">
                          {gatewayStatus === 'loading' && (
-                             <div className="flex items-center gap-2 text-zinc-400 text-xs animate-pulse">
+                             <div className="flex items-center gap-3 text-moonlight/40 text-[10px] font-light tracking-[0.2em] uppercase animate-pulse">
                                  <Loader2 className="animate-spin w-4 h-4"/> {gatewayMessage}
                              </div>
                          )}
                          {gatewayStatus === 'error' && (
-                             <div className="flex flex-col items-center gap-2 text-red-400 text-[10px] font-bold text-center">
-                                 <AlertTriangle size={16}/> {gatewayMessage}
-                                 <Button onClick={initiateBoldTransaction} variant="outline" className="h-8 text-xs mt-2 border-red-500/30 hover:bg-red-500/10 text-red-400">Reintentar Conexión</Button>
+                             <div className="flex flex-col items-center gap-3 text-red-500 text-[10px] font-black uppercase tracking-widest text-center">
+                                 <AlertTriangle size={20}/> {gatewayMessage}
+                                 <button onClick={initiateBoldTransaction} className="h-10 px-6 border border-red-500/30 hover:bg-red-500/10 text-red-500 transition-all mt-2">Reintentar</button>
                              </div>
                          )}
                          
                          {/* CONTENEDOR PARA EL SCRIPT DE BOLD */}
-                         <div id="bold-container" className="mt-2 flex justify-center w-full min-h-[50px]">
+                         <div id="bold-container" className="mt-4 flex justify-center w-full min-h-[60px]">
                              {/* El script inyectará el botón aquí automáticamente */}
                          </div>
                      </div>
                  </div>
                  
-                 <p className="text-[10px] text-zinc-500 uppercase font-bold max-w-xs mx-auto">
+                 <p className="text-[9px] text-moonlight/30 uppercase font-light tracking-[0.3em] leading-relaxed max-w-xs mx-auto">
                     Serás redirigido a la pasarela oficial de Bold para completar tu pago de forma segura.
                  </p>
              </motion.div>
