@@ -35,6 +35,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   const [newStaffName, setNewStaffName] = useState('');
   const [newStaffCode, setNewStaffCode] = useState('');
   const [newStaffPassword, setNewStaffPassword] = useState(''); 
+  const [selectedRecruitmentTeamId, setSelectedRecruitmentTeamId] = useState<string>('');
 
   // Detailed View State
   const [viewingStaffId, setViewingStaffId] = useState<string | null>(null);
@@ -49,6 +50,16 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   const isManager = currentUser.role === UserRole.MANAGER || isHead; 
   
   const myTeam = teams.find(t => t.manager_id === currentUser.user_id); 
+
+  // Initialize recruitment team selection when modal opens
+  const openRecruitmentModal = () => {
+      if (myTeam) {
+          setSelectedRecruitmentTeamId(myTeam.id);
+      } else {
+          setSelectedRecruitmentTeamId('');
+      }
+      setShowRecruitmentModal(true);
+  };
 
   // --- GENERADOR DE LINK INTELIGENTE ---
   const referralLink = `https://midnightcorp.click/?ref=${currentUser.code}`;
@@ -431,8 +442,18 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
           return alert("Por favor completa todos los campos.");
       }
 
-      if (!myTeam) {
-          return alert("NO PUEDES RECLUTAR: No tienes un Squad (Equipo) asignado en el sistema.\n\nPide al Administrador que cree tu equipo en la sección 'Estructura Staff' y te asigne como Manager.");
+      // Determine target team and manager
+      let targetTeamId = selectedRecruitmentTeamId || null;
+      let targetManagerId = null;
+
+      if (targetTeamId) {
+          const team = teams.find(t => t.id === targetTeamId);
+          if (team) {
+              targetManagerId = team.manager_id;
+          }
+      } else {
+          // If independent, no manager assigned (or could be the recruiter if desired, but usually null for true independent)
+          targetManagerId = null;
       }
 
       try {
@@ -441,11 +462,12 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
               code: newStaffCode.toUpperCase(), 
               password: newStaffPassword, 
               role: UserRole.PROMOTER, 
-              sales_team_id: myTeam.id, 
-              manager_id: currentUser.user_id 
+              sales_team_id: targetTeamId, 
+              manager_id: targetManagerId 
           });
           
-          alert(`¡${newStaffName} ha sido reclutado a tu Squad!`);
+          const teamName = targetTeamId ? teams.find(t => t.id === targetTeamId)?.name : "Independiente";
+          alert(`¡${newStaffName} ha sido registrado exitosamente!\nAsignado a: ${teamName}`);
           setNewStaffName(''); setNewStaffCode(''); setNewStaffPassword(''); setShowRecruitmentModal(false);
       } catch (error: any) {
           console.error("Error recruiting:", error);
@@ -471,7 +493,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
         </div>
         <div className="flex gap-2 md:gap-3 w-full md:w-auto">
             {isManager && (
-                <Button onClick={() => setShowRecruitmentModal(true)} className="bg-white text-black font-black h-10 md:h-12 px-4 md:px-6 rounded-lg md:rounded-xl border-none text-xs md:text-sm flex-1 md:flex-none">
+                <Button onClick={openRecruitmentModal} className="bg-white text-black font-black h-10 md:h-12 px-4 md:px-6 rounded-lg md:rounded-xl border-none text-xs md:text-sm flex-1 md:flex-none">
                     <UserPlus className="mr-2 w-3 h-3 md:w-4 md:h-4" /> RECLUTAR
                 </Button>
             )}
@@ -817,9 +839,23 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                             <input type="text" value={newStaffPassword} onChange={e => setNewStaffPassword(e.target.value)} className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-mono focus:border-neon-purple outline-none" placeholder="1234" />
                         </div>
 
+                        <div>
+                            <label className="text-[10px] text-zinc-500 uppercase font-bold mb-1 block">Asignar a Squad</label>
+                            <select 
+                                value={selectedRecruitmentTeamId} 
+                                onChange={e => setSelectedRecruitmentTeamId(e.target.value)}
+                                className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-bold focus:border-neon-purple outline-none appearance-none"
+                            >
+                                <option value="">-- Independiente (Sin Squad) --</option>
+                                {teams.map(team => (
+                                    <option key={team.id} value={team.id}>{team.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
                         <div className="bg-zinc-800/50 p-4 rounded-xl border border-white/5 mt-2">
                             <p className="text-[10px] text-zinc-400 leading-relaxed">
-                                <span className="text-neon-purple font-bold">NOTA:</span> El nuevo promotor quedará asignado automáticamente a tu equipo <strong>{myTeam?.name || 'Actual'}</strong> y podrás ver sus ventas en tiempo real.
+                                <span className="text-neon-purple font-bold">NOTA:</span> {selectedRecruitmentTeamId ? `El promotor será asignado al equipo seleccionado.` : `El promotor quedará como Independiente (sin Manager directo).`}
                             </p>
                         </div>
 
