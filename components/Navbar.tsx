@@ -110,7 +110,7 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
         {currentUser && (
           <button 
             onClick={() => onNavigate('dashboard')} 
-            className={`text-[10px] font-light tracking-[0.4em] uppercase transition-colors ${currentPage === 'dashboard' ? 'text-moonlight' : 'text-moonlight/40 hover:text-moonlight'}`}
+            className={`text-[10px] font-light tracking-[0.4em] uppercase transition-colors hidden md:block ${currentPage === 'dashboard' ? 'text-moonlight' : 'text-moonlight/40 hover:text-moonlight'}`}
           >
             Command
           </button>

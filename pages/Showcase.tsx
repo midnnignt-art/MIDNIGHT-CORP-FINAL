@@ -19,7 +19,9 @@ export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
   const [activeEvents, setActiveEvents] = useState<Event[]>([]);
 
   useEffect(() => {
-    const filtered = events.filter(e => e.status === 'published' || e.status === 'sold_out');
+    const filtered = events
+      .filter(e => e.status === 'published' || e.status === 'sold_out')
+      .sort((a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime());
     setActiveEvents(filtered);
   }, [events]);
 
@@ -40,6 +42,7 @@ export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
         const isSoldOut = event.status === 'sold_out';
         const eventDate = new Date(event.event_date);
         const formattedDate = `${eventDate.getDate().toString().padStart(2, '0')} - ${(eventDate.getMonth() + 1).toString().padStart(2, '0')} - ${eventDate.getFullYear()}`;
+        const isSoonest = index === 0;
 
         return (
           <div key={event.id} className="relative h-screen w-full flex flex-col md:flex-row border-b border-moonlight/5 last:border-b-0">
@@ -66,6 +69,18 @@ export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
                   <span className="text-[10px] font-light tracking-[0.5em] text-moonlight uppercase">Presents</span>
                 </div>
               </div>
+
+              {isSoonest && (
+                <div className="absolute top-36 left-1/2 -translate-x-1/2 z-20">
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-eclipse/80 backdrop-blur-md border border-moonlight/20 px-4 py-1"
+                  >
+                    <span className="text-[9px] font-black tracking-[0.3em] text-moonlight uppercase animate-pulse">Próximo Evento</span>
+                  </motion.div>
+                </div>
+              )}
 
               <div className="absolute bottom-8 left-8 hidden md:block z-20">
                 <div className="space-y-1 opacity-40">
@@ -97,7 +112,7 @@ export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
               {/* MICROCOPYS ANCLAS */}
               <div className="absolute top-24 left-12 hidden md:block z-20">
                 <span className="text-[10px] font-light tracking-[0.4em] text-moonlight/40 uppercase">
-                  {index === 0 ? 'Featured Event' : `Event 0${index + 1}`}
+                  {isSoonest ? 'Featured Event' : `Event 0${index + 1}`}
                 </span>
               </div>
               <div className="absolute top-24 right-12 hidden md:block z-20">
@@ -113,7 +128,7 @@ export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
                 className="text-center space-y-6 md:space-y-10 w-full max-w-2xl"
               >
                 <div className="space-y-2">
-                  <h1 className="text-5xl md:text-9xl font-black tracking-tighter text-moonlight uppercase leading-none">
+                  <h1 className="text-4xl md:text-7xl lg:text-8xl font-black tracking-tighter text-moonlight uppercase leading-none break-words">
                     {event.city}
                   </h1>
                   <h2 className="text-xl md:text-3xl font-light tracking-[0.3em] text-moonlight/60 uppercase">
@@ -150,7 +165,7 @@ export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
               </motion.div>
 
               {/* SCROLL INDICATOR (Only for first event) */}
-              {index === 0 && activeEvents.length > 1 && (
+              {isSoonest && activeEvents.length > 1 && (
                 <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 animate-bounce opacity-30">
                   <span className="text-[8px] font-light tracking-[0.4em] text-moonlight uppercase">Scroll</span>
                   <ChevronDown className="text-moonlight w-4 h-4" />
