@@ -18,12 +18,12 @@ interface AdminEventsProps {
 
 export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
     const { 
-        events, addEvent, updateEvent, deleteEvent, getEventTiers,
+        events, addEvent, updateEvent, archiveEvent, restoreEvent, hardDeleteEvent, getEventTiers,
         promoters, addStaff, deleteStaff, teams, createTeam, updateStaffTeam, deleteTeam,
         orders, dbStatus, clearDatabase
     } = useStore();
     
-    const [activeTab, setActiveTab] = useState<'events' | 'staff' | 'system'>('events');
+    const [activeTab, setActiveTab] = useState<'events' | 'archived' | 'staff' | 'system'>('events');
     const [staffView, setStaffView] = useState<'all' | 'teams'>('all');
     
     // --- ESTADO: Navegación de Detalles de Evento ---
@@ -279,6 +279,9 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                     <button onClick={() => setActiveTab('events')} className={`pb-4 px-4 font-black transition-all whitespace-nowrap ${activeTab === 'events' ? 'text-white border-b-2 border-neon-purple' : 'text-zinc-600'}`}>
                         LANZAMIENTO
                     </button>
+                    <button onClick={() => setActiveTab('archived')} className={`pb-4 px-4 font-black transition-all whitespace-nowrap ${activeTab === 'archived' ? 'text-white border-b-2 border-zinc-500' : 'text-zinc-600'}`}>
+                        CEMENTERIO (ARCHIVADOS)
+                    </button>
                     <button onClick={() => setActiveTab('staff')} className={`pb-4 px-4 font-black transition-all whitespace-nowrap ${activeTab === 'staff' ? 'text-white border-b-2 border-neon-blue' : 'text-zinc-600'}`}>
                         ESTRUCTURA STAFF
                     </button>
@@ -303,7 +306,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {events.map(event => (
+                                {events.filter(e => e.status !== 'archived').map(event => (
                                     <div key={event.id} className="group relative bg-zinc-900 rounded-[2.5rem] overflow-hidden border border-white/5 hover:border-white/20 transition-all shadow-xl">
                                         <div className="h-56 overflow-hidden relative">
                                             <img src={event.cover_image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-60" alt={event.title} />
@@ -319,12 +322,12 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                             <div className="grid grid-cols-3 gap-2">
                                                 <Button onClick={() => setSelectedAuditId(event.id)} variant="outline" className="h-12 border-neon-blue/20 text-neon-blue hover:bg-neon-blue/10"><Eye size={18}/></Button>
                                                 <Button onClick={() => handleEditEvent(event)} variant="outline" className="h-12"><Pencil size={18}/></Button>
-                                                <Button onClick={() => {if(confirm('¿Eliminar?')) deleteEvent(event.id)}} variant="danger" className="h-12"><Trash2 size={18}/></Button>
+                                                <Button onClick={() => {if(confirm('¿Archivar evento? Pasará al Cementerio.')) archiveEvent(event.id)}} variant="danger" className="h-12 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white border-zinc-700"><Trash2 size={18}/></Button>
                                             </div>
                                         </div>
                                     </div>
                                 ))}
-                                {events.length === 0 && <div className="col-span-full py-20 text-center text-zinc-600 font-bold uppercase tracking-widest border-2 border-dashed border-white/5 rounded-3xl">No hay eventos. Pulsa "Crear Evento" para empezar.</div>}
+                                {events.filter(e => e.status !== 'archived').length === 0 && <div className="col-span-full py-20 text-center text-zinc-600 font-bold uppercase tracking-widest border-2 border-dashed border-white/5 rounded-3xl">No hay eventos activos.</div>}
                             </div>
                         </div>
                     ) : selectedAuditId && auditData ? (
@@ -463,6 +466,44 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                             </div>
                         </div>
                     )}
+                </div>
+            )}
+
+            {activeTab === 'archived' && (
+                <div className="space-y-6">
+                    <div className="bg-zinc-900/50 p-6 rounded-3xl border border-white/5">
+                        <h2 className="text-2xl font-black text-white">Cementerio de Eventos</h2>
+                        <p className="text-zinc-500 text-sm">Eventos archivados. Puedes restaurarlos o eliminarlos permanentemente.</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {events.filter(e => e.status === 'archived').map(event => (
+                            <div key={event.id} className="group relative bg-zinc-900 rounded-[2.5rem] overflow-hidden border border-white/5 opacity-75 hover:opacity-100 transition-all">
+                                <div className="h-56 overflow-hidden relative grayscale group-hover:grayscale-0 transition-all duration-500">
+                                    <img src={event.cover_image} className="w-full h-full object-cover" alt={event.title} />
+                                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                        <span className="text-white font-black uppercase tracking-widest border border-white px-4 py-2 rounded-lg">Archivado</span>
+                                    </div>
+                                </div>
+                                <div className="p-6">
+                                    <h3 className="text-xl font-black text-white mb-4">{event.title}</h3>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <Button onClick={() => {if(confirm('¿Restaurar evento?')) restoreEvent(event.id)}} variant="outline" className="h-12 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/10">
+                                            <RefreshCcw className="mr-2 w-4 h-4"/> Restaurar
+                                        </Button>
+                                        <Button onClick={() => {if(confirm('¿ELIMINAR PERMANENTEMENTE? Esta acción no se puede deshacer.')) hardDeleteEvent(event.id)}} variant="danger" className="h-12">
+                                            <Trash2 className="mr-2 w-4 h-4"/> Eliminar
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                        {events.filter(e => e.status === 'archived').length === 0 && (
+                            <div className="col-span-full py-20 text-center text-zinc-600 font-bold uppercase tracking-widest border-2 border-dashed border-white/5 rounded-3xl">
+                                El cementerio está vacío.
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
 

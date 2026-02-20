@@ -103,7 +103,7 @@ CREATE TABLE ticket_tiers (
 CREATE TABLE orders (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   order_number TEXT UNIQUE NOT NULL,
-  event_id UUID REFERENCES events(id) NOT NULL,
+  event_id UUID REFERENCES events(id) ON DELETE CASCADE NOT NULL,
   customer_name TEXT NOT NULL,
   customer_email TEXT NOT NULL,
   total NUMERIC NOT NULL,

@@ -109,9 +109,9 @@ export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
       {/* CONTENIDO PRINCIPAL */}
       {activeTab === 'events' ? (
           <div className="animate-in fade-in zoom-in duration-300">
-              {events.length > 0 ? (
+              {events.filter(e => e.status !== 'archived').length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-                  {events.map(event => (
+                  {events.filter(e => e.status !== 'archived').map(event => (
                     <EventCard key={event.id} event={event} onBuy={onBuy} />
                   ))}
                 </div>

@@ -8,7 +8,7 @@ export enum UserRole {
   ADMIN = 'ADMIN', 
 }
 
-export type EventStatus = 'draft' | 'published' | 'sold_out' | 'cancelled' | 'completed';
+export type EventStatus = 'draft' | 'published' | 'sold_out' | 'cancelled' | 'completed' | 'archived';
 export type EventStage = 'early_bird' | 'presale' | 'general' | 'door';
 export type WalletType = 'event' | 'operational' | 'commission' | 'general';
 export type TransactionType = 'sale' | 'commission' | 'withdrawal' | 'transfer' | 'refund' | 'fee';

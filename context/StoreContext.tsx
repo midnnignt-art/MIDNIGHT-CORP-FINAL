@@ -26,7 +26,9 @@ interface StoreContextType {
     getEventTiers: (eventId: string) => TicketTier[];
     addEvent: (eventData: any, tiers: any[]) => Promise<void>;
     updateEvent: (id: string, eventData: any, tiers: any[]) => Promise<void>;
-    deleteEvent: (id: string) => Promise<void>;
+    archiveEvent: (id: string) => Promise<void>;
+    restoreEvent: (id: string) => Promise<void>;
+    hardDeleteEvent: (id: string) => Promise<void>;
     addEventCost: (eventId: string, cost: Omit<EventCost, 'id' | 'event_id'>) => Promise<void>;
     deleteEventCost: (eventId: string, costId: string) => Promise<void>;
     updateCostStatus: (eventId: string, costId: string, status: 'pending' | 'paid' | 'cancelled') => Promise<void>;
@@ -275,7 +277,57 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         } catch (error) { console.error(error); }
     };
 
-    const deleteEvent = async (id: string) => { await supabase.from('events').delete().eq('id', id); await fetchData(); };
+    // ARCHIVE EVENT (Soft Delete)
+    const archiveEvent = async (id: string) => { 
+        try {
+            const { error } = await supabase.from('events').update({ status: 'archived' }).eq('id', id);
+            if (error) throw error;
+            await fetchData();
+        } catch (error: any) {
+            console.error("Error archiving event:", error);
+            alert(`Error al archivar evento: ${error.message}`);
+        }
+    };
+
+    // RESTORE EVENT (Unarchive)
+    const restoreEvent = async (id: string) => {
+        try {
+            const { error } = await supabase.from('events').update({ status: 'draft' }).eq('id', id);
+            if (error) throw error;
+            await fetchData();
+        } catch (error: any) {
+            console.error("Error restoring event:", error);
+            alert(`Error al restaurar evento: ${error.message}`);
+        }
+    };
+
+    // HARD DELETE (Only for archived events if really needed, or admin only)
+    const hardDeleteEvent = async (id: string) => {
+        try {
+             // 1. Eliminar Costos
+             await supabase.from('event_costs').delete().eq('event_id', id);
+             
+             // 2. Eliminar Tiers (Tickets)
+             await supabase.from('ticket_tiers').delete().eq('event_id', id);
+ 
+             // 3. Eliminar Ordenes
+             const { data: orders } = await supabase.from('orders').select('id').eq('event_id', id);
+             if (orders && orders.length > 0) {
+                 const orderIds = orders.map(o => o.id);
+                 await supabase.from('order_items').delete().in('order_id', orderIds);
+                 await supabase.from('orders').delete().eq('event_id', id);
+             }
+ 
+             // 4. Finalmente eliminar el evento
+             const { error } = await supabase.from('events').delete().eq('id', id);
+             
+             if (error) throw error;
+             await fetchData();
+        } catch (error: any) {
+            console.error("Error deleting event:", error);
+            alert(`Error al eliminar evento permanentemente: ${error.message}`);
+        }
+    };
     
     const addStaff = async (staffData: any) => {
         try {
@@ -438,7 +490,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         <StoreContext.Provider value={{
             events, tiers, promoters, orders, teams, currentUser, currentCustomer, dbStatus,
             login, logout, requestCustomerOtp, verifyCustomerOtp, customerLogout,
-            getEventTiers, addEvent, updateEvent, deleteEvent,
+            getEventTiers, addEvent, updateEvent, archiveEvent, restoreEvent, hardDeleteEvent,
             addStaff, deleteStaff, createTeam, updateStaffTeam, deleteTeam, createOrder, clearDatabase,
             addEventCost, deleteEventCost, updateCostStatus
         }}>
