@@ -65,61 +65,61 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
       setGatewayMessage('Conectando con Bold...');
       
       try {
-          const rawAmount = pendingOrder!.total;
-          const rawOrderId = pendingOrder!.order_number;
+          if (!pendingOrder) throw new Error("No hay orden pendiente.");
+          
+          const rawAmount = pendingOrder.total;
+          const rawOrderId = pendingOrder.order_number;
+
+          if (!rawAmount || !rawOrderId) throw new Error("Datos de orden incompletos.");
 
           console.log("Iniciando firma para:", rawOrderId, rawAmount);
 
-          // 1. Obtener Firma de Integridad (SHA256) desde Supabase Edge Function (Endpoint: bold-signature)
+          // 1. Pedir la firma a tu Edge Function
           const { data, error } = await supabase.functions.invoke('bold-signature', {
             body: {
+                orderId: rawOrderId,
                 amount: rawAmount,
-                orderId: rawOrderId, 
                 currency: 'COP'
             }
           });
 
           if (error) {
-              console.error("Supabase Function Error:", error);
-              throw new Error("Error de conexión al generar firma.");
+              console.error("Supabase Error:", error);
+              throw new Error(error.message || "Error al conectar con el servidor de firmas.");
           }
-
+          
           if (!data || !data.integritySignature) {
-              throw new Error("No se pudo generar la firma de seguridad.");
+              throw new Error("No se recibió una firma válida.");
           }
 
-          // Usamos los valores normalizados que devolvió el backend para asegurar coincidencia exacta
           const signature = data.integritySignature;
-          const finalAmountStr = data.normalizedAmount; 
-          const finalOrderId = data.normalizedOrderId;
-          
-          const apiKey = "K8mOAoWetfE5onyHWlhgvpLFcJIltm9Q64tZGv0Rmrs"; // Bold Identity Key (Pública)
 
-          // 2. Inyectar Script de Bold Oficial
-          const container = document.getElementById("bold-button-container");
-          if (!container) throw new Error("Interfaz de pago no lista.");
-          
-          // Limpiar intentos previos para evitar duplicados
-          container.innerHTML = ''; 
+          // 2. Inyectar el script de Bold con los atributos correctos
+          // Limpiar scripts previos si existen
+          const existing = document.querySelector('script[data-bold-button]');
+          if (existing) existing.remove();
+
+          const container = document.getElementById("bold-container");
+          if (!container) throw new Error("Contenedor 'bold-container' no encontrado.");
+          container.innerHTML = '';
 
           const script = document.createElement("script");
+          script.setAttribute("data-bold-button", "dark-L");
+          script.setAttribute("data-api-key", "K8mOAoWetfE5onyHWlhgvpLFcJIltm9Q64tZGv0Rmrs");
+          script.setAttribute("data-order-id", rawOrderId); // Usar el ID original
+          script.setAttribute("data-currency", "COP");
+          script.setAttribute("data-amount", String(rawAmount)); // Usar el monto original (entero)
+          script.setAttribute("data-integrity-signature", signature);
+          script.setAttribute("data-redirection-url", `${window.location.origin}/gracias`);
+          script.setAttribute("data-render-mode", "embedded");
           script.src = "https://checkout.bold.co/library/boldPaymentButton.js";
           
-          // --- CONFIGURACIÓN DEL BOTÓN BOLD ---
-          // IMPORTANTE: data-amount debe ser EXACTAMENTE el mismo string usado para el hash
-          script.setAttribute("data-bold-button", "dark");
-          script.setAttribute("data-order-id", finalOrderId);
-          script.setAttribute("data-currency", "COP");
-          script.setAttribute("data-amount", finalAmountStr);
-          script.setAttribute("data-api-key", apiKey);
-          script.setAttribute("data-integrity-signature", signature);
-          script.setAttribute("data-redirection-url", "https://midnightcorp.click/gracias");
-          script.setAttribute("data-description", `Tickets para ${event.title}`);
-          
-          // Datos del cliente para Bold (Opcionales pero recomendados)
-          if (email) script.setAttribute("data-customer-email", email);
-          if (name) script.setAttribute("data-customer-name", name);
-          
+          // Datos del cliente (Opcional, mantenemos para mejor UX)
+          if (email || name) {
+             const customerData = { email, fullName: name, phone, dialCode: "+57" };
+             script.setAttribute("data-customer-data", JSON.stringify(customerData));
+          }
+
           // Listener para detectar carga
           script.onload = () => {
               setGatewayStatus('ready');
@@ -127,16 +127,17 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
           };
 
           script.onerror = () => {
-              throw new Error("El script de Bold no pudo cargarse.");
+              console.error("Error cargando script de Bold");
+              setGatewayStatus('error');
+              setGatewayMessage("No se pudo cargar el botón de pago.");
           };
           
-          // Renderizar en el DOM
           container.appendChild(script);
 
       } catch (error: any) {
           console.error("Bold Integration Error:", error);
           setGatewayStatus('error');
-          setGatewayMessage(error.message || "Error al cargar la pasarela.");
+          setGatewayMessage(error.message || "Error desconocido al iniciar pago.");
       }
   };
 
@@ -343,14 +344,14 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
                              </div>
                          )}
                          {gatewayStatus === 'error' && (
-                             <div className="flex flex-col items-center gap-2 text-red-400 text-[10px] font-bold">
+                             <div className="flex flex-col items-center gap-2 text-red-400 text-[10px] font-bold text-center">
                                  <AlertTriangle size={16}/> {gatewayMessage}
-                                 <Button onClick={initiateBoldTransaction} variant="outline" className="h-8 text-xs mt-2">Reintentar</Button>
+                                 <Button onClick={initiateBoldTransaction} variant="outline" className="h-8 text-xs mt-2 border-red-500/30 hover:bg-red-500/10 text-red-400">Reintentar Conexión</Button>
                              </div>
                          )}
                          
                          {/* CONTENEDOR PARA EL SCRIPT DE BOLD */}
-                         <div id="bold-button-container" className="mt-2 flex justify-center w-full min-h-[50px]">
+                         <div id="bold-container" className="mt-2 flex justify-center w-full min-h-[50px]">
                              {/* El script inyectará el botón aquí automáticamente */}
                          </div>
                      </div>

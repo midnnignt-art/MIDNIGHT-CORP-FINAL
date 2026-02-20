@@ -10,45 +10,61 @@ const corsHeaders = {
 
 // @ts-ignore
 Deno.serve(async (req) => {
+  // 1. Manejo Explicito de CORS (Preflight)
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const body = await req.json();
+    // 2. Lectura segura del Body
+    // Usamos req.text() primero para evitar crashes si el body está vacío
+    const rawBody = await req.text();
+    if (!rawBody) {
+        throw new Error("El cuerpo de la petición está vacío.");
+    }
     
-    // 1. Normalización estricta de datos (CRÍTICO PARA BOLD)
+    const body = JSON.parse(rawBody);
+
+    // 3. Extracción y validación de datos
     const rawAmount = body.amount;
     const rawOrderId = body.orderId || body.order_id;
     const currency = (body.currency || 'COP').trim();
 
+    // Validación explícita
     if (!rawAmount || !rawOrderId) {
-        throw new Error("Faltan datos requeridos: amount y orderId");
+        console.error("❌ Faltan datos:", { rawAmount, rawOrderId });
+        return new Response(JSON.stringify({ 
+            error: `Datos incompletos. Recibido: Monto=${rawAmount}, OrderID=${rawOrderId}` 
+        }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200, // IMPORTANTE: Devolvemos 200 para que el cliente lea el mensaje de error
+        });
     }
 
-    // Eliminar decimales y convertir a entero string
+    // 4. Normalización (Crucial para que coincida con Bold)
+    // Eliminar decimales
     const amountInt = Math.round(Number(rawAmount));
     const amountStr = String(amountInt); 
     
-    // Eliminar espacios en blanco del ID
+    // Eliminar espacios
     const orderIdStr = String(rawOrderId).trim(); 
     const currencyStr = String(currency);                 
 
-    // 2. Concatenación: OrderId + Monto + Moneda + Secreto
+    // 5. Concatenación: OrderId + Monto + Moneda + Secreto
     const textToHash = `${orderIdStr}${amountStr}${currencyStr}${BOLD_SECRET_KEY}`;
     
-    console.log(`🔐 Generando hash para: ${orderIdStr} | Monto: ${amountStr}`);
+    console.log(`🔐 Generando hash para Orden: ${orderIdStr} | Monto: ${amountStr}`);
 
-    // 3. Generar SHA-256
+    // 6. Generar SHA-256
     const encoder = new TextEncoder();
     const data = encoder.encode(textToHash);
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     
-    // 4. Convertir a Hexadecimal
+    // 7. Convertir a Hexadecimal
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const integritySignature = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-    // 5. Retornar firma y valores normalizados (el frontend DEBE usar estos valores)
+    // 8. Respuesta Exitosa
     return new Response(JSON.stringify({ 
         integritySignature, 
         hash: integritySignature,
@@ -60,10 +76,14 @@ Deno.serve(async (req) => {
     })
 
   } catch (error: any) {
-    console.error("❌ Error en bold-signature:", error.message);
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error("❌ Error CRÍTICO en bold-signature:", error.message);
+    
+    // Devolvemos el error como JSON 200 para que el frontend lo muestre en el modal
+    return new Response(JSON.stringify({ 
+        error: `Error Interno del Servidor: ${error.message}` 
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400,
+      status: 200, 
     })
   }
 })
