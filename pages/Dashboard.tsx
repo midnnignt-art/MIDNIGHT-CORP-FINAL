@@ -24,6 +24,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   const [rankingFilterEvent, setRankingFilterEvent] = useState<string>('all');
   const [rankingDateStart, setRankingDateStart] = useState('');
   const [rankingDateEnd, setRankingDateEnd] = useState('');
+  const [rankingViewMode, setRankingViewMode] = useState<'promoters' | 'teams'>('promoters');
 
   // Manual Sale State
   const [selectedEventId, setSelectedEventId] = useState('');
@@ -340,24 +341,50 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
           // If Manager (but not Head/Admin), only show members of their team + themselves
           const teamMemberIds = [myTeam.manager_id, ...myTeam.members_ids];
           scopePromoters = promoters.filter(p => teamMemberIds.includes(p.user_id));
-          // Also filter orders to only those from this team (though logic below does it by promoter)
       }
 
-      const stats = scopePromoters.map(p => {
-          const myOrders = filteredOrders.filter(o => o.staff_id === p.user_id);
-          const ticketsSold = myOrders.reduce((acc, o) => acc + o.items.reduce((sum, i) => sum + i.quantity, 0), 0);
-          const revenue = myOrders.reduce((acc, o) => acc + o.total, 0);
-          
-          return {
-              ...p,
-              ticketsSold,
-              revenue,
-              orders: myOrders
-          };
-      }).filter(p => p.ticketsSold > 0).sort((a,b) => b.ticketsSold - a.ticketsSold); 
+      if (rankingViewMode === 'teams') {
+          // TEAM RANKING LOGIC
+          const teamStats = teams.map(team => {
+              const memberIds = [team.manager_id, ...team.members_ids];
+              const teamOrders = filteredOrders.filter(o => o.staff_id && memberIds.includes(o.staff_id));
+              const ticketsSold = teamOrders.reduce((acc, o) => acc + o.items.reduce((sum, i) => sum + i.quantity, 0), 0);
+              const revenue = teamOrders.reduce((acc, o) => acc + o.total, 0);
+              const commission = teamOrders.reduce((acc, o) => acc + o.commission_amount, 0);
 
-      return stats;
-  }, [orders, promoters, rankingFilterEvent, rankingDateStart, rankingDateEnd, isManager, isHead, myTeam]);
+              return {
+                  user_id: team.id, // Use team ID as key
+                  name: team.name,
+                  role: 'SQUAD',
+                  manager_name: promoters.find(p => p.user_id === team.manager_id)?.name,
+                  ticketsSold,
+                  revenue,
+                  commission,
+                  orders: teamOrders
+              };
+          }).filter(t => t.ticketsSold > 0).sort((a,b) => b.ticketsSold - a.ticketsSold);
+          
+          return teamStats;
+      } else {
+          // PROMOTER RANKING LOGIC (DEFAULT)
+          const stats = scopePromoters.map(p => {
+              const myOrders = filteredOrders.filter(o => o.staff_id === p.user_id);
+              const ticketsSold = myOrders.reduce((acc, o) => acc + o.items.reduce((sum, i) => sum + i.quantity, 0), 0);
+              const revenue = myOrders.reduce((acc, o) => acc + o.total, 0);
+              const commission = myOrders.reduce((acc, o) => acc + o.commission_amount, 0);
+              
+              return {
+                  ...p,
+                  ticketsSold,
+                  revenue,
+                  commission,
+                  orders: myOrders
+              };
+          }).filter(p => p.ticketsSold > 0).sort((a,b) => b.ticketsSold - a.ticketsSold); 
+
+          return stats;
+      }
+  }, [orders, promoters, rankingFilterEvent, rankingDateStart, rankingDateEnd, isManager, isHead, myTeam, rankingViewMode, teams]);
 
 
   // --- CÁLCULO DE MÉTRICAS (KPIs) - SIEMPRE SINCRONIZADO CON TABLA ---
@@ -840,6 +867,22 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                       <p className="text-xs text-zinc-500 mt-1 font-bold">Rendimiento individual por unidades y revenue.</p>
                   </div>
                   <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+                      {/* VIEW MODE SELECTOR */}
+                      <div className="bg-black border border-white/10 rounded-xl p-1 flex">
+                          <button 
+                              onClick={() => setRankingViewMode('promoters')}
+                              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${rankingViewMode === 'promoters' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-white'}`}
+                          >
+                              Promotores
+                          </button>
+                          <button 
+                              onClick={() => setRankingViewMode('teams')}
+                              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${rankingViewMode === 'teams' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-white'}`}
+                          >
+                              Squads
+                          </button>
+                      </div>
+
                       <select 
                           value={rankingFilterEvent} 
                           onChange={e => setRankingFilterEvent(e.target.value)}
@@ -868,31 +911,35 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                       <thead className="bg-black/40 text-[9px] md:text-[10px] text-zinc-500 uppercase font-black tracking-widest">
                           <tr>
                               <th className="p-4 rounded-l-xl">#</th>
-                              <th className="p-4">Promotor</th>
+                              <th className="p-4">{rankingViewMode === 'teams' ? 'Squad / Equipo' : 'Promotor'}</th>
                               <th className="p-4 text-right">Tickets (Und)</th>
                               <th className="p-4 text-right">Revenue Generado</th>
+                              <th className="p-4 text-right">Comisiones Ganadas</th>
                               <th className="p-4 rounded-r-xl text-center">Auditoría</th>
                           </tr>
                       </thead>
                       <tbody className="divide-y divide-white/5 text-xs md:text-sm">
-                          {generalRankingData.map((p, idx) => (
+                          {generalRankingData.map((p: any, idx) => (
                               <tr key={p.user_id} className="hover:bg-white/5 transition-colors group">
                                   <td className="p-4 font-black text-amber-500 text-lg">{idx + 1}</td>
                                   <td className="p-4">
                                       <div className="font-bold text-white">{p.name}</div>
-                                      <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded text-zinc-400">{p.role}</span>
+                                      <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded text-zinc-400">
+                                          {rankingViewMode === 'teams' ? `Manager: ${p.manager_name || 'N/A'}` : p.role}
+                                      </span>
                                   </td>
                                   <td className="p-4 text-right font-black text-white text-base">{p.ticketsSold}</td>
                                   <td className="p-4 text-right font-bold text-emerald-500">${p.revenue.toLocaleString()}</td>
+                                  <td className="p-4 text-right font-bold text-neon-blue">${p.commission.toLocaleString()}</td>
                                   <td className="p-4 text-center">
-                                      <button onClick={() => setViewingStaffId(p.user_id)} className="p-2 bg-zinc-800 hover:bg-white/20 rounded-lg text-white transition-all text-[10px] font-bold uppercase flex items-center gap-1 mx-auto">
-                                          <History size={12}/> Ver Detalle
+                                      <button onClick={() => rankingViewMode === 'teams' ? setViewingTeamId(p.user_id) : setViewingStaffId(p.user_id)} className="p-2 bg-zinc-800 hover:bg-white/20 rounded-lg text-white transition-all text-[10px] font-bold uppercase flex items-center gap-1 mx-auto">
+                                          {rankingViewMode === 'teams' ? <Users size={12}/> : <History size={12}/>} Ver Detalle
                                       </button>
                                   </td>
                               </tr>
                           ))}
                           {generalRankingData.length === 0 && (
-                              <tr><td colSpan={5} className="p-8 text-center text-zinc-600 font-bold uppercase">No hay datos para este filtro</td></tr>
+                              <tr><td colSpan={6} className="p-8 text-center text-zinc-600 font-bold uppercase">No hay datos para este filtro</td></tr>
                           )}
                       </tbody>
                   </table>
