@@ -1,16 +1,32 @@
-import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect } from 'react';
+import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
 
 interface EclipseLoaderProps {
   progress?: number; // 0 to 100
 }
 
 export const EclipseLoader: React.FC<EclipseLoaderProps> = ({ progress = 0 }) => {
-  // Map 0-100 to moon position (-150% to 150%)
-  const moonX = (progress / 100) * 300 - 150;
+  // Use MotionValues for high-performance updates outside of React's render cycle
+  const progressValue = useMotionValue(progress);
   
-  // Totality is at 50%
-  const isTotality = progress >= 48 && progress <= 52;
+  // Create a spring for the progress to smooth out any jitter
+  const smoothProgress = useSpring(progressValue, {
+    damping: 30,
+    stiffness: 100,
+    mass: 0.5
+  });
+
+  // Sync the prop to the motion value
+  useEffect(() => {
+    progressValue.set(progress);
+  }, [progress, progressValue]);
+
+  // Derived values using useTransform for 60fps performance
+  const moonX = useTransform(smoothProgress, [0, 100], ["-150%", "150%"]);
+  const coronaOpacity = useTransform(smoothProgress, [30, 45, 55, 70], [0, 1, 1, 0]);
+  const coronaScale = useTransform(smoothProgress, [45, 50, 55], [1.2, 1.6, 1.2]);
+  
+  // Logic for discrete states (Diamond Ring)
   const isDiamondRingStart = progress >= 45 && progress < 48;
   const isDiamondRingEnd = progress > 52 && progress <= 55;
 
@@ -19,43 +35,32 @@ export const EclipseLoader: React.FC<EclipseLoaderProps> = ({ progress = 0 }) =>
       <div className="relative w-64 h-64 flex items-center justify-center">
         
         {/* CORONA (Organic Glow) */}
-        <AnimatePresence>
-          {progress > 30 && progress < 70 && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ 
-                opacity: progress > 45 && progress < 55 ? 1 : 0.5, 
-                scale: progress > 48 && progress < 52 ? 1.6 : 1.2,
-              }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              transition={{ 
-                opacity: { duration: 1 },
-                scale: { duration: 2, ease: "easeInOut" },
-              }}
-              className="absolute inset-0 z-0"
-            >
-              {/* Soft, non-structured atmospheric glow */}
-              <div className="absolute inset-0 rounded-full bg-white/30 blur-[40px] scale-110" />
-              <div className="absolute inset-0 rounded-full bg-white/10 blur-[80px] scale-150" />
-              <div className="absolute inset-0 rounded-full bg-white/5 blur-[120px] scale-[2.5]" />
-              
-              {/* Subtle pulsing atmospheric light */}
-              <motion.div 
-                animate={{ 
-                  scale: [1, 1.1, 1],
-                  opacity: [0.3, 0.6, 0.3]
-                }}
-                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                className="absolute inset-0 rounded-full bg-white/10 blur-[150px] scale-[3]"
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <motion.div
+          style={{ 
+            opacity: coronaOpacity,
+            scale: coronaScale
+          }}
+          className="absolute inset-0 z-0"
+        >
+          <div className="absolute inset-0 rounded-full bg-white/30 blur-[40px] scale-110" />
+          <div className="absolute inset-0 rounded-full bg-white/10 blur-[80px] scale-150" />
+          <div className="absolute inset-0 rounded-full bg-white/5 blur-[120px] scale-[2.5]" />
+          
+          {/* Subtle pulsing atmospheric light */}
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.05, 1],
+              opacity: [0.3, 0.5, 0.3]
+            }}
+            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute inset-0 rounded-full bg-white/10 blur-[150px] scale-[3]"
+          />
+        </motion.div>
 
         {/* THE SUN (Bright Core) */}
         <div className="absolute w-32 h-32 rounded-full bg-white shadow-[0_0_60px_rgba(255,255,255,0.8),0_0_120px_rgba(255,255,255,0.3)] z-10" />
 
-        {/* DIAMOND RING EFFECT (Intense point of light) */}
+        {/* DIAMOND RING EFFECT */}
         <AnimatePresence>
           {(isDiamondRingStart || isDiamondRingEnd) && (
             <motion.div
@@ -78,8 +83,7 @@ export const EclipseLoader: React.FC<EclipseLoaderProps> = ({ progress = 0 }) =>
         {/* THE MOON (Matching background color) */}
         <motion.div 
           className="absolute w-[133px] h-[133px] rounded-full bg-void z-20"
-          animate={{ x: `${moonX}%` }}
-          transition={{ type: 'spring', damping: 30, stiffness: 40 }}
+          style={{ x: moonX }}
         />
       </div>
 
@@ -101,7 +105,7 @@ export const EclipseLoader: React.FC<EclipseLoaderProps> = ({ progress = 0 }) =>
         <div className="w-32 h-[1px] bg-white/5 relative overflow-hidden">
           <motion.div 
             className="absolute inset-y-0 left-0 bg-white/20"
-            animate={{ width: `${progress}%` }}
+            style={{ width: useTransform(smoothProgress, p => `${p}%`) }}
           />
         </div>
       </motion.div>

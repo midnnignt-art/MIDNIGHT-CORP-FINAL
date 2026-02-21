@@ -29,25 +29,40 @@ export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
     setActiveEvents(filtered);
   }, [events]);
 
-  // Simulated progress for the cinematic loader
+  // Simulated progress for the cinematic loader at 60fps
   useEffect(() => {
     if (dbStatus === 'syncing' || !isFullyLoaded) {
-      const interval = setInterval(() => {
+      let frameId: number;
+      let lastTime = performance.now();
+
+      const update = (time: number) => {
+        const deltaTime = time - lastTime;
+        lastTime = time;
+
         setLoadingProgress(prev => {
           if (prev >= 100) {
             if (dbStatus === 'synced') {
-              clearInterval(interval);
+              cancelAnimationFrame(frameId);
               setTimeout(() => setIsFullyLoaded(true), 1000);
               return 100;
             }
             return 100;
           }
-          // Slow down as it approaches 100
-          const increment = prev < 90 ? Math.random() * 5 : Math.random() * 0.5;
+          
+          // Calculate increment based on time passed (deltaTime)
+          // Target: ~4-5 seconds for full load if syncing
+          const baseSpeed = prev < 90 ? 0.025 : 0.005;
+          const jitter = 0.5 + Math.random();
+          const increment = baseSpeed * deltaTime * jitter;
+          
           return Math.min(prev + increment, 100);
         });
-      }, 100);
-      return () => clearInterval(interval);
+
+        frameId = requestAnimationFrame(update);
+      };
+
+      frameId = requestAnimationFrame(update);
+      return () => cancelAnimationFrame(frameId);
     }
   }, [dbStatus, isFullyLoaded]);
 
