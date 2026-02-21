@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, X, Settings, TrendingUp, LogIn, LogOut, User, Database, Zap, PieChart, Copy, Loader2, AlertCircle, Lock, Mail, ChevronRight, ArrowRight, ShieldCheck, Home, LayoutDashboard } from 'lucide-react';
+import { Menu, X, Settings, TrendingUp, LogIn, LogOut, User, Database, Zap, PieChart, Copy, Loader2, AlertCircle, Lock, Mail, ChevronRight, ArrowRight, ShieldCheck, Home, LayoutDashboard, Ticket } from 'lucide-react';
 import { Button } from './ui/button';
 import { UserRole } from '../types';
 import { useStore } from '../context/StoreContext';
@@ -12,8 +12,8 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
   const [showAccessModal, setShowAccessModal] = useState(false);
   const [authMode, setAuthMode] = useState<'menu' | 'client' | 'staff'>('menu');
   
-  // Mobile Menu State
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  // Menu State (Unified for Desktop/Mobile)
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // Staff Login State
   const [code, setCode] = useState('');
@@ -35,9 +35,9 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
       setClientEmail(''); setClientOtp(''); setClientStep(0); setClientError('');
   };
 
-  const handleMobileNavigate = (page: string) => {
+  const handleNavigateAction = (page: string) => {
       onNavigate(page);
-      setMobileMenuOpen(false);
+      setMenuOpen(false);
   };
 
   // --- STAFF HANDLERS ---
@@ -99,147 +99,135 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
   return (
     <>
     <nav className="fixed top-0 left-0 right-0 z-[80] bg-transparent px-6 md:px-12 h-20 md:h-24 flex items-center justify-between pointer-events-none">
-      {/* LEFT NAV */}
-      <div className="flex items-center gap-6 md:gap-8 pointer-events-auto">
-        <button 
-          onClick={() => onNavigate('home')} 
-          className={`text-[10px] font-light tracking-[0.4em] uppercase transition-colors ${currentPage === 'home' ? 'text-moonlight' : 'text-moonlight/40 hover:text-moonlight'}`}
-        >
-          Vitrina
-        </button>
-        {currentUser && (
-          <button 
-            onClick={() => onNavigate('dashboard')} 
-            className={`text-[10px] font-light tracking-[0.4em] uppercase transition-colors hidden md:block ${currentPage === 'dashboard' ? 'text-moonlight' : 'text-moonlight/40 hover:text-moonlight'}`}
-          >
-            Command
-          </button>
-        )}
-      </div>
-
-      {/* CENTRAL LOGO */}
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-auto flex items-center gap-4">
-        {/* STATUS INDICATOR */}
-        <div className="hidden md:flex items-center gap-2 px-3 py-1 border border-moonlight/10 bg-void/50 backdrop-blur-sm">
-          <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${dbStatus === 'synced' ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]'}`} />
-          <span className="text-[8px] font-black tracking-[0.2em] uppercase text-moonlight/40">
+      {/* LEFT NAV (Status Indicator) */}
+      <div className="flex-1 flex items-center pointer-events-auto">
+        <div className="flex items-center gap-2 px-2 py-1 border border-moonlight/5 bg-void/20 backdrop-blur-sm rounded-full">
+          <div className={`w-1 h-1 rounded-full animate-pulse ${dbStatus === 'synced' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]'}`} />
+          <span className="text-[6px] font-black tracking-[0.2em] uppercase text-moonlight/20">
             {dbStatus === 'synced' ? 'Online' : 'Offline'}
           </span>
         </div>
+      </div>
 
+      {/* CENTRAL LOGO (Perfectly Centered) */}
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-auto">
         <div className="flex flex-col items-center cursor-pointer" onClick={() => onNavigate('home')}>
           <span className="text-xl md:text-3xl font-black tracking-[-0.1em] text-moonlight">MIDNIGHT</span>
           <span className="text-[8px] font-light tracking-[0.8em] text-moonlight/30 uppercase -mt-1 ml-1">Worldwide</span>
         </div>
       </div>
 
-      {/* RIGHT NAV */}
-      <div className="flex items-center gap-4 md:gap-8 pointer-events-auto">
-        {currentUser?.role === UserRole.ADMIN && (
-          <div className="hidden lg:flex items-center gap-4 mr-4 border-r border-moonlight/10 pr-6">
-            <button 
-              onClick={() => onNavigate('admin-events')} 
-              className={`text-[10px] font-light tracking-[0.4em] uppercase transition-colors flex items-center gap-2 ${currentPage === 'admin-events' ? 'text-eclipse' : 'text-moonlight/40 hover:text-moonlight'}`}
-            >
-              <Settings size={12}/> Backoffice
-            </button>
-            <button 
-              onClick={() => onNavigate('projections')} 
-              className={`text-[10px] font-light tracking-[0.4em] uppercase transition-colors flex items-center gap-2 ${currentPage === 'projections' ? 'text-moonlight' : 'text-moonlight/40 hover:text-moonlight'}`}
-            >
-              <PieChart size={12}/> Finanzas
-            </button>
+      {/* RIGHT NAV (Minimalist Hamburger) */}
+      <div className="flex-1 flex justify-end items-center pointer-events-auto">
+        <button 
+          onClick={() => setMenuOpen(true)} 
+          className="group flex items-center gap-3 text-moonlight/40 hover:text-moonlight transition-all duration-300"
+        >
+          <span className="hidden md:block text-[10px] font-light tracking-[0.4em] uppercase opacity-0 group-hover:opacity-100 transition-opacity">Menu</span>
+          <div className="flex flex-col gap-1.5">
+            <div className="w-6 h-[1px] bg-current"></div>
+            <div className="w-4 h-[1px] bg-current ml-auto"></div>
+            <div className="w-6 h-[1px] bg-current"></div>
           </div>
-        )}
-
-        {!currentUser ? (
-          <button 
-            onClick={() => setShowAccessModal(true)} 
-            className="text-[10px] font-light tracking-[0.4em] uppercase text-moonlight/40 hover:text-moonlight transition-colors"
-          >
-            Acceso
-          </button>
-        ) : (
-          <div className="flex items-center gap-6">
-            <div className="text-right hidden md:block">
-              <p className="text-[8px] font-black text-moonlight/40 uppercase tracking-widest leading-none mb-1">{currentUser.role}</p>
-              <p className="text-[10px] font-bold text-moonlight uppercase tracking-wider">{currentUser.name.split(' ')[0]}</p>
-            </div>
-            <button 
-              onClick={logout} 
-              className="text-moonlight/40 hover:text-red-500 transition-colors"
-            >
-              <LogOut size={16}/>
-            </button>
-          </div>
-        )}
-        
-        {/* MOBILE MENU TOGGLE */}
-        <button onClick={() => setMobileMenuOpen(true)} className="md:hidden text-moonlight">
-          <Menu size={20} />
         </button>
       </div>
     </nav>
 
-    {/* MOBILE NAVIGATION MENU OVERLAY */}
-    {mobileMenuOpen && (
-        <div className="fixed inset-0 z-[90] bg-black/95 backdrop-blur-xl md:hidden animate-in slide-in-from-top-10 fade-in duration-200">
-            <div className="flex flex-col h-full p-5">
-                <div className="flex justify-between items-center mb-6">
-                     <span className="text-xl font-black tracking-tighter text-white">MIDNIGHT <span className="text-zinc-600 text-[10px] font-normal">CORP</span></span>
-                     <button onClick={() => setMobileMenuOpen(false)} className="p-2 bg-zinc-900 rounded-full text-white border border-white/10">
-                         <X size={20}/>
+    {/* UNIFIED NAVIGATION MENU OVERLAY (Minimalist Floating) */}
+    {menuOpen && (
+        <div className="fixed inset-0 z-[90] flex justify-end p-4 md:p-8 pointer-events-none">
+            {/* Backdrop for closing */}
+            <div 
+                className="fixed inset-0 bg-black/40 backdrop-blur-sm pointer-events-auto animate-in fade-in duration-500"
+                onClick={() => setMenuOpen(false)}
+            ></div>
+
+            <div className="relative w-full max-w-[280px] h-fit bg-void/60 backdrop-blur-3xl border border-white/5 rounded-[1.5rem] shadow-[0_30px_60px_rgba(0,0,0,0.8)] pointer-events-auto flex flex-col overflow-hidden animate-in slide-in-from-right-5 fade-in duration-700">
+                <div className="flex justify-between items-center p-5 border-b border-white/5">
+                     <div className="flex flex-col">
+                        <span className="text-base font-black tracking-tighter text-white">MIDNIGHT</span>
+                        <span className="text-[5px] font-light tracking-[0.6em] text-moonlight/20 uppercase">Worldwide</span>
+                     </div>
+                     <button onClick={() => setMenuOpen(false)} className="p-1.5 hover:bg-white/5 rounded-full text-white/20 hover:text-white transition-all">
+                         <X size={16}/>
                      </button>
                 </div>
                 
-                <div className="flex-1 space-y-3 overflow-y-auto">
-                    <p className="text-[10px] text-moonlight/30 uppercase font-black tracking-[0.4em] mb-4">Navegación</p>
-                    
-                    <button onClick={() => handleMobileNavigate('home')} className={`w-full text-left p-4 rounded-none border flex items-center justify-between group ${currentPage === 'home' ? 'bg-moonlight text-void border-moonlight' : 'bg-void border-moonlight/10 text-moonlight/40'}`}>
-                        <span className="font-black text-sm uppercase flex items-center gap-3 tracking-widest"><Home size={18}/> Vitrina</span>
-                        <ChevronRight size={16} className={currentPage === 'home' ? 'text-void' : 'text-moonlight/20'} />
+                <div className="p-4 space-y-0.5">
+                    <button onClick={() => handleNavigateAction('home')} className={`w-full text-left py-2.5 px-4 rounded-lg flex items-center justify-between group transition-all ${currentPage === 'home' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
+                        <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-3">
+                            Vitrina
+                        </span>
+                        <div className={`w-1 h-1 rounded-full bg-white transition-all ${currentPage === 'home' ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}`} />
                     </button>
 
                     {currentUser && (
-                        <button onClick={() => handleMobileNavigate('dashboard')} className={`w-full text-left p-4 rounded-none border flex items-center justify-between group ${currentPage === 'dashboard' ? 'bg-moonlight text-void border-moonlight' : 'bg-void border-moonlight/10 text-moonlight/40'}`}>
-                             <span className="font-black text-sm uppercase flex items-center gap-3 tracking-widest"><LayoutDashboard size={18}/> Command Center</span>
-                             <ChevronRight size={16} className={currentPage === 'dashboard' ? 'text-void' : 'text-moonlight/20'} />
+                        <button onClick={() => handleNavigateAction('dashboard')} className={`w-full text-left py-2.5 px-4 rounded-lg flex items-center justify-between group transition-all ${currentPage === 'dashboard' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
+                             <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-3">
+                                Command
+                             </span>
+                             <div className={`w-1 h-1 rounded-full bg-white transition-all ${currentPage === 'dashboard' ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}`} />
                         </button>
                     )}
 
-                    {currentUser?.role === UserRole.ADMIN && (
-                        <>
-                            <button onClick={() => handleMobileNavigate('admin-events')} className={`w-full text-left p-4 rounded-none border flex items-center justify-between group ${currentPage === 'admin-events' ? 'bg-eclipse text-moonlight border-eclipse' : 'bg-void border-moonlight/10 text-moonlight/40'}`}>
-                                <span className="font-black text-sm uppercase flex items-center gap-3 tracking-widest"><Settings size={18}/> Backoffice</span>
-                                <ChevronRight size={16} className={currentPage === 'admin-events' ? 'text-moonlight' : 'text-moonlight/20'} />
+                    {currentCustomer && (
+                        <button onClick={() => handleNavigateAction('tickets')} className={`w-full text-left py-2.5 px-4 rounded-lg flex items-center justify-between group transition-all ${currentPage === 'tickets' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
+                             <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-3">
+                                Entradas
+                             </span>
+                             <div className={`w-1 h-1 rounded-full bg-white transition-all ${currentPage === 'tickets' ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}`} />
+                        </button>
+                    )}
+
+                    {(currentUser?.role === UserRole.ADMIN || currentUser?.role === 'ADMIN') && (
+                        <div className="pt-3 mt-3 border-t border-white/5 space-y-0.5">
+                            <button onClick={() => handleNavigateAction('admin-events')} className={`w-full text-left py-2.5 px-4 rounded-lg flex items-center justify-between group transition-all ${currentPage === 'admin-events' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
+                                <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-3">
+                                    Backoffice
+                                </span>
                             </button>
-                            <button onClick={() => handleMobileNavigate('projections')} className={`w-full text-left p-4 rounded-none border flex items-center justify-between group ${currentPage === 'projections' ? 'bg-moonlight text-void border-moonlight' : 'bg-void border-moonlight/10 text-moonlight/40'}`}>
-                                <span className="font-black text-sm uppercase flex items-center gap-3 tracking-widest"><PieChart size={18}/> Finanzas</span>
-                                <ChevronRight size={16} className={currentPage === 'projections' ? 'text-void' : 'text-moonlight/20'} />
+                            <button onClick={() => handleNavigateAction('projections')} className={`w-full text-left py-2.5 px-4 rounded-lg flex items-center justify-between group transition-all ${currentPage === 'projections' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
+                                <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-3">
+                                    Finanzas
+                                </span>
                             </button>
-                        </>
+                        </div>
                     )}
                 </div>
 
-                <div className="pt-6 border-t border-moonlight/10">
-                    {currentUser ? (
-                        <div className="bg-white/5 p-4 rounded-none flex items-center justify-between border border-moonlight/10">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-eclipse flex items-center justify-center font-black text-moonlight text-xs">
-                                    {currentUser.name.charAt(0).toUpperCase()}
+                <div className="p-5 bg-white/[0.01] border-t border-white/5">
+                    {(currentUser || currentCustomer) ? (
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex-shrink-0 flex items-center justify-center font-black text-moonlight text-[10px]">
+                                    {currentUser ? currentUser.name.charAt(0).toUpperCase() : currentCustomer.email.charAt(0).toUpperCase()}
                                 </div>
-                                <div>
-                                    <p className="font-black text-moonlight text-xs uppercase tracking-wider">{currentUser.name}</p>
-                                    <p className="text-[9px] text-moonlight/30 uppercase tracking-widest">{currentUser.role}</p>
+                                <div className="min-w-0">
+                                    <p className="font-bold text-moonlight text-[10px] uppercase tracking-wider truncate">
+                                        {currentUser ? currentUser.name.split(' ')[0] : currentCustomer.email.split('@')[0]}
+                                    </p>
+                                    <p className="text-[7px] text-moonlight/20 uppercase tracking-[0.1em] font-bold">
+                                        {currentUser ? currentUser.role : 'CLIENTE'}
+                                    </p>
                                 </div>
                             </div>
-                            <button onClick={logout} className="p-2 bg-void border border-moonlight/10 text-red-500 hover:bg-red-500/10 transition-colors">
-                                <LogOut size={16}/>
+                            <button 
+                                onClick={() => {
+                                    if(currentUser) logout();
+                                    else customerLogout();
+                                    setMenuOpen(false);
+                                }} 
+                                className="p-2.5 bg-red-500/5 hover:bg-red-500/20 text-red-500/40 hover:text-red-500 rounded-lg border border-red-500/10 transition-all"
+                            >
+                                <LogOut size={14}/>
                             </button>
                         </div>
                     ) : (
-                        <button onClick={() => { setMobileMenuOpen(false); setShowAccessModal(true); }} className="w-full h-14 font-black bg-moonlight text-void text-sm uppercase tracking-[0.4em]">
-                            Iniciar Sesión
+                        <button 
+                            onClick={() => { setMenuOpen(false); setShowAccessModal(true); }} 
+                            className="w-full h-10 font-bold bg-white/5 hover:bg-white/10 text-white text-[9px] uppercase tracking-[0.2em] transition-all rounded-lg border border-white/5"
+                        >
+                            Acceso
                         </button>
                     )}
                 </div>

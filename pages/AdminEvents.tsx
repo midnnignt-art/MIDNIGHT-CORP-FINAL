@@ -38,8 +38,8 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
     });
     
     const [tierRows, setTierRows] = useState<any[]>([
-        { name: 'General Early Bird', price: 50, commission_fixed: 5, quantity: 100, stage: 'early_bird' },
-        { name: 'VIP Access', price: 150, commission_fixed: 15, quantity: 50, stage: 'presale' }
+        { id: undefined, name: 'General Early Bird', price: 50, commission_fixed: 5, quantity: 100, stage: 'early_bird' },
+        { id: undefined, name: 'VIP Access', price: 150, commission_fixed: 15, quantity: 50, stage: 'presale' }
     ]);
 
     // --- STATE: Squad/Staff Form ---
@@ -118,7 +118,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
 
     // --- HANDLERS: Event ---
     const handleAddTierRow = () => {
-        setTierRows([...tierRows, { name: '', price: 0, commission_fixed: 0, quantity: 0, stage: 'general' }]);
+        setTierRows([...tierRows, { id: undefined, name: '', price: 0, commission_fixed: 0, quantity: 0, stage: 'general' }]);
     };
 
     const handleRemoveTierRow = (index: number) => {
@@ -144,6 +144,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
         });
         const currentTiers = getEventTiers(event.id);
         setTierRows(currentTiers.map(t => ({
+            id: t.id,
             name: t.name,
             price: t.price,
             commission_fixed: t.commission_fixed,
@@ -166,11 +167,13 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
             cover_image: eventForm.cover_image
         };
 
-        const cleanTiers: Partial<TicketTier>[] = tierRows.map(t => ({
-            ...t,
+        const cleanTiers: any[] = tierRows.map(t => ({
+            id: t.id,
+            name: t.name,
             price: Number(t.price) || 0,
             quantity: Number(t.quantity) || 0,
-            commission_fixed: Number(t.commission_fixed) || 0
+            commission_fixed: Number(t.commission_fixed) || 0,
+            stage: t.stage || 'general'
         }));
 
         try {
@@ -184,7 +187,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
             setIsCreatingEvent(false);
             setEditingEventId(null);
             setEventForm({ title: '', description: '', venue: '', city: '', date: '', time: '', cover_image: '' });
-            setTierRows([{ name: 'General', price: 0, commission_fixed: 0, quantity: 0, stage: 'general' }]);
+            setTierRows([{ id: undefined, name: 'General', price: 0, commission_fixed: 0, quantity: 0, stage: 'general' }]);
         } catch (e: any) {
             console.error(e);
             alert(`Error: ${e.message}`);
@@ -195,7 +198,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
         setIsCreatingEvent(false);
         setEditingEventId(null);
         setEventForm({ title: '', description: '', venue: '', city: '', date: '', time: '', cover_image: '' });
-        setTierRows([{ name: 'General', price: 0, commission_fixed: 0, quantity: 0, stage: 'general' }]);
+        setTierRows([{ id: undefined, name: 'General', price: 0, commission_fixed: 0, quantity: 0, stage: 'general' }]);
     };
 
     const handleCreateTeam = () => {
@@ -271,22 +274,22 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
     };
 
     return (
-        <div className="min-h-screen pt-24 px-6 md:px-12 max-w-7xl mx-auto pb-20 bg-void">
+        <div className="min-h-screen pt-24 px-4 max-w-7xl mx-auto pb-12">
             
             {/* Nav Tabs */}
             {!selectedAuditId && (
-                <div className="flex gap-8 mb-12 border-b border-moonlight/5 overflow-x-auto no-scrollbar">
-                    <button onClick={() => setActiveTab('events')} className={`pb-6 px-2 text-[10px] font-black tracking-[0.3em] transition-all whitespace-nowrap uppercase ${activeTab === 'events' ? 'text-moonlight border-b-2 border-moonlight' : 'text-moonlight/20 hover:text-moonlight/40'}`}>
-                        Lanzamiento
+                <div className="flex gap-4 mb-8 border-b border-white/5 overflow-x-auto">
+                    <button onClick={() => setActiveTab('events')} className={`pb-4 px-4 font-black transition-all whitespace-nowrap ${activeTab === 'events' ? 'text-white border-b-2 border-neon-purple' : 'text-zinc-600'}`}>
+                        LANZAMIENTO
                     </button>
-                    <button onClick={() => setActiveTab('archived')} className={`pb-6 px-2 text-[10px] font-black tracking-[0.3em] transition-all whitespace-nowrap uppercase ${activeTab === 'archived' ? 'text-moonlight border-b-2 border-moonlight' : 'text-moonlight/20 hover:text-moonlight/40'}`}>
-                        Cementerio (Archivados)
+                    <button onClick={() => setActiveTab('archived')} className={`pb-4 px-4 font-black transition-all whitespace-nowrap ${activeTab === 'archived' ? 'text-white border-b-2 border-zinc-500' : 'text-zinc-600'}`}>
+                        CEMENTERIO (ARCHIVADOS)
                     </button>
-                    <button onClick={() => setActiveTab('staff')} className={`pb-6 px-2 text-[10px] font-black tracking-[0.3em] transition-all whitespace-nowrap uppercase ${activeTab === 'staff' ? 'text-moonlight border-b-2 border-moonlight' : 'text-moonlight/20 hover:text-moonlight/40'}`}>
-                        Estructura Staff
+                    <button onClick={() => setActiveTab('staff')} className={`pb-4 px-4 font-black transition-all whitespace-nowrap ${activeTab === 'staff' ? 'text-white border-b-2 border-neon-blue' : 'text-zinc-600'}`}>
+                        ESTRUCTURA STAFF
                     </button>
-                    <button onClick={() => setActiveTab('system')} className={`pb-6 px-2 text-[10px] font-black tracking-[0.3em] transition-all whitespace-nowrap uppercase ${activeTab === 'system' ? 'text-moonlight border-b-2 border-moonlight' : 'text-moonlight/20 hover:text-moonlight/40'}`}>
-                        Sistema
+                    <button onClick={() => setActiveTab('system')} className={`pb-4 px-4 font-black transition-all whitespace-nowrap ${activeTab === 'system' ? 'text-white border-b-2 border-emerald-500' : 'text-zinc-600'}`}>
+                        SISTEMA
                     </button>
                 </div>
             )}
@@ -300,7 +303,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                     <h2 className="text-2xl font-black text-white">Eventos Activos</h2>
                                     <p className="text-zinc-500 text-sm">Gestiona la cartelera y el inventario de tickets.</p>
                                 </div>
-                                <Button onClick={() => { setIsCreatingEvent(true); setEditingEventId(null); setTierRows([{name: 'General', price: 0, commission_fixed: 0, quantity: 0, stage: 'general'}]) }} className="bg-neon-purple text-white font-black h-12">
+                                <Button onClick={() => { setIsCreatingEvent(true); setEditingEventId(null); setTierRows([{id: undefined, name: 'General', price: 0, commission_fixed: 0, quantity: 0, stage: 'general'}]) }} className="bg-neon-purple text-white font-black h-12">
                                     <Plus className="mr-2" /> CREAR EVENTO
                                 </Button>
                             </div>
@@ -470,44 +473,36 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
             )}
 
             {activeTab === 'archived' && (
-                <div className="space-y-10">
-                    <div className="bg-white/5 p-8 rounded-[2rem] border border-moonlight/10">
-                        <h2 className="text-3xl font-black text-moonlight uppercase tracking-tight">Cementerio de Eventos</h2>
-                        <p className="text-moonlight/40 text-[10px] font-light tracking-[0.2em] uppercase mt-2">Eventos archivados. Puedes restaurarlos o eliminarlos permanentemente.</p>
+                <div className="space-y-6">
+                    <div className="bg-zinc-900/50 p-6 rounded-3xl border border-white/5">
+                        <h2 className="text-2xl font-black text-white">Cementerio de Eventos</h2>
+                        <p className="text-zinc-500 text-sm">Eventos archivados. Puedes restaurarlos o eliminarlos permanentemente.</p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {events.filter(e => e.status === 'archived').map(event => (
-                            <div key={event.id} className="group relative bg-white/5 rounded-[2rem] overflow-hidden border border-moonlight/10 transition-all duration-500 hover:border-moonlight/30">
-                                <div className="h-64 overflow-hidden relative grayscale group-hover:grayscale-0 transition-all duration-1000">
+                            <div key={event.id} className="group relative bg-zinc-900 rounded-[2.5rem] overflow-hidden border border-white/5 opacity-75 hover:opacity-100 transition-all">
+                                <div className="h-56 overflow-hidden relative grayscale group-hover:grayscale-0 transition-all duration-500">
                                     <img src={event.cover_image} className="w-full h-full object-cover" alt={event.title} />
-                                    <div className="absolute inset-0 bg-void/60 flex items-center justify-center">
-                                        <div className="border border-moonlight/30 bg-midnight/20 backdrop-blur-sm px-8 py-3 rounded-none">
-                                            <span className="text-moonlight font-black uppercase tracking-[0.4em] text-xs">Archivado</span>
-                                        </div>
+                                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                        <span className="text-white font-black uppercase tracking-widest border border-white px-4 py-2 rounded-lg">Archivado</span>
                                     </div>
                                 </div>
-                                <div className="p-8">
-                                    <h3 className="text-2xl font-black text-moonlight mb-6 uppercase tracking-tight">{event.title}</h3>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <button 
-                                            onClick={() => {if(confirm('¿Restaurar evento?')) restoreEvent(event.id)}} 
-                                            className="h-12 border border-moonlight/10 text-moonlight/40 hover:text-moonlight hover:bg-white/5 transition-all text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2"
-                                        >
-                                            <RefreshCcw size={14}/> Restaurar
-                                        </button>
-                                        <button 
-                                            onClick={() => {if(confirm('¿ELIMINAR PERMANENTEMENTE? Esta acción no se puede deshacer.')) hardDeleteEvent(event.id)}} 
-                                            className="h-12 bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/20 transition-all text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2"
-                                        >
-                                            <Trash2 size={14}/> Eliminar
-                                        </button>
+                                <div className="p-6">
+                                    <h3 className="text-xl font-black text-white mb-4">{event.title}</h3>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <Button onClick={() => {if(confirm('¿Restaurar evento?')) restoreEvent(event.id)}} variant="outline" className="h-12 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/10">
+                                            <RefreshCcw className="mr-2 w-4 h-4"/> Restaurar
+                                        </Button>
+                                        <Button onClick={() => {if(confirm('¿ELIMINAR PERMANENTEMENTE? Esta acción no se puede deshacer.')) hardDeleteEvent(event.id)}} variant="danger" className="h-12">
+                                            <Trash2 className="mr-2 w-4 h-4"/> Eliminar
+                                        </Button>
                                     </div>
                                 </div>
                             </div>
                         ))}
                         {events.filter(e => e.status === 'archived').length === 0 && (
-                            <div className="col-span-full py-32 text-center text-moonlight/20 font-black uppercase tracking-[0.5em] border-2 border-dashed border-moonlight/5 rounded-[3rem]">
+                            <div className="col-span-full py-20 text-center text-zinc-600 font-bold uppercase tracking-widest border-2 border-dashed border-white/5 rounded-3xl">
                                 El cementerio está vacío.
                             </div>
                         )}

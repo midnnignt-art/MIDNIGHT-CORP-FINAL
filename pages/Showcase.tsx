@@ -6,6 +6,7 @@ import { CountdownTimer } from '../components/CountdownTimer';
 import { MouseTrail } from '../components/MouseTrail';
 import { ArrowRight, Barcode, ChevronDown } from 'lucide-react';
 import { EventCard } from '../components/EventCard';
+import { EclipseLoader } from '../components/EclipseLoader';
 
 const motion = _motion as any;
 
@@ -15,20 +16,55 @@ interface ShowcaseProps {
 }
 
 export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
-  const { events } = useStore();
+  const { events, dbStatus } = useStore();
   const [activeEvents, setActiveEvents] = useState<Event[]>([]);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [isFullyLoaded, setIsFullyLoaded] = useState(false);
 
   useEffect(() => {
+    const now = new Date().getTime();
     const filtered = events
-      .filter(e => e.status === 'published' || e.status === 'sold_out')
+      .filter(e => (e.status === 'published' || e.status === 'sold_out') && new Date(e.event_date).getTime() > now)
       .sort((a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime());
     setActiveEvents(filtered);
   }, [events]);
 
+  // Simulated progress for the cinematic loader
+  useEffect(() => {
+    if (dbStatus === 'syncing' || !isFullyLoaded) {
+      const interval = setInterval(() => {
+        setLoadingProgress(prev => {
+          if (prev >= 100) {
+            if (dbStatus === 'synced') {
+              clearInterval(interval);
+              setTimeout(() => setIsFullyLoaded(true), 1000);
+              return 100;
+            }
+            return 100;
+          }
+          // Slow down as it approaches 100
+          const increment = prev < 90 ? Math.random() * 5 : Math.random() * 0.5;
+          return Math.min(prev + increment, 100);
+        });
+      }, 100);
+      return () => clearInterval(interval);
+    }
+  }, [dbStatus, isFullyLoaded]);
+
+  if (!isFullyLoaded && (dbStatus === 'syncing' || loadingProgress < 100)) {
+    return <EclipseLoader progress={loadingProgress} />;
+  }
+
   if (activeEvents.length === 0) {
     return (
-      <div className="min-h-screen bg-void flex items-center justify-center">
-        <div className="text-moonlight/20 font-black tracking-[1em] animate-pulse">LOADING MIDNIGHT...</div>
+      <div className="min-h-screen bg-void flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-24 h-24 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-8">
+           <Barcode className="w-10 h-10 text-moonlight/20" strokeWidth={1} />
+        </div>
+        <h2 className="text-2xl md:text-4xl font-black text-moonlight uppercase tracking-tighter mb-4">Próximamente</h2>
+        <p className="text-moonlight/40 text-xs md:text-sm font-light tracking-[0.3em] uppercase max-w-md leading-relaxed">
+          Estamos preparando las próximas experiencias. Suscríbete para ser el primero en enterarte.
+        </p>
       </div>
     );
   }
@@ -185,3 +221,4 @@ export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
     </div>
   );
 };
+

@@ -230,7 +230,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const customerLogout = async () => { await supabase.auth.signOut(); setCurrentCustomer(null); };
 
-    const getEventTiers = (eventId: string) => tiers.filter(t => t.event_id === eventId);
+    const getEventTiers = (eventId: string) => tiers.filter(t => t.event_id === eventId && t.active !== false);
     
     const addEvent = async (eventData: any, tierData: any[]) => {
         try {
@@ -272,9 +272,86 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     
     const updateEvent = async (id: string, eventData: any, tierData: any[]) => { 
         try {
-            await supabase.from('events').update(eventData).eq('id', id);
+            // 1. Actualizar datos básicos del evento
+            const { error: eventError } = await supabase
+                .from('events')
+                .update({
+                    title: eventData.title,
+                    slug: eventData.title.toLowerCase().replace(/ /g, '-').replace(/[^\w-]/g, ''),
+                    description: eventData.description,
+                    venue: eventData.venue,
+                    city: eventData.city,
+                    event_date: eventData.event_date,
+                    doors_open: eventData.doors_open,
+                    cover_image: eventData.cover_image,
+                    total_capacity: tierData.reduce((acc, t) => acc + Number(t.quantity), 0)
+                })
+                .eq('id', id);
+
+            if (eventError) throw eventError;
+
+            // 2. Gestionar Tiers (Tickets)
+            // Obtener IDs actuales en DB para saber cuáles borrar
+            const { data: currentDbTiers } = await supabase
+                .from('ticket_tiers')
+                .select('id')
+                .eq('event_id', id);
+            
+            const dbTierIds = (currentDbTiers || []).map(t => t.id);
+            const incomingTierIds = tierData.filter(t => t.id).map(t => t.id);
+            const idsToDelete = dbTierIds.filter(tid => !incomingTierIds.includes(tid));
+
+            // Borrar tiers eliminados (solo si no tienen ventas para evitar errores de FK)
+            for (const tid of idsToDelete) {
+                const { count } = await supabase
+                    .from('order_items')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('tier_id', tid);
+                
+                if (count === 0) {
+                    await supabase.from('ticket_tiers').delete().eq('id', tid);
+                } else {
+                    // Si tiene ventas, lo marcamos como inactivo en lugar de borrarlo
+                    await supabase.from('ticket_tiers').update({ active: false }).eq('id', tid);
+                }
+            }
+
+            // Actualizar existentes e insertar nuevos
+            for (const tier of tierData) {
+                if (tier.id) {
+                    const { error: upErr } = await supabase
+                        .from('ticket_tiers')
+                        .update({
+                            name: tier.name,
+                            price: Number(tier.price),
+                            quantity: Number(tier.quantity),
+                            commission_fixed: Number(tier.commission_fixed),
+                            stage: tier.stage,
+                            active: true
+                        })
+                        .eq('id', tier.id);
+                    if (upErr) console.error("Error updating tier:", upErr);
+                } else {
+                    const { error: insErr } = await supabase
+                        .from('ticket_tiers')
+                        .insert({
+                            event_id: id,
+                            name: tier.name,
+                            price: Number(tier.price),
+                            quantity: Number(tier.quantity),
+                            commission_fixed: Number(tier.commission_fixed),
+                            stage: tier.stage || 'general',
+                            active: true
+                        });
+                    if (insErr) console.error("Error inserting tier:", insErr);
+                }
+            }
+
             await fetchData();
-        } catch (error) { console.error(error); }
+        } catch (error: any) { 
+            console.error("Error updating event:", error);
+            alert(`Error al actualizar evento: ${error.message}`);
+        }
     };
 
     // ARCHIVE EVENT (Soft Delete)

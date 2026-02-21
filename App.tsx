@@ -10,8 +10,10 @@ import { UserRole, Event } from './types';
 import { useStore } from './context/StoreContext';
 import { CheckCircle2 } from 'lucide-react';
 
+import TicketWallet from './components/TicketWallet';
+
 const App: React.FC = () => {
-  const { currentUser, promoters } = useStore();
+  const { currentUser, promoters, currentCustomer } = useStore();
   const [currentPage, setCurrentPage] = useState<string>('home');
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -52,7 +54,10 @@ const App: React.FC = () => {
     if (!currentUser && (currentPage === 'dashboard' || currentPage === 'admin-events' || currentPage === 'projections')) {
       setCurrentPage('home');
     }
-  }, [currentUser]);
+    if (!currentCustomer && currentPage === 'tickets') {
+      setCurrentPage('home');
+    }
+  }, [currentUser, currentCustomer]);
 
   const handleNavigate = (page: string) => {
     setCurrentPage(page);
@@ -100,6 +105,15 @@ const App: React.FC = () => {
           {currentPage === 'dashboard' && <Dashboard role={currentUser?.role || UserRole.GUEST} />}
           {currentPage === 'admin-events' && <AdminEvents role={currentUser?.role || UserRole.GUEST} />}
           {currentPage === 'projections' && <Projections role={currentUser?.role || UserRole.GUEST} />}
+          {currentPage === 'tickets' && (
+            <div className="animate-in fade-in slide-in-from-bottom-5 duration-700">
+                <div className="mb-12 text-center">
+                    <h2 className="text-4xl md:text-6xl font-black text-moonlight uppercase tracking-tighter mb-4">Mis Entradas</h2>
+                    <p className="text-moonlight/40 text-xs md:text-sm font-light tracking-[0.3em] uppercase">Tus códigos de acceso para las próximas experiencias</p>
+                </div>
+                <TicketWallet />
+            </div>
+          )}
         </div>
       </main>
 
