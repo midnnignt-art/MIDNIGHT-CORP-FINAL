@@ -387,7 +387,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // RESTORE EVENT (Unarchive)
     const restoreEvent = async (id: string) => {
         try {
-            const { error } = await supabase.from('events').update({ status: 'draft' }).eq('id', id);
+            const { error } = await supabase.from('events').update({ status: 'published' }).eq('id', id);
             if (error) throw error;
             await fetchData();
         } catch (error: any) {
