@@ -90,12 +90,15 @@ const MagicPanel: React.FC<MagicPanelProps> = ({ isOpen, onClose }) => {
   };
 
   const handleSave = async () => {
-    const activeItems = localItems.filter(item => item.image_url !== '');
-    if (activeItems.length < 4) {
-      alert("Necesitas al menos 4 imágenes para activar la galería. Agrega más fotos antes de publicar.");
+    const row1Items = localItems.filter(item => item.row === 1 && item.image_url !== '');
+    const row2Items = localItems.filter(item => item.row === 2 && item.image_url !== '');
+
+    if (row1Items.length < 4 || row2Items.length < 4) {
+      alert("Necesitas al menos 4 imágenes en CADA FILA para activar la galería. Agrega más fotos antes de publicar.");
       return;
     }
 
+    const activeItems = [...row1Items, ...row2Items];
     await updateGallery(activeItems);
     setToast("Galería actualizada.");
     setTimeout(() => {
