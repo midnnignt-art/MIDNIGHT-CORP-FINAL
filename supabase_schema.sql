@@ -137,6 +137,17 @@ CREATE TABLE event_costs (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
+-- I. GALERÍA MARQUEE (MÁGIC)
+CREATE TABLE gallery_marquee (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  image_url TEXT NOT NULL,
+  city TEXT,
+  date TEXT,
+  row INTEGER NOT NULL,
+  "order" INTEGER NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
 -- ==========================================
 -- 4. SEGURIDAD (RLS) - MODO BETA ABIERTO
 -- ==========================================
@@ -150,6 +161,7 @@ ALTER TABLE ticket_tiers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE event_costs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE gallery_marquee ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Access profiles" ON profiles FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Access sales_teams" ON sales_teams FOR ALL USING (true) WITH CHECK (true);
@@ -158,6 +170,7 @@ CREATE POLICY "Access ticket_tiers" ON ticket_tiers FOR ALL USING (true) WITH CH
 CREATE POLICY "Access orders" ON orders FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Access order_items" ON order_items FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Access event_costs" ON event_costs FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Access gallery_marquee" ON gallery_marquee FOR ALL USING (true) WITH CHECK (true);
 
 -- ==========================================
 -- 5. DATOS INICIALES (SEED)

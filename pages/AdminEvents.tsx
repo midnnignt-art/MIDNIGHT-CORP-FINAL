@@ -154,6 +154,46 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
         setIsCreatingEvent(true);
     };
 
+    const compressImage = (base64Str: string): Promise<string> => {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.src = base64Str;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 1200; // Better quality for event covers
+                let width = img.width;
+                let height = img.height;
+
+                if (width > MAX_WIDTH) {
+                    height *= MAX_WIDTH / width;
+                    width = MAX_WIDTH;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.8)); // 80% quality
+            };
+        });
+    };
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (file.size > 5 * 1024 * 1024) {
+                alert("Máx 5MB por foto.");
+                return;
+            }
+            const reader = new FileReader();
+            reader.onloadend = async () => {
+                const compressed = await compressImage(reader.result as string);
+                setEventForm({ ...eventForm, cover_image: compressed });
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     const handleCreateOrUpdateEvent = async () => {
         if (!eventForm.title || !eventForm.date) return alert("Faltan datos básicos del evento");
         
@@ -408,9 +448,36 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                 </div>
                                 <div className="space-y-4">
                                     <label className="text-xs font-bold text-zinc-500 uppercase">Multimedia</label>
-                                    <input value={eventForm.cover_image} onChange={e => setEventForm({...eventForm, cover_image: e.target.value})} className="w-full bg-black border border-white/10 p-3 rounded-xl text-white text-xs" placeholder="URL Imagen Portada" />
-                                    <div className="aspect-video rounded-xl overflow-hidden bg-black border border-white/5">
-                                        {eventForm.cover_image && <img src={eventForm.cover_image} className="w-full h-full object-cover opacity-60" />}
+                                    <div className="flex gap-2">
+                                        <input 
+                                            value={eventForm.cover_image.startsWith('data:') ? 'Imagen Subida' : eventForm.cover_image} 
+                                            onChange={e => setEventForm({...eventForm, cover_image: e.target.value})} 
+                                            disabled={eventForm.cover_image.startsWith('data:')}
+                                            className="flex-1 bg-black border border-white/10 p-3 rounded-xl text-white text-xs disabled:opacity-50" 
+                                            placeholder="URL Imagen Portada" 
+                                        />
+                                        <label className="bg-zinc-800 hover:bg-zinc-700 p-3 rounded-xl cursor-pointer transition-colors flex items-center justify-center">
+                                            <Upload className="w-5 h-5 text-white" />
+                                            <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
+                                        </label>
+                                        {eventForm.cover_image && (
+                                            <button 
+                                                onClick={() => setEventForm({...eventForm, cover_image: ''})}
+                                                className="bg-red-500/20 hover:bg-red-500/40 p-3 rounded-xl text-red-500 transition-colors"
+                                            >
+                                                <Trash2 className="w-5 h-5" />
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="aspect-video rounded-xl overflow-hidden bg-black border border-white/5 relative group">
+                                        {eventForm.cover_image ? (
+                                            <img src={eventForm.cover_image} className="w-full h-full object-cover opacity-80" />
+                                        ) : (
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center text-zinc-700">
+                                                <Calendar size={48} className="mb-2 opacity-20" />
+                                                <span className="text-[10px] font-bold uppercase tracking-widest">Sin Imagen</span>
+                                            </div>
+                                        )}
                                     </div>
                                     <textarea value={eventForm.description} onChange={e => setEventForm({...eventForm, description: e.target.value})} className="w-full bg-black border border-white/10 p-3 rounded-xl text-white h-24" placeholder="Descripción del evento..." />
                                 </div>
