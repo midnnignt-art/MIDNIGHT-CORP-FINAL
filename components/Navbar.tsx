@@ -186,6 +186,11 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
                                     Backoffice
                                 </span>
                             </button>
+                            <button onClick={() => handleNavigateAction('magic')} className={`w-full text-left py-2.5 px-4 rounded-lg flex items-center justify-between group transition-all ${currentPage === 'magic' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
+                                <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-3">
+                                    MÁGIC
+                                </span>
+                            </button>
                             <button onClick={() => handleNavigateAction('projections')} className={`w-full text-left py-2.5 px-4 rounded-lg flex items-center justify-between group transition-all ${currentPage === 'projections' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
                                 <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-3">
                                     Finanzas

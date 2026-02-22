@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { 
-  Event, Promoter, TicketTier, Order, UserRole, SalesTeam, EventCost 
+  Event, Promoter, TicketTier, Order, UserRole, SalesTeam, EventCost, GalleryItem 
 } from '../types';
 import { supabase } from '../lib/supabase';
 import { sendTicketEmail } from '../services/emailService';
@@ -11,6 +11,7 @@ interface StoreContextType {
     promoters: Promoter[];
     orders: Order[];
     teams: SalesTeam[];
+    galleryItems: GalleryItem[];
     currentUser: any; 
     currentCustomer: any; 
     dbStatus: 'synced' | 'local' | 'syncing' | 'error';
@@ -39,6 +40,7 @@ interface StoreContextType {
     deleteTeam: (teamId: string) => Promise<void>;
     createOrder: (eventId: string, cartItems: any[], method: string, staffId?: string, customerInfo?: any) => Promise<Order | null>;
     clearDatabase: () => Promise<void>;
+    updateGallery: (items: GalleryItem[]) => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -57,6 +59,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const [promoters, setPromoters] = useState<Promoter[]>([]);
     const [orders, setOrders] = useState<Order[]>([]);
     const [teams, setTeams] = useState<SalesTeam[]>([]);
+    const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
     
     const [currentUser, setCurrentUser] = useState<any>(null); 
     const [currentCustomer, setCurrentCustomer] = useState<any>(null);
@@ -103,6 +106,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const fetchData = async () => {
         setDbStatus('syncing');
         try {
+            // Load Gallery from LocalStorage
+            const storedGallery = localStorage.getItem('midnight_gallery');
+            if (storedGallery) {
+                setGalleryItems(JSON.parse(storedGallery));
+            }
+
             const { data: eventsData, error: evErr } = await supabase.from('events').select(`*, costs:event_costs(*)`).order('created_at', { ascending: false });
             if (evErr) throw evErr;
 
@@ -563,6 +572,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
     };
 
+    const updateGallery = async (items: GalleryItem[]) => {
+        setGalleryItems(items);
+        localStorage.setItem('midnight_gallery', JSON.stringify(items));
+    };
+
     const clearDatabase = async () => {}; 
     const addEventCost = async (eventId: string, cost: any) => { await supabase.from('event_costs').insert({ event_id: eventId, ...cost }); await fetchData(); };
     const deleteEventCost = async (eventId: string, costId: string) => { await supabase.from('event_costs').delete().eq('id', costId); await fetchData(); };
@@ -570,11 +584,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     return (
         <StoreContext.Provider value={{
-            events, tiers, promoters, orders, teams, currentUser, currentCustomer, dbStatus,
+            events, tiers, promoters, orders, teams, galleryItems, currentUser, currentCustomer, dbStatus,
             login, logout, requestCustomerOtp, verifyCustomerOtp, customerLogout,
             getEventTiers, addEvent, updateEvent, archiveEvent, restoreEvent, hardDeleteEvent,
             addStaff, deleteStaff, createTeam, updateStaffTeam, deleteTeam, createOrder, clearDatabase,
-            addEventCost, deleteEventCost, updateCostStatus
+            addEventCost, deleteEventCost, updateCostStatus, updateGallery
         }}>
             {children}
         </StoreContext.Provider>

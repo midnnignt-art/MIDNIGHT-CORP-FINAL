@@ -6,6 +6,7 @@ import { AdminEvents } from './pages/AdminEvents';
 import { Projections } from './pages/Projections';
 import { SuccessPage } from './pages/SuccessPage'; // Importar nueva página
 import { CheckoutModal } from './components/CheckoutModal';
+import MagicPanel from './components/MagicPanel';
 import { UserRole, Event } from './types';
 import { useStore } from './context/StoreContext';
 import { CheckCircle2 } from 'lucide-react';
@@ -17,6 +18,7 @@ const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<string>('home');
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [isMagicOpen, setIsMagicOpen] = useState(false);
   
   const [referralToast, setReferralToast] = useState<{show: boolean, name: string}>({show: false, name: ''});
 
@@ -60,6 +62,10 @@ const App: React.FC = () => {
   }, [currentUser, currentCustomer]);
 
   const handleNavigate = (page: string) => {
+    if (page === 'magic') {
+      setIsMagicOpen(true);
+      return;
+    }
     setCurrentPage(page);
     window.scrollTo(0, 0);
   };
@@ -121,6 +127,11 @@ const App: React.FC = () => {
         event={selectedEvent} 
         isOpen={isCheckoutOpen} 
         onClose={handlePurchaseComplete} 
+      />
+
+      <MagicPanel 
+        isOpen={isMagicOpen} 
+        onClose={() => setIsMagicOpen(false)} 
       />
     </div>
   );

@@ -7,6 +7,7 @@ import { MouseTrail } from '../components/MouseTrail';
 import { ArrowRight, Barcode, ChevronDown } from 'lucide-react';
 import { EventCard } from '../components/EventCard';
 import { EclipseLoader } from '../components/EclipseLoader';
+import MarqueeGallery from '../components/MarqueeGallery';
 
 const motion = _motion as any;
 
@@ -226,6 +227,9 @@ export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
           </div>
         );
       })}
+
+      {/* GALLERY SECTION */}
+      <MarqueeGallery />
 
       {/* FOOTER */}
       <div className="relative z-20 bg-void py-20 border-t border-moonlight/5 text-center">

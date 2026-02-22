@@ -13,6 +13,15 @@ export type EventStage = 'early_bird' | 'presale' | 'general' | 'door';
 export type WalletType = 'event' | 'operational' | 'commission' | 'general';
 export type TransactionType = 'sale' | 'commission' | 'withdrawal' | 'transfer' | 'refund' | 'fee';
 
+export interface GalleryItem {
+  id: string;
+  image_url: string;
+  city: string;
+  date: string;
+  row: 1 | 2;
+  order: number;
+}
+
 export interface EventCost {
   id: string;
   event_id: string;
