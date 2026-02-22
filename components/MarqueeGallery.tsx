@@ -34,10 +34,10 @@ const MarqueeGallery: React.FC = () => {
 
   // Calculate dynamic duration for constant speed
   // Time = Distance / Speed
-  const DESKTOP_ITEM_WIDTH = 296; // 280px + 16px gap
-  const MOBILE_ITEM_WIDTH = 188;  // 180px + 8px gap
-  const DESKTOP_SPEED = 85;       // pixels per second
-  const MOBILE_SPEED = 65;        // pixels per second
+  const DESKTOP_ITEM_WIDTH = 326; // 310px + 16px gap
+  const MOBILE_ITEM_WIDTH = 208;  // 200px + 8px gap
+  const DESKTOP_SPEED = 76;       // pixels per second (reduced by 10% from 85)
+  const MOBILE_SPEED = 58;        // pixels per second (reduced by 10% from 65)
 
   // Duration for a single pass of the original set (50% of the duplicated set)
   const duration1 = (row1.length * DESKTOP_ITEM_WIDTH) / DESKTOP_SPEED;
@@ -93,7 +93,7 @@ const MarqueeGallery: React.FC = () => {
 
 const GalleryCard: React.FC<{ item: any }> = ({ item }) => {
   return (
-    <div className="relative w-[180px] md:w-[280px] flex-shrink-0 group cursor-default">
+    <div className="relative w-[200px] md:w-[310px] flex-shrink-0 group cursor-default">
       {/* Image Container */}
       <div className="relative aspect-[3/4] overflow-hidden">
         {/* Event Image */}
