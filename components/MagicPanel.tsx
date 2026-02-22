@@ -35,7 +35,31 @@ const MagicPanel: React.FC<MagicPanelProps> = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  const handleFileChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  const compressImage = (base64Str: string): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.src = base64Str;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 800; // Reduced for localStorage safety
+        let width = img.width;
+        let height = img.height;
+
+        if (width > MAX_WIDTH) {
+          height *= MAX_WIDTH / width;
+          width = MAX_WIDTH;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.7)); // Compress to 70% quality JPEG
+      };
+    });
+  };
+
+  const handleFileChange = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
@@ -43,21 +67,26 @@ const MagicPanel: React.FC<MagicPanelProps> = ({ isOpen, onClose }) => {
         return;
       }
       const reader = new FileReader();
-      reader.onloadend = () => {
+      reader.onloadend = async () => {
+        const compressed = await compressImage(reader.result as string);
         const newItems = [...localItems];
-        newItems[index] = { ...newItems[index], image_url: reader.result as string };
+        newItems[index] = { ...newItems[index], image_url: compressed };
         setLocalItems(newItems);
       };
       reader.readAsDataURL(file);
     }
   };
 
+  const handleUrlChange = (index: number, url: string) => {
+    const newItems = [...localItems];
+    newItems[index] = { ...newItems[index], image_url: url };
+    setLocalItems(newItems);
+  };
+
   const handleDelete = (index: number) => {
-    if (confirm("¿Eliminar imagen?")) {
-      const newItems = [...localItems];
-      newItems[index] = { ...newItems[index], image_url: '', city: '', date: '' };
-      setLocalItems(newItems);
-    }
+    const newItems = [...localItems];
+    newItems[index] = { ...newItems[index], image_url: '', city: '', date: '' };
+    setLocalItems(newItems);
   };
 
   const handleSave = async () => {
@@ -109,6 +138,7 @@ const MagicPanel: React.FC<MagicPanelProps> = ({ isOpen, onClose }) => {
                     setLocalItems(next);
                   }}
                   onFileChange={(e) => handleFileChange(idx, e)}
+                  onUrlChange={(url) => handleUrlChange(idx, url)}
                   onDelete={() => handleDelete(idx)}
                 />
               ))}
@@ -132,6 +162,7 @@ const MagicPanel: React.FC<MagicPanelProps> = ({ isOpen, onClose }) => {
                     setLocalItems(next);
                   }}
                   onFileChange={(e) => handleFileChange(idx + 10, e)}
+                  onUrlChange={(url) => handleUrlChange(idx + 10, url)}
                   onDelete={() => handleDelete(idx + 10)}
                 />
               ))}
@@ -148,8 +179,25 @@ const MagicPanel: React.FC<MagicPanelProps> = ({ isOpen, onClose }) => {
             Guardar y Publicar
           </button>
           <button 
+            onClick={() => {
+              if(confirm("¿Limpiar toda la galería?")) {
+                setLocalItems(Array.from({ length: 20 }, (_, i) => ({
+                  id: crypto.randomUUID(),
+                  image_url: '',
+                  city: '',
+                  date: '',
+                  row: (i < 10 ? 1 : 2) as 1 | 2,
+                  order: i % 10
+                })));
+              }
+            }}
+            className="border border-red-500/30 text-red-500 px-12 py-4 font-bold uppercase tracking-widest hover:bg-red-500/10 transition-colors"
+          >
+            Limpiar Todo
+          </button>
+          <button 
             onClick={onClose}
-            className="border border-eclipse text-moonlight px-12 py-4 font-bold uppercase tracking-widest hover:bg-eclipse/10 transition-colors"
+            className="border border-white/10 text-moonlight px-12 py-4 font-bold uppercase tracking-widest hover:bg-white/5 transition-colors"
           >
             Cancelar
           </button>
@@ -171,8 +219,9 @@ const Slot: React.FC<{
   index: number;
   onChange: (val: Partial<GalleryItem>) => void;
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onUrlChange: (url: string) => void;
   onDelete: () => void;
-}> = ({ item, onChange, onFileChange, onDelete }) => {
+}> = ({ item, onChange, onFileChange, onUrlChange, onDelete }) => {
   return (
     <div className="flex flex-col gap-2">
       <div className="relative aspect-[3/4] bg-white/5 border border-white/10 group overflow-hidden">
@@ -180,11 +229,11 @@ const Slot: React.FC<{
           <>
             <img src={item.image_url} className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-void/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-              <label className="p-2 bg-white/10 hover:bg-white/20 cursor-pointer">
+              <label className="p-2 bg-white/10 hover:bg-white/20 cursor-pointer rounded-full">
                 <Upload className="w-4 h-4" />
                 <input type="file" className="hidden" accept="image/*" onChange={onFileChange} />
               </label>
-              <button onClick={onDelete} className="p-2 bg-red-500/20 hover:bg-red-500/40 text-red-500">
+              <button onClick={onDelete} className="p-2 bg-red-500/20 hover:bg-red-500/40 text-red-500 rounded-full">
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
@@ -197,20 +246,31 @@ const Slot: React.FC<{
           </label>
         )}
       </div>
-      <input 
-        type="text" 
-        placeholder="Ciudad"
-        value={item.city}
-        onChange={(e) => onChange({ city: e.target.value.toUpperCase() })}
-        className="bg-white/5 border border-white/15 px-2 py-1 text-[10px] text-white placeholder:text-white/20 focus:outline-none focus:border-eclipse"
-      />
-      <input 
-        type="text" 
-        placeholder="Fecha"
-        value={item.date}
-        onChange={(e) => onChange({ date: e.target.value })}
-        className="bg-white/5 border border-white/15 px-2 py-1 text-[10px] text-white placeholder:text-white/20 focus:outline-none focus:border-eclipse"
-      />
+      
+      <div className="space-y-1">
+        <input 
+          type="text" 
+          placeholder="URL de Imagen"
+          value={item.image_url.startsWith('data:') ? 'Imagen Subida' : item.image_url}
+          onChange={(e) => onUrlChange(e.target.value)}
+          disabled={item.image_url.startsWith('data:')}
+          className="w-full bg-white/5 border border-white/15 px-2 py-1 text-[9px] text-white placeholder:text-white/20 focus:outline-none focus:border-eclipse disabled:opacity-50"
+        />
+        <input 
+          type="text" 
+          placeholder="Ciudad"
+          value={item.city}
+          onChange={(e) => onChange({ city: e.target.value.toUpperCase() })}
+          className="w-full bg-white/5 border border-white/15 px-2 py-1 text-[10px] text-white placeholder:text-white/20 focus:outline-none focus:border-eclipse"
+        />
+        <input 
+          type="text" 
+          placeholder="Fecha"
+          value={item.date}
+          onChange={(e) => onChange({ date: e.target.value })}
+          className="w-full bg-white/5 border border-white/15 px-2 py-1 text-[10px] text-white placeholder:text-white/20 focus:outline-none focus:border-eclipse"
+        />
+      </div>
     </div>
   );
 };

@@ -71,19 +71,9 @@ const GalleryCard: React.FC<{ item: any }> = ({ item }) => {
     <div className="relative w-[280px] flex-shrink-0 group cursor-default">
       {/* Image Container */}
       <div className="relative aspect-[3/4] overflow-hidden">
-        {/* Logo Overlay */}
-        <img 
-          src="https://midnightcorp.click/logo-white.png" 
-          alt="Midnight Logo"
-          className="absolute top-4 left-4 w-20 z-20 opacity-70 group-hover:opacity-100 transition-opacity duration-400"
-          onError={(e) => {
-            (e.target as HTMLImageElement).src = 'https://picsum.photos/seed/logo/200/50';
-          }}
-        />
-        
         {/* Event Image */}
         <img 
-          src={item.image_url} 
+          src={item.image_url || "https://picsum.photos/seed/midnight/280/373"} 
           alt={`${item.city} event`}
           className="w-full h-full object-cover"
           loading="lazy"
@@ -96,10 +86,10 @@ const GalleryCard: React.FC<{ item: any }> = ({ item }) => {
       {/* Footer */}
       <div className="bg-moonlight p-[10px_14px] flex justify-between items-center">
         <span className="text-void font-bold uppercase text-[13px] tracking-[0.12em]">
-          {item.city}
+          {item.city || 'CITY'}
         </span>
         <span className="text-void font-light uppercase text-[11px] tracking-[0.1em]">
-          {item.date}
+          {item.date || 'DATE'}
         </span>
       </div>
     </div>
