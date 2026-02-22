@@ -106,10 +106,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const fetchData = async () => {
         setDbStatus('syncing');
         try {
-            // Load Gallery from LocalStorage
-            const storedGallery = localStorage.getItem('midnight_gallery');
-            if (storedGallery) {
-                setGalleryItems(JSON.parse(storedGallery));
+            // Load Gallery from Supabase
+            const { data: galleryData, error: galErr } = await supabase
+                .from('gallery_marquee')
+                .select('*')
+                .order('row', { ascending: true })
+                .order('order', { ascending: true });
+            
+            if (!galErr && galleryData) {
+                setGalleryItems(galleryData);
+            } else if (galErr && galErr.code === 'PGRST116') {
+                // Table might not exist yet, fallback to local or empty
+                const storedGallery = localStorage.getItem('midnight_gallery');
+                if (storedGallery) setGalleryItems(JSON.parse(storedGallery));
             }
 
             const { data: eventsData, error: evErr } = await supabase.from('events').select(`*, costs:event_costs(*)`).order('created_at', { ascending: false });
@@ -574,7 +583,29 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const updateGallery = async (items: GalleryItem[]) => {
         setGalleryItems(items);
-        localStorage.setItem('midnight_gallery', JSON.stringify(items));
+        
+        try {
+            // 1. Delete all existing items (simple sync strategy)
+            await supabase.from('gallery_marquee').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+            
+            // 2. Insert new items
+            if (items.length > 0) {
+                const { error } = await supabase.from('gallery_marquee').insert(items.map(item => ({
+                    image_url: item.image_url,
+                    city: item.city,
+                    date: item.date,
+                    row: item.row,
+                    order: item.order
+                })));
+                if (error) throw error;
+            }
+            
+            localStorage.setItem('midnight_gallery', JSON.stringify(items));
+        } catch (error) {
+            console.error("Error syncing gallery to Supabase:", error);
+            // Fallback to local storage if table doesn't exist
+            localStorage.setItem('midnight_gallery', JSON.stringify(items));
+        }
     };
 
     const clearDatabase = async () => {}; 

@@ -86,6 +86,12 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-void text-moonlight font-sans selection:bg-eclipse selection:text-white relative">
+      {/* GLOBAL DYNAMIC LOGO */}
+      <div className="logo-main flex flex-col items-center">
+        <span className="text-xl md:text-3xl font-black tracking-[-0.1em] text-white">MIDNIGHT</span>
+        <span className="text-[8px] font-light tracking-[0.8em] text-white/70 uppercase -mt-1 ml-1">Worldwide</span>
+      </div>
+
       <Navbar 
         onNavigate={handleNavigate}
         currentPage={currentPage}

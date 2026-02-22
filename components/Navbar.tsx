@@ -109,13 +109,11 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
         </div>
       </div>
 
-      {/* CENTRAL LOGO (Perfectly Centered) */}
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-auto">
-        <div className="flex flex-col items-center cursor-pointer" onClick={() => onNavigate('home')}>
-          <span className="text-xl md:text-3xl font-black tracking-[-0.1em] text-moonlight">MIDNIGHT</span>
-          <span className="text-[8px] font-light tracking-[0.8em] text-moonlight/30 uppercase -mt-1 ml-1">Worldwide</span>
-        </div>
-      </div>
+      {/* CENTRAL LOGO (Interaction Layer Only) */}
+      <div 
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-auto cursor-pointer w-32 h-12 z-[101]" 
+        onClick={() => onNavigate('home')}
+      />
 
       {/* RIGHT NAV (Minimalist Hamburger) */}
       <div className="flex-1 flex justify-end items-center pointer-events-auto">
