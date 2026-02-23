@@ -132,7 +132,7 @@ serve(async (req) => {
 ## 2. Variables de Entorno Requeridas
 
 En tu dashboard de Supabase (Settings -> Edge Functions), añade estas variables:
-- `BOLD_SECRET_KEY`: `ypn97IFAwLIENbc3pLUYQg`
+- `BOLD_SECRET_KEY`: `6mI3Oc0mjR8_81kYK4qF8w`
 - `RESEND_API_KEY`: Tu llave de Resend
 - `SUPABASE_URL`: La URL de tu proyecto
 - `SUPABASE_SERVICE_ROLE_KEY`: Tu llave de servicio (service_role) para saltar RLS

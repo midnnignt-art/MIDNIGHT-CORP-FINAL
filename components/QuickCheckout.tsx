@@ -144,7 +144,7 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
 
           const script = document.createElement("script");
           script.setAttribute("data-bold-button", "dark-L");
-          script.setAttribute("data-api-key", "K8mOAoWetfE5onyHWlhgvpLFcJIltm9Q64tZGv0Rmrs");
+          script.setAttribute("data-api-key", "HXR9FR8wKFLJmIXK29TyR74ey1l32zVvLvkV4QDyaVY");
           script.setAttribute("data-order-id", rawOrderId); // Usar el ID original
           script.setAttribute("data-currency", "COP");
           script.setAttribute("data-amount", String(rawAmount)); // Usar el monto original (entero)
