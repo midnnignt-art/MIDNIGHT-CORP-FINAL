@@ -8,39 +8,33 @@ const motion = _motion as any;
 
 export default function TicketWallet() {
   const { orders, events, currentCustomer } = useStore();
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [viewMode, setViewMode] = useState<'carousel' | 'list'>('carousel');
+  const [[page, direction], setPage] = useState([0, 0]);
 
   const myOrders = useMemo(() => {
-      if (!currentCustomer?.email) return [];
-      
-      const userEmail = currentCustomer.email.toLowerCase().trim();
+    if (!currentCustomer?.email) return [];
+    
+    const userEmail = currentCustomer.email.toLowerCase().trim();
 
-      return orders.filter(o => {
-          const orderEmail = o.customer_email ? o.customer_email.toLowerCase().trim() : '';
-          return orderEmail === userEmail && o.status === 'completed';
-      }).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    return orders.filter(o => {
+        const orderEmail = o.customer_email ? o.customer_email.toLowerCase().trim() : '';
+        return orderEmail === userEmail && o.status === 'completed';
+    }).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   }, [orders, currentCustomer]);
 
-  const nextTicket = () => {
-    if (currentIndex < myOrders.length - 1) {
-      setCurrentIndex(currentIndex + 1);
+  // Reset page if it goes out of bounds when orders change
+  React.useEffect(() => {
+    if (page >= myOrders.length && myOrders.length > 0) {
+      setPage([myOrders.length - 1, 0]);
     }
-  };
+  }, [myOrders.length, page]);
 
-  const prevTicket = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
-    }
-  };
+  const currentIndex = page;
 
-  const onDragEnd = (event: any, info: any) => {
-    const swipeThreshold = 50;
-    if (info.offset.x < -swipeThreshold) {
-      nextTicket();
-    } else if (info.offset.x > swipeThreshold) {
-      prevTicket();
-    }
+  const paginate = (newDirection: number) => {
+    const nextPage = page + newDirection;
+    if (nextPage < 0 || nextPage >= myOrders.length) return;
+    setPage([nextPage, newDirection]);
   };
 
   if (!currentCustomer) {
@@ -71,74 +65,132 @@ export default function TicketWallet() {
     );
   }
 
+  const variants = {
+    enter: (direction: number) => ({
+      x: direction > 0 ? '100%' : '-100%',
+      opacity: 0,
+      scale: 0.95
+    }),
+    center: {
+      zIndex: 1,
+      x: 0,
+      opacity: 1,
+      scale: 1
+    },
+    exit: (direction: number) => ({
+      zIndex: 0,
+      x: direction < 0 ? '100%' : '-100%',
+      opacity: 0,
+      scale: 0.95
+    })
+  };
+
   return (
-    <div className="relative w-full max-w-lg mx-auto" ref={containerRef}>
-      <div className="overflow-hidden px-4">
-        <motion.div 
-          className="flex cursor-grab active:cursor-grabbing"
-          drag="x"
-          dragConstraints={containerRef}
-          dragElastic={0.1}
-          onDragEnd={(e: any, info: any) => {
-            const swipeThreshold = 50;
-            const velocityThreshold = 500;
-            
-            if (info.offset.x < -swipeThreshold || info.velocity.x < -velocityThreshold) {
-              if (currentIndex < myOrders.length - 1) nextTicket();
-            } else if (info.offset.x > swipeThreshold || info.velocity.x > velocityThreshold) {
-              if (currentIndex > 0) prevTicket();
-            }
-          }}
-          animate={{ x: `-${currentIndex * 100}%` }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          style={{ width: `${myOrders.length * 100}%` }}
-        >
-          {myOrders.map((order) => {
-            const event = events.find(e => e.id === order.event_id);
-            return (
-              <div key={order.id} className="w-full flex-shrink-0 px-4 flex justify-center">
-                <div className="w-full max-w-[320px] sm:max-w-[340px]">
-                  <MidnightTicketCard order={order} event={event} />
-                </div>
-              </div>
-            );
-          })}
-        </motion.div>
-      </div>
-
-      {/* Navigation Controls */}
-      {myOrders.length > 1 && (
-        <div className="flex justify-center items-center gap-8 mt-8">
+    <div className="relative w-full max-w-2xl mx-auto px-4">
+      {/* View Toggle */}
+      <div className="flex justify-center mb-8">
+        <div className="bg-white/5 p-1 rounded-xl border border-white/10 flex gap-1">
           <button 
-            onClick={prevTicket}
-            disabled={currentIndex === 0}
-            className={`p-3 rounded-full border border-white/10 transition-all ${currentIndex === 0 ? 'opacity-20 cursor-not-allowed' : 'hover:bg-white/10 text-white'}`}
+            onClick={() => setViewMode('carousel')}
+            className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'carousel' ? 'bg-white text-black' : 'text-zinc-500 hover:text-white'}`}
           >
-            <ChevronLeft size={24} />
+            Carrusel
           </button>
-          
-          <div className="flex gap-2">
-            {myOrders.map((_, idx) => (
-              <div 
-                key={idx}
-                className={`h-1 rounded-full transition-all duration-300 ${idx === currentIndex ? 'w-8 bg-neon-purple' : 'w-2 bg-white/10'}`}
-              />
-            ))}
-          </div>
-
           <button 
-            onClick={nextTicket}
-            disabled={currentIndex === myOrders.length - 1}
-            className={`p-3 rounded-full border border-white/10 transition-all ${currentIndex === myOrders.length - 1 ? 'opacity-20 cursor-not-allowed' : 'hover:bg-white/10 text-white'}`}
+            onClick={() => setViewMode('list')}
+            className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'list' ? 'bg-white text-black' : 'text-zinc-500 hover:text-white'}`}
           >
-            <ChevronRight size={24} />
+            Lista
           </button>
         </div>
+      </div>
+
+      {viewMode === 'carousel' ? (
+        <div className="relative w-full max-w-md mx-auto">
+          <div className="relative h-[520px] sm:h-[580px] w-full flex items-center justify-center overflow-hidden">
+            <AnimatePresence initial={false} custom={direction} mode="wait">
+              <motion.div
+                key={page}
+                custom={direction}
+                variants={variants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{
+                  x: { type: "spring", stiffness: 300, damping: 30 },
+                  opacity: { duration: 0.2 }
+                }}
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={0.5}
+                onDragEnd={(e: any, { offset, velocity }: any) => {
+                  const swipe = Math.abs(offset.x) > 50 || Math.abs(velocity.x) > 500;
+                  if (swipe) {
+                    if (offset.x < 0 && page < myOrders.length - 1) {
+                      paginate(1);
+                    } else if (offset.x > 0 && page > 0) {
+                      paginate(-1);
+                    }
+                  }
+                }}
+                className="absolute w-full px-4 cursor-grab active:cursor-grabbing touch-pan-y"
+              >
+                <MidnightTicketCard 
+                  order={myOrders[currentIndex]} 
+                  event={events.find(e => e.id === myOrders[currentIndex].event_id)} 
+                />
+              </motion.div>
+            </AnimatePresence>
+          </div>
+
+          {/* Navigation Controls */}
+          <div className="flex flex-col items-center gap-6 mt-4">
+            <div className="flex items-center gap-8">
+              <button 
+                onClick={() => paginate(-1)}
+                disabled={page === 0}
+                className={`p-3 rounded-full border border-white/10 transition-all ${page === 0 ? 'opacity-10 cursor-not-allowed' : 'hover:bg-white/10 text-white'}`}
+              >
+                <ChevronLeft size={24} />
+              </button>
+              
+              <div className="flex gap-2">
+                {myOrders.map((_, idx) => (
+                  <div 
+                    key={idx}
+                    className={`h-1 rounded-full transition-all duration-300 ${idx === currentIndex ? 'w-8 bg-neon-purple shadow-[0_0_10px_rgba(176,38,255,0.5)]' : 'w-2 bg-white/10'}`}
+                  />
+                ))}
+              </div>
+
+              <button 
+                onClick={() => paginate(1)}
+                disabled={page === myOrders.length - 1}
+                className={`p-3 rounded-full border border-white/10 transition-all ${page === myOrders.length - 1 ? 'opacity-10 cursor-not-allowed' : 'hover:bg-white/10 text-white'}`}
+              >
+                <ChevronRight size={24} />
+              </button>
+            </div>
+            
+            <p className="text-center text-[10px] text-zinc-500 uppercase font-black tracking-[0.3em]">
+              {currentIndex + 1} / {myOrders.length} • DESLIZA PARA NAVEGAR
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-12 animate-in fade-in duration-500">
+          {myOrders.map((order) => (
+            <div key={order.id} className="flex justify-center">
+              <div className="w-full max-w-sm">
+                <MidnightTicketCard 
+                  order={order} 
+                  event={events.find(e => e.id === order.event_id)} 
+                />
+              </div>
+            </div>
+          ))}
+        </div>
       )}
-      
-      <p className="text-center text-[10px] text-zinc-500 uppercase font-black tracking-[0.3em] mt-12">
-        Desliza para ver más tickets ({currentIndex + 1} / {myOrders.length})
-      </p>
     </div>
   );
 }

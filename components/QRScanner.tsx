@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
-import { X, Camera, CheckCircle2, AlertCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Html5Qrcode } from 'html5-qrcode';
+import { X, Camera, CheckCircle2, AlertCircle, XCircle, AlertTriangle, Loader2 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -16,7 +16,10 @@ const QRScanner: React.FC<QRScannerProps> = ({ eventId, onClose }) => {
     message: string;
   }>({ status: 'idle', message: '' });
   
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const [isCameraReady, setIsCameraReady] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  
+  const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
   const isProcessing = useRef(false);
 
   // Get current event info
@@ -33,43 +36,54 @@ const QRScanner: React.FC<QRScannerProps> = ({ eventId, onClose }) => {
   }, [scanResult.status]);
 
   useEffect(() => {
-    // Initialize scanner
-    const scanner = new Html5QrcodeScanner(
-      "qr-reader",
-      { 
-        fps: 10, 
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.0
-      },
-      /* verbose= */ false
-    );
+    const startScanner = async () => {
+      try {
+        const html5QrCode = new Html5Qrcode("qr-reader");
+        html5QrCodeRef.current = html5QrCode;
 
-    scanner.render(
-      async (decodedText) => {
-        if (isProcessing.current || scanResult.status !== 'idle') return;
-        
-        isProcessing.current = true;
-        
-        if (navigator.vibrate) {
-            navigator.vibrate(100);
-        }
+        const config = { 
+          fps: 10, 
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0
+        };
 
-        const result = await validarYQuemarTicket(decodedText, targetEvent?.id || '');
-        setScanResult({
-            status: result.status,
-            message: result.message
-        });
-      },
-      (errorMessage) => {
-        // Error callback (usually just "no QR code found in frame")
+        await html5QrCode.start(
+          { facingMode: "environment" }, // Prefer back camera
+          config,
+          async (decodedText) => {
+            if (isProcessing.current || scanResult.status !== 'idle') return;
+            
+            isProcessing.current = true;
+            
+            if (navigator.vibrate) {
+                navigator.vibrate(100);
+            }
+
+            const result = await validarYQuemarTicket(decodedText, targetEvent?.id || '');
+            setScanResult({
+                status: result.status,
+                message: result.message
+            });
+          },
+          (errorMessage) => {
+            // No QR code found in frame, ignore
+          }
+        );
+        
+        setIsCameraReady(true);
+      } catch (err: any) {
+        console.error("Error starting scanner:", err);
+        setCameraError(err.message || "No se pudo acceder a la cámara");
       }
-    );
+    };
 
-    scannerRef.current = scanner;
+    startScanner();
 
     return () => {
-      if (scannerRef.current) {
-        scannerRef.current.clear().catch(err => console.error("Failed to clear scanner", err));
+      if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+        html5QrCodeRef.current.stop()
+          .then(() => html5QrCodeRef.current?.clear())
+          .catch(err => console.error("Failed to stop scanner", err));
       }
     };
   }, [targetEvent?.id]);
@@ -101,6 +115,27 @@ const QRScanner: React.FC<QRScannerProps> = ({ eventId, onClose }) => {
       <div className="flex-1 flex flex-col items-center justify-center p-6 relative">
         <div className="w-full max-w-md aspect-square bg-white/5 border border-white/10 rounded-2xl overflow-hidden relative">
           <div id="qr-reader" className="w-full h-full"></div>
+          
+          {!isCameraReady && !cameraError && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-void/80 z-10">
+              <Loader2 className="w-10 h-10 text-neon-purple animate-spin mb-4" />
+              <p className="text-xs font-black uppercase tracking-widest text-zinc-500">Iniciando Cámara...</p>
+            </div>
+          )}
+
+          {cameraError && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-void/90 z-10 p-8 text-center">
+              <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+              <p className="text-sm font-black uppercase tracking-widest text-white mb-2">Error de Cámara</p>
+              <p className="text-xs text-zinc-500">{cameraError}</p>
+              <button 
+                onClick={() => window.location.reload()}
+                className="mt-6 px-6 py-2 bg-white text-black font-black text-[10px] uppercase tracking-widest rounded-full"
+              >
+                Reintentar
+              </button>
+            </div>
+          )}
           
           <div className="absolute inset-0 pointer-events-none border-[40px] border-void/60 flex items-center justify-center">
              <div className="w-[250px] h-[250px] border-2 border-eclipse shadow-[0_0_0_9999px_rgba(5,5,5,0.4)]" />

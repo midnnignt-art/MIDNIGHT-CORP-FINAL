@@ -10,10 +10,12 @@ interface MidnightTicketCardProps {
 
 export const MidnightTicketCard: React.FC<MidnightTicketCardProps> = ({ order, event }) => {
     const ticketRef = useRef<HTMLDivElement>(null);
+    const [isDownloading, setIsDownloading] = React.useState(false);
 
     const handleDownload = async () => {
-        if (!ticketRef.current) return;
+        if (!ticketRef.current || isDownloading) return;
         
+        setIsDownloading(true);
         try {
             const canvas = await html2canvas(ticketRef.current, {
                 backgroundColor: '#0B0316',
@@ -28,11 +30,12 @@ export const MidnightTicketCard: React.FC<MidnightTicketCardProps> = ({ order, e
             link.download = `MIDNIGHT_TICKET_${order.order_number}.png`;
             link.click();
             
-            // Show notification (assuming alert for now, or I can use a toast if available)
             alert("Tu boleta ha sido guardada 🌙");
         } catch (error) {
             console.error("Error generating ticket image:", error);
             alert("Error al descargar la boleta.");
+        } finally {
+            setIsDownloading(false);
         }
     };
 
@@ -98,10 +101,17 @@ export const MidnightTicketCard: React.FC<MidnightTicketCardProps> = ({ order, e
             <div className="w-full flex gap-3">
                 <button 
                     onClick={handleDownload}
-                    className="flex-1 bg-white text-black font-black h-12 rounded-2xl flex items-center justify-center gap-2 hover:bg-white/90 transition-all active:scale-95"
+                    disabled={isDownloading}
+                    className="flex-1 bg-white text-black font-black h-12 rounded-2xl flex items-center justify-center gap-2 hover:bg-white/90 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    <Download size={18} />
-                    <span className="text-xs uppercase tracking-widest">Descargar Imagen</span>
+                    {isDownloading ? (
+                        <span className="animate-pulse text-[10px] uppercase tracking-widest">Generando...</span>
+                    ) : (
+                        <>
+                            <Download size={18} />
+                            <span className="text-xs uppercase tracking-widest">Descargar Imagen</span>
+                        </>
+                    )}
                 </button>
             </div>
         </div>
