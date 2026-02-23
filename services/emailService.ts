@@ -1,10 +1,10 @@
 import { Order, Event } from "../types";
 
 export const sendTicketEmail = async (order: Order, event: Event) => {
-  // Configured in vite.config.ts
-  const RESEND_KEY = process.env.RESEND_API_KEY;
+  // Configured in vite.config.ts or .env
+  const RESEND_KEY = import.meta.env.VITE_RESEND_API_KEY;
   // Si no has configurado VERIFIED_DOMAIN en .env, usa uno por defecto o 'resend.dev' si sigues probando
-  const DOMAIN = process.env.VERIFIED_DOMAIN || 'midnightcorp.click'; 
+  const DOMAIN = import.meta.env.VITE_VERIFIED_DOMAIN || 'midnightcorp.click'; 
 
   if (!RESEND_KEY) {
     console.warn("⚠️ FALTA API KEY: Configura VITE_RESEND_API_KEY en tu archivo .env");
@@ -13,17 +13,17 @@ export const sendTicketEmail = async (order: Order, event: Event) => {
 
   // Generar lista de items HTML
   const itemsHtml = order.items.map(item => `
-    <div style="border-bottom: 1px solid #333; padding: 10px 0; display: flex; justify-content: space-between;">
-      <span style="color: #fff;">${item.quantity}x <strong style="color: #b026ff;">${item.tier_name}</strong></span>
-      <span style="color: #ccc;">$${item.subtotal.toLocaleString()}</span>
+    <div style="border-bottom: 1px solid rgba(73, 15, 124, 0.2); padding: 10px 0; display: flex; justify-content: space-between;">
+      <span style="color: #fff; font-size: 14px;">${item.quantity}x <strong style="color: #ffffff;">${item.tier_name}</strong></span>
+      <span style="color: #8E9299; font-size: 14px;">$${item.subtotal.toLocaleString()}</span>
     </div>
   `).join('');
 
   // Generar Código QR (apunta a la orden)
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${order.order_number}`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${order.order_number}`;
 
   // URL de la App para el botón
-  const APP_URL = process.env.APP_URL || 'https://midnightcorp.click';
+  const APP_URL = import.meta.env.VITE_APP_URL || window.location.origin;
   const walletUrl = `${APP_URL}/wallet`;
 
   // IMPORTANTE: El 'from' debe coincidir con el dominio verificado en Resend.

@@ -43,23 +43,23 @@ export const MidnightTicketCard: React.FC<MidnightTicketCardProps> = ({ order, e
             {/* TICKET CARD */}
             <div 
                 ref={ticketRef}
-                className="w-full max-w-[340px] aspect-[3/5] rounded-[2rem] overflow-hidden border border-[#490F7C]/60 flex flex-col relative shadow-2xl"
+                className="w-full aspect-[3/5] max-h-[70vh] rounded-[2rem] overflow-hidden border border-[#490F7C]/60 flex flex-col relative shadow-2xl"
                 style={{
                     background: 'linear-gradient(180deg, #0B0316 0%, #161344 100%)'
                 }}
             >
                 {/* Header */}
-                <div className="pt-8 pb-4 text-center">
-                    <span className="text-2xl font-black tracking-[0.2em] text-white">MIDNIGHT</span>
+                <div className="pt-6 pb-2 text-center">
+                    <span className="text-xl md:text-2xl font-black tracking-[0.2em] text-white">MIDNIGHT</span>
                 </div>
 
                 {/* QR Section */}
-                <div className="flex-1 flex flex-col items-center justify-center px-8">
-                    <div className="bg-white p-4 rounded-2xl shadow-[0_0_30px_rgba(73,15,124,0.3)] relative">
+                <div className="flex-1 flex flex-col items-center justify-center px-6">
+                    <div className="bg-white p-3 rounded-2xl shadow-[0_0_30px_rgba(73,15,124,0.3)] relative">
                         <img 
                             src={qrUrl} 
                             alt="QR Code" 
-                            className={`w-48 h-48 object-contain ${order.used ? 'blur-sm opacity-30 grayscale' : ''}`}
+                            className={`w-36 h-36 md:w-48 md:h-48 object-contain ${order.used ? 'blur-sm opacity-30 grayscale' : ''}`}
                             crossOrigin="anonymous"
                         />
                         {order.used && (
@@ -74,14 +74,14 @@ export const MidnightTicketCard: React.FC<MidnightTicketCardProps> = ({ order, e
                 </div>
 
                 {/* Event Info */}
-                <div className="px-8 pb-8 text-center space-y-1">
-                    <h3 className="text-xl font-black text-white uppercase tracking-tight leading-tight">
+                <div className="px-6 pb-6 text-center space-y-1">
+                    <h3 className="text-lg md:text-xl font-black text-white uppercase tracking-tight leading-tight">
                         {event?.title || 'Evento Midnight'}
                     </h3>
-                    <p className="text-xs font-light text-white/70 uppercase tracking-[0.1em]">
+                    <p className="text-[10px] md:text-xs font-light text-white/70 uppercase tracking-[0.1em]">
                         {event ? new Date(event.event_date).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Próximamente'}
                     </p>
-                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest pt-1">
+                    <p className="text-[9px] md:text-[10px] font-bold text-white/40 uppercase tracking-widest pt-1">
                         {event?.venue} • {event?.city}
                     </p>
                 </div>
@@ -95,7 +95,7 @@ export const MidnightTicketCard: React.FC<MidnightTicketCardProps> = ({ order, e
             </div>
 
             {/* ACTION BUTTONS */}
-            <div className="w-full max-w-[340px] flex gap-3">
+            <div className="w-full flex gap-3">
                 <button 
                     onClick={handleDownload}
                     className="flex-1 bg-white text-black font-black h-12 rounded-2xl flex items-center justify-center gap-2 hover:bg-white/90 transition-all active:scale-95"

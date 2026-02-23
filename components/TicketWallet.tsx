@@ -9,6 +9,7 @@ const motion = _motion as any;
 export default function TicketWallet() {
   const { orders, events, currentCustomer } = useStore();
   const [currentIndex, setCurrentIndex] = useState(0);
+  const containerRef = React.useRef<HTMLDivElement>(null);
 
   const myOrders = useMemo(() => {
       if (!currentCustomer?.email) return [];
@@ -30,6 +31,15 @@ export default function TicketWallet() {
   const prevTicket = () => {
     if (currentIndex > 0) {
       setCurrentIndex(currentIndex - 1);
+    }
+  };
+
+  const onDragEnd = (event: any, info: any) => {
+    const swipeThreshold = 50;
+    if (info.offset.x < -swipeThreshold) {
+      nextTicket();
+    } else if (info.offset.x > swipeThreshold) {
+      prevTicket();
     }
   };
 
@@ -62,18 +72,34 @@ export default function TicketWallet() {
   }
 
   return (
-    <div className="relative max-w-lg mx-auto px-4">
-      <div className="overflow-hidden">
+    <div className="relative w-full max-w-lg mx-auto" ref={containerRef}>
+      <div className="overflow-hidden px-4">
         <motion.div 
-          className="flex transition-all duration-500 ease-out"
+          className="flex cursor-grab active:cursor-grabbing"
+          drag="x"
+          dragConstraints={containerRef}
+          dragElastic={0.1}
+          onDragEnd={(e: any, info: any) => {
+            const swipeThreshold = 50;
+            const velocityThreshold = 500;
+            
+            if (info.offset.x < -swipeThreshold || info.velocity.x < -velocityThreshold) {
+              if (currentIndex < myOrders.length - 1) nextTicket();
+            } else if (info.offset.x > swipeThreshold || info.velocity.x > velocityThreshold) {
+              if (currentIndex > 0) prevTicket();
+            }
+          }}
           animate={{ x: `-${currentIndex * 100}%` }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
           style={{ width: `${myOrders.length * 100}%` }}
         >
           {myOrders.map((order) => {
             const event = events.find(e => e.id === order.event_id);
             return (
-              <div key={order.id} className="w-full flex-shrink-0 px-2">
-                <MidnightTicketCard order={order} event={event} />
+              <div key={order.id} className="w-full flex-shrink-0 px-4 flex justify-center">
+                <div className="w-full max-w-[320px] sm:max-w-[340px]">
+                  <MidnightTicketCard order={order} event={event} />
+                </div>
               </div>
             );
           })}
