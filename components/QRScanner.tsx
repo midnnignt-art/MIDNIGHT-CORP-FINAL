@@ -75,7 +75,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ eventId, onClose }) => {
                 navigator.vibrate(100);
             }
 
-            const result = await validarYQuemarTicket(decodedText, selectedEventId);
+            const result = await validarYQuemarTicket(decodedText.trim().toUpperCase(), selectedEventId);
             setScanResult({
                 status: result.status,
                 message: result.message

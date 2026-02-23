@@ -487,7 +487,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const createOrder = async (eventId: string, cartItems: any[], method: string, staffId?: string, customerInfo?: any, skipEmail = false) => {
         try {
             // Improved uniqueness: MID + timestamp + random suffix
-            const orderNumber = `MID-${Date.now().toString().slice(-8)}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+            const orderNumber = `MID-${Date.now().toString().slice(-8)}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`.toUpperCase().trim();
             const total = cartItems.reduce((acc, i) => acc + (i.unit_price * i.quantity), 0);
             
             // NORMALIZATION: Ensure email is lowercase and trimmed
@@ -659,12 +659,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     const validarYQuemarTicket = async (orderNumber: string, eventId: string) => {
+        if (!orderNumber || !eventId) {
+            return { success: false, status: 'invalid' as const, message: "⚠️ Datos incompletos" };
+        }
+
+        const cleanOrderNumber = orderNumber.trim().toUpperCase();
+
         try {
             // Atomic update: only update if used is false AND event_id matches
             const { data, error } = await supabase
                 .from('orders')
                 .update({ used: true, used_at: new Date().toISOString() })
-                .eq('order_number', orderNumber)
+                .eq('order_number', cleanOrderNumber)
                 .eq('event_id', eventId)
                 .eq('used', false)
                 .select()
@@ -675,10 +681,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 const { data: checkData } = await supabase
                     .from('orders')
                     .select('used, event_id')
-                    .eq('order_number', orderNumber)
+                    .eq('order_number', cleanOrderNumber)
                     .single();
                 
-                if (!checkData) return { success: false, status: 'invalid' as const, message: "⚠️ Boleto inválido" };
+                if (!checkData) return { success: false, status: 'invalid' as const, message: "⚠️ Boleto no encontrado" };
                 if (checkData.event_id !== eventId) return { success: false, status: 'invalid' as const, message: "⚠️ Boleto para otro evento" };
                 if (checkData.used) return { success: false, status: 'used' as const, message: "🚫 Boleto ya utilizado" };
                 
@@ -689,7 +695,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             return { success: true, status: 'success' as const, message: "✅ Acceso Permitido", order: data as Order };
         } catch (error: any) {
             console.error("Burn Error:", error);
-            return { success: false, status: 'invalid' as const, message: "⚠️ Error del sistema" };
+            return { success: false, status: 'invalid' as const, message: "⚠️ Error de validación" };
         }
     };
 
