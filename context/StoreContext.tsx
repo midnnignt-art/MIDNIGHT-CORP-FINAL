@@ -41,6 +41,8 @@ interface StoreContextType {
     createOrder: (eventId: string, cartItems: any[], method: string, staffId?: string, customerInfo?: any) => Promise<Order | null>;
     clearDatabase: () => Promise<void>;
     updateGallery: (items: GalleryItem[]) => Promise<void>;
+    validateTicket: (orderNumber: string) => Promise<{ success: boolean; message: string; order?: Order }>;
+    validarYQuemarTicket: (orderNumber: string, eventId: string) => Promise<{ success: boolean; status: 'success' | 'used' | 'invalid'; message: string; order?: Order }>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -69,6 +71,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     useEffect(() => {
         fetchData();
         checkCustomerSession();
+        
+        // Real-time subscription for orders (Access Control Panel)
+        const ordersSubscription = (supabase as any)
+            .channel('orders_realtime')
+            .on('postgres_changes', { event: '*', table: 'orders' }, () => {
+                fetchData();
+            })
+            .subscribe();
+
         const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (session?.user) {
                 setCurrentCustomer(session.user);
@@ -76,7 +87,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 setCurrentCustomer(null);
             }
         });
-        return () => { authListener.subscription.unsubscribe(); };
+        return () => { 
+            authListener.subscription.unsubscribe(); 
+            supabase.removeChannel(ordersSubscription);
+        };
     }, []);
 
     // Hydrate User from LocalStorage with UUID Validation
@@ -613,13 +627,78 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const deleteEventCost = async (eventId: string, costId: string) => { await supabase.from('event_costs').delete().eq('id', costId); await fetchData(); };
     const updateCostStatus = async (eventId: string, costId: string, status: any) => { await supabase.from('event_costs').update({ status }).eq('id', costId); await fetchData(); };
 
+    const validateTicket = async (orderNumber: string) => {
+        try {
+            const { data, error } = await supabase
+                .from('orders')
+                .select('*')
+                .eq('order_number', orderNumber)
+                .single();
+
+            if (error) throw error;
+            if (!data) throw new Error("Ticket no encontrado");
+
+            if (data.used) {
+                return { success: false, message: "Este ticket ya fue utilizado", order: data };
+            }
+
+            const { error: updateError } = await supabase
+                .from('orders')
+                .update({ used: true, used_at: new Date().toISOString() })
+                .eq('id', data.id);
+
+            if (updateError) throw updateError;
+
+            await fetchData(); // Refresh local state
+            return { success: true, message: "Acceso Permitido", order: { ...data, used: true } };
+        } catch (error: any) {
+            console.error("Validation Error:", error);
+            return { success: false, message: error.message || "Error al validar ticket" };
+        }
+    };
+
+    const validarYQuemarTicket = async (orderNumber: string, eventId: string) => {
+        try {
+            // Atomic update: only update if used is false AND event_id matches
+            const { data, error } = await supabase
+                .from('orders')
+                .update({ used: true, used_at: new Date().toISOString() })
+                .eq('order_number', orderNumber)
+                .eq('event_id', eventId)
+                .eq('used', false)
+                .select()
+                .single();
+
+            if (error) {
+                // If no rows updated, it might be used or invalid
+                const { data: checkData } = await supabase
+                    .from('orders')
+                    .select('used, event_id')
+                    .eq('order_number', orderNumber)
+                    .single();
+                
+                if (!checkData) return { success: false, status: 'invalid' as const, message: "⚠️ Boleto inválido" };
+                if (checkData.event_id !== eventId) return { success: false, status: 'invalid' as const, message: "⚠️ Boleto para otro evento" };
+                if (checkData.used) return { success: false, status: 'used' as const, message: "🚫 Boleto ya utilizado" };
+                
+                throw error;
+            }
+
+            await fetchData();
+            return { success: true, status: 'success' as const, message: "✅ Acceso Permitido", order: data as Order };
+        } catch (error: any) {
+            console.error("Burn Error:", error);
+            return { success: false, status: 'invalid' as const, message: "⚠️ Error del sistema" };
+        }
+    };
+
     return (
         <StoreContext.Provider value={{
             events, tiers, promoters, orders, teams, galleryItems, currentUser, currentCustomer, dbStatus,
             login, logout, requestCustomerOtp, verifyCustomerOtp, customerLogout,
             getEventTiers, addEvent, updateEvent, archiveEvent, restoreEvent, hardDeleteEvent,
             addStaff, deleteStaff, createTeam, updateStaffTeam, deleteTeam, createOrder, clearDatabase,
-            addEventCost, deleteEventCost, updateCostStatus, updateGallery
+            addEventCost, deleteEventCost, updateCostStatus, updateGallery, validateTicket, validarYQuemarTicket
         }}>
             {children}
         </StoreContext.Provider>

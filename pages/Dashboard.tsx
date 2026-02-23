@@ -1,17 +1,20 @@
 import React, { useState, useMemo } from 'react';
 import { UserRole, Promoter, SalesTeam, Order } from '../types';
 import { Button } from '../components/ui/button';
-import { Banknote, Award, Target, History, Users, Plus, X, Layers, UserPlus, TrendingUp, Sparkles, ChevronRight, Trash2, ShieldCheck, PieChart, Eye, Calendar, Ticket, ArrowRightLeft, ScrollText, Wallet, Link as LinkIcon, Copy, Share2, Check, Smartphone, User, Search, Filter, Loader2, Download, BarChart, AlertTriangle, CreditCard, Mail, Globe, MessageCircle, ChevronDown, ChevronUp, Laptop, Coins, UserCheck } from 'lucide-react';
+import { Banknote, Award, Target, History, Users, Plus, X, Layers, UserPlus, TrendingUp, Sparkles, ChevronRight, Trash2, ShieldCheck, PieChart, Eye, Calendar, Ticket, ArrowRightLeft, ScrollText, Wallet, Link as LinkIcon, Copy, Share2, Check, Smartphone, User, Search, Filter, Loader2, Download, BarChart, AlertTriangle, CreditCard, Mail, Globe, MessageCircle, ChevronDown, ChevronUp, Laptop, Coins, UserCheck, QrCode } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import PromoterRanking from '../components/PromoterRanking';
 import { motion as _motion, AnimatePresence } from 'framer-motion';
+import QRScanner from '../components/QRScanner';
 
 const motion = _motion as any;
 
 export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
-  const { events, promoters, orders, tiers, createOrder, getEventTiers, currentUser, teams, addStaff } = useStore();
+  const { events, promoters, orders, tiers, createOrder, getEventTiers, currentUser, teams, addStaff, validateTicket } = useStore();
   const [showManualSale, setShowManualSale] = useState(false);
   const [showRecruitmentModal, setShowRecruitmentModal] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [scannerEventId, setScannerEventId] = useState<string | undefined>(undefined);
   
   // Link Sharing State
   const [linkCopied, setLinkCopied] = useState(false);
@@ -49,6 +52,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
 
   // PERMISOS
   const isAdmin = currentUser.role === UserRole.ADMIN;
+  const isBouncer = currentUser.role === UserRole.BOUNCER || isAdmin;
   const isHead = currentUser.role === UserRole.HEAD_OF_SALES || isAdmin;
   const isManager = currentUser.role === UserRole.MANAGER || isHead; 
   
@@ -473,7 +477,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
     // Email is optional for manual cash sales, StoreContext handles fallback
     const result = await createOrder(selectedEventId, fullCartItems, 'cash', currentUser.user_id, manualCustomerInfo);
     
-    setIsProcessingSale(false);
+    setIsProcessingSale(true); // Keep it true while showing alert
 
     if (result) {
         setCart([]); 
@@ -482,7 +486,10 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
         setSelectedEventId('');
         alert(`¡Venta Registrada Exitosamente!\nTotal: $${total.toLocaleString()}`);
     }
+    setIsProcessingSale(false);
   };
+
+
 
   const handleLinkExistingStaff = async () => {
       if (!selectedStaffIdToLink) return alert("Selecciona un promotor disponible.");
@@ -567,6 +574,11 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
             {isManager && (
                 <Button onClick={openRecruitmentModal} className="bg-white text-black font-black h-10 md:h-12 px-4 md:px-6 rounded-lg md:rounded-xl border-none text-xs md:text-sm flex-1 md:flex-none">
                     <UserPlus className="mr-2 w-3 h-3 md:w-4 md:h-4" /> RECLUTAR
+                </Button>
+            )}
+            {isBouncer && (
+                <Button onClick={() => { setScannerEventId(undefined); setShowScanner(true); }} className="bg-white text-black font-black h-10 md:h-12 px-4 md:px-6 rounded-lg md:rounded-xl border-none text-xs md:text-sm flex-1 md:flex-none">
+                    <QrCode className="mr-2 w-3 h-3 md:w-4 md:h-4" /> ESCANEAR
                 </Button>
             )}
             <Button onClick={() => setShowManualSale(true)} className="bg-neon-blue text-black font-black h-10 md:h-12 px-4 md:px-6 rounded-lg md:rounded-xl border-none text-xs md:text-sm flex-1 md:flex-none">
@@ -1065,8 +1077,8 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                                 <input value={manualCustomerInfo.name} onChange={e => setManualCustomerInfo({...manualCustomerInfo, name: e.target.value})} className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-bold" placeholder="Nombre" />
                             </div>
                             <div>
-                                <label className="text-[10px] text-zinc-500 uppercase font-bold mb-1 block">Email (Opcional)</label>
-                                <input value={manualCustomerInfo.email} onChange={e => setManualCustomerInfo({...manualCustomerInfo, email: e.target.value})} className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-bold" placeholder="Email" />
+                                <label className="text-[10px] text-zinc-500 uppercase font-bold mb-1 block">Email del Cliente (Obligatorio)</label>
+                                <input value={manualCustomerInfo.email} onChange={e => setManualCustomerInfo({...manualCustomerInfo, email: e.target.value})} className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-bold" placeholder="email@cliente.com" required />
                             </div>
                         </div>
 
@@ -1080,7 +1092,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                             </span>
                         </div>
 
-                        <Button onClick={handleManualSale} disabled={isProcessingSale || cart.length === 0 || !selectedEventId} fullWidth className="bg-white text-black font-black h-14 text-sm rounded-xl hover:bg-zinc-200">
+                        <Button onClick={handleManualSale} disabled={isProcessingSale || cart.length === 0 || !selectedEventId || !manualCustomerInfo.email.includes('@')} fullWidth className="bg-white text-black font-black h-14 text-sm rounded-xl hover:bg-zinc-200">
                             {isProcessingSale ? <Loader2 className="animate-spin"/> : 'CONFIRMAR VENTA (EFECTIVO)'}
                         </Button>
                     </div>
@@ -1343,6 +1355,12 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
         )}
       </AnimatePresence>
 
+      {showScanner && (
+        <QRScanner 
+          eventId={scannerEventId}
+          onClose={() => setShowScanner(false)} 
+        />
+      )}
     </div>
   );
 };

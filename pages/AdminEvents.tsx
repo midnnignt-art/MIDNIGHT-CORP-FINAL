@@ -386,6 +386,51 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                             
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                                 <div className="lg:col-span-2 space-y-8">
+                                    {/* CONTROL DE ACCESO (REAL TIME) */}
+                                    <div className="bg-zinc-900 border border-[#490F7C]/30 p-8 rounded-[2.5rem] relative overflow-hidden">
+                                        <div className="absolute top-0 right-0 p-4">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-2 h-2 bg-neon-purple rounded-full animate-pulse"></div>
+                                                <span className="text-[10px] font-black text-neon-purple uppercase tracking-widest">Live</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <h3 className="text-xl font-black text-white mb-6 flex items-center gap-3">
+                                            <ShieldCheck className="text-neon-purple"/> Control de Acceso
+                                        </h3>
+
+                                        {(() => {
+                                            const totalTickets = auditData.eventOrders.reduce((acc, o) => acc + o.items.reduce((s, i) => s + i.quantity, 0), 0);
+                                            const scannedTickets = auditData.eventOrders.filter(o => o.used).reduce((acc, o) => acc + o.items.reduce((s, i) => s + i.quantity, 0), 0);
+                                            const occupancy = totalTickets > 0 ? (scannedTickets / totalTickets) * 100 : 0;
+
+                                            return (
+                                                <div className="space-y-6">
+                                                    <div className="flex justify-between items-end">
+                                                        <div>
+                                                            <p className="text-4xl font-black text-white tracking-tighter">
+                                                                {scannedTickets} <span className="text-xl text-zinc-600">/ {totalTickets}</span>
+                                                            </p>
+                                                            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Tickets Escaneados</p>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className="text-2xl font-black text-neon-purple">{Math.round(occupancy)}%</p>
+                                                            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Ocupación</p>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="h-4 bg-[#161344] rounded-full overflow-hidden border border-white/5">
+                                                        <motion.div 
+                                                            initial={{ width: 0 }}
+                                                            animate={{ width: `${occupancy}%` }}
+                                                            className="h-full bg-[#490F7C] rounded-full"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+
                                     {/* PROGRESS BAR PER STAGE */}
                                     <div className="bg-zinc-900 border border-white/10 p-8 rounded-[2.5rem]">
                                         <h3 className="text-xl font-black text-white mb-6">Progreso Comercial por Etapa</h3>

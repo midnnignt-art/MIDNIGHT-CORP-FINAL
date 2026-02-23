@@ -22,7 +22,7 @@ DROP TYPE IF EXISTS event_stage CASCADE;
 -- ==========================================
 -- 2. TIPOS DE DATOS
 -- ==========================================
-CREATE TYPE user_role AS ENUM ('ADMIN', 'HEAD_OF_SALES', 'MANAGER', 'PROMOTER', 'GUEST');
+CREATE TYPE user_role AS ENUM ('ADMIN', 'HEAD_OF_SALES', 'MANAGER', 'PROMOTER', 'GUEST', 'BOUNCER');
 CREATE TYPE event_status AS ENUM ('draft', 'published', 'sold_out', 'cancelled', 'completed');
 CREATE TYPE event_stage AS ENUM ('early_bird', 'presale', 'general', 'door');
 
@@ -109,6 +109,8 @@ CREATE TABLE orders (
   total NUMERIC NOT NULL,
   status TEXT DEFAULT 'completed', 
   payment_method TEXT DEFAULT 'cash',
+  used BOOLEAN DEFAULT false,
+  used_at TIMESTAMP WITH TIME ZONE,
   staff_id UUID REFERENCES profiles(id), -- NULL si es venta orgánica (cliente directo)
   commission_amount NUMERIC DEFAULT 0,
   net_amount NUMERIC DEFAULT 0,

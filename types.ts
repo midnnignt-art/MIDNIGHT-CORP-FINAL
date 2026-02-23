@@ -6,6 +6,7 @@ export enum UserRole {
   MANAGER = 'MANAGER',   
   HEAD_OF_SALES = 'HEAD_OF_SALES', 
   ADMIN = 'ADMIN', 
+  BOUNCER = 'BOUNCER',
 }
 
 export type EventStatus = 'draft' | 'published' | 'sold_out' | 'cancelled' | 'completed' | 'archived';
@@ -85,6 +86,8 @@ export interface Order {
   total: number;
   status: 'pending' | 'completed' | 'failed';
   payment_method?: string;
+  used: boolean;
+  used_at?: string;
   items: {
     tier_id: string;
     tier_name: string;

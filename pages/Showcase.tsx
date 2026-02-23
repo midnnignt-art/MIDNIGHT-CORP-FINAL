@@ -122,18 +122,6 @@ export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
                 </div>
               </div>
 
-              {isSoonest && (
-                <div className="absolute top-36 left-1/2 -translate-x-1/2 z-20">
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-eclipse/80 backdrop-blur-md border border-moonlight/20 px-4 py-1"
-                  >
-                    <span className="text-[9px] font-black tracking-[0.3em] text-moonlight uppercase animate-pulse">Próximo Evento</span>
-                  </motion.div>
-                </div>
-              )}
-
               <div className="absolute bottom-8 left-8 hidden md:block z-20">
                 <div className="space-y-1 opacity-40">
                   <p className="text-[8px] font-light tracking-widest text-moonlight uppercase">Midnight Worldwide</p>
@@ -180,6 +168,17 @@ export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
                 className="text-center space-y-6 md:space-y-10 w-full max-w-2xl"
               >
                 <div className="space-y-2">
+                  {isSoonest && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mb-2"
+                    >
+                      <span className="text-[10px] font-black tracking-[0.4em] text-moonlight/40 uppercase animate-pulse">
+                        Próximo Evento
+                      </span>
+                    </motion.div>
+                  )}
                   <h1 className="text-4xl md:text-7xl lg:text-8xl font-black tracking-tighter text-moonlight uppercase leading-none break-words">
                     {event.city}
                   </h1>

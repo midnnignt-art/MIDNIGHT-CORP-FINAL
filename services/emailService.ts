@@ -22,8 +22,11 @@ export const sendTicketEmail = async (order: Order, event: Event) => {
   // Generar Código QR (apunta a la orden)
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${order.order_number}`;
 
+  // URL de la App para el botón
+  const APP_URL = process.env.APP_URL || 'https://midnightcorp.click';
+  const walletUrl = `${APP_URL}/wallet`;
+
   // IMPORTANTE: El 'from' debe coincidir con el dominio verificado en Resend.
-  // Ejemplo: 'tickets@midnighthq.com'
   const fromEmail = `tickets@${DOMAIN}`; 
 
   try {
@@ -35,46 +38,66 @@ export const sendTicketEmail = async (order: Order, event: Event) => {
       },
       body: JSON.stringify({
         from: `Midnight Corp <${fromEmail}>`,
-        to: [order.customer_email], // En producción (dominio verificado), esto envía a CUALQUIER email.
+        to: [order.customer_email],
         subject: `CONFIRMADO: Acceso para ${event.title}`,
         html: `
           <!DOCTYPE html>
           <html>
-          <body style="background-color: #000000; color: #ffffff; font-family: 'Arial', sans-serif; padding: 20px;">
+          <body style="background-color: #050505; color: #ffffff; font-family: 'Helvetica', Arial, sans-serif; padding: 20px; margin: 0;">
             
-            <div style="max-width: 600px; margin: 0 auto; background-color: #111; border: 1px solid #333; border-radius: 20px; overflow: hidden;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #0B0316; border: 1px solid #490F7C; border-radius: 32px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
               
               <!-- HEADER -->
-              <div style="background: linear-gradient(90deg, #b026ff 0%, #60a5fa 100%); padding: 4px;"></div>
-              <div style="padding: 40px; text-align: center;">
-                <h1 style="margin: 0; font-size: 24px; letter-spacing: 4px; text-transform: uppercase;">Midnight Corp</h1>
-                <p style="color: #666; font-size: 12px; margin-top: 10px;">EXPERIENCE FINANCE PROTOCOL</p>
+              <div style="padding: 40px; text-align: center; border-bottom: 1px solid rgba(73, 15, 124, 0.3);">
+                <h1 style="margin: 0; font-size: 28px; letter-spacing: 8px; text-transform: uppercase; font-weight: 900; color: #ffffff;">MIDNIGHT</h1>
+                <p style="color: #490F7C; font-size: 10px; margin-top: 10px; letter-spacing: 4px; font-weight: bold;">ACCESS PROTOCOL</p>
               </div>
 
               <!-- TICKET INFO -->
-              <div style="padding: 0 40px;">
-                <h2 style="color: #fff; margin-bottom: 5px;">${event.title}</h2>
-                <p style="color: #999; margin-top: 0;">📅 ${new Date(event.event_date).toLocaleDateString()} • 📍 ${event.venue}</p>
+              <div style="padding: 40px;">
+                <div style="margin-bottom: 30px;">
+                    <h2 style="color: #fff; margin: 0; font-size: 24px; font-weight: 900; text-transform: uppercase; letter-spacing: -1px;">${event.title}</h2>
+                    <p style="color: #8E9299; margin: 8px 0 0 0; font-size: 14px; font-weight: bold;">
+                        ${new Date(event.event_date).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                    </p>
+                    <p style="color: #490F7C; margin: 4px 0 0 0; font-size: 12px; font-weight: bold; text-transform: uppercase;">
+                        📍 ${event.venue} • ${event.city}
+                    </p>
+                </div>
                 
-                <div style="background-color: #000; border: 1px solid #333; border-radius: 10px; padding: 20px; margin: 30px 0; text-align: center;">
-                  <p style="color: #666; font-size: 10px; text-transform: uppercase; margin-bottom: 10px;">Tu Código de Acceso</p>
-                  <img src="${qrUrl}" alt="QR Code" style="border: 4px solid #fff; border-radius: 8px;" />
-                  <p style="font-family: monospace; font-size: 18px; letter-spacing: 2px; color: #b026ff; margin-top: 15px; font-weight: bold;">${order.order_number}</p>
+                <div style="background: linear-gradient(135deg, #0B0316 0%, #161344 100%); border: 1px solid rgba(73, 15, 124, 0.6); border-radius: 24px; padding: 30px; margin: 30px 0; text-align: center;">
+                  <p style="color: #F2F2F2; opacity: 0.5; font-size: 10px; text-transform: uppercase; margin-bottom: 20px; letter-spacing: 2px; font-weight: bold;">Código de Acceso Único</p>
+                  <div style="background-color: #ffffff; padding: 15px; display: inline-block; border-radius: 16px;">
+                    <img src="${qrUrl}" alt="QR Code" style="display: block; width: 180px; height: 180px;" />
+                  </div>
+                  <p style="font-family: 'Courier New', monospace; font-size: 14px; letter-spacing: 4px; color: #F2F2F2; opacity: 0.5; margin-top: 20px; font-weight: bold;">${order.order_number}</p>
                 </div>
 
-                <h3 style="border-bottom: 1px solid #333; padding-bottom: 10px; color: #888; font-size: 12px; text-transform: uppercase;">Resumen de Compra</h3>
-                ${itemsHtml}
-                
-                <div style="margin-top: 20px; text-align: right;">
-                  <span style="color: #666; font-size: 12px;">Total Pagado:</span>
-                  <span style="font-size: 24px; font-weight: bold; color: #fff; margin-left: 10px;">$${order.total.toLocaleString()}</span>
+                <div style="margin: 40px 0; text-align: center;">
+                    <a href="${walletUrl}" style="background-color: #ffffff; color: #000000; padding: 18px 32px; border-radius: 16px; text-decoration: none; font-weight: 900; font-size: 14px; text-transform: uppercase; letter-spacing: 2px; display: inline-block; box-shadow: 0 10px 20px rgba(255,255,255,0.1);">
+                        VER MIS BOLETAS
+                    </a>
+                </div>
+
+                <div style="border-top: 1px solid rgba(73, 15, 124, 0.2); padding-top: 30px;">
+                    <h3 style="color: #8E9299; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 20px;">Resumen de Compra</h3>
+                    ${itemsHtml}
+                    
+                    <div style="margin-top: 30px; display: flex; justify-content: space-between; align-items: center;">
+                      <span style="color: #8E9299; font-size: 12px; font-weight: bold; text-transform: uppercase;">Total Pagado</span>
+                      <span style="font-size: 28px; font-weight: 900; color: #ffffff; letter-spacing: -1px;">$${order.total.toLocaleString()}</span>
+                    </div>
                 </div>
               </div>
 
               <!-- FOOTER -->
-              <div style="background-color: #050505; padding: 30px; margin-top: 40px; text-align: center; border-top: 1px solid #222;">
-                <p style="color: #444; font-size: 10px;">Presenta este código QR en la entrada. No compartas este correo.</p>
-                <p style="color: #444; font-size: 10px;">&copy; ${new Date().getFullYear()} Midnight Corp.</p>
+              <div style="background-color: #050505; padding: 40px; text-align: center; border-top: 1px solid rgba(73, 15, 124, 0.2);">
+                <p style="color: #490F7C; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">
+                    Presenta este código QR en la entrada
+                </p>
+                <p style="color: #8E9299; font-size: 10px; opacity: 0.5; margin: 0;">
+                    &copy; ${new Date().getFullYear()} MIDNIGHT CORP. Todos los derechos reservados.
+                </p>
               </div>
             </div>
           </body>
