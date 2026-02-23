@@ -64,7 +64,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
         const event = events.find(e => e.id === selectedAuditId);
         if (!event) return null;
 
-        const eventOrders = orders.filter(o => o.event_id === selectedAuditId);
+        const eventOrders = orders.filter(o => o.event_id === selectedAuditId && o.status === 'completed');
         const tiers = getEventTiers(selectedAuditId);
 
         // Ranking

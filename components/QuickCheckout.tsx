@@ -33,6 +33,7 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
   // Order State
   const [isProcessing, setIsProcessing] = useState(false);
   const [pendingOrder, setPendingOrder] = useState<Order | null>(null); 
+  const [paymentStatus, setPaymentStatus] = useState<'pending' | 'paid' | 'failed'>('pending');
   
   // Bold Integration State
   const [gatewayStatus, setGatewayStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
@@ -52,6 +53,44 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
         if (step === 1) setStep(2);
     }
   }, [currentCustomer, step]);
+
+  // REALTIME LISTENER FOR ORDER STATUS
+  useEffect(() => {
+    if (!pendingOrder || step !== 2.5) return;
+
+    const channel = supabase
+      .channel(`order-status-${pendingOrder.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `id=eq.${pendingOrder.id}`,
+        },
+        (payload) => {
+          const newStatus = payload.new.status;
+          console.log("Order status changed:", newStatus);
+          
+          if (newStatus === 'paid') {
+            setPaymentStatus('paid');
+            // Redirect after a short delay to show success
+            setTimeout(() => {
+              window.location.href = `/gracias?order=${pendingOrder.order_number}`;
+            }, 2000);
+          } else if (newStatus === 'failed') {
+            setPaymentStatus('failed');
+            setGatewayStatus('error');
+            setGatewayMessage('El pago fue rechazado o falló. Por favor intenta de nuevo.');
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [pendingOrder, step]);
 
   // INITIATE BOLD API FLOW
   useEffect(() => {
@@ -337,10 +376,16 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
           {step === 2.5 && pendingOrder && (
              <motion.div key="s2.5" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-8 py-4">
                  
-                 <div className={`p-8 transition-colors duration-500 ${gatewayStatus === 'error' ? 'bg-red-600/10 border border-red-600/30' : 'bg-white/5 border border-moonlight/10'}`}>
+                 <div className={`p-8 transition-colors duration-500 ${paymentStatus === 'failed' || gatewayStatus === 'error' ? 'bg-red-600/10 border border-red-600/30' : paymentStatus === 'paid' ? 'bg-emerald-600/10 border border-emerald-600/30' : 'bg-white/5 border border-moonlight/10'}`}>
                      
                      <h3 className="text-xl font-black text-moonlight uppercase tracking-[0.3em] flex items-center justify-center gap-3 mb-4">
-                         <CreditCard className="text-eclipse"/> Pago Seguro
+                         {paymentStatus === 'paid' ? (
+                             <span className="text-emerald-500 flex items-center gap-2">✅ Pago Aprobado</span>
+                         ) : paymentStatus === 'failed' ? (
+                             <span className="text-red-500 flex items-center gap-2">❌ Pago Rechazado</span>
+                         ) : (
+                             <><CreditCard className="text-eclipse"/> Pago Seguro</>
+                         )}
                      </h3>
                      
                      <div className="my-8">
@@ -350,27 +395,40 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
                      </div>
 
                      <div className="flex flex-col items-center justify-center min-h-[80px] gap-4">
-                         {gatewayStatus === 'loading' && (
+                         {paymentStatus === 'paid' && (
+                             <div className="text-emerald-500 text-[10px] font-black uppercase tracking-widest animate-bounce">
+                                 ¡Gracias! Redirigiendo a tus boletas...
+                             </div>
+                         )}
+                         
+                         {paymentStatus === 'pending' && gatewayStatus === 'loading' && (
                              <div className="flex items-center gap-3 text-moonlight/40 text-[10px] font-light tracking-[0.2em] uppercase animate-pulse">
                                  <Loader2 className="animate-spin w-4 h-4"/> {gatewayMessage}
                              </div>
                          )}
-                         {gatewayStatus === 'error' && (
+                         
+                         {(paymentStatus === 'failed' || gatewayStatus === 'error') && (
                              <div className="flex flex-col items-center gap-3 text-red-500 text-[10px] font-black uppercase tracking-widest text-center">
-                                 <AlertTriangle size={20}/> {gatewayMessage}
-                                 <button onClick={initiateBoldTransaction} className="h-10 px-6 border border-red-500/30 hover:bg-red-500/10 text-red-500 transition-all mt-2">Reintentar</button>
+                                 <AlertTriangle size={20}/> {gatewayMessage || 'Error en el proceso de pago.'}
+                                 <button onClick={() => {
+                                     setPaymentStatus('pending');
+                                     setGatewayStatus('idle');
+                                     initiateBoldTransaction();
+                                 }} className="h-10 px-6 border border-red-500/30 hover:bg-red-500/10 text-red-500 transition-all mt-2">Reintentar</button>
                              </div>
                          )}
                          
                          {/* CONTENEDOR PARA EL SCRIPT DE BOLD */}
-                         <div id="bold-container" className="mt-4 flex justify-center w-full min-h-[60px]">
-                             {/* El script inyectará el botón aquí automáticamente */}
-                         </div>
+                         {paymentStatus === 'pending' && (
+                             <div id="bold-container" className="mt-4 flex justify-center w-full min-h-[60px]">
+                                 {/* El script inyectará el botón aquí automáticamente */}
+                             </div>
+                         )}
                      </div>
                  </div>
                  
                  <p className="text-[9px] text-moonlight/30 uppercase font-light tracking-[0.3em] leading-relaxed max-w-xs mx-auto">
-                    Serás redirigido a la pasarela oficial de Bold para completar tu pago de forma segura.
+                    {paymentStatus === 'paid' ? 'Tu pago ha sido procesado exitosamente.' : 'Serás redirigido a la pasarela oficial de Bold para completar tu pago de forma segura.'}
                  </p>
              </motion.div>
           )}

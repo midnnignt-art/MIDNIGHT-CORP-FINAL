@@ -22,7 +22,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ event, isOpen, onC
       // QuickCheckout ya devuelve los items con la estructura correcta:
       // { tier_id, tier_name, quantity, unit_price, subtotal }
       // createOrder espera exactamente eso.
-      return await createOrder(event.id, data.items, 'digital', undefined, data.customerInfo);
+      return await createOrder(event.id, data.items, data.method || 'digital', undefined, data.customerInfo);
   };
 
   return (

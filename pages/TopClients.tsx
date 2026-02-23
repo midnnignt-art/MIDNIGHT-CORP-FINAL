@@ -18,6 +18,8 @@ export const TopClients: React.FC<TopClientsProps> = ({ role }) => {
       name: string;
       totalTickets: number;
       totalSpent: number;
+      cashSpent: number;
+      gatewaySpent: number;
       eventBreakdown: Record<string, number>;
       stageBreakdown: Record<string, number>;
     }> = {};
@@ -32,6 +34,8 @@ export const TopClients: React.FC<TopClientsProps> = ({ role }) => {
           name: order.customer_name,
           totalTickets: 0,
           totalSpent: 0,
+          cashSpent: 0,
+          gatewaySpent: 0,
           eventBreakdown: {},
           stageBreakdown: {
             'early_bird': 0,
@@ -44,6 +48,12 @@ export const TopClients: React.FC<TopClientsProps> = ({ role }) => {
 
       const client = clients[email];
       client.totalSpent += order.total;
+      
+      if (order.payment_method === 'cash') {
+        client.cashSpent += order.total;
+      } else {
+        client.gatewaySpent += order.total;
+      }
 
       order.items.forEach(item => {
         client.totalTickets += item.quantity;
@@ -130,59 +140,86 @@ export const TopClients: React.FC<TopClientsProps> = ({ role }) => {
                 <th className="p-6">Cliente</th>
                 <th className="p-6 text-center">Etapas (Early/Pre/Gen/Door)</th>
                 <th className="p-6">Eventos</th>
+                <th className="p-6 text-center">Efectivo vs Pasarela</th>
                 <th className="p-6 text-right">Total Boletas</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {filteredClients.map((client, idx) => (
-                <tr key={client.email} className="hover:bg-white/[0.02] transition-colors group">
-                  <td className="p-6">
-                    <span className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs ${idx < 3 ? 'bg-neon-purple text-white' : 'bg-zinc-800 text-zinc-500'}`}>
-                      {idx + 1}
-                    </span>
-                  </td>
-                  <td className="p-6">
-                    <div className="font-black text-white uppercase tracking-tight text-sm">{client.name}</div>
-                    <div className="text-[10px] text-zinc-500 font-bold">{client.email}</div>
-                  </td>
-                  <td className="p-6">
-                    <div className="flex items-center justify-center gap-2">
-                      <div className="flex flex-col items-center">
-                        <span className="text-[9px] text-zinc-600 font-black uppercase">EB</span>
-                        <span className="text-xs font-bold text-white">{client.stageBreakdown['early_bird']}</span>
+              {filteredClients.map((client, idx) => {
+                const cashPercent = client.totalSpent > 0 ? (client.cashSpent / client.totalSpent) * 100 : 0;
+                const gatewayPercent = 100 - cashPercent;
+
+                return (
+                  <tr key={client.email} className="hover:bg-white/[0.02] transition-colors group">
+                    <td className="p-6">
+                      <span className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs ${idx < 3 ? 'bg-neon-purple text-white' : 'bg-zinc-800 text-zinc-500'}`}>
+                        {idx + 1}
+                      </span>
+                    </td>
+                    <td className="p-6">
+                      <div className="font-black text-white uppercase tracking-tight text-sm">{client.name}</div>
+                      <div className="text-[10px] text-zinc-500 font-bold">{client.email}</div>
+                    </td>
+                    <td className="p-6">
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="flex flex-col items-center">
+                          <span className="text-[9px] text-zinc-600 font-black uppercase">EB</span>
+                          <span className="text-xs font-bold text-white">{client.stageBreakdown['early_bird']}</span>
+                        </div>
+                        <div className="w-px h-4 bg-white/10" />
+                        <div className="flex flex-col items-center">
+                          <span className="text-[9px] text-zinc-600 font-black uppercase">PRE</span>
+                          <span className="text-xs font-bold text-white">{client.stageBreakdown['presale']}</span>
+                        </div>
+                        <div className="w-px h-4 bg-white/10" />
+                        <div className="flex flex-col items-center">
+                          <span className="text-[9px] text-zinc-600 font-black uppercase">GEN</span>
+                          <span className="text-xs font-bold text-white">{client.stageBreakdown['general']}</span>
+                        </div>
+                        <div className="w-px h-4 bg-white/10" />
+                        <div className="flex flex-col items-center">
+                          <span className="text-[9px] text-zinc-600 font-black uppercase">DR</span>
+                          <span className="text-xs font-bold text-white">{client.stageBreakdown['door']}</span>
+                        </div>
                       </div>
-                      <div className="w-px h-4 bg-white/10" />
-                      <div className="flex flex-col items-center">
-                        <span className="text-[9px] text-zinc-600 font-black uppercase">PRE</span>
-                        <span className="text-xs font-bold text-white">{client.stageBreakdown['presale']}</span>
+                    </td>
+                    <td className="p-6">
+                      <div className="flex flex-wrap gap-1 max-w-xs">
+                        {Object.entries(client.eventBreakdown).map(([name, qty]) => (
+                          <span key={name} className="bg-white/5 border border-white/10 px-2 py-0.5 rounded text-[9px] font-bold text-zinc-400 whitespace-nowrap">
+                            {name}: <span className="text-white">{qty}</span>
+                          </span>
+                        ))}
                       </div>
-                      <div className="w-px h-4 bg-white/10" />
-                      <div className="flex flex-col items-center">
-                        <span className="text-[9px] text-zinc-600 font-black uppercase">GEN</span>
-                        <span className="text-xs font-bold text-white">{client.stageBreakdown['general']}</span>
+                    </td>
+                    <td className="p-6">
+                      <div className="flex flex-col gap-1.5 min-w-[120px]">
+                        <div className="flex justify-between text-[9px] font-black uppercase tracking-widest">
+                          <span className="text-amber-500">Cash {Math.round(cashPercent)}%</span>
+                          <span className="text-neon-blue">Digital {Math.round(gatewayPercent)}%</span>
+                        </div>
+                        <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden flex">
+                          <div 
+                            className="h-full bg-amber-500 transition-all duration-500" 
+                            style={{ width: `${cashPercent}%` }}
+                          />
+                          <div 
+                            className="h-full bg-neon-blue transition-all duration-500" 
+                            style={{ width: `${gatewayPercent}%` }}
+                          />
+                        </div>
+                        <div className="text-[8px] text-zinc-600 text-center font-bold uppercase">
+                          Total: ${client.totalSpent.toLocaleString()}
+                        </div>
                       </div>
-                      <div className="w-px h-4 bg-white/10" />
-                      <div className="flex flex-col items-center">
-                        <span className="text-[9px] text-zinc-600 font-black uppercase">DR</span>
-                        <span className="text-xs font-bold text-white">{client.stageBreakdown['door']}</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="p-6">
-                    <div className="flex flex-wrap gap-1 max-w-xs">
-                      {Object.entries(client.eventBreakdown).map(([name, qty]) => (
-                        <span key={name} className="bg-white/5 border border-white/10 px-2 py-0.5 rounded text-[9px] font-bold text-zinc-400 whitespace-nowrap">
-                          {name}: <span className="text-white">{qty}</span>
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="p-6 text-right">
-                    <div className="text-2xl font-black text-white">{client.totalTickets}</div>
-                    <div className="text-[10px] text-neon-purple font-black uppercase tracking-widest">Boletas</div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="p-6 text-right">
+                      <div className="text-2xl font-black text-white">{client.totalTickets}</div>
+                      <div className="text-[10px] text-neon-purple font-black uppercase tracking-widest">Boletas</div>
+                    </td>
+                  </tr>
+                );
+              })}
               {filteredClients.length === 0 && (
                 <tr>
                   <td colSpan={5} className="p-20 text-center">

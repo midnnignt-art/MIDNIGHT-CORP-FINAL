@@ -144,7 +144,7 @@ export const Projections: React.FC<ProjectionsProps> = ({ role }) => {
         // --- LOGICA DE LIQUIDACIÓN MAESTRA (COPIA EXACTA DE DASHBOARD) ---
         
         // 1. Filtrar Ordenes del Evento
-        const filteredOrders = orders.filter(o => o.event_id === selectedEventId);
+        const filteredOrders = orders.filter(o => o.event_id === selectedEventId && o.status === 'completed');
 
         // 2. Definir Helper de Cálculo (Igual al Dashboard)
         const calculateMetrics = (subsetOrders: Order[], forceNoCommission = false) => {
