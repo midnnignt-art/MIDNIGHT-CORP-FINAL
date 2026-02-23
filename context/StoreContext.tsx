@@ -38,7 +38,7 @@ interface StoreContextType {
     createTeam: (name: string, managerId: string) => Promise<void>;
     updateStaffTeam: (userId: string, teamId: string | null) => Promise<void>;
     deleteTeam: (teamId: string) => Promise<void>;
-    createOrder: (eventId: string, cartItems: any[], method: string, staffId?: string, customerInfo?: any) => Promise<Order | null>;
+    createOrder: (eventId: string, cartItems: any[], method: string, staffId?: string, customerInfo?: any, skipEmail?: boolean) => Promise<Order | null>;
     clearDatabase: () => Promise<void>;
     updateGallery: (items: GalleryItem[]) => Promise<void>;
     validateTicket: (orderNumber: string) => Promise<{ success: boolean; message: string; order?: Order }>;
@@ -484,9 +484,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         } catch (error) { console.error(error); }
     };
     
-    const createOrder = async (eventId: string, cartItems: any[], method: string, staffId?: string, customerInfo?: any) => {
+    const createOrder = async (eventId: string, cartItems: any[], method: string, staffId?: string, customerInfo?: any, skipEmail = false) => {
         try {
-            const orderNumber = `MID-${Date.now().toString().slice(-6)}`;
+            // Improved uniqueness: MID + timestamp + random suffix
+            const orderNumber = `MID-${Date.now().toString().slice(-8)}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
             const total = cartItems.reduce((acc, i) => acc + (i.unit_price * i.quantity), 0);
             
             // NORMALIZATION: Ensure email is lowercase and trimmed
@@ -573,7 +574,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     if (promoter) await supabase.from('profiles').update({ total_sales: (promoter.total_sales || 0) + total, total_commission_earned: (promoter.total_commission_earned || 0) + commission }).eq('id', order.staff_id);
                 }
 
-                if (event && order.customer_email && order.customer_email.includes('@')) {
+                if (event && order.customer_email && order.customer_email.includes('@') && !skipEmail) {
                      // FIX: Map the DB created_at to timestamp property required by Order interface
                      const fullOrder = { 
                          ...order, 

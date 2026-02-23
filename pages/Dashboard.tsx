@@ -459,34 +459,55 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   const handleManualSale = async () => {
     if (!selectedEventId || cart.length === 0) return;
     if (!manualCustomerInfo.name) return alert("Nombre del cliente obligatorio.");
+    if (!manualCustomerInfo.email.includes('@')) return alert("Email del cliente obligatorio y válido.");
     
     setIsProcessingSale(true);
 
-    const fullCartItems = cart.map(item => {
-        const tier = tiers.find(t => t.id === item.tierId);
-        return {
-            tier_id: item.tierId,
-            tier_name: tier?.name || 'Item Desconocido',
-            quantity: item.quantity,
-            unit_price: tier?.price || 0,
-            subtotal: (tier?.price || 0) * item.quantity
-        };
-    });
+    try {
+        const event = events.find(e => e.id === selectedEventId);
+        if (!event) throw new Error("Evento no encontrado");
 
-    const total = fullCartItems.reduce((acc, item) => acc + item.subtotal, 0);
-    // Email is optional for manual cash sales, StoreContext handles fallback
-    const result = await createOrder(selectedEventId, fullCartItems, 'cash', currentUser.user_id, manualCustomerInfo);
-    
-    setIsProcessingSale(true); // Keep it true while showing alert
+        const createdOrders: any[] = [];
+        
+        // Split each cart item into individual tickets
+        for (const item of cart) {
+            const tier = tiers.find(t => t.id === item.tierId);
+            if (!tier) continue;
 
-    if (result) {
-        setCart([]); 
-        setManualCustomerInfo({ name: '', email: '' });
-        setShowManualSale(false); 
-        setSelectedEventId('');
-        alert(`¡Venta Registrada Exitosamente!\nTotal: $${total.toLocaleString()}`);
+            // Create 'quantity' number of individual orders
+            for (let i = 0; i < item.quantity; i++) {
+                const singleItem = [{
+                    tier_id: item.tierId,
+                    tier_name: tier.name,
+                    quantity: 1,
+                    unit_price: tier.price,
+                    subtotal: tier.price
+                }];
+
+                // skipEmail=true because we will send one bulk email at the end
+                const order = await createOrder(selectedEventId, singleItem, 'cash', currentUser.user_id, manualCustomerInfo, true);
+                if (order) createdOrders.push(order);
+            }
+        }
+
+        if (createdOrders.length > 0) {
+            // Send ONE bulk email with all tickets
+            const { sendTicketEmail } = await import('../services/emailService');
+            await sendTicketEmail(createdOrders, event);
+
+            const total = createdOrders.reduce((acc, o) => acc + o.total, 0);
+            setCart([]); 
+            setManualCustomerInfo({ name: '', email: '' });
+            setShowManualSale(false); 
+            setSelectedEventId('');
+            alert(`¡Venta Registrada Exitosamente!\nSe han generado ${createdOrders.length} boletas individuales.\nTotal: $${total.toLocaleString()}`);
+        }
+    } catch (error: any) {
+        console.error("Error in manual sale:", error);
+        alert(`Error al procesar venta: ${error.message}`);
+    } finally {
+        setIsProcessingSale(false);
     }
-    setIsProcessingSale(false);
   };
 
 

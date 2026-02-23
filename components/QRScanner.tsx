@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { X, Camera, CheckCircle2, AlertCircle, XCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { X, Camera, CheckCircle2, AlertCircle, XCircle, AlertTriangle, Loader2, QrCode } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -11,6 +11,7 @@ interface QRScannerProps {
 
 const QRScanner: React.FC<QRScannerProps> = ({ eventId, onClose }) => {
   const { validarYQuemarTicket, events } = useStore();
+  const [selectedEventId, setSelectedEventId] = useState<string | undefined>(eventId);
   const [scanResult, setScanResult] = useState<{
     status: 'success' | 'used' | 'invalid' | 'idle';
     message: string;
@@ -23,7 +24,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ eventId, onClose }) => {
   const isProcessing = useRef(false);
 
   // Get current event info
-  const targetEvent = events.find(e => e.id === eventId) || events[0];
+  const targetEvent = events.find(e => e.id === (selectedEventId || eventId));
 
   useEffect(() => {
     if (scanResult.status !== 'idle') {
@@ -36,8 +37,23 @@ const QRScanner: React.FC<QRScannerProps> = ({ eventId, onClose }) => {
   }, [scanResult.status]);
 
   useEffect(() => {
+    if (!selectedEventId && events.length > 0 && !eventId) {
+        // If no event selected and multiple available, don't start yet or default to first
+        // But better to default to first if only one
+        if (events.length === 1) setSelectedEventId(events[0].id);
+    }
+  }, [events, eventId, selectedEventId]);
+
+  useEffect(() => {
+    if (!selectedEventId) return;
+
     const startScanner = async () => {
       try {
+        // Cleanup previous if exists
+        if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+            await html5QrCodeRef.current.stop();
+        }
+
         const html5QrCode = new Html5Qrcode("qr-reader");
         html5QrCodeRef.current = html5QrCode;
 
@@ -48,7 +64,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ eventId, onClose }) => {
         };
 
         await html5QrCode.start(
-          { facingMode: "environment" }, // Prefer back camera
+          { facingMode: "environment" },
           config,
           async (decodedText) => {
             if (isProcessing.current || scanResult.status !== 'idle') return;
@@ -59,15 +75,13 @@ const QRScanner: React.FC<QRScannerProps> = ({ eventId, onClose }) => {
                 navigator.vibrate(100);
             }
 
-            const result = await validarYQuemarTicket(decodedText, targetEvent?.id || '');
+            const result = await validarYQuemarTicket(decodedText, selectedEventId);
             setScanResult({
                 status: result.status,
                 message: result.message
             });
           },
-          (errorMessage) => {
-            // No QR code found in frame, ignore
-          }
+          (errorMessage) => {}
         );
         
         setIsCameraReady(true);
@@ -86,7 +100,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ eventId, onClose }) => {
           .catch(err => console.error("Failed to stop scanner", err));
       }
     };
-  }, [targetEvent?.id]);
+  }, [selectedEventId]);
 
   return (
     <div className="fixed inset-0 z-[200] bg-void flex flex-col">
@@ -98,9 +112,13 @@ const QRScanner: React.FC<QRScannerProps> = ({ eventId, onClose }) => {
           </div>
           <div>
             <h2 className="text-lg font-black text-moonlight uppercase tracking-tighter">Escáner de Acceso</h2>
-            <p className="text-[10px] text-moonlight/40 uppercase tracking-widest font-light">
-                Validando para: <span className="text-neon-purple">{targetEvent?.title}</span>
-            </p>
+            {!selectedEventId ? (
+                <p className="text-[10px] text-amber-500 uppercase tracking-widest font-bold animate-pulse">Seleccione un evento para comenzar</p>
+            ) : (
+                <p className="text-[10px] text-moonlight/40 uppercase tracking-widest font-light">
+                    Validando para: <span className="text-neon-purple">{targetEvent?.title}</span>
+                </p>
+            )}
           </div>
         </div>
         <button 
@@ -111,48 +129,77 @@ const QRScanner: React.FC<QRScannerProps> = ({ eventId, onClose }) => {
         </button>
       </div>
 
+      {/* Event Selector if not provided */}
+      {!eventId && events.length > 1 && (
+          <div className="p-4 bg-black/40 border-b border-white/5">
+              <select 
+                value={selectedEventId || ''} 
+                onChange={(e) => {
+                    setSelectedEventId(e.target.value);
+                    setIsCameraReady(false);
+                }}
+                className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 h-12 text-xs text-white font-bold uppercase tracking-widest outline-none focus:border-neon-purple"
+              >
+                  <option value="">-- SELECCIONAR EVENTO --</option>
+                  {events.map(e => <option key={e.id} value={e.id}>{e.title}</option>)}
+              </select>
+          </div>
+      )}
+
       {/* Scanner Area */}
       <div className="flex-1 flex flex-col items-center justify-center p-6 relative">
-        <div className="w-full max-w-md aspect-square bg-white/5 border border-white/10 rounded-2xl overflow-hidden relative">
-          <div id="qr-reader" className="w-full h-full"></div>
-          
-          {!isCameraReady && !cameraError && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-void/80 z-10">
-              <Loader2 className="w-10 h-10 text-neon-purple animate-spin mb-4" />
-              <p className="text-xs font-black uppercase tracking-widest text-zinc-500">Iniciando Cámara...</p>
+        {!selectedEventId ? (
+            <div className="text-center space-y-6 max-w-xs">
+                <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto border border-white/10">
+                    <QrCode className="w-10 h-10 text-zinc-600" />
+                </div>
+                <h3 className="text-xl font-black text-white uppercase tracking-tighter">Configuración Requerida</h3>
+                <p className="text-xs text-zinc-500 font-bold uppercase leading-relaxed">Debes seleccionar el evento que vas a controlar antes de iniciar el escaneo.</p>
             </div>
-          )}
+        ) : (
+            <>
+                <div className="w-full max-w-md aspect-square bg-white/5 border border-white/10 rounded-2xl overflow-hidden relative">
+                  <div id="qr-reader" className="w-full h-full"></div>
+                  
+                  {!isCameraReady && !cameraError && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-void/80 z-10">
+                      <Loader2 className="w-10 h-10 text-neon-purple animate-spin mb-4" />
+                      <p className="text-xs font-black uppercase tracking-widest text-zinc-500">Iniciando Cámara...</p>
+                    </div>
+                  )}
 
-          {cameraError && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-void/90 z-10 p-8 text-center">
-              <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
-              <p className="text-sm font-black uppercase tracking-widest text-white mb-2">Error de Cámara</p>
-              <p className="text-xs text-zinc-500">{cameraError}</p>
-              <button 
-                onClick={() => window.location.reload()}
-                className="mt-6 px-6 py-2 bg-white text-black font-black text-[10px] uppercase tracking-widest rounded-full"
-              >
-                Reintentar
-              </button>
-            </div>
-          )}
-          
-          <div className="absolute inset-0 pointer-events-none border-[40px] border-void/60 flex items-center justify-center">
-             <div className="w-[250px] h-[250px] border-2 border-eclipse shadow-[0_0_0_9999px_rgba(5,5,5,0.4)]" />
-          </div>
-        </div>
+                  {cameraError && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-void/90 z-10 p-8 text-center">
+                      <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+                      <p className="text-sm font-black uppercase tracking-widest text-white mb-2">Error de Cámara</p>
+                      <p className="text-xs text-zinc-500">{cameraError}</p>
+                      <button 
+                        onClick={() => window.location.reload()}
+                        className="mt-6 px-6 py-2 bg-white text-black font-black text-[10px] uppercase tracking-widest rounded-full"
+                      >
+                        Reintentar
+                      </button>
+                    </div>
+                  )}
+                  
+                  <div className="absolute inset-0 pointer-events-none border-[40px] border-void/60 flex items-center justify-center">
+                     <div className="w-[250px] h-[250px] border-2 border-eclipse shadow-[0_0_0_9999px_rgba(5,5,5,0.4)]" />
+                  </div>
+                </div>
 
-        {/* Status / Feedback */}
-        <div className="mt-12 w-full max-w-md space-y-4">
-            <div className="text-center space-y-2 opacity-40">
-              <p className="text-xs font-light tracking-[0.2em] uppercase">Apunte la cámara al código QR</p>
-              <div className="flex justify-center gap-1">
-                <div className="w-1 h-1 bg-moonlight rounded-full animate-bounce" />
-                <div className="w-1 h-1 bg-moonlight rounded-full animate-bounce [animation-delay:0.2s]" />
-                <div className="w-1 h-1 bg-moonlight rounded-full animate-bounce [animation-delay:0.4s]" />
-              </div>
-            </div>
-        </div>
+                {/* Status / Feedback */}
+                <div className="mt-12 w-full max-w-md space-y-4">
+                    <div className="text-center space-y-2 opacity-40">
+                      <p className="text-xs font-light tracking-[0.2em] uppercase">Apunte la cámara al código QR</p>
+                      <div className="flex justify-center gap-1">
+                        <div className="w-1 h-1 bg-moonlight rounded-full animate-bounce" />
+                        <div className="w-1 h-1 bg-moonlight rounded-full animate-bounce [animation-delay:0.2s]" />
+                        <div className="w-1 h-1 bg-moonlight rounded-full animate-bounce [animation-delay:0.4s]" />
+                      </div>
+                    </div>
+                </div>
+            </>
+        )}
 
         {/* FULL SCREEN RESULT OVERLAY */}
         <AnimatePresence>
