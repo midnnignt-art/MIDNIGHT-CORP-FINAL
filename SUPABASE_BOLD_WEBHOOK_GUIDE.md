@@ -26,6 +26,7 @@ serve(async (req) => {
     console.log("Bold Webhook Payload:", payload);
 
     const { reference, status } = payload;
+    console.log(`Processing order ${reference} with status ${status}`);
 
     if (!reference) {
       return new Response('Missing reference', { status: 400 });
@@ -41,23 +42,27 @@ serve(async (req) => {
       .single();
 
     if (orderError || !order) {
-      console.error("Order not found:", reference);
-      return new Response('Order not found', { status: 200 }); // Retornar 200 para que Bold no reintente
+      console.error("❌ Order not found in DB:", reference, orderError);
+      return new Response('Order not found', { status: 200 }); 
     }
 
-    // Si la orden ya está completada, no hacer nada
-    if (order.status === 'completed') {
-      return new Response('Order already processed', { status: 200 });
-    }
+    console.log("Found order:", order.id, "Current status:", order.status);
 
     if (status === 'APPROVED') {
       // 2. Actualizar estado a 'completed'
       const { error: updateError } = await supabase
         .from('orders')
-        .update({ status: 'completed', timestamp: new Date().toISOString() })
+        .update({ 
+          status: 'completed'
+        })
         .eq('id', order.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error("❌ Error updating order status:", updateError);
+        throw updateError;
+      }
+
+      console.log("✅ Order status updated to completed");
 
       // 3. Actualizar Inventario y Estadísticas
       // Obtener el evento para actualizar totales
