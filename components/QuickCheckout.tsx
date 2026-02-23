@@ -127,11 +127,12 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
               throw new Error(error.message || "Error al conectar con el servidor de firmas.");
           }
           
-          if (!data || !data.integritySignature) {
-              throw new Error("No se recibió una firma válida.");
-          }
+          // FIX: Usar 'signature' que es lo que retorna la función según la especificación del usuario
+          const signature = data?.signature || data?.integritySignature;
 
-          const signature = data.integritySignature;
+          if (!signature) {
+              throw new Error("No se recibió una firma válida del servidor.");
+          }
 
           // 2. Inyectar el script de Bold con los atributos correctos
           // Limpiar scripts previos si existen
@@ -145,7 +146,7 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
           const script = document.createElement("script");
           script.setAttribute("data-bold-button", "dark-L");
           script.setAttribute("data-api-key", "HXR9FR8wKFLJmIXK29TyR74ey1l32zVvLvkV4QDyaVY");
-          script.setAttribute("data-order-id", rawOrderId); // Usar el ID original
+          script.setAttribute("data-order-id", rawOrderId);
           script.setAttribute("data-currency", "COP");
           script.setAttribute("data-amount", String(rawAmount)); // Usar el monto original (entero)
           script.setAttribute("data-integrity-signature", signature);
