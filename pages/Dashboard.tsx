@@ -27,6 +27,8 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   const [rankingFilterEvent, setRankingFilterEvent] = useState<string>('all');
   const [rankingDateStart, setRankingDateStart] = useState('');
   const [rankingDateEnd, setRankingDateEnd] = useState('');
+  const [orderFilterEvent, setOrderFilterEvent] = useState<string>('all');
+  const [showTopCustomers, setShowTopCustomers] = useState(false);
   const [rankingViewMode, setRankingViewMode] = useState<'promoters' | 'teams'>('promoters');
 
   // Manual Sale State
@@ -983,61 +985,121 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
       {/* TABLA MIS VENTAS (PROMOTORES Y MANAGERS) */}
       {(currentUser.role === UserRole.PROMOTER || currentUser.role === UserRole.MANAGER) && (
           <div className="mt-12 bg-zinc-900 border border-white/5 rounded-[2.5rem] p-6 md:p-8">
-              <div className="mb-8">
-                  <h2 className="text-xl md:text-2xl font-black text-white flex items-center gap-3">
-                      <ScrollText className="text-neon-blue w-6 h-6" /> Mis Ventas & Clientes
-                  </h2>
-                  <p className="text-xs text-zinc-500 mt-1 font-bold">Registro detallado de tus ventas personales.</p>
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+                  <div>
+                      <h2 className="text-xl md:text-2xl font-black text-white flex items-center gap-3">
+                          <ScrollText className="text-neon-blue w-6 h-6" /> Mis Ventas & Clientes
+                      </h2>
+                      <p className="text-xs text-zinc-500 mt-1 font-bold">Registro detallado de tus ventas personales.</p>
+                  </div>
+                  
+                  <div className="flex gap-3 w-full md:w-auto">
+                      <select 
+                          value={orderFilterEvent} 
+                          onChange={e => setOrderFilterEvent(e.target.value)}
+                          className="bg-black border border-white/10 rounded-xl px-4 h-10 text-[10px] md:text-xs font-bold text-white uppercase focus:border-neon-blue outline-none flex-1 md:flex-none"
+                      >
+                          <option value="all">TODOS LOS EVENTOS</option>
+                          {events.map(e => <option key={e.id} value={e.id}>{e.title}</option>)}
+                      </select>
+                      
+                      <button 
+                        onClick={() => setShowTopCustomers(!showTopCustomers)}
+                        className={`px-4 h-10 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${showTopCustomers ? 'bg-neon-blue text-black' : 'bg-white/5 text-zinc-400 border border-white/10'}`}
+                      >
+                        <Users size={14} /> {showTopCustomers ? 'Ver Ventas' : 'Top Clientes'}
+                      </button>
+                  </div>
               </div>
 
-              <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                      <thead className="bg-black/40 text-[9px] md:text-[10px] text-zinc-500 uppercase font-black tracking-widest">
-                          <tr>
-                              <th className="p-4 rounded-l-xl">Fecha</th>
-                              <th className="p-4">Cliente</th>
-                              <th className="p-4">Items / Etapa</th>
-                              <th className="p-4 text-right">Total</th>
-                              <th className="p-4 rounded-r-xl text-center">Estado</th>
-                          </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/5 text-xs md:text-sm">
-                          {orders.filter(o => o.staff_id === currentUser.user_id).sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).map(order => (
-                              <tr key={order.id} className="hover:bg-white/5 transition-colors">
-                                  <td className="p-4 text-zinc-400">
-                                      {new Date(order.timestamp).toLocaleDateString()} <br/>
-                                      <span className="text-[10px]">{new Date(order.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                                  </td>
-                                  <td className="p-4">
-                                      <div className="font-bold text-white">{order.customer_name}</div>
-                                      <div className="text-[10px] text-zinc-500">{order.customer_email || 'Sin email'}</div>
-                                  </td>
-                                  <td className="p-4">
-                                      <div className="flex flex-col gap-1">
-                                          {order.items.map((item, idx) => (
-                                              <div key={idx} className="flex items-center gap-2 text-[11px]">
-                                                  <span className="bg-white/10 px-1.5 py-0.5 rounded text-white font-bold">{item.quantity}x</span>
-                                                  <span className="text-zinc-300">{item.tier_name}</span>
-                                              </div>
-                                          ))}
+              {showTopCustomers ? (
+                  <div className="animate-in fade-in duration-500">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {(() => {
+                              const customerStats = orders
+                                  .filter(o => o.staff_id === currentUser.user_id && (orderFilterEvent === 'all' || o.event_id === orderFilterEvent))
+                                  .reduce((acc: any, o) => {
+                                      const email = o.customer_email.toLowerCase();
+                                      if (!acc[email]) acc[email] = { name: o.customer_name, email, total: 0, count: 0 };
+                                      acc[email].total += o.total;
+                                      acc[email].count += 1;
+                                      return acc;
+                                  }, {});
+                              
+                              return Object.values(customerStats)
+                                  .sort((a: any, b: any) => b.total - a.total)
+                                  .slice(0, 12)
+                                  .map((c: any, idx) => (
+                                      <div key={c.email} className="bg-black/40 border border-white/5 p-5 rounded-2xl flex items-center gap-4">
+                                          <div className="w-10 h-10 bg-neon-blue/10 rounded-full flex items-center justify-center text-neon-blue font-black text-sm">
+                                              #{idx + 1}
+                                          </div>
+                                          <div className="flex-1 min-w-0">
+                                              <p className="text-white font-bold truncate uppercase text-xs tracking-tight">{c.name}</p>
+                                              <p className="text-[10px] text-zinc-500 truncate">{c.email}</p>
+                                          </div>
+                                          <div className="text-right">
+                                              <p className="text-white font-black text-sm">${c.total.toLocaleString()}</p>
+                                              <p className="text-[9px] text-zinc-600 font-bold uppercase">{c.count} Compras</p>
+                                          </div>
                                       </div>
-                                  </td>
-                                  <td className="p-4 text-right font-black text-emerald-500">
-                                      ${order.total.toLocaleString()}
-                                  </td>
-                                  <td className="p-4 text-center">
-                                      <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full ${order.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-zinc-800 text-zinc-500'}`}>
-                                          {order.status === 'completed' ? 'Aprobado' : order.status}
-                                      </span>
-                                  </td>
+                                  ));
+                          })()}
+                      </div>
+                  </div>
+              ) : (
+                  <div className="overflow-x-auto">
+                      <table className="w-full text-left">
+                          <thead className="bg-black/40 text-[9px] md:text-[10px] text-zinc-500 uppercase font-black tracking-widest">
+                              <tr>
+                                  <th className="p-4 rounded-l-xl">Fecha</th>
+                                  <th className="p-4">Cliente</th>
+                                  <th className="p-4">Items / Etapa</th>
+                                  <th className="p-4 text-right">Total</th>
+                                  <th className="p-4 rounded-r-xl text-center">Estado</th>
                               </tr>
-                          ))}
-                          {orders.filter(o => o.staff_id === currentUser.user_id).length === 0 && (
-                              <tr><td colSpan={5} className="p-8 text-center text-zinc-600 font-bold uppercase">Aún no has realizado ventas personales.</td></tr>
-                          )}
-                      </tbody>
-                  </table>
-              </div>
+                          </thead>
+                          <tbody className="divide-y divide-white/5 text-xs md:text-sm">
+                              {orders
+                                  .filter(o => o.staff_id === currentUser.user_id && (orderFilterEvent === 'all' || o.event_id === orderFilterEvent))
+                                  .sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                                  .map(order => (
+                                  <tr key={order.id} className="hover:bg-white/5 transition-colors">
+                                      <td className="p-4 text-zinc-400">
+                                          {new Date(order.timestamp).toLocaleDateString()} <br/>
+                                          <span className="text-[10px]">{new Date(order.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                      </td>
+                                      <td className="p-4">
+                                          <div className="font-bold text-white">{order.customer_name}</div>
+                                          <div className="text-[10px] text-zinc-500">{order.customer_email || 'Sin email'}</div>
+                                      </td>
+                                      <td className="p-4">
+                                          <div className="flex flex-col gap-1">
+                                              {order.items.map((item, idx) => (
+                                                  <div key={idx} className="flex items-center gap-2 text-[11px]">
+                                                      <span className="bg-white/10 px-1.5 py-0.5 rounded text-white font-bold">{item.quantity}x</span>
+                                                      <span className="text-zinc-300">{item.tier_name}</span>
+                                                  </div>
+                                              ))}
+                                          </div>
+                                      </td>
+                                      <td className="p-4 text-right font-black text-emerald-500">
+                                          ${order.total.toLocaleString()}
+                                      </td>
+                                      <td className="p-4 text-center">
+                                          <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full ${order.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-zinc-800 text-zinc-500'}`}>
+                                              {order.status === 'completed' ? 'Aprobado' : order.status}
+                                          </span>
+                                      </td>
+                                  </tr>
+                              ))}
+                              {orders.filter(o => o.staff_id === currentUser.user_id && (orderFilterEvent === 'all' || o.event_id === orderFilterEvent)).length === 0 && (
+                                  <tr><td colSpan={5} className="p-8 text-center text-zinc-600 font-bold uppercase">No hay ventas registradas para este filtro.</td></tr>
+                              )}
+                          </tbody>
+                      </table>
+                  </div>
+              )}
           </div>
       )}
 

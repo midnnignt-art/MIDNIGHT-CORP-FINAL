@@ -194,6 +194,11 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
                                     Finanzas
                                 </span>
                             </button>
+                            <button onClick={() => handleNavigateAction('top-clients')} className={`w-full text-left py-2.5 px-4 rounded-lg flex items-center justify-between group transition-all ${currentPage === 'top-clients' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
+                                <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-3">
+                                    Top Clients
+                                </span>
+                            </button>
                         </div>
                     )}
                 </div>

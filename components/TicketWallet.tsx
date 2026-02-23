@@ -9,6 +9,7 @@ const motion = _motion as any;
 export default function TicketWallet() {
   const { orders, events, currentCustomer } = useStore();
   const [viewMode, setViewMode] = useState<'carousel' | 'list'>('carousel');
+  const [filterEventId, setFilterEventId] = useState<string>('all');
   const [[page, direction], setPage] = useState([0, 0]);
 
   const myOrders = useMemo(() => {
@@ -18,9 +19,11 @@ export default function TicketWallet() {
 
     return orders.filter(o => {
         const orderEmail = o.customer_email ? o.customer_email.toLowerCase().trim() : '';
-        return orderEmail === userEmail && o.status === 'completed';
+        const matchesEmail = orderEmail === userEmail && o.status === 'completed';
+        const matchesEvent = filterEventId === 'all' || o.event_id === filterEventId;
+        return matchesEmail && matchesEvent;
     }).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  }, [orders, currentCustomer]);
+  }, [orders, currentCustomer, filterEventId]);
 
   // Reset page if it goes out of bounds when orders change
   React.useEffect(() => {
@@ -53,14 +56,50 @@ export default function TicketWallet() {
 
   if (myOrders.length === 0) {
     return (
-      <div className="text-center py-16 md:py-20 px-4 md:px-6 border border-white/5 rounded-[2rem] md:rounded-[3rem] bg-zinc-900/20 backdrop-blur-sm">
-        <div className="w-16 h-16 md:w-20 md:h-20 bg-zinc-800/50 rounded-full flex items-center justify-center mb-4 md:mb-6 mx-auto">
-          <Ticket className="w-8 h-8 md:w-10 md:h-10 text-zinc-600" />
+      <div className="space-y-8">
+        {/* Filters & View Toggle */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+          {/* Event Filter */}
+          <select 
+            value={filterEventId}
+            onChange={(e) => {
+              setFilterEventId(e.target.value);
+              setPage([0, 0]);
+            }}
+            className="bg-white/5 border border-white/10 rounded-xl px-4 h-10 text-[10px] font-black text-white uppercase tracking-widest focus:border-neon-purple outline-none w-full sm:w-48"
+          >
+            <option value="all">TODOS LOS EVENTOS</option>
+            {events
+              .filter(e => orders.some(o => o.event_id === e.id && o.customer_email?.toLowerCase().trim() === currentCustomer?.email?.toLowerCase().trim()))
+              .map(e => (
+                <option key={e.id} value={e.id}>{e.title}</option>
+              ))
+            }
+          </select>
         </div>
-        <h3 className="text-lg md:text-2xl font-black text-white tracking-tight uppercase">Billetera Vacía</h3>
-        <p className="text-zinc-500 mt-2 max-w-xs mx-auto font-medium text-xs md:text-base">
-          No se encontraron tickets asociados a <span className="text-white font-bold">{currentCustomer.email}</span>.
-        </p>
+
+        <div className="text-center py-16 md:py-20 px-4 md:px-6 border border-white/5 rounded-[2rem] md:rounded-[3rem] bg-zinc-900/20 backdrop-blur-sm">
+          <div className="w-16 h-16 md:w-20 md:h-20 bg-zinc-800/50 rounded-full flex items-center justify-center mb-4 md:mb-6 mx-auto">
+            <Ticket className="w-8 h-8 md:w-10 md:h-10 text-zinc-600" />
+          </div>
+          <h3 className="text-lg md:text-2xl font-black text-white tracking-tight uppercase">
+            {filterEventId === 'all' ? 'Billetera Vacía' : 'Sin Entradas'}
+          </h3>
+          <p className="text-zinc-500 mt-2 max-w-xs mx-auto font-medium text-xs md:text-base">
+            {filterEventId === 'all' 
+              ? `No se encontraron tickets asociados a ${currentCustomer.email}.`
+              : `No tienes entradas para el evento seleccionado.`
+            }
+          </p>
+          {filterEventId !== 'all' && (
+            <button 
+              onClick={() => setFilterEventId('all')}
+              className="mt-6 text-neon-purple text-[10px] font-black uppercase tracking-widest hover:underline"
+            >
+              Ver todas mis entradas
+            </button>
+          )}
+        </div>
       </div>
     );
   }
@@ -87,8 +126,26 @@ export default function TicketWallet() {
 
   return (
     <div className="relative w-full max-w-2xl mx-auto px-4">
-      {/* View Toggle */}
-      <div className="flex justify-center mb-8">
+      {/* Filters & View Toggle */}
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+        {/* Event Filter */}
+        <select 
+          value={filterEventId}
+          onChange={(e) => {
+            setFilterEventId(e.target.value);
+            setPage([0, 0]);
+          }}
+          className="bg-white/5 border border-white/10 rounded-xl px-4 h-10 text-[10px] font-black text-white uppercase tracking-widest focus:border-neon-purple outline-none w-full sm:w-48"
+        >
+          <option value="all">TODOS LOS EVENTOS</option>
+          {events
+            .filter(e => orders.some(o => o.event_id === e.id && o.customer_email?.toLowerCase().trim() === currentCustomer?.email?.toLowerCase().trim()))
+            .map(e => (
+              <option key={e.id} value={e.id}>{e.title}</option>
+            ))
+          }
+        </select>
+
         <div className="bg-white/5 p-1 rounded-xl border border-white/10 flex gap-1">
           <button 
             onClick={() => setViewMode('carousel')}
