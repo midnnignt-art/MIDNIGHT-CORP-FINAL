@@ -536,6 +536,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             // Determines initial status based on payment method
             const initialStatus = method === 'bold' ? 'pending' : 'completed';
             const createdOrders: any[] = [];
+            const groupId = expandedItems.length > 1 ? crypto.randomUUID() : null;
 
             // 3. Create Orders Loop (Sequential to ensure order)
             for (const item of expandedItems) {
@@ -557,7 +558,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     payment_method: method || 'cash',
                     staff_id: finalStaffId, 
                     commission_amount: finalStaffId ? commission : 0,
-                    net_amount: item.unit_price - (finalStaffId ? commission : 0)
+                    net_amount: item.unit_price - (finalStaffId ? commission : 0),
+                    group_id: groupId // Link orders together
                 };
 
                 let { data: order, error: orderError } = await supabase.from('orders').insert(orderPayload).select().single();
