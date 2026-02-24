@@ -469,14 +469,13 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
         const event = events.find(e => e.id === selectedEventId);
         if (!event) throw new Error("Evento no encontrado");
 
-        const createdOrders: any[] = [];
-        
-        // Split each cart item into individual tickets
+        // Construir array de todas las boletas a crear
+        const allTicketPromises: Promise<any>[] = [];
+
         for (const item of cart) {
             const tier = tiers.find(t => t.id === item.tierId);
             if (!tier) continue;
 
-            // Create 'quantity' number of individual orders
             for (let i = 0; i < item.quantity; i++) {
                 const singleItem = [{
                     tier_id: item.tierId,
@@ -485,17 +484,31 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                     unit_price: tier.price,
                     subtotal: tier.price
                 }];
-
-                // skipEmail=true because we will send one bulk email at the end
-                const order = await createOrder(selectedEventId, singleItem, 'cash', currentUser.user_id, manualCustomerInfo, true);
-                if (order) createdOrders.push(order);
+                // skipEmail=true AND skipRefresh=true (new parameter)
+                allTicketPromises.push(
+                    createOrder(selectedEventId, singleItem, 'cash', currentUser.user_id, manualCustomerInfo, true, true)
+                );
             }
         }
 
+        // ✅ BATCH PROCESSING: Process in chunks to avoid overwhelming the DB
+        const BATCH_SIZE = 10; 
+        const createdOrders: any[] = [];
+
+        for (let i = 0; i < allTicketPromises.length; i += BATCH_SIZE) {
+            const batch = allTicketPromises.slice(i, i + BATCH_SIZE);
+            const results = await Promise.all(batch);
+            createdOrders.push(...results.filter(Boolean));
+        }
+
         if (createdOrders.length > 0) {
-            // Send ONE bulk email with all tickets
+            // UN solo email con todos los tickets
             const { sendTicketEmail } = await import('../services/emailService');
             await sendTicketEmail(createdOrders, event);
+
+            // UN solo refresh al final
+            const { fetchData } = useStore();
+            await fetchData();
 
             const total = createdOrders.reduce((acc, o) => acc + o.total, 0);
             setCart([]); 

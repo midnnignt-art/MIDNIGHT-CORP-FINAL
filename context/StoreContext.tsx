@@ -38,11 +38,12 @@ interface StoreContextType {
     createTeam: (name: string, managerId: string) => Promise<void>;
     updateStaffTeam: (userId: string, teamId: string | null) => Promise<void>;
     deleteTeam: (teamId: string) => Promise<void>;
-    createOrder: (eventId: string, cartItems: any[], method: string, staffId?: string, customerInfo?: any, skipEmail?: boolean) => Promise<Order | null>;
+    createOrder: (eventId: string, cartItems: any[], method: string, staffId?: string, customerInfo?: any, skipEmail?: boolean, skipRefresh?: boolean) => Promise<Order | null>;
     clearDatabase: () => Promise<void>;
     updateGallery: (items: GalleryItem[]) => Promise<void>;
     validateTicket: (orderNumber: string) => Promise<{ success: boolean; message: string; order?: Order }>;
     validarYQuemarTicket: (orderNumber: string, eventId: string) => Promise<{ success: boolean; status: 'success' | 'used' | 'invalid'; message: string; order?: Order }>;
+    fetchData: () => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -484,18 +485,28 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         } catch (error) { console.error(error); }
     };
     
-    const createOrder = async (eventId: string, cartItems: any[], method: string, staffId?: string, customerInfo?: any, skipEmail = false) => {
+    const createOrder = async (
+        eventId: string, 
+        cartItems: any[], 
+        method: string, 
+        staffId?: string, 
+        customerInfo?: any, 
+        skipEmail = false,
+        skipRefresh = false // Nueva optimización
+    ) => {
         try {
             // Improved uniqueness: MID + timestamp + random suffix
             const orderNumber = `MID-${Date.now().toString().slice(-8)}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`.toUpperCase().trim();
-            const total = cartItems.reduce((acc, i) => acc + (i.unit_price * i.quantity), 0);
+            const total = cartItems.reduce((acc: any, i: any) => acc + (i.unit_price * i.quantity), 0);
             
             // NORMALIZATION: Ensure email is lowercase and trimmed
             const finalEmail = (customerInfo?.email || 'anon@mail.com').toLowerCase().trim();
             const finalName = customerInfo?.name || 'Anon';
+            const finalPhone = customerInfo?.phone || null;
             
             let commission = 0;
-            cartItems.forEach(item => {
+            // Calculate total commission for the order
+            cartItems.forEach((item: any) => {
                 const tier = tiers.find(t => t.id === item.tier_id);
                 if (tier) commission += (tier.commission_fixed || 0) * item.quantity;
             });
@@ -526,6 +537,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 event_id: eventId,
                 customer_name: finalName,
                 customer_email: finalEmail,
+                customer_phone: finalPhone,
                 total: total,
                 status: initialStatus, 
                 payment_method: method || 'cash',
@@ -547,7 +559,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
             if (orderError) throw new Error(`DB Error (${orderError.code}): ${orderError.message}`);
 
-            const itemsToInsert = cartItems.map(item => ({
+            const itemsToInsert = cartItems.map((item: any) => ({
                 order_id: order.id,
                 tier_id: item.tier_id,
                 tier_name: item.tier_name,
@@ -561,19 +573,51 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
             // Only update inventory and sales stats if order is completed (not pending payment)
             if (initialStatus === 'completed') {
+                const statsPromises: Promise<any>[] = [];
+
+                // 1. Update Tier Inventory
                 for (const item of cartItems) {
                     const tier = tiers.find(t => t.id === item.tier_id);
-                    if (tier) await supabase.from('ticket_tiers').update({ sold: (tier.sold || 0) + item.quantity }).eq('id', tier.id);
+                    if (tier) {
+                        statsPromises.push(
+                            supabase.from('ticket_tiers')
+                                .update({ sold: (tier.sold || 0) + item.quantity })
+                                .eq('id', tier.id)
+                                .then() as Promise<any>
+                        );
+                    }
                 }
-                
-                const event = events.find(e => e.id === eventId);
-                if (event) await supabase.from('events').update({ tickets_sold: (event.tickets_sold || 0) + cartItems.reduce((a:any,b:any)=>a+b.quantity,0), total_revenue: (event.total_revenue || 0) + total }).eq('id', eventId);
 
+                // 2. Update Event Stats
+                const event = events.find(e => e.id === eventId);
+                if (event) {
+                    statsPromises.push(
+                        supabase.from('events').update({
+                            tickets_sold: (event.tickets_sold || 0) + cartItems.reduce((a: any, b: any) => a + b.quantity, 0),
+                            total_revenue: (event.total_revenue || 0) + total
+                        }).eq('id', eventId)
+                        .then() as Promise<any>
+                    );
+                }
+
+                // 3. Update Promoter Stats
                 if (order.staff_id) {
                     const promoter = promoters.find(p => p.user_id === order.staff_id);
-                    if (promoter) await supabase.from('profiles').update({ total_sales: (promoter.total_sales || 0) + total, total_commission_earned: (promoter.total_commission_earned || 0) + commission }).eq('id', order.staff_id);
+                    if (promoter) {
+                        statsPromises.push(
+                            supabase.from('profiles').update({
+                                total_sales: (promoter.total_sales || 0) + total,
+                                total_commission_earned: (promoter.total_commission_earned || 0) + commission
+                            }).eq('id', order.staff_id)
+                            .then() as Promise<any>
+                        );
+                    }
                 }
 
+                // Execute all updates in parallel
+                await Promise.all(statsPromises);
+
+                // Email (si aplica)
                 if (event && order.customer_email && order.customer_email.includes('@') && !skipEmail) {
                      // FIX: Map the DB created_at to timestamp property required by Order interface
                      const fullOrder = { 
@@ -581,11 +625,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                          items: cartItems,
                          timestamp: order.created_at 
                      };
-                     sendTicketEmail(fullOrder, event);
+                     // Dynamic import to avoid circular dependency issues if any
+                     import('../services/emailService').then(({ sendTicketEmail }) => {
+                        sendTicketEmail(fullOrder, event);
+                     });
                 }
             }
 
-            await fetchData(); 
+            if (!skipRefresh) {
+                await fetchData(); 
+            }
+            
             // FIX: Ensure returned object has required properties
             return { ...order, items: cartItems, timestamp: order.created_at };
 
@@ -663,38 +713,72 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             return { success: false, status: 'invalid' as const, message: "⚠️ Datos incompletos" };
         }
 
-        const cleanOrderNumber = orderNumber.trim().toUpperCase();
-
         try {
-            // Atomic update: only update if used is false AND event_id matches
+            // OPTIMIZATION: Use RPC for atomic validation and burn
             const { data, error } = await supabase
-                .from('orders')
-                .update({ used: true, used_at: new Date().toISOString() })
-                .eq('order_number', cleanOrderNumber)
-                .eq('event_id', eventId)
-                .eq('used', false)
-                .select()
-                .single();
+                .rpc('validate_and_burn_ticket', {
+                    p_order_number: orderNumber.trim().toUpperCase(),
+                    p_event_id: eventId
+                });
 
             if (error) {
-                // If no rows updated, it might be used or invalid
-                const { data: checkData } = await supabase
+                console.warn("RPC failed, falling back to legacy validation:", error);
+                // Fallback logic if RPC doesn't exist yet
+                const cleanOrderNumber = orderNumber.trim().toUpperCase();
+                const { data: checkData, error: checkError } = await supabase
                     .from('orders')
-                    .select('used, event_id')
+                    .select('id, used, event_id, status, customer_name')
                     .eq('order_number', cleanOrderNumber)
-                    .single();
+                    .maybeSingle();
                 
                 if (!checkData) return { success: false, status: 'invalid' as const, message: "⚠️ Boleto no encontrado" };
+                if (checkData.status !== 'completed') return { success: false, status: 'invalid' as const, message: "⚠️ Pago no confirmado" };
                 if (checkData.event_id !== eventId) return { success: false, status: 'invalid' as const, message: "⚠️ Boleto para otro evento" };
                 if (checkData.used) return { success: false, status: 'used' as const, message: "🚫 Boleto ya utilizado" };
+
+                // Update
+                await supabase.from('orders').update({ used: true, used_at: new Date().toISOString() }).eq('id', checkData.id);
                 
-                throw error;
+                // Surgical update local state
+                setOrders(prev => prev.map(o => o.order_number === cleanOrderNumber ? { ...o, used: true } : o));
+                
+                return { 
+                    success: true, 
+                    status: 'success' as const, 
+                    message: `✅ ${checkData.customer_name || 'Acceso Permitido'}`,
+                    order: { ...checkData, order_number: cleanOrderNumber } as any
+                };
             }
 
-            await fetchData();
-            return { success: true, status: 'success' as const, message: "✅ Acceso Permitido", order: data as Order };
+            const result = data as { status: string; message: string; customer_name?: string; order_number?: string };
+
+            if (result.status === 'success') {
+                // SURGICAL UPDATE: Update local state without full refetch
+                setOrders(prev =>
+                    prev.map(o =>
+                        o.order_number === orderNumber.trim().toUpperCase()
+                            ? { ...o, used: true, used_at: new Date().toISOString() }
+                            : o
+                    )
+                );
+            }
+
+            return {
+                success: result.status === 'success',
+                status: result.status as 'success' | 'used' | 'invalid',
+                message: result.status === 'success'
+                    ? `✅ ${result.customer_name || 'Acceso Permitido'}`
+                    : result.message,
+                order: result.status === 'success' ? { 
+                    order_number: result.order_number || '', 
+                    customer_name: result.customer_name || '',
+                    // Add dummy values for required Order properties to satisfy type
+                    id: '', event_id: '', customer_email: '', total: 0, status: 'completed', used: true, items: [], timestamp: '', commission_amount: 0, operational_amount: 0, net_amount: 0
+                } as Order : undefined
+            };
+
         } catch (error: any) {
-            console.error("Burn Error:", error);
+            console.error("RPC Error:", error);
             return { success: false, status: 'invalid' as const, message: "⚠️ Error de validación" };
         }
     };
@@ -705,7 +789,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             login, logout, requestCustomerOtp, verifyCustomerOtp, customerLogout,
             getEventTiers, addEvent, updateEvent, archiveEvent, restoreEvent, hardDeleteEvent,
             addStaff, deleteStaff, createTeam, updateStaffTeam, deleteTeam, createOrder, clearDatabase,
-            addEventCost, deleteEventCost, updateCostStatus, updateGallery, validateTicket, validarYQuemarTicket
+            addEventCost, deleteEventCost, updateCostStatus, updateGallery, validateTicket, validarYQuemarTicket, fetchData
         }}>
             {children}
         </StoreContext.Provider>

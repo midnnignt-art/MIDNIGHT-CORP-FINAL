@@ -31,7 +31,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ eventId, onClose }) => {
         const timer = setTimeout(() => {
             setScanResult({ status: 'idle', message: '' });
             isProcessing.current = false;
-        }, 3000);
+        }, 2500); // Reduced from 3000ms to 2500ms for better flow
         return () => clearTimeout(timer);
     }
   }, [scanResult.status]);
@@ -47,57 +47,81 @@ const QRScanner: React.FC<QRScannerProps> = ({ eventId, onClose }) => {
   useEffect(() => {
     if (!selectedEventId) return;
 
+    let isMounted = true; 
+
     const startScanner = async () => {
-      try {
-        // Cleanup previous if exists
-        if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
-            await html5QrCodeRef.current.stop();
-        }
-
-        const html5QrCode = new Html5Qrcode("qr-reader");
-        html5QrCodeRef.current = html5QrCode;
-
-        const config = { 
-          fps: 10, 
-          qrbox: { width: 250, height: 250 },
-          aspectRatio: 1.0
-        };
-
-        await html5QrCode.start(
-          { facingMode: "environment" },
-          config,
-          async (decodedText) => {
-            if (isProcessing.current || scanResult.status !== 'idle') return;
-            
-            isProcessing.current = true;
-            
-            if (navigator.vibrate) {
-                navigator.vibrate(100);
+        try {
+            // Cleanup previous if exists
+            if (html5QrCodeRef.current) {
+                try {
+                    if (html5QrCodeRef.current.isScanning) {
+                        await html5QrCodeRef.current.stop();
+                    }
+                    html5QrCodeRef.current.clear();
+                } catch (e) {
+                    // Ignore cleanup errors
+                }
+                html5QrCodeRef.current = null;
             }
 
-            const result = await validarYQuemarTicket(decodedText.trim().toUpperCase(), selectedEventId);
-            setScanResult({
-                status: result.status,
-                message: result.message
-            });
-          },
-          (errorMessage) => {}
-        );
-        
-        setIsCameraReady(true);
-      } catch (err: any) {
-        console.error("Error starting scanner:", err);
-        setCameraError(err.message || "No se pudo acceder a la cámara");
-      }
+            if (!isMounted) return;
+
+            const html5QrCode = new Html5Qrcode("qr-reader");
+            html5QrCodeRef.current = html5QrCode;
+
+            const config = { 
+              fps: 15, // Increased FPS for faster scanning
+              qrbox: { width: 250, height: 250 },
+              aspectRatio: 1.0,
+              experimentalFeatures: {
+                  useBarCodeDetectorIfSupported: true
+              }
+            };
+
+            await html5QrCode.start(
+              { facingMode: "environment" },
+              config,
+              async (decodedText) => {
+                // Fix: Use ref to check processing state to avoid stale closure
+                if (isProcessing.current) return;
+                
+                isProcessing.current = true;
+                
+                if (navigator.vibrate) {
+                    navigator.vibrate(100);
+                }
+
+                const result = await validarYQuemarTicket(decodedText.trim().toUpperCase(), selectedEventId);
+                
+                if (isMounted) {
+                    setScanResult({
+                        status: result.status,
+                        message: result.message
+                    });
+                }
+              },
+              (errorMessage) => {}
+            );
+            
+            if (isMounted) setIsCameraReady(true);
+        } catch (err: any) {
+            console.error("Error starting scanner:", err);
+            if (isMounted) setCameraError(err.message || "No se pudo acceder a la cámara");
+        }
     };
 
     startScanner();
 
     return () => {
-      if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
-        html5QrCodeRef.current.stop()
-          .then(() => html5QrCodeRef.current?.clear())
-          .catch(err => console.error("Failed to stop scanner", err));
+      isMounted = false;
+      if (html5QrCodeRef.current) {
+        const scanner = html5QrCodeRef.current;
+        html5QrCodeRef.current = null;
+        if (scanner.isScanning) {
+            scanner.stop()
+                .then(() => scanner.clear())
+                .catch(err => console.error("Failed to stop scanner", err));
+        }
       }
     };
   }, [selectedEventId]);
