@@ -495,20 +495,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         skipRefresh = false // Nueva optimización
     ) => {
         try {
-            // Improved uniqueness: MID + timestamp + random suffix
-            const orderNumber = `MID-${Date.now().toString().slice(-8)}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`.toUpperCase().trim();
-            const total = cartItems.reduce((acc: any, i: any) => acc + (i.unit_price * i.quantity), 0);
-            
+            // 1. Expand items to individual tickets
+            const expandedItems: any[] = [];
+            let grandTotal = 0;
+
+            for (const item of cartItems) {
+                for (let i = 0; i < item.quantity; i++) {
+                    expandedItems.push({ 
+                        ...item, 
+                        quantity: 1, 
+                        subtotal: item.unit_price // Recalculate subtotal for single item
+                    });
+                    grandTotal += item.unit_price;
+                }
+            }
+
+            // 2. Prepare common data
             // NORMALIZATION: Ensure email is lowercase and trimmed
             const finalEmail = (customerInfo?.email || 'anon@mail.com').toLowerCase().trim();
             const finalName = customerInfo?.name || 'Anon';
-            
-            let commission = 0;
-            // Calculate total commission for the order
-            cartItems.forEach((item: any) => {
-                const tier = tiers.find(t => t.id === item.tier_id);
-                if (tier) commission += (tier.commission_fixed || 0) * item.quantity;
-            });
             
             // FIX: STRICT UUID VALIDATION FOR STAFF ID
             let finalStaffId = null;
@@ -530,57 +535,78 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
             // Determines initial status based on payment method
             const initialStatus = method === 'bold' ? 'pending' : 'completed';
+            const createdOrders: any[] = [];
 
-            const orderPayload = {
-                order_number: orderNumber,
-                event_id: eventId,
-                customer_name: finalName,
-                customer_email: finalEmail,
-                total: total,
-                status: initialStatus, 
-                payment_method: method || 'cash',
-                staff_id: finalStaffId, 
-                commission_amount: finalStaffId ? commission : 0,
-                net_amount: total - (finalStaffId ? commission : 0)
-            };
+            // 3. Create Orders Loop (Sequential to ensure order)
+            for (const item of expandedItems) {
+                // Improved uniqueness: MID + timestamp + random suffix
+                const orderNumber = `MID-${Date.now().toString().slice(-8)}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`.toUpperCase().trim();
+                
+                // Calculate commission for this single item
+                let commission = 0;
+                const tier = tiers.find(t => t.id === item.tier_id);
+                if (tier) commission = (tier.commission_fixed || 0);
 
-            let { data: order, error: orderError } = await supabase.from('orders').insert(orderPayload).select().single();
-            
-            // Retry logic if there's a foreign key constraint error (e.g. staff_id deleted/invalid)
-            if (orderError && (orderError.code === '23503' || orderError.message.includes('foreign key'))) {
-                console.warn("Order creation failed due to invalid FK (Staff ID). Retrying as Organic Sale.");
-                const fallback = { ...orderPayload, staff_id: null, commission_amount: 0, net_amount: total };
-                const retry = await supabase.from('orders').insert(fallback).select().single();
-                order = retry.data;
-                orderError = retry.error;
+                const orderPayload = {
+                    order_number: orderNumber,
+                    event_id: eventId,
+                    customer_name: finalName,
+                    customer_email: finalEmail,
+                    total: item.unit_price, // Individual price
+                    status: initialStatus, 
+                    payment_method: method || 'cash',
+                    staff_id: finalStaffId, 
+                    commission_amount: finalStaffId ? commission : 0,
+                    net_amount: item.unit_price - (finalStaffId ? commission : 0)
+                };
+
+                let { data: order, error: orderError } = await supabase.from('orders').insert(orderPayload).select().single();
+                
+                // Retry logic if there's a foreign key constraint error (e.g. staff_id deleted/invalid)
+                if (orderError && (orderError.code === '23503' || orderError.message.includes('foreign key'))) {
+                    console.warn("Order creation failed due to invalid FK (Staff ID). Retrying as Organic Sale.");
+                    const fallback = { ...orderPayload, staff_id: null, commission_amount: 0, net_amount: item.unit_price };
+                    const retry = await supabase.from('orders').insert(fallback).select().single();
+                    order = retry.data;
+                    orderError = retry.error;
+                }
+
+                if (orderError) throw new Error(`DB Error (${orderError.code}): ${orderError.message}`);
+
+                // Insert Item
+                const itemToInsert = {
+                    order_id: order.id,
+                    tier_id: item.tier_id,
+                    tier_name: item.tier_name,
+                    quantity: 1,
+                    unit_price: item.unit_price,
+                    subtotal: item.unit_price
+                };
+
+                const { error: itemsError } = await supabase.from('order_items').insert([itemToInsert]);
+                if (itemsError) throw new Error(`Items Error: ${itemsError.message}`);
+
+                createdOrders.push(order);
             }
 
-            if (orderError) throw new Error(`DB Error (${orderError.code}): ${orderError.message}`);
-
-            const itemsToInsert = cartItems.map((item: any) => ({
-                order_id: order.id,
-                tier_id: item.tier_id,
-                tier_name: item.tier_name,
-                quantity: item.quantity,
-                unit_price: item.unit_price,
-                subtotal: item.subtotal
-            }));
-
-            const { error: itemsError } = await supabase.from('order_items').insert(itemsToInsert);
-            if (itemsError) throw new Error(`Items Error: ${itemsError.message}`);
-
-            // Only update inventory and sales stats if order is completed (not pending payment)
+            // 4. Update Stats (only if completed)
             if (initialStatus === 'completed') {
                 const statsPromises: Promise<any>[] = [];
 
+                // Group by Tier ID for updates
+                const tierCounts: {[key: string]: number} = {};
+                expandedItems.forEach(item => {
+                    tierCounts[item.tier_id] = (tierCounts[item.tier_id] || 0) + 1;
+                });
+
                 // 1. Update Tier Inventory
-                for (const item of cartItems) {
-                    const tier = tiers.find(t => t.id === item.tier_id);
+                for (const [tierId, count] of Object.entries(tierCounts)) {
+                    const tier = tiers.find(t => t.id === tierId);
                     if (tier) {
-                        statsPromises.push(
+                         statsPromises.push(
                             supabase.from('ticket_tiers')
-                                .update({ sold: (tier.sold || 0) + item.quantity })
-                                .eq('id', tier.id)
+                                .update({ sold: (tier.sold || 0) + count })
+                                .eq('id', tierId)
                                 .then() as Promise<any>
                         );
                     }
@@ -591,22 +617,28 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 if (event) {
                     statsPromises.push(
                         supabase.from('events').update({
-                            tickets_sold: (event.tickets_sold || 0) + cartItems.reduce((a: any, b: any) => a + b.quantity, 0),
-                            total_revenue: (event.total_revenue || 0) + total
+                            tickets_sold: (event.tickets_sold || 0) + expandedItems.length,
+                            total_revenue: (event.total_revenue || 0) + grandTotal
                         }).eq('id', eventId)
                         .then() as Promise<any>
                     );
                 }
 
                 // 3. Update Promoter Stats
-                if (order.staff_id) {
-                    const promoter = promoters.find(p => p.user_id === order.staff_id);
+                if (finalStaffId) {
+                    const promoter = promoters.find(p => p.user_id === finalStaffId);
                     if (promoter) {
+                        let totalCommission = 0;
+                        expandedItems.forEach(item => {
+                             const tier = tiers.find(t => t.id === item.tier_id);
+                             if (tier) totalCommission += (tier.commission_fixed || 0);
+                        });
+
                         statsPromises.push(
                             supabase.from('profiles').update({
-                                total_sales: (promoter.total_sales || 0) + total,
-                                total_commission_earned: (promoter.total_commission_earned || 0) + commission
-                            }).eq('id', order.staff_id)
+                                total_sales: (promoter.total_sales || 0) + grandTotal,
+                                total_commission_earned: (promoter.total_commission_earned || 0) + totalCommission
+                            }).eq('id', finalStaffId)
                             .then() as Promise<any>
                         );
                     }
@@ -614,33 +646,36 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
                 // Execute all updates in parallel
                 await Promise.all(statsPromises);
+            }
 
-                // Email (si aplica)
-                if (event && order.customer_email && order.customer_email.includes('@') && !skipEmail) {
+            // 5. Send Email (Bulk)
+            if (!skipEmail && createdOrders.length > 0) {
+                const event = events.find(e => e.id === eventId);
+                if (event) {
                      // FIX: Map the DB created_at to timestamp property required by Order interface
-                     const fullOrder = { 
-                         ...order, 
-                         items: cartItems,
-                         timestamp: order.created_at 
-                     };
-                     // Dynamic import to avoid circular dependency issues if any
-                     import('../services/emailService').then(({ sendTicketEmail }) => {
-                        sendTicketEmail(fullOrder, event);
-                     });
+                     const ordersWithTimestamp = createdOrders.map(o => ({
+                         ...o,
+                         timestamp: o.created_at
+                     }));
+                     const { sendTicketEmail } = await import('../services/emailService');
+                     await sendTicketEmail(ordersWithTimestamp, event);
                 }
             }
 
-            if (!skipRefresh) {
-                await fetchData(); 
+            if (!skipRefresh) await fetchData();
+
+            // 6. Return Head Order with Group Info
+            const headOrder = createdOrders[0];
+            if (createdOrders.length > 1) {
+                (headOrder as any)._groupOrders = createdOrders;
+                (headOrder as any)._groupTotal = grandTotal;
             }
             
-            // FIX: Ensure returned object has required properties
-            return { ...order, items: cartItems, timestamp: order.created_at };
+            return { ...headOrder, items: cartItems, timestamp: headOrder.created_at };
 
-        } catch (error: any) {
-            console.error("Order Creation Failed:", error);
-            alert(`Error Base de Datos: ${error.message}`);
-            return null;
+        } catch (error: any) { 
+            console.error("Error creating order:", error);
+            throw error; 
         }
     };
 

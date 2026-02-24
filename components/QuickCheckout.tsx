@@ -67,6 +67,35 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
           // ✅ CORREGIDO: el webhook guarda 'completed', no 'paid'
           if (newStatus === 'completed') {
             setPaymentStatus('paid');
+            
+            // NEW: Update other group orders if they exist
+            if ((pendingOrder as any)._groupOrders) {
+                 const groupOrders = (pendingOrder as any)._groupOrders as any[];
+                 const otherOrderIds = groupOrders.filter(o => o.id !== pendingOrder.id).map(o => o.id);
+                 
+                 if (otherOrderIds.length > 0) {
+                     console.log("🔄 Updating group orders:", otherOrderIds);
+                     supabase.from('orders')
+                        .update({ status: 'completed', payment_method: 'bold' })
+                        .in('id', otherOrderIds)
+                        .then(({ error }) => {
+                            if (error) console.error("❌ Error updating group orders:", error);
+                            else console.log("✅ Group orders updated to completed");
+                        });
+                 }
+            }
+
+            // SEND EMAIL WITH ALL TICKETS
+            const allOrders = (pendingOrder as any)._groupOrders || [pendingOrder];
+            import('../services/emailService').then(({ sendTicketEmail }) => {
+                // Ensure timestamp is present for email template
+                const ordersWithTimestamp = allOrders.map((o: any) => ({
+                    ...o,
+                    timestamp: o.timestamp || o.created_at || new Date().toISOString()
+                }));
+                sendTicketEmail(ordersWithTimestamp, event).catch(console.error);
+            });
+
             setTimeout(() => {
               window.location.href = `/gracias?order=${pendingOrder.order_number}`;
             }, 2000);
@@ -99,7 +128,7 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
       try {
           if (!pendingOrder) throw new Error("No hay orden pendiente.");
           
-          const rawAmount = pendingOrder.total;
+          const rawAmount = (pendingOrder as any)._groupTotal || pendingOrder.total;
           const rawOrderId = pendingOrder.order_number;
 
           if (!rawAmount || !rawOrderId) throw new Error("Datos de orden incompletos.");
