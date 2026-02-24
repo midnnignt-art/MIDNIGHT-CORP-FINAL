@@ -502,7 +502,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             // NORMALIZATION: Ensure email is lowercase and trimmed
             const finalEmail = (customerInfo?.email || 'anon@mail.com').toLowerCase().trim();
             const finalName = customerInfo?.name || 'Anon';
-            const finalPhone = customerInfo?.phone || null;
             
             let commission = 0;
             // Calculate total commission for the order
@@ -537,7 +536,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 event_id: eventId,
                 customer_name: finalName,
                 customer_email: finalEmail,
-                customer_phone: finalPhone,
                 total: total,
                 status: initialStatus, 
                 payment_method: method || 'cash',

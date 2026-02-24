@@ -10,7 +10,7 @@ import QRScanner from '../components/QRScanner';
 const motion = _motion as any;
 
 export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
-  const { events, promoters, orders, tiers, createOrder, getEventTiers, currentUser, teams, addStaff, validateTicket } = useStore();
+  const { events, promoters, orders, tiers, createOrder, getEventTiers, currentUser, teams, addStaff, validateTicket, fetchData } = useStore();
   const [showManualSale, setShowManualSale] = useState(false);
   const [showRecruitmentModal, setShowRecruitmentModal] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
@@ -507,7 +507,6 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
             await sendTicketEmail(createdOrders, event);
 
             // UN solo refresh al final
-            const { fetchData } = useStore();
             await fetchData();
 
             const total = createdOrders.reduce((acc, o) => acc + o.total, 0);
