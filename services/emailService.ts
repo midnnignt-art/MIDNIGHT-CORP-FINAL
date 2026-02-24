@@ -71,9 +71,15 @@ export const sendTicketEmail = async (orderOrOrders: Order | Order[], event: Eve
               </div>
 
               <!-- CTA -->
-              <div style="margin: 40px 0; text-align: center;">
-                <a href="${walletUrl}" style="background-color: #ffffff; color: #000000; padding: 20px 40px; border-radius: 100px; text-decoration: none; font-weight: 900; font-size: 12px; text-transform: uppercase; letter-spacing: 2px; display: inline-block;">
-                  VER EN MI BILLETERA
+              <div style="margin: 60px 0; text-align: center; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 40px;">
+                <p style="color: #ffffff; font-size: 14px; font-weight: bold; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">
+                    Accede a tus entradas online
+                </p>
+                <p style="color: #8E9299; font-size: 12px; line-height: 1.6; margin-bottom: 30px; max-width: 320px; margin-left: auto; margin-right: auto;">
+                    Puedes encontrar tus entradas iniciando sesión en nuestra plataforma. Busca la opción <strong>"ENTRADAS"</strong> en el menú superior derecho.
+                </p>
+                <a href="${APP_URL}" style="background-color: #490F7C; color: #ffffff; padding: 18px 36px; border-radius: 100px; text-decoration: none; font-weight: 900; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; display: inline-block; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 0 20px rgba(73, 15, 124, 0.4);">
+                  IR A MIDNIGHT
                 </a>
               </div>
 
