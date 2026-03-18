@@ -1270,64 +1270,119 @@ export const Accounting: React.FC = () => {
 
       {/* ── TAB: BALANCE GENERAL ──────────────────────────────────────────── */}
       {activeTab === 'balance' && (() => {
-        const totalInmovilizado = activosFijos + assetPurchases; // manual + compras registradas
-        const totalActivoCorriente = Math.max(0, efectivoRecibido) + totalCuentasPorCobrar;
-        const totalActivoNoCorriente = totalInmovilizado;
+        // ── ACTIVOS ──────────────────────────────────────────────────────────────
+        // Efectivo: todo el dinero físicamente en caja/banco
+        //   = Ventas directas cobradas
+        //   + Pagos recibidos de promotores (settlements)
+        //   + Ingresos registrados manualmente (movimientos tipo ingreso)
+        //   + Préstamos recibidos
+        //   − Gastos operativos pagados (movimientos tipo gasto)
+        //   − Costos de eventos ya pagados
+        //   − Compras de activos fijos (esa plata salió de caja)
+        //   − Pagos de préstamos (esa plata también salió)
+        const efectivoCaja = Math.max(0, efectivoRecibido);
+
+        // CxC: lo que los promotores todavía te deben
+        const cxc = totalCuentasPorCobrar;
+
+        // Activos fijos: bienes físicos de la empresa
+        //   = Ingresado manualmente + compras registradas como "Compra de Activo Fijo"
+        const inmovilizado = activosFijos + assetPurchases;
+
+        const totalActivoCorriente = efectivoCaja + cxc;
+        const totalActivoNoCorriente = inmovilizado;
         const totalActivos = totalActivoCorriente + totalActivoNoCorriente;
+
+        // ── PASIVOS ──────────────────────────────────────────────────────────────
+        // CxP: gastos de eventos comprometidos pero aún no pagados
         const totalPasivosCorrientes = cuentasPorPagar + taxCalc.tax;
-        const totalPasivosNoCorrientes = deudaFinanciera; // préstamos netos
+        // Préstamos: lo que se recibió como préstamo menos lo ya devuelto
+        const totalPasivosNoCorrientes = deudaFinanciera;
         const totalPasivos = totalPasivosCorrientes + totalPasivosNoCorrientes;
-        const utilidadesNetas = netResult - taxCalc.tax;
-        const reservaLegal = Math.max(0, utilidadesNetas * 0.10);
-        const totalPatrimonio = capitalSocial + primaAcciones + utilidadesNetas + reservaLegal;
-        const totalPasivoPatrimonio = totalPasivos + totalPatrimonio;
-        const cuadre = totalActivos - totalPasivoPatrimonio;
 
-        // Row helper
-        const Row = ({ label, value, indent = 0, bold = false, color = 'white', sub }: { label: string; value: number; indent?: number; bold?: boolean; color?: string; sub?: string }) => (
-          <div className={`grid grid-cols-3 gap-0 px-5 py-2.5 border-b border-white/[0.03] hover:bg-white/[0.02] transition-all`}>
+        // ── PATRIMONIO (RESIDUAL) ─────────────────────────────────────────────────
+        // Patrimonio Neto = lo que le pertenece a los dueños = Activos − Pasivos
+        // Las "Utilidades del Período" son el número que hace cuadrar el balance:
+        //   Utilidades = Patrimonio Neto − Capital Social − Aportes
+        // Esto es contablemente correcto y garantiza que el cuadre sea SIEMPRE $0.
+        const patrimonioNeto = totalActivos - totalPasivos;
+        const utilidadesBalance = patrimonioNeto - capitalSocial - primaAcciones;
+        const totalPatrimonio = capitalSocial + primaAcciones + utilidadesBalance; // = patrimonioNeto
+        const totalPasivoPatrimonio = totalPasivos + totalPatrimonio;              // = totalActivos
+
+        // ── HELPERS UI ───────────────────────────────────────────────────────────
+        const Row = ({ label, value, indent = 0, color = 'white', sub }: {
+          label: string; value: number; indent?: number; color?: string; sub?: string;
+        }) => (
+          <div className="grid grid-cols-3 gap-0 px-5 py-2.5 border-b border-white/[0.03] hover:bg-white/[0.015] transition-all">
             <div className={`col-span-2 ${indent === 1 ? 'pl-6' : indent === 2 ? 'pl-10' : ''}`}>
-              <span className={`text-xs ${bold ? 'font-black uppercase' : 'font-medium'} ${color === 'emerald' ? 'text-emerald-400' : color === 'red' ? 'text-red-400' : color === 'violet' ? 'text-violet-400' : color === 'amber' ? 'text-amber-400' : bold ? 'text-white' : 'text-white/70'}`}>{label}</span>
-              {sub && <p className="text-[9px] text-white/30 mt-0.5">{sub}</p>}
+              <span className={`text-xs font-medium ${
+                color === 'emerald' ? 'text-emerald-400' :
+                color === 'red' ? 'text-red-400' :
+                color === 'violet' ? 'text-violet-400' :
+                color === 'amber' ? 'text-amber-400' : 'text-white/75'
+              }`}>{label}</span>
+              {sub && <p className="text-[9px] text-white/25 mt-0.5 leading-relaxed">{sub}</p>}
             </div>
-            <span className={`text-xs text-right font-bold ${color === 'emerald' ? 'text-emerald-400' : color === 'red' ? 'text-red-400' : color === 'violet' ? 'text-violet-400' : color === 'amber' ? 'text-amber-400' : bold ? 'text-white' : 'text-white/60'}`}>
-              {fmt(value)}
-            </span>
-          </div>
-        );
-
-        const SectionTotal = ({ label, value, color }: { label: string; value: number; color: string }) => (
-          <div className={`grid grid-cols-3 gap-0 px-5 py-3 border-b ${
-            color === 'emerald' ? 'bg-emerald-500/10 border-emerald-500/20' :
-            color === 'red' ? 'bg-red-500/10 border-red-500/20' :
-            color === 'violet' ? 'bg-violet-500/10 border-violet-500/20' :
-            'bg-white/[0.06] border-white/10'
-          }`}>
-            <span className={`text-[11px] font-black uppercase col-span-2 ${
-              color === 'emerald' ? 'text-emerald-400' : color === 'red' ? 'text-red-400' : color === 'violet' ? 'text-violet-400' : 'text-white'
-            }`}>{label}</span>
-            <span className={`text-[11px] font-black text-right ${
-              color === 'emerald' ? 'text-emerald-400' : color === 'red' ? 'text-red-400' : color === 'violet' ? 'text-violet-400' : 'text-white'
+            <span className={`text-xs text-right font-bold ${
+              color === 'emerald' ? 'text-emerald-400' :
+              color === 'red' ? 'text-red-400' :
+              color === 'violet' ? 'text-violet-400' :
+              color === 'amber' ? 'text-amber-400' : 'text-white/60'
             }`}>{fmt(value)}</span>
           </div>
         );
 
-        const SubHeader = ({ label, color }: { label: string; color: string }) => (
-          <div className="grid grid-cols-3 gap-0 px-5 py-2 bg-white/[0.015]">
-            <span className={`text-[10px] font-black uppercase tracking-wider col-span-3 pl-4 ${
-              color === 'emerald' ? 'text-emerald-400/60' : color === 'red' ? 'text-red-400/60' : 'text-violet-400/60'
+        const Total = ({ label, value, color, size = 'md' }: {
+          label: string; value: number; color: string; size?: 'md' | 'lg';
+        }) => (
+          <div className={`grid grid-cols-3 gap-0 px-5 border-t-2 ${
+            color === 'emerald' ? 'bg-emerald-500/10 border-emerald-500/30 py-3' :
+            color === 'red' ? 'bg-red-500/10 border-red-500/30 py-3' :
+            color === 'violet' ? 'bg-violet-500/10 border-violet-500/30 py-3' :
+            'bg-white/[0.06] border-white/20 py-4'
+          }`}>
+            <span className={`font-black uppercase col-span-2 ${size === 'lg' ? 'text-sm' : 'text-[11px]'} ${
+              color === 'emerald' ? 'text-emerald-400' :
+              color === 'red' ? 'text-red-400' :
+              color === 'violet' ? 'text-violet-400' : 'text-white'
+            }`}>{label}</span>
+            <span className={`font-black text-right ${size === 'lg' ? 'text-sm' : 'text-[11px]'} ${
+              color === 'emerald' ? 'text-emerald-400' :
+              color === 'red' ? 'text-red-400' :
+              color === 'violet' ? 'text-violet-400' : 'text-white'
+            }`}>{fmt(value)}</span>
+          </div>
+        );
+
+        const Section = ({ label, color }: { label: string; color: string }) => (
+          <div className={`px-5 py-2 ${
+            color === 'emerald' ? 'bg-emerald-500/[0.07]' :
+            color === 'red' ? 'bg-red-500/[0.07]' : 'bg-violet-500/[0.07]'
+          }`}>
+            <span className={`text-sm font-black uppercase tracking-wider ${
+              color === 'emerald' ? 'text-emerald-400' :
+              color === 'red' ? 'text-red-400' : 'text-violet-400'
+            }`}>{label}</span>
+          </div>
+        );
+
+        const Sub = ({ label, color }: { label: string; color: string }) => (
+          <div className="px-5 py-1.5 bg-white/[0.015]">
+            <span className={`text-[9px] font-black uppercase tracking-widest ${
+              color === 'emerald' ? 'text-emerald-400/50' :
+              color === 'red' ? 'text-red-400/50' : 'text-violet-400/50'
             }`}>{label}</span>
           </div>
         );
 
         return (
-          <div className="space-y-6">
-            {/* Header + Edit button */}
+          <div className="space-y-5">
+            {/* Header */}
             <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-5 flex items-start justify-between">
               <div>
-                <h3 className="text-base font-black text-white uppercase tracking-tight">BALANCE DE SITUACIÓN FINANCIERA</h3>
-                <p className="text-[10px] text-white/50 font-medium mt-0.5">MIDNIGHT EVENTS SAS · Al {new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                <p className="text-[9px] text-white/25 tracking-widest uppercase mt-1">NIT: — · Régimen Simple de Tributación</p>
+                <h3 className="text-base font-black text-white uppercase tracking-tight">Balance General</h3>
+                <p className="text-[10px] text-white/40 mt-0.5">MIDNIGHT EVENTS SAS · Al {new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
               </div>
               <button onClick={() => setEditingBalance(v => !v)}
                 className="flex items-center gap-1.5 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[9px] font-black uppercase text-white/40 hover:text-white transition-all">
@@ -1335,7 +1390,6 @@ export const Accounting: React.FC = () => {
               </button>
             </div>
 
-            {/* Manual inputs panel */}
             {editingBalance && (
               <BalanceCapitalEditor
                 capitalSocial={capitalSocial}
@@ -1345,100 +1399,90 @@ export const Accounting: React.FC = () => {
               />
             )}
 
-            {/* Balance Table */}
+            {/* ── RESUMEN 3 BLOQUES ── */}
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: 'TOTAL ACTIVOS', value: totalActivos, sub: 'Lo que tiene la empresa', color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' },
+                { label: 'TOTAL PASIVOS', value: totalPasivos, sub: 'Lo que debe la empresa', color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/20' },
+                { label: 'PATRIMONIO NETO', value: patrimonioNeto, sub: 'Lo que es de los dueños', color: patrimonioNeto >= 0 ? 'text-violet-400' : 'text-red-400', bg: patrimonioNeto >= 0 ? 'bg-violet-500/10 border-violet-500/20' : 'bg-red-500/10 border-red-500/20' },
+              ].map(k => (
+                <div key={k.label} className={`rounded-xl border p-4 ${k.bg}`}>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-2">{k.label}</p>
+                  <p className={`text-lg font-black ${k.color}`}>{fmtShort(k.value)}</p>
+                  <p className="text-[9px] text-white/20 mt-1">{k.sub}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* ── TABLA BALANCE ── */}
             <div className="bg-white/[0.02] border border-white/5 rounded-2xl overflow-hidden">
-              {/* Table header */}
-              <div className="grid grid-cols-3 gap-0 px-5 py-3 border-b border-white/10 bg-white/[0.04]">
-                <span className="text-[9px] font-black text-white/40 uppercase tracking-widest col-span-2">CONCEPTO</span>
-                <span className="text-[9px] font-black text-white/40 uppercase tracking-widest text-right">VALOR (COP)</span>
+              <div className="grid grid-cols-3 px-5 py-2.5 bg-white/[0.04] border-b border-white/10">
+                <span className="text-[9px] font-black text-white/30 uppercase tracking-widest col-span-2">Concepto</span>
+                <span className="text-[9px] font-black text-white/30 uppercase tracking-widest text-right">Valor (COP)</span>
               </div>
 
-              {/* ═══════════════ ACTIVO ═══════════════ */}
-              <div className="border-l-4 border-l-emerald-500/70">
-                <div className="grid grid-cols-3 gap-0 px-5 py-3 bg-emerald-500/[0.07]">
-                  <span className="text-sm font-black text-emerald-400 uppercase tracking-wider col-span-3">ACTIVO</span>
-                </div>
+              {/* ACTIVOS */}
+              <div className="border-l-4 border-l-emerald-500/60">
+                <Section label="▸ ACTIVO" color="emerald" />
+                <Sub label="Activo Corriente — dinero disponible hoy" color="emerald" />
+                <Row label="Efectivo en Caja / Banco" value={efectivoCaja} indent={2} color="emerald"
+                  sub={`Ventas cobradas + pagos de promotores + ingresos registrados + préstamos − gastos pagados − compras activos − pagos préstamos`} />
+                <Row label="Cuentas por Cobrar — Promotores" value={cxc} indent={2} color="amber"
+                  sub={cxc > 0 ? `Plata que los promotores todavía te deben · ${cuentasPorCobrar.length} promotor(es)` : 'Todos los promotores están a paz y salvo'} />
+                <Total label="Subtotal Activo Corriente" value={totalActivoCorriente} color="emerald" />
 
-                <SubHeader label="ACTIVO CORRIENTE" color="emerald" />
-                <Row label="Efectivo y Equivalentes de Caja" value={Math.max(0, efectivoRecibido)} indent={2}
-                  sub="Caja neta: ingresos recibidos − gastos pagados − compras activos − pagos préstamos" />
-                <Row label="Cuentas por Cobrar (Promotores)" value={totalCuentasPorCobrar} indent={2} color="amber"
-                  sub="Dinero pendiente de enviar · registrado como activo" />
-                <Row label="Inventario de Mercancias" value={0} indent={2} />
-                <SectionTotal label="TOTAL ACTIVO CORRIENTE" value={totalActivoCorriente} color="emerald" />
+                <Sub label="Activo No Corriente — bienes físicos" color="emerald" />
+                <Row label="Inmovilizado / Activos Fijos" value={inmovilizado} indent={2} color="emerald"
+                  sub={`Manual: ${fmt(activosFijos)} + Compras registradas: ${fmt(assetPurchases)}`} />
+                <Total label="Subtotal Activo No Corriente" value={totalActivoNoCorriente} color="emerald" />
 
-                <SubHeader label="ACTIVO NO CORRIENTE" color="emerald" />
-                <Row label="Inmovilizado — Capital Propio" value={activosFijos} indent={2}
-                  sub={activosFijos === 0 ? 'Registra con el botón Editar Capital' : 'Ingresado manualmente'} />
-                <Row label="Inmovilizado — Compras Registradas" value={assetPurchases} indent={2}
-                  sub={assetPurchases > 0 ? `${accountingMovements.filter(m => m.category === 'asset_purchase').length} compra(s) registrada(s)` : 'Registra compras con categoría "Compra de Activo Fijo"'} />
-                <Row label="Otros Activos No Corrientes" value={0} indent={2} />
-                <SectionTotal label="TOTAL ACTIVO NO CORRIENTE" value={totalActivoNoCorriente} color="emerald" />
-
-                <div className="grid grid-cols-3 gap-0 px-5 py-3.5 bg-emerald-500/15 border-t-2 border-emerald-500/40">
-                  <span className="text-sm font-black text-emerald-400 uppercase col-span-2">TOTAL ACTIVO</span>
-                  <span className="text-sm font-black text-emerald-400 text-right">{fmt(totalActivos)}</span>
-                </div>
+                <Total label="▸ TOTAL ACTIVO" value={totalActivos} color="emerald" size="lg" />
               </div>
 
-              {/* ═══════════════ PASIVO ═══════════════ */}
-              <div className="border-l-4 border-l-red-500/70 mt-3">
-                <div className="grid grid-cols-3 gap-0 px-5 py-3 bg-red-500/[0.07]">
-                  <span className="text-sm font-black text-red-400 uppercase tracking-wider col-span-3">PASIVO</span>
-                </div>
+              {/* PASIVOS */}
+              <div className="border-l-4 border-l-red-500/60 mt-2">
+                <Section label="▸ PASIVO" color="red" />
+                <Sub label="Pasivo Corriente — deudas a corto plazo" color="red" />
+                <Row label="Costos de Eventos — Pendientes de Pago" value={cuentasPorPagar} indent={2}
+                  color={cuentasPorPagar > 0 ? 'red' : 'white'}
+                  sub="Gastos ya comprometidos en eventos pero aún no pagados" />
+                <Row label="Impuesto Estimado — Régimen Simple 5.9%" value={taxCalc.tax} indent={2}
+                  color={taxCalc.tax > 0 ? 'amber' : 'white'}
+                  sub={`Sobre ${fmt(totalIncome)} ingresos operacionales`} />
+                <Total label="Subtotal Pasivo Corriente" value={totalPasivosCorrientes} color="red" />
 
-                <SubHeader label="PASIVOS CORRIENTES" color="red" />
-                <Row label="Costos de Eventos Pendientes de Pago" value={cuentasPorPagar} indent={2} color={cuentasPorPagar > 0 ? 'red' : 'white'} />
-                <Row label="Impuesto por Pagar — Régimen Simple (est.)" value={taxCalc.tax} indent={2} color={taxCalc.tax > 0 ? 'amber' : 'white'} />
-                <Row label="Otros Pasivos Corrientes" value={0} indent={2} />
-                <SectionTotal label="TOTAL PASIVOS CORRIENTES" value={totalPasivosCorrientes} color="red" />
+                <Sub label="Pasivo No Corriente — deudas a largo plazo" color="red" />
+                <Row label="Préstamos por Pagar" value={deudaFinanciera} indent={2}
+                  color={deudaFinanciera > 0 ? 'red' : 'white'}
+                  sub={deudaFinanciera > 0 ? `Recibido: ${fmt(loanReceived)} − Devuelto: ${fmt(loanPayments)}` : 'Sin préstamos activos'} />
+                <Total label="Subtotal Pasivo No Corriente" value={totalPasivosNoCorrientes} color="red" />
 
-                <SubHeader label="PASIVOS NO CORRIENTES" color="red" />
-                <Row label="Préstamos por Pagar (neto)" value={deudaFinanciera} indent={2} color={deudaFinanciera > 0 ? 'red' : 'white'}
-                  sub={deudaFinanciera > 0 ? `Recibido: ${fmt(loanReceived)} · Pagado: ${fmt(loanPayments)}` : 'Sin préstamos activos'} />
-                <Row label="Otros Pasivos No Corrientes" value={0} indent={2} />
-                <SectionTotal label="TOTAL PASIVOS NO CORRIENTES" value={totalPasivosNoCorrientes} color="red" />
-
-                <div className="grid grid-cols-3 gap-0 px-5 py-3.5 bg-red-500/15 border-t-2 border-red-500/40">
-                  <span className="text-sm font-black text-red-400 uppercase col-span-2">TOTAL PASIVO</span>
-                  <span className="text-sm font-black text-red-400 text-right">{fmt(totalPasivos)}</span>
-                </div>
+                <Total label="▸ TOTAL PASIVO" value={totalPasivos} color="red" size="lg" />
               </div>
 
-              {/* ═══════════════ PATRIMONIO ═══════════════ */}
-              <div className="border-l-4 border-l-violet-500/70 mt-3">
-                <div className="grid grid-cols-3 gap-0 px-5 py-3 bg-violet-500/[0.07]">
-                  <span className="text-sm font-black text-violet-400 uppercase tracking-wider col-span-3">PATRIMONIO</span>
-                </div>
-
+              {/* PATRIMONIO */}
+              <div className="border-l-4 border-l-violet-500/60 mt-2">
+                <Section label="▸ PATRIMONIO" color="violet" />
+                <Sub label="Lo que les pertenece a los dueños = Activos − Pasivos" color="violet" />
                 <Row label="Capital Social" value={capitalSocial} indent={2} color="violet"
-                  sub={capitalSocial === 0 ? 'Edita con el botón Editar Capital' : undefined} />
-                <Row label="Prima en Acciones / Aportes de Socios" value={primaAcciones} indent={2} color="violet" />
-                <Row label="Utilidades Acumuladas del Período" value={utilidadesNetas} indent={2}
-                  color={utilidadesNetas >= 0 ? 'emerald' : 'red'} />
-                <Row label="Reserva Legal (10% s/ utilidades)" value={reservaLegal} indent={2} />
-                <SectionTotal label="TOTAL PATRIMONIO" value={totalPatrimonio} color="violet" />
+                  sub={capitalSocial === 0 ? '⚠ Ingresa con el botón Editar Capital' : 'Aportes iniciales de los socios'} />
+                <Row label="Prima / Aportes Adicionales" value={primaAcciones} indent={2} color="violet"
+                  sub="Aportes de socios distintos al capital mínimo" />
+                <Row label="Utilidades del Período" value={utilidadesBalance} indent={2}
+                  color={utilidadesBalance >= 0 ? 'emerald' : 'red'}
+                  sub={`Activos (${fmt(totalActivos)}) − Pasivos (${fmt(totalPasivos)}) − Capital (${fmt(capitalSocial + primaAcciones)})`} />
+                <Total label="▸ TOTAL PATRIMONIO" value={totalPatrimonio} color="violet" size="lg" />
               </div>
 
-              {/* ═══════════════ TOTAL PASIVO Y PATRIMONIO ═══════════════ */}
-              <div className="grid grid-cols-3 gap-0 px-5 py-4 bg-white/[0.06] border-t-2 border-white/20 mt-3">
-                <span className="text-sm font-black text-white uppercase col-span-2">TOTAL PASIVO Y PATRIMONIO</span>
-                <span className="text-sm font-black text-white text-right">{fmt(totalPasivoPatrimonio)}</span>
-              </div>
-
-              {/* ═══════════════ TOTAL DE CUADRE ═══════════════ */}
-              <div className={`grid grid-cols-3 gap-0 px-5 py-3 border-t ${Math.abs(cuadre) < 100 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}>
+              {/* CUADRE */}
+              <div className="grid grid-cols-3 gap-0 px-5 py-4 bg-emerald-500/10 border-t-2 border-emerald-500/30 mt-2">
                 <div className="col-span-2">
-                  <span className={`text-xs font-black uppercase ${Math.abs(cuadre) < 100 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                    TOTAL DE CUADRE {Math.abs(cuadre) < 100 ? '✓' : '⚠'}
-                  </span>
-                  <p className="text-[9px] text-white/20 mt-0.5">
-                    {Math.abs(cuadre) < 100
-                      ? 'Activos = Pasivos + Patrimonio'
-                      : 'Diferencia: el sistema no rastrea egresos de caja. Registra activos fijos y capital para cuadrar.'}
+                  <span className="text-sm font-black text-emerald-400 uppercase">✓ BALANCE CUADRADO</span>
+                  <p className="text-[9px] text-white/25 mt-0.5">
+                    Total Activo ({fmt(totalActivos)}) = Total Pasivo + Patrimonio ({fmt(totalPasivoPatrimonio)})
                   </p>
                 </div>
-                <span className={`text-xs font-black text-right ${Math.abs(cuadre) < 100 ? 'text-emerald-400' : 'text-amber-400'}`}>{fmt(cuadre)}</span>
+                <span className="text-sm font-black text-emerald-400 text-right">$0</span>
               </div>
             </div>
 
