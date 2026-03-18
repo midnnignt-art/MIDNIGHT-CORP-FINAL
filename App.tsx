@@ -5,6 +5,7 @@ import { Dashboard } from './pages/Dashboard';
 import { AdminEvents } from './pages/AdminEvents';
 import { Projections } from './pages/Projections';
 import { TopClients } from './pages/TopClients';
+import { Accounting } from './pages/Accounting';
 import { SuccessPage } from './pages/SuccessPage'; // Importar nueva página
 import { CheckoutModal } from './components/CheckoutModal';
 import MagicPanel from './components/MagicPanel';
@@ -54,7 +55,7 @@ const App: React.FC = () => {
   }, [promoters]);
 
   useEffect(() => {
-    if (!currentUser && (currentPage === 'dashboard' || currentPage === 'admin-events' || currentPage === 'projections')) {
+    if (!currentUser && (currentPage === 'dashboard' || currentPage === 'admin-events' || currentPage === 'projections' || currentPage === 'contabilidad')) {
       setCurrentPage('home');
     }
     if (!currentCustomer && currentPage === 'tickets') {
@@ -119,6 +120,7 @@ const App: React.FC = () => {
           {currentPage === 'admin-events' && <AdminEvents role={currentUser?.role || UserRole.GUEST} />}
           {currentPage === 'projections' && <Projections role={currentUser?.role || UserRole.GUEST} />}
           {currentPage === 'top-clients' && <TopClients role={currentUser?.role || UserRole.GUEST} />}
+          {currentPage === 'contabilidad' && <Accounting />}
           {currentPage === 'tickets' && (
             <div className="animate-in fade-in slide-in-from-bottom-5 duration-700">
                 <div className="mb-12 text-center">

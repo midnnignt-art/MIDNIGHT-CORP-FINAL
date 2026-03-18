@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { 
-    Trash2, Plus, Pencil, Save, Users, ShieldCheck, 
-    UserCog, BadgeCheck, Database, Download, Upload, AlertTriangle, 
-    HardDrive, RefreshCcw, Layers, Target, UserPlus, Calendar, MapPin, DollarSign, Ticket, Eye, ArrowLeft, Search, User, Filter, Share2, CheckCircle2, XCircle, MinusCircle, Lock, Key, X, UserMinus, UserCheck
+    Trash2, Plus, Pencil, Save, Users, ShieldCheck,
+    UserCog, BadgeCheck, Database, Download, Upload, AlertTriangle,
+    HardDrive, RefreshCcw, Layers, Target, UserPlus, Calendar, MapPin, DollarSign, Ticket, Eye, ArrowLeft, Search, User, Filter, Share2, CheckCircle2, XCircle, MinusCircle, Lock, Key, X, UserMinus, UserCheck, Mail
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { Button } from '../components/ui/button';
@@ -249,21 +249,25 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
         alert('Squad creado exitosamente');
     };
 
-    const handleCreateStaff = () => {
-        if (!staffName || !staffCode || !staffPassword) return alert("Nombre, Código y Contraseña son obligatorios para el acceso.");
-        // Email es opcional para Staff administrativo, pero requerido si quisieran recuperar cuenta (aunque aquí es acceso por código)
-        const finalEmail = staffEmail || `${staffCode.toLowerCase()}@midnight.staff`; 
-        
-        addStaff({ 
-            name: staffName, 
-            code: staffCode.toUpperCase(), 
-            password: staffPassword,
-            email: finalEmail, 
-            role: staffRole 
-        }); 
-        
-        setStaffName(''); setStaffCode(''); setStaffPassword('1234'); setStaffEmail('');
-        alert(`Staff registrado. Acceso con CÓDIGO: ${staffCode.toUpperCase()}`);
+    const handleCreateStaff = async () => {
+        if (!staffName || !staffEmail || !staffPassword) return alert("Nombre, Email y Contraseña son obligatorios.");
+        if (!staffEmail.includes('@')) return alert("El email del staff es requerido para el nuevo sistema de login.");
+
+        const finalCode = staffCode.toUpperCase() || staffEmail.split('@')[0].toUpperCase();
+
+        try {
+            await addStaff({
+                name: staffName,
+                code: finalCode,
+                password: staffPassword,
+                email: staffEmail.toLowerCase().trim(),
+                role: staffRole
+            });
+            setStaffName(''); setStaffCode(''); setStaffPassword('1234'); setStaffEmail('');
+            alert(`✅ Staff registrado. Login con email: ${staffEmail.toLowerCase().trim()}`);
+        } catch (error: any) {
+            alert(`❌ Error al registrar staff: ${error.message || 'Verifica que el email no esté duplicado.'}`);
+        }
     };
 
     const handleDeleteTeam = async (id: string) => {
@@ -628,29 +632,25 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                         <div className="space-y-8">
                             <div className="bg-zinc-900 border border-white/10 p-6 rounded-3xl">
                                 <h2 className="text-xl font-black mb-6 text-neon-blue">Autorizar Staff</h2>
-                                <p className="text-xs text-zinc-500 mb-4">Crea un código de acceso único para que el staff ingrese al Command Center.</p>
-                                
+                                <p className="text-xs text-zinc-500 mb-4">El staff ingresa con su email — recibirá un código cada vez que quiera acceder.</p>
+
                                 <div className="space-y-4">
                                     <div>
                                         <label className="text-[10px] text-zinc-500 uppercase font-bold">Nombre Completo</label>
                                         <input value={staffName} onChange={e => setStaffName(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white font-bold" placeholder="Ej: Juan Pérez" />
                                     </div>
-                                    
+
                                     <div>
-                                        <label className="text-[10px] text-zinc-500 uppercase font-bold text-neon-purple flex items-center gap-1"><Key size={10}/> Código de Acceso (Usuario)</label>
-                                        <input value={staffCode} onChange={e => setStaffCode(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white uppercase font-black tracking-wider text-center" placeholder="EJ: JUANP123" />
-                                    </div>
-                                    
-                                    <div>
-                                        <label className="text-[10px] text-zinc-500 uppercase font-bold">Contraseña</label>
-                                        <input type="text" value={staffPassword} onChange={e => setStaffPassword(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white font-mono" placeholder="1234" />
+                                        <label className="text-[10px] text-zinc-500 uppercase font-bold text-neon-blue flex items-center gap-1"><Mail size={10}/> Email de Acceso</label>
+                                        <input type="email" value={staffEmail} onChange={e => setStaffEmail(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white font-bold" placeholder="staff@ejemplo.com" />
                                     </div>
 
                                     <div>
-                                        <label className="text-[10px] text-zinc-500 uppercase font-bold">Email (Contacto Opcional)</label>
-                                        <input type="email" value={staffEmail} onChange={e => setStaffEmail(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-zinc-400 text-xs" placeholder="contacto@ejemplo.com" />
+                                        <label className="text-[10px] text-zinc-500 uppercase font-bold">Código Identificador (opcional)</label>
+                                        <input value={staffCode} onChange={e => setStaffCode(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white uppercase font-black tracking-wider text-center" placeholder="EJ: JUANP" />
+                                        <p className="text-[9px] text-zinc-600 mt-1">Se usa para el link de referidos. Si lo dejas vacío se genera automático.</p>
                                     </div>
-                                    
+
                                     <div>
                                         <label className="text-[10px] text-zinc-500 uppercase font-bold">Rol</label>
                                         <select value={staffRole} onChange={(e:any) => setStaffRole(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white uppercase font-bold text-xs">

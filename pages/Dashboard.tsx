@@ -1,16 +1,42 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { UserRole, Promoter, SalesTeam, Order } from '../types';
 import { Button } from '../components/ui/button';
-import { Banknote, Award, Target, History, Users, Plus, X, Layers, UserPlus, TrendingUp, Sparkles, ChevronRight, Trash2, ShieldCheck, PieChart, Eye, Calendar, Ticket, ArrowRightLeft, ScrollText, Wallet, Link as LinkIcon, Copy, Share2, Check, Smartphone, User, Search, Filter, Loader2, Download, BarChart, AlertTriangle, CreditCard, Mail, Globe, MessageCircle, ChevronDown, ChevronUp, Laptop, Coins, UserCheck, QrCode } from 'lucide-react';
+import { Banknote, Award, Target, History, Users, Plus, X, Layers, UserPlus, TrendingUp, Sparkles, ChevronRight, Trash2, ShieldCheck, PieChart, Eye, Calendar, Ticket, ArrowRightLeft, ScrollText, Wallet, Link as LinkIcon, Copy, Share2, Check, Smartphone, User, Search, Filter, Loader2, Download, BarChart, AlertTriangle, CreditCard, Mail, Globe, MessageCircle, ChevronDown, ChevronUp, Laptop, Coins, UserCheck, QrCode, Send, CheckCircle2, Link2, ImagePlus, ZoomIn } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
+import { supabase } from '../lib/supabase';
 import PromoterRanking from '../components/PromoterRanking';
 import { motion as _motion, AnimatePresence } from 'framer-motion';
 import QRScanner from '../components/QRScanner';
 
 const motion = _motion as any;
 
+// ── IMAGE COMPRESSION (promoter uploads) ──────────────────────────────────────
+const compressImage = (file: File, maxPx = 1400, quality = 0.75): Promise<Blob> =>
+  new Promise(resolve => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(b => resolve(b!), 'image/jpeg', quality);
+    };
+    img.src = url;
+  });
+
 export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
-  const { events, promoters, orders, tiers, createOrder, getEventTiers, currentUser, teams, addStaff, validateTicket, fetchData } = useStore();
+  const { events, promoters, orders, tiers, createOrder, getEventTiers, currentUser, teams, addStaff, validateTicket, fetchData, settlements, addSettlement } = useStore();
+  const [showDebtUpload, setShowDebtUpload] = useState<{ eventId: string; eventTitle: string; promoterId: string; dineroAEnviar: number; totalEnviado: number } | null>(null);
+  const [debtUploadForm, setDebtUploadForm] = useState({ amount: '', method: 'transfer', notes: '' });
+  const [debtImageFile, setDebtImageFile] = useState<File | null>(null);
+  const [debtImagePreview, setDebtImagePreview] = useState<string | null>(null);
+  const [debtPreviewFull, setDebtPreviewFull] = useState<string | null>(null);
+  const [debtUploadLoading, setDebtUploadLoading] = useState(false);
+  const [debtUploadProgress, setDebtUploadProgress] = useState('');
+  const debtFileRef = useRef<HTMLInputElement>(null);
   const [showManualSale, setShowManualSale] = useState(false);
   const [showRecruitmentModal, setShowRecruitmentModal] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
@@ -649,6 +675,233 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
               </div>
           </div>
       </div>
+
+      {/* ── MI DEUDA ACTUAL (solo promotores no-admin) ─────────────────────── */}
+      {!isAdmin && (() => {
+        const fmt = (n: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
+
+        // All events where this promoter sold tickets
+        const myOrders = orders.filter(o => o.staff_id === currentUser.user_id && o.status === 'completed');
+        const myEventIds = [...new Set(myOrders.map(o => o.event_id))];
+
+        type DebtRow = { ev: typeof events[0]; dineroAEnviar: number; comisiones: number; yaEnviado: number; deuda: number; settList: typeof settlements; tickets: number };
+        const debtRows: DebtRow[] = myEventIds.map(eid => {
+          const ev = events.find(e => e.id === eid);
+          if (!ev) return null;
+          const evOrders = myOrders.filter(o => o.event_id === eid);
+          const dineroAEnviar = evOrders.reduce((s, o) => s + (o.net_amount || 0), 0);
+          const comisiones = evOrders.reduce((s, o) => s + (o.commission_amount || 0), 0);
+          const settList = settlements.filter(s => s.event_id === eid && s.promoter_id === currentUser.user_id);
+          const yaEnviado = settList.reduce((s, se) => s + se.amount_sent, 0);
+          const deuda = dineroAEnviar - yaEnviado;
+          return { ev, dineroAEnviar, comisiones, yaEnviado, deuda, settList, tickets: evOrders.length };
+        }).filter((r): r is DebtRow => r !== null);
+
+        const totalDeuda = debtRows.reduce((s: number, r: DebtRow) => s + r.deuda, 0);
+        if (debtRows.length === 0) return null;
+
+        return (
+          <div className="mb-8 md:mb-12">
+            {/* Modal subir comprobante (promotor) */}
+            {showDebtUpload && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl overflow-y-auto">
+                {debtPreviewFull && (
+                  <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/98 cursor-zoom-out" onClick={() => setDebtPreviewFull(null)}>
+                    <img src={debtPreviewFull} alt="comprobante" className="max-w-[90vw] max-h-[90vh] rounded-xl object-contain" />
+                  </div>
+                )}
+                <div className="w-full max-w-sm bg-[#0d0d0d] border border-white/10 rounded-2xl shadow-2xl overflow-hidden my-auto">
+                  <div className="flex items-center justify-between p-5 border-b border-white/5">
+                    <div>
+                      <h3 className="font-black text-white text-sm">Registrar Pago</h3>
+                      <p className="text-[9px] text-white/30">{showDebtUpload.eventTitle}</p>
+                    </div>
+                    <button onClick={() => { setShowDebtUpload(null); setDebtImageFile(null); setDebtImagePreview(null); }} className="text-white/30 hover:text-white"><X size={16} /></button>
+                  </div>
+                  <div className="p-5 space-y-3">
+                    {/* Summary */}
+                    <div className="grid grid-cols-3 gap-2 mb-1">
+                      {[
+                        { label: 'A enviar', val: fmt(showDebtUpload.dineroAEnviar), c: 'text-white' },
+                        { label: 'Enviado', val: fmt(showDebtUpload.totalEnviado), c: 'text-emerald-400' },
+                        { label: 'Deuda', val: (showDebtUpload.dineroAEnviar - showDebtUpload.totalEnviado) <= 0 ? '✓ PAZ' : fmt(showDebtUpload.dineroAEnviar - showDebtUpload.totalEnviado), c: (showDebtUpload.dineroAEnviar - showDebtUpload.totalEnviado) > 0 ? 'text-amber-400' : 'text-emerald-400' },
+                      ].map(k => (
+                        <div key={k.label} className="bg-white/5 rounded-lg p-2 text-center">
+                          <p className="text-[8px] text-white/30 uppercase font-black mb-0.5">{k.label}</p>
+                          <p className={`text-[10px] font-black ${k.c}`}>{k.val}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Monto */}
+                    <div>
+                      <label className="text-[9px] font-black text-white/30 uppercase tracking-widest block mb-1">Monto enviado (COP)</label>
+                      <input type="number" placeholder="0" value={debtUploadForm.amount}
+                        onChange={e => setDebtUploadForm(f => ({ ...f, amount: e.target.value }))}
+                        className="w-full bg-black border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm font-bold placeholder:text-white/15" />
+                    </div>
+
+                    {/* Método */}
+                    <div className="flex rounded-xl overflow-hidden border border-white/10">
+                      {[{ v: 'cash', l: 'Efectivo' }, { v: 'transfer', l: 'Transfer.' }, { v: 'mixed', l: 'Mixto' }].map(opt => (
+                        <button key={opt.v} type="button" onClick={() => setDebtUploadForm(f => ({ ...f, method: opt.v }))}
+                          className={`flex-1 py-2 text-[9px] font-black uppercase tracking-widest transition-all ${debtUploadForm.method === opt.v ? 'bg-white/10 text-white' : 'text-white/20 hover:text-white/40'}`}>
+                          {opt.l}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Imagen */}
+                    <div>
+                      <label className="text-[9px] font-black text-white/30 uppercase tracking-widest block mb-1 flex items-center gap-1">
+                        <ImagePlus size={9} /> Comprobante (imagen · se comprime auto)
+                      </label>
+                      <input ref={debtFileRef} type="file" accept="image/*" className="hidden"
+                        onChange={e => {
+                          const f = e.target.files?.[0];
+                          if (!f) return;
+                          setDebtImageFile(f);
+                          setDebtImagePreview(URL.createObjectURL(f));
+                        }} />
+                      {debtImagePreview ? (
+                        <div className="relative w-full h-28 rounded-xl overflow-hidden border border-white/10 group">
+                          <img src={debtImagePreview} alt="preview" className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-3 transition-all">
+                            <button onClick={() => setDebtPreviewFull(debtImagePreview)} className="text-white p-2 rounded-lg bg-white/10 hover:bg-white/20"><Eye size={14} /></button>
+                            <button onClick={() => { setDebtImageFile(null); setDebtImagePreview(null); if (debtFileRef.current) debtFileRef.current.value = ''; }}
+                              className="text-red-400 p-2 rounded-lg bg-red-500/10"><Trash2 size={14} /></button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button onClick={() => debtFileRef.current?.click()}
+                          className="w-full h-16 border-2 border-dashed border-white/10 rounded-xl text-white/20 hover:text-white/40 hover:border-white/20 transition-all flex items-center justify-center gap-2 text-[9px] font-black uppercase">
+                          <ImagePlus size={16} /> Seleccionar imagen
+                        </button>
+                      )}
+                    </div>
+
+                    <textarea placeholder="Notas (opcional)" value={debtUploadForm.notes}
+                      onChange={e => setDebtUploadForm(f => ({ ...f, notes: e.target.value }))} rows={2}
+                      className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-white text-xs placeholder:text-white/20 resize-none" />
+
+                    <button disabled={debtUploadLoading || !debtUploadForm.amount}
+                      onClick={async () => {
+                        if (!debtUploadForm.amount || Number(debtUploadForm.amount) <= 0) return;
+                        setDebtUploadLoading(true);
+                        try {
+                          let comprobanteUrl: string | undefined;
+                          if (debtImageFile) {
+                            setDebtUploadProgress('Comprimiendo...');
+                            const compressed = await compressImage(debtImageFile);
+                            setDebtUploadProgress('Subiendo imagen...');
+                            const path = `${showDebtUpload.eventId}/${showDebtUpload.promoterId}/${Date.now()}.jpg`;
+                            const { error: upErr } = await supabase.storage.from('comprobantes').upload(path, compressed, { contentType: 'image/jpeg' });
+                            if (upErr) throw upErr;
+                            comprobanteUrl = supabase.storage.from('comprobantes').getPublicUrl(path).data.publicUrl;
+                          }
+                          setDebtUploadProgress('Guardando...');
+                          await addSettlement({
+                            event_id: showDebtUpload.eventId,
+                            promoter_id: showDebtUpload.promoterId,
+                            amount_sent: Number(debtUploadForm.amount),
+                            payment_method: debtUploadForm.method,
+                            comprobante_url: comprobanteUrl,
+                            notes: debtUploadForm.notes || undefined,
+                          });
+                          setShowDebtUpload(null);
+                          setDebtUploadForm({ amount: '', method: 'transfer', notes: '' });
+                          setDebtImageFile(null);
+                          setDebtImagePreview(null);
+                        } catch (e: any) { alert(e.message); }
+                        finally { setDebtUploadLoading(false); setDebtUploadProgress(''); }
+                      }}
+                      className="w-full py-3 bg-white text-black font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-white/90 transition-all disabled:opacity-40 flex items-center justify-center gap-2">
+                      {debtUploadLoading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                      {debtUploadLoading ? (debtUploadProgress || 'Enviando...') : 'Registrar Pago'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-zinc-900/50 border border-white/5 rounded-[2rem] p-6 md:p-8 overflow-hidden relative">
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h3 className="text-base md:text-xl font-black text-white flex items-center gap-2">
+                    <CreditCard className="text-amber-400 w-5 h-5" /> MI DEUDA ACTUAL
+                  </h3>
+                  <p className="text-[9px] text-zinc-500 uppercase tracking-widest mt-0.5">Cierre por evento · Dinero pendiente de enviar</p>
+                </div>
+                <div className={`px-4 py-2 rounded-full font-black text-sm ${totalDeuda > 0 ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}`}>
+                  {totalDeuda > 0 ? fmt(totalDeuda) : '✓ PAZ Y SALVO'}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {debtRows.map(row => (
+                  <div key={row.ev.id} className={`rounded-xl p-4 border transition-all ${row.deuda > 0 ? 'bg-amber-500/5 border-amber-500/20' : row.deuda < 0 ? 'bg-blue-500/5 border-blue-500/20' : 'bg-emerald-500/5 border-emerald-500/20'}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-black text-white text-xs truncate">{row.ev.title}</p>
+                        <p className="text-[9px] text-white/30 uppercase">{row.ev.city} · {row.ev.event_date?.slice(0, 10)} · {row.tickets} boleta{row.tickets !== 1 ? 's' : ''}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            setShowDebtUpload({ eventId: row.ev.id, eventTitle: row.ev.title, promoterId: currentUser.user_id, dineroAEnviar: row.dineroAEnviar, totalEnviado: row.yaEnviado });
+                            setDebtUploadForm({ amount: '', method: 'transfer', notes: '' });
+                            setDebtImageFile(null); setDebtImagePreview(null);
+                          }}
+                          className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase flex items-center gap-1 transition-all bg-white/5 text-white/40 hover:text-white hover:bg-white/10">
+                          <Send size={10} /> {row.settList.length > 0 ? `${row.settList.length} pago${row.settList.length > 1 ? 's' : ''}` : 'Registrar Pago'}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3 mt-3">
+                      <div>
+                        <p className="text-[8px] text-white/30 uppercase font-black mb-0.5">A Enviar</p>
+                        <p className="text-xs font-black text-white">{fmt(row.dineroAEnviar)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[8px] text-white/30 uppercase font-black mb-0.5">Enviado</p>
+                        <p className={`text-xs font-black ${row.yaEnviado > 0 ? 'text-emerald-400' : 'text-white/30'}`}>{row.yaEnviado > 0 ? fmt(row.yaEnviado) : '—'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[8px] text-white/30 uppercase font-black mb-0.5">Deuda</p>
+                        <p className={`text-xs font-black ${row.deuda > 0 ? 'text-amber-400' : row.deuda < 0 ? 'text-blue-400' : 'text-emerald-400'}`}>
+                          {row.deuda > 0 ? fmt(row.deuda) : row.deuda === 0 ? '✓ PAZ Y SALVO' : `+${fmt(Math.abs(row.deuda))} crédito`}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Historial de pagos del promotor */}
+                    {row.settList.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-white/5 space-y-1">
+                        {row.settList.map(se => (
+                          <div key={se.id} className="flex items-center gap-2">
+                            <span className="text-[8px] text-emerald-400 font-black">{fmt(se.amount_sent)}</span>
+                            <span className="text-[8px] text-white/30">
+                              {se.payment_method === 'cash' ? '💵' : se.payment_method === 'transfer' ? '🏦' : '🔀'}
+                            </span>
+                            <span className="text-[8px] text-white/20">{se.created_at?.slice(0, 10)}</span>
+                            {se.comprobante_url && (
+                              <button onClick={() => setDebtPreviewFull(se.comprobante_url!)}
+                                className="text-[8px] text-violet-400 hover:underline flex items-center gap-0.5">
+                                <ZoomIn size={8} /> Ver
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* --- KPI SECTION --- */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8 md:mb-12">

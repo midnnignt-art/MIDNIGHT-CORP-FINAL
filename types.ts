@@ -28,8 +28,10 @@ export interface EventCost {
   event_id: string;
   concept: string;
   category: 'venue' | 'production' | 'staff' | 'marketing' | 'artists' | 'logistics' | 'other';
-  amount: number;
+  amount: number;           // monto proyectado
+  actual_amount?: number | null;  // monto real pagado (puede ser más o menos)
   status: 'pending' | 'paid' | 'cancelled';
+  paid_at?: string | null;
   notes?: string;
 }
 
@@ -157,4 +159,52 @@ export interface Transaction {
   status: 'pending' | 'completed' | 'failed' | 'reversed';
   promoter_id?: string;
   timestamp: string;
+}
+
+// ── EVENT SETTLEMENT (CIERRE) ─────────────────────────────────────────────────
+export interface EventSettlement {
+  id: string;
+  event_id: string;
+  promoter_id: string;
+  amount_sent: number;
+  payment_method: 'cash' | 'transfer' | 'mixed' | null;
+  comprobante_url?: string | null;
+  notes?: string | null;
+  registered_by?: string | null;
+  created_at: string;
+}
+
+// ── ACCOUNTING MODULE ──────────────────────────────────────────────────────────
+export type AccountingMovementType = 'income' | 'expense';
+
+export type AccountingIncomeCategory =
+  | 'ticket_sales'
+  | 'sponsorship'
+  | 'merchandise'
+  | 'bar_services'
+  | 'venue_rental'
+  | 'other_income';
+
+export type AccountingExpenseCategory =
+  | 'venue'
+  | 'production'
+  | 'staff'
+  | 'marketing'
+  | 'artists'
+  | 'logistics'
+  | 'administrative'
+  | 'taxes'
+  | 'other_expense';
+
+export interface AccountingMovement {
+  id: string;
+  date: string;
+  type: AccountingMovementType;
+  amount: number;
+  category: AccountingIncomeCategory | AccountingExpenseCategory;
+  event_id?: string | null;
+  responsible?: string | null;
+  description: string;
+  created_at: string;
+  created_by?: string | null;
 }

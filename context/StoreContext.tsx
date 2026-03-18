@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { 
-  Event, Promoter, TicketTier, Order, UserRole, SalesTeam, EventCost, GalleryItem 
+import {
+  Event, Promoter, TicketTier, Order, UserRole, SalesTeam, EventCost, GalleryItem, AccountingMovement, EventSettlement
 } from '../types';
 import { supabase } from '../lib/supabase';
 import { sendTicketEmail } from '../services/emailService';
@@ -12,14 +12,17 @@ interface StoreContextType {
     orders: Order[];
     teams: SalesTeam[];
     galleryItems: GalleryItem[];
-    currentUser: any; 
-    currentCustomer: any; 
+    accountingMovements: AccountingMovement[];
+    settlements: EventSettlement[];
+    currentUser: any;
+    currentCustomer: any;
     dbStatus: 'synced' | 'local' | 'syncing' | 'error';
     
     // Auth methods
     login: (code: string, password?: string) => Promise<boolean>;
     logout: () => void;
     requestCustomerOtp: (email: string, metadata?: any) => Promise<{ success: boolean; message?: string }>;
+    verifyOtpUnified: (email: string, token: string) => Promise<boolean>;
     verifyCustomerOtp: (email: string, token: string) => Promise<boolean>;
     customerLogout: () => Promise<void>;
     
@@ -33,6 +36,7 @@ interface StoreContextType {
     addEventCost: (eventId: string, cost: Omit<EventCost, 'id' | 'event_id'>) => Promise<void>;
     deleteEventCost: (eventId: string, costId: string) => Promise<void>;
     updateCostStatus: (eventId: string, costId: string, status: 'pending' | 'paid' | 'cancelled') => Promise<void>;
+    updateCostActual: (costId: string, actualAmount: number, status: 'paid' | 'pending') => Promise<void>;
     addStaff: (staffData: any) => Promise<void>;
     deleteStaff: (id: string) => Promise<void>;
     createTeam: (name: string, managerId: string) => Promise<void>;
@@ -43,6 +47,10 @@ interface StoreContextType {
     updateGallery: (items: GalleryItem[]) => Promise<void>;
     validateTicket: (orderNumber: string) => Promise<{ success: boolean; message: string; order?: Order }>;
     validarYQuemarTicket: (orderNumber: string, eventId: string) => Promise<{ success: boolean; status: 'success' | 'used' | 'invalid'; message: string; order?: Order }>;
+    addAccountingMovement: (movement: Omit<AccountingMovement, 'id' | 'created_at'>) => Promise<void>;
+    deleteAccountingMovement: (id: string) => Promise<void>;
+    addSettlement: (data: { event_id: string; promoter_id: string; amount_sent: number; payment_method: string; comprobante_url?: string; notes?: string }) => Promise<void>;
+    deleteSettlement: (id: string) => Promise<void>;
     fetchData: () => Promise<void>;
 }
 
@@ -64,7 +72,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const [teams, setTeams] = useState<SalesTeam[]>([]);
     const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
     
-    const [currentUser, setCurrentUser] = useState<any>(null); 
+    const [accountingMovements, setAccountingMovements] = useState<AccountingMovement[]>([]);
+    const [settlements, setSettlements] = useState<EventSettlement[]>([]);
+
+    const [currentUser, setCurrentUser] = useState<any>(null);
     const [currentCustomer, setCurrentCustomer] = useState<any>(null);
 
     const [dbStatus, setDbStatus] = useState<'synced' | 'local' | 'syncing' | 'error'>('syncing');
@@ -143,6 +154,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const { data: profilesData } = await supabase.from('profiles').select('*');
             const { data: ordersData } = await supabase.from('orders').select(`*, items:order_items(*)`).order('created_at', { ascending: false });
             const { data: teamsData } = await supabase.from('sales_teams').select('*');
+            const { data: accountingData } = await supabase.from('accounting_movements').select('*').order('date', { ascending: false });
+            const { data: settlementsData } = await supabase.from('event_settlements').select('*').order('created_at', { ascending: false });
 
             const mappedEvents: Event[] = (eventsData || []).map((e: any) => ({
                 ...e, gallery: [], tags: [], nft_benefits: [], costs: e.costs || []
@@ -183,6 +196,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setPromoters(mappedPromoters);
             setOrders(mappedOrders);
             setTeams(mappedTeams);
+            setAccountingMovements(accountingData || []);
+            setSettlements(settlementsData || []);
             setDbStatus('synced');
 
         } catch (error) {
@@ -215,6 +230,56 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     const logout = async () => { setCurrentUser(null); localStorage.removeItem('midnight_user_id'); };
+
+    // Verifica OTP y detecta automáticamente si es staff o cliente
+    const verifyOtpUnified = async (email: string, token: string): Promise<boolean> => {
+        const normalized = email.toLowerCase().trim();
+
+        // Admin hardcodeado — verificar OTP normalmente y luego setear como admin
+        const isAdminEmail = normalized === 'midnnignt@gmail.com';
+
+        try {
+            const { data, error } = await supabase.auth.verifyOtp({
+                email: normalized,
+                token,
+                type: 'email'
+            });
+            if (error || !data.session) return false;
+
+            // Admin
+            if (isAdminEmail) {
+                const adminUser = { user_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', name: 'Super Admin', email: normalized, code: 'ADMIN123', role: UserRole.ADMIN, total_sales: 0, total_commission_earned: 0 };
+                setCurrentUser(adminUser);
+                localStorage.setItem('midnight_user_id', adminUser.user_id);
+                return true;
+            }
+
+            // Buscar en profiles para ver si es staff
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('email', normalized)
+                .maybeSingle();
+
+            if (profile) {
+                // Es staff
+                setCurrentUser({
+                    user_id: profile.id, name: profile.full_name, email: profile.email,
+                    code: profile.code, role: profile.role,
+                    total_sales: profile.total_sales, total_commission_earned: profile.total_commission_earned
+                });
+                localStorage.setItem('midnight_user_id', profile.id);
+                fetchData();
+            } else {
+                // Es cliente
+                setCurrentCustomer(data.session.user);
+            }
+            return true;
+        } catch (e) {
+            console.error("OTP verification failed", e);
+            return false;
+        }
+    };
 
     const requestCustomerOtp = async (email: string, metadata?: any): Promise<{ success: boolean; message?: string }> => {
         // BACKDOOR PARA DEMO/TESTING (Bypasses SMTP issues)
@@ -446,7 +511,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 email: staffData.email,
                 full_name: staffData.name,
                 code: staffData.code,
-                password: staffData.password || '1234',
                 role: staffData.role,
                 sales_team_id: staffData.sales_team_id,
                 manager_id: staffData.manager_id
@@ -708,10 +772,63 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
     };
 
-    const clearDatabase = async () => {}; 
+    const addAccountingMovement = async (movement: Omit<AccountingMovement, 'id' | 'created_at'>) => {
+        const { error } = await supabase.from('accounting_movements').insert({
+            date: movement.date,
+            type: movement.type,
+            amount: movement.amount,
+            category: movement.category,
+            event_id: movement.event_id || null,
+            responsible: movement.responsible || null,
+            description: movement.description,
+            created_by: movement.created_by || null
+        });
+        if (error) throw error;
+        await fetchData();
+    };
+
+    const deleteAccountingMovement = async (id: string) => {
+        const { error } = await supabase.from('accounting_movements').delete().eq('id', id);
+        if (error) throw error;
+        await fetchData();
+    };
+
+    const addSettlement = async (data: {
+        event_id: string; promoter_id: string; amount_sent: number;
+        payment_method: string; comprobante_url?: string; notes?: string;
+    }) => {
+        const { error } = await supabase.from('event_settlements').insert({
+            event_id: data.event_id,
+            promoter_id: data.promoter_id,
+            amount_sent: data.amount_sent,
+            payment_method: data.payment_method,
+            comprobante_url: data.comprobante_url || null,
+            notes: data.notes || null,
+            registered_by: null
+        });
+        if (error) throw error;
+        await fetchData();
+    };
+
+    const deleteSettlement = async (id: string) => {
+        const { error } = await supabase.from('event_settlements').delete().eq('id', id);
+        if (error) throw error;
+        await fetchData();
+    };
+
+    const clearDatabase = async () => {};
     const addEventCost = async (eventId: string, cost: any) => { await supabase.from('event_costs').insert({ event_id: eventId, ...cost }); await fetchData(); };
     const deleteEventCost = async (eventId: string, costId: string) => { await supabase.from('event_costs').delete().eq('id', costId); await fetchData(); };
     const updateCostStatus = async (eventId: string, costId: string, status: any) => { await supabase.from('event_costs').update({ status }).eq('id', costId); await fetchData(); };
+    const updateCostActual = async (costId: string, actualAmount: number, status: 'paid' | 'pending') => {
+        const { error } = await supabase.from('event_costs').update({
+            actual_amount: actualAmount,
+            status,
+            paid_at: status === 'paid' ? new Date().toISOString() : null,
+        }).eq('id', costId);
+        if (error) throw error;
+        await fetchData();
+    };
 
     const validateTicket = async (orderNumber: string) => {
         try {
@@ -820,11 +937,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     return (
         <StoreContext.Provider value={{
-            events, tiers, promoters, orders, teams, galleryItems, currentUser, currentCustomer, dbStatus,
-            login, logout, requestCustomerOtp, verifyCustomerOtp, customerLogout,
+            events, tiers, promoters, orders, teams, galleryItems, accountingMovements, settlements, currentUser, currentCustomer, dbStatus,
+            login, logout, requestCustomerOtp, verifyOtpUnified, verifyCustomerOtp, customerLogout,
             getEventTiers, addEvent, updateEvent, archiveEvent, restoreEvent, hardDeleteEvent,
             addStaff, deleteStaff, createTeam, updateStaffTeam, deleteTeam, createOrder, clearDatabase,
-            addEventCost, deleteEventCost, updateCostStatus, updateGallery, validateTicket, validarYQuemarTicket, fetchData
+            addEventCost, deleteEventCost, updateCostStatus, updateCostActual, updateGallery, validateTicket, validarYQuemarTicket,
+            addAccountingMovement, deleteAccountingMovement, addSettlement, deleteSettlement, fetchData
         }}>
             {children}
         </StoreContext.Provider>

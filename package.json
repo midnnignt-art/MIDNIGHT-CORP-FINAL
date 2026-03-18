@@ -10,8 +10,9 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@google/genai": "latest",
+    "@anthropic-ai/sdk": "^0.79.0",
     "@supabase/supabase-js": "^2.39.0",
+    "@tailwindcss/vite": "^4.2.1",
     "clsx": "^2.1.0",
     "date-fns": "^3.3.1",
     "framer-motion": "^11.0.3",

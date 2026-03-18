@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>MIDNIGHT | Experience Finance</title>
-    
+
     <!-- PWA & Mobile Optimization -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -12,106 +12,11 @@
     <meta name="theme-color" content="#050505">
     <link rel="apple-touch-icon" href="https://images.unsplash.com/photo-1514525253361-bee8a19740c1?w=180&h=180&fit=crop">
     <link rel="manifest" href="metadata.json">
-
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            colors: {
-              void: '#0B0316',
-              midnight: '#161344',
-              eclipse: '#490F7C',
-              moonlight: '#F2F2F2',
-              neon: {
-                purple: '#b026ff',
-                blue: '#00f0ff',
-                green: '#00ff9d',
-              },
-              mostaza: {
-                DEFAULT: '#EAB308',
-                light: '#FDE047',
-              }
-            },
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-              display: ['Inter', 'sans-serif'], // Fallback for Acumin
-            }
-          }
-        }
-      }
-    </script>
-    <style>
-      /* Smooth interactions for touch devices */
-      * {
-        -webkit-tap-highlight-color: transparent;
-        user-select: none;
-      }
-      input {
-        user-select: text;
-      }
-      ::-webkit-scrollbar {
-        width: 0px; 
-      }
-      body {
-        overscroll-behavior-y: contain;
-        background-color: #0B0316;
-      }
-
-      /* Noise Texture Overlay */
-      .noise-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-        z-index: 9999;
-        opacity: 0.01;
-        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-      }
-
-      .logo-main {
-        position: fixed;
-        left: 50%;
-        top: 3rem; /* Centered in the 6rem (96px) desktop navbar */
-        transform: translate(-50%, -50%);
-        z-index: 150;
-        mix-blend-mode: difference;
-        filter: saturate(0.55) brightness(1.1);
-        opacity: 0.92;
-        pointer-events: none;
-        text-align: center;
-      }
-
-      @media (max-width: 768px) {
-        .logo-main {
-          top: 2.5rem; /* Centered in the 5rem (80px) mobile navbar */
-        }
-      }
-    </style>
-<script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@^19.2.4",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "@google/genai": "https://esm.sh/@google/genai@^1.41.0",
-    "lucide-react": "https://esm.sh/lucide-react@^0.574.0",
-    "framer-motion": "https://esm.sh/framer-motion@^12.34.1",
-    "clsx": "https://esm.sh/clsx@^2.1.1",
-    "tailwind-merge": "https://esm.sh/tailwind-merge@^3.4.1",
-    "date-fns": "https://esm.sh/date-fns@^4.1.0",
-    "recharts": "https://esm.sh/recharts@^3.7.0",
-    "vite": "https://esm.sh/vite@^7.3.1",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.4",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.96.0"
-  }
-}
-</script>
-</head>
-  <body class="bg-midnight-950 text-white antialiased selection:bg-neon-purple selection:text-white">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  </head>
+  <body class="bg-void text-moonlight antialiased selection:bg-eclipse selection:text-white">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

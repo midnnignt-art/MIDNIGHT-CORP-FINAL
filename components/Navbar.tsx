@@ -1,38 +1,30 @@
 import React, { useState } from 'react';
-import { Menu, X, Settings, TrendingUp, LogIn, LogOut, User, Database, Zap, PieChart, Copy, Loader2, AlertCircle, Lock, Mail, ChevronRight, ArrowRight, ShieldCheck, Home, LayoutDashboard, Ticket } from 'lucide-react';
+import { X, LogOut, Loader2, AlertCircle, Mail, ArrowRight } from 'lucide-react';
 import { Button } from './ui/button';
 import { UserRole } from '../types';
 import { useStore } from '../context/StoreContext';
 import { Input } from './ui/input';
 
 export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage: string; }> = ({ onNavigate, currentPage }) => {
-  const { currentUser, login, logout, dbStatus, requestCustomerOtp, verifyCustomerOtp, currentCustomer, customerLogout } = useStore();
+  const { currentUser, login, logout, dbStatus, requestCustomerOtp, verifyOtpUnified, currentCustomer, customerLogout } = useStore();
   
   // Modal State
   const [showAccessModal, setShowAccessModal] = useState(false);
-  const [authMode, setAuthMode] = useState<'menu' | 'client' | 'staff'>('menu');
-  
+  // flow: 'email' → 'otp'
+  const [authStep, setAuthStep] = useState<'email' | 'otp'>('email');
+
   // Menu State (Unified for Desktop/Mobile)
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // Staff Login State
-  const [code, setCode] = useState('');
-  const [password, setPassword] = useState('');
-  const [staffError, setStaffError] = useState(false);
-  
-  // Client Login State
-  const [clientEmail, setClientEmail] = useState('');
-  const [clientOtp, setClientOtp] = useState('');
-  const [clientStep, setClientStep] = useState(0); // 0: Email, 1: OTP
-  const [clientError, setClientError] = useState('');
-
+  const [unifiedEmail, setUnifiedEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [authError, setAuthError] = useState('');
 
   const resetModal = () => {
       setShowAccessModal(false);
-      setAuthMode('menu');
-      setCode(''); setPassword(''); setStaffError(false);
-      setClientEmail(''); setClientOtp(''); setClientStep(0); setClientError('');
+      setAuthStep('email');
+      setUnifiedEmail(''); setOtpCode(''); setAuthError('');
   };
 
   const handleNavigateAction = (page: string) => {
@@ -40,51 +32,35 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
       setMenuOpen(false);
   };
 
-  // --- STAFF HANDLERS ---
-  const handleStaffLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setStaffError(false);
-    
-    setTimeout(async () => {
-        const success = await login(code, password);
-        setIsLoading(false);
-        if (success) {
-            resetModal();
-            onNavigate('dashboard');
-        } else {
-            setStaffError(true);
-        }
-    }, 500);
-  };
+  // PASO 1: Enviar OTP al email (aplica para todos)
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      const email = unifiedEmail.trim();
+      if (!email.includes('@')) return setAuthError('Email inválido');
+      setIsLoading(true); setAuthError('');
 
-  // --- CLIENT HANDLERS ---
-  const handleClientRequestOtp = async () => {
-      if(!clientEmail.includes('@')) return setClientError('Email inválido');
-      setIsLoading(true); setClientError('');
-      
-      const res = await requestCustomerOtp(clientEmail);
+      const res = await requestCustomerOtp(email);
       setIsLoading(false);
-      
-      if(res.success) {
-          setClientStep(1);
+
+      if (res.success) {
+          setAuthStep('otp');
       } else {
-          setClientError(res.message || 'Error al enviar código');
+          setAuthError(res.message || 'Error al enviar código. Intenta de nuevo.');
       }
   };
 
-  const handleClientVerifyOtp = async () => {
-      if(clientOtp.length < 6) return setClientError('Código incompleto');
-      setIsLoading(true); setClientError('');
-      
-      const success = await verifyCustomerOtp(clientEmail, clientOtp);
+  // PASO 2: Verificar OTP — el sistema detecta automáticamente staff o cliente
+  const handleOtpVerify = async () => {
+      if (otpCode.length < 6) return setAuthError('Código incompleto');
+      setIsLoading(true); setAuthError('');
+
+      const success = await verifyOtpUnified(unifiedEmail.trim(), otpCode);
       setIsLoading(false);
-      
-      if(success) {
+
+      if (success) {
           resetModal();
-          alert('¡Bienvenido! Ya puedes comprar tus tickets rápidamente.');
       } else {
-          setClientError('Código incorrecto');
+          setAuthError('Código incorrecto o expirado. Intenta de nuevo.');
       }
   };
 
@@ -194,6 +170,12 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
                                     Finanzas
                                 </span>
                             </button>
+                            <button onClick={() => handleNavigateAction('contabilidad')} className={`w-full text-left py-2.5 px-4 rounded-lg flex items-center justify-between group transition-all ${currentPage === 'contabilidad' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
+                                <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-3">
+                                    Contabilidad
+                                </span>
+                                <div className={`w-1 h-1 rounded-full bg-white transition-all ${currentPage === 'contabilidad' ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}`} />
+                            </button>
                             <button onClick={() => handleNavigateAction('top-clients')} className={`w-full text-left py-2.5 px-4 rounded-lg flex items-center justify-between group transition-all ${currentPage === 'top-clients' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
                                 <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-3">
                                     Top Clients
@@ -247,123 +229,70 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl">
             <div className="w-full max-w-sm bg-zinc-900 border border-white/10 p-6 md:p-10 rounded-[2rem] md:rounded-[2.5rem] shadow-2xl relative overflow-hidden">
                 <button onClick={resetModal} className="absolute top-4 right-4 md:top-6 md:right-6 text-zinc-600 hover:text-white z-10"><X size={20}/></button>
-                
-                {authMode === 'menu' && (
+
+                {/* PASO 1: Email */}
+                {authStep === 'email' && (
                     <div className="animate-in fade-in zoom-in duration-300">
-                        <h2 className="text-xl md:text-2xl font-black text-white text-center mb-2">Bienvenido</h2>
-                        <p className="text-zinc-500 text-[10px] md:text-xs text-center mb-6 uppercase font-bold tracking-widest">Selecciona tu perfil de ingreso</p>
-                        
-                        <div className="space-y-3">
-                            <button onClick={() => setAuthMode('client')} className="w-full bg-black hover:bg-zinc-800 border border-white/10 p-4 rounded-2xl flex items-center justify-between group transition-all">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-neon-blue/20 flex items-center justify-center text-neon-blue">
-                                        <User size={20}/>
-                                    </div>
-                                    <div className="text-left">
-                                        <p className="font-black text-white text-sm md:text-base">Soy Cliente</p>
-                                        <p className="text-[9px] text-zinc-500 uppercase font-bold">Ingreso con Email</p>
-                                    </div>
-                                </div>
-                                <ChevronRight size={16} className="text-zinc-600 group-hover:text-white transition-colors"/>
-                            </button>
-
-                            <button onClick={() => setAuthMode('staff')} className="w-full bg-black hover:bg-zinc-800 border border-white/10 p-4 rounded-2xl flex items-center justify-between group transition-all">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-neon-purple/20 flex items-center justify-center text-neon-purple">
-                                        <ShieldCheck size={20}/>
-                                    </div>
-                                    <div className="text-left">
-                                        <p className="font-black text-white text-sm md:text-base">Soy Staff</p>
-                                        <p className="text-[9px] text-zinc-500 uppercase font-bold">Ingreso con Código</p>
-                                    </div>
-                                </div>
-                                <ChevronRight size={16} className="text-zinc-600 group-hover:text-white transition-colors"/>
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-                {authMode === 'staff' && (
-                    <div className="animate-in slide-in-from-right duration-300">
-                        <button onClick={() => setAuthMode('menu')} className="mb-4 flex items-center gap-2 text-[10px] font-bold text-zinc-500 hover:text-white uppercase"><ArrowRight className="rotate-180" size={12}/> Volver</button>
-                        <div className="flex justify-center mb-4">
-                            <div className="w-12 h-12 md:w-16 md:h-16 bg-white/5 rounded-2xl md:rounded-[2rem] flex items-center justify-center border border-white/10 relative">
-                                <Lock size={20} className="text-white md:w-6 md:h-6"/>
-                                <div className="absolute inset-0 bg-neon-purple/20 blur-xl rounded-full"></div>
+                        <div className="flex justify-center mb-5">
+                            <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10">
+                                <Mail size={22} className="text-white"/>
                             </div>
                         </div>
-                        <h2 className="text-lg md:text-xl font-black text-white text-center mb-4 uppercase">Acceso Staff</h2>
-                        <form onSubmit={handleStaffLogin} className="space-y-3">
-                            <input 
-                                autoFocus 
-                                type="text" 
-                                placeholder="CÓDIGO DE AGENTE" 
-                                value={code} 
-                                onChange={e => setCode(e.target.value)} 
-                                className="w-full bg-black border border-white/5 p-3 md:p-5 rounded-xl md:rounded-2xl text-center font-bold text-white focus:border-neon-purple outline-none uppercase tracking-widest text-xs md:text-base" 
+                        <h2 className="text-xl font-black text-white text-center mb-1">Bienvenido</h2>
+                        <p className="text-zinc-500 text-[10px] text-center mb-6 uppercase font-bold tracking-widest">Ingresa tu email para recibir tu código</p>
+                        <form onSubmit={handleEmailSubmit} className="space-y-3">
+                            <Input
+                                autoFocus
+                                type="email"
+                                placeholder="tu@email.com"
+                                value={unifiedEmail}
+                                onChange={e => { setUnifiedEmail(e.target.value); setAuthError(''); }}
+                                className="h-12 md:h-14 bg-black border-white/10 text-center font-bold text-sm md:text-base"
                             />
-                            <input 
-                                type="password" 
-                                placeholder="CONTRASEÑA" 
-                                value={password} 
-                                onChange={e => setPassword(e.target.value)} 
-                                className="w-full bg-black border border-white/5 p-3 md:p-5 rounded-xl md:rounded-2xl text-center font-bold text-white focus:border-neon-purple outline-none text-xs md:text-base" 
-                            />
-                            {staffError && (
-                                <div className="flex items-center gap-2 justify-center text-red-500 text-[10px] font-bold animate-pulse">
-                                    <AlertCircle size={10}/> Credenciales inválidas
+                            {authError && (
+                                <div className="flex items-center gap-2 justify-center text-red-400 text-[10px] font-bold">
+                                    <AlertCircle size={10}/> {authError}
                                 </div>
                             )}
-                            <Button type="submit" disabled={isLoading} fullWidth className="h-12 md:h-16 bg-white text-black font-black text-sm md:text-lg rounded-xl md:rounded-2xl">
-                                {isLoading ? <Loader2 className="animate-spin" /> : 'INICIAR SESIÓN'}
+                            <Button type="submit" disabled={isLoading} fullWidth className="h-12 md:h-14 bg-white text-black font-black text-sm rounded-xl md:rounded-2xl">
+                                {isLoading ? <Loader2 className="animate-spin" /> : 'ENVIAR CÓDIGO'}
                             </Button>
                         </form>
                     </div>
                 )}
 
-                {authMode === 'client' && (
+                {/* PASO 2: OTP (igual para todos) */}
+                {authStep === 'otp' && (
                     <div className="animate-in slide-in-from-right duration-300">
-                        <button onClick={() => setAuthMode('menu')} className="mb-4 flex items-center gap-2 text-[10px] font-bold text-zinc-500 hover:text-white uppercase"><ArrowRight className="rotate-180" size={12}/> Volver</button>
+                        <button onClick={() => { setAuthStep('email'); setAuthError(''); setOtpCode(''); }} className="mb-4 flex items-center gap-2 text-[10px] font-bold text-zinc-500 hover:text-white uppercase">
+                            <ArrowRight className="rotate-180" size={12}/> Volver
+                        </button>
                         <div className="flex justify-center mb-4">
                             <div className="w-12 h-12 md:w-16 md:h-16 bg-white/5 rounded-2xl md:rounded-[2rem] flex items-center justify-center border border-white/10 relative">
-                                <Mail size={20} className="text-white md:w-6 md:h-6"/>
-                                <div className="absolute inset-0 bg-neon-blue/20 blur-xl rounded-full"></div>
+                                <Mail size={20} className="text-white"/>
+                                <div className="absolute inset-0 bg-eclipse/30 blur-xl rounded-full"></div>
                             </div>
                         </div>
-                        <h2 className="text-lg md:text-xl font-black text-white text-center mb-4 uppercase">Acceso Clientes</h2>
-                        
-                        {clientStep === 0 ? (
-                            <div className="space-y-3">
-                                <Input 
-                                    autoFocus
-                                    placeholder="TU EMAIL" 
-                                    value={clientEmail} 
-                                    onChange={e => setClientEmail(e.target.value)} 
-                                    className="h-12 md:h-14 bg-black border-white/10 text-center font-bold text-sm md:text-lg"
-                                />
-                                {clientError && <p className="text-red-400 text-[10px] text-center font-bold">{clientError}</p>}
-                                <Button onClick={handleClientRequestOtp} disabled={isLoading} fullWidth className="h-12 md:h-16 bg-neon-blue text-black font-black text-sm md:text-lg rounded-xl md:rounded-2xl">
-                                    {isLoading ? <Loader2 className="animate-spin" /> : 'ENVIAR CÓDIGO'}
-                                </Button>
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                <p className="text-zinc-500 text-[10px] text-center">Código enviado a {clientEmail}</p>
-                                <Input 
-                                    autoFocus
-                                    placeholder="000000" 
-                                    maxLength={8}
-                                    value={clientOtp} 
-                                    onChange={e => setClientOtp(e.target.value)} 
-                                    className="h-14 md:h-16 bg-black border-white/10 text-center font-black text-xl md:text-3xl tracking-[0.5em]"
-                                />
-                                {clientError && <p className="text-red-400 text-[10px] text-center font-bold">{clientError}</p>}
-                                <Button onClick={handleClientVerifyOtp} disabled={isLoading} fullWidth className="h-12 md:h-16 bg-emerald-500 text-black font-black text-sm md:text-lg rounded-xl md:rounded-2xl">
-                                    {isLoading ? <Loader2 className="animate-spin" /> : 'VERIFICAR Y ENTRAR'}
-                                </Button>
-                                <button onClick={() => setClientStep(0)} className="w-full text-center text-[9px] text-zinc-500 hover:text-white font-bold uppercase mt-2">Cambiar Email</button>
-                            </div>
-                        )}
+                        <h2 className="text-lg font-black text-white text-center mb-1 uppercase">Revisa tu Email</h2>
+                        <p className="text-zinc-500 text-[10px] text-center mb-5">Código enviado a <span className="text-white font-bold">{unifiedEmail}</span></p>
+                        <div className="space-y-3">
+                            <Input
+                                autoFocus
+                                placeholder="000000"
+                                maxLength={8}
+                                value={otpCode}
+                                onChange={e => { setOtpCode(e.target.value); setAuthError(''); }}
+                                className="h-14 md:h-16 bg-black border-white/10 text-center font-black text-xl md:text-3xl tracking-[0.5em]"
+                            />
+                            {authError && (
+                                <div className="flex items-center gap-2 justify-center text-red-400 text-[10px] font-bold">
+                                    <AlertCircle size={10}/> {authError}
+                                </div>
+                            )}
+                            <Button onClick={handleOtpVerify} disabled={isLoading} fullWidth className="h-12 md:h-16 bg-white text-black font-black text-sm md:text-lg rounded-xl md:rounded-2xl">
+                                {isLoading ? <Loader2 className="animate-spin" /> : 'ENTRAR'}
+                            </Button>
+                        </div>
                     </div>
                 )}
             </div>

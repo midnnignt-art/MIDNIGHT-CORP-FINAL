@@ -1,37 +1,48 @@
+import Anthropic from "@anthropic-ai/sdk";
 
-import { GoogleGenAI } from "@google/genai";
-
-// Refactored to follow strict initialization guidelines using process.env.API_KEY
+// Migrated from Google Gemini to Claude (Anthropic)
+// Same function signatures preserved for full backwards compatibility
 export const getFinancialInsights = async (
-  totalRevenue: number, 
-  liquidity: number, 
+  totalRevenue: number,
+  liquidity: number,
   soldPercent: number
 ): Promise<string> => {
   try {
-    // Create instance right before use as per guidelines to ensure latest configuration
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const model = "gemini-3-flash-preview";
-    
-    const prompt = `
-      Act as a senior financial analyst for an event management platform called "MIDNIGHT".
-      Analyze these metrics:
-      - Total Revenue Generated: $${totalRevenue}
-      - Immediately Available Liquidity: $${liquidity}
-      - Event Sold Out Percentage: ${soldPercent}%
+    const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
 
-      Provide a concise, strategic executive summary (max 2 sentences) focusing on liquidity utilization and sales momentum. 
-      Do not use markdown formatting.
-    `;
+    if (!apiKey) {
+      return "Configura VITE_ANTHROPIC_API_KEY en .env.local para activar AI Insights.";
+    }
 
-    const response = await ai.models.generateContent({
-      model,
-      contents: prompt,
+    const client = new Anthropic({
+      apiKey,
+      dangerouslyAllowBrowser: true,
     });
 
-    // Access the .text property directly as per modern SDK guidelines
-    return response.text || "Unable to generate insights at this time.";
+    const response = await client.messages.create({
+      model: "claude-haiku-4-5",
+      max_tokens: 256,
+      messages: [
+        {
+          role: "user",
+          content: `Act as a senior financial analyst for an event management platform called "MIDNIGHT".
+Analyze these metrics:
+- Total Revenue Generated: $${totalRevenue}
+- Immediately Available Liquidity: $${liquidity}
+- Event Sold Out Percentage: ${soldPercent}%
+
+Provide a concise, strategic executive summary (max 2 sentences) focusing on liquidity utilization and sales momentum.
+Do not use markdown formatting.`,
+        },
+      ],
+    });
+
+    const textBlock = response.content.find((b) => b.type === "text");
+    return textBlock && textBlock.type === "text"
+      ? textBlock.text
+      : "Unable to generate insights at this time.";
   } catch (error) {
-    console.error("Gemini API Error:", error);
-    return "AI Insights currently unavailable. Please check API Key configuration.";
+    console.error("Claude API Error:", error);
+    return "AI Insights currently unavailable. Please check your VITE_ANTHROPIC_API_KEY.";
   }
 };
