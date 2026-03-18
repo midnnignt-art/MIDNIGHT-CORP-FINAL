@@ -574,7 +574,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 }
             }
 
-            // 2. Prepare common data
+            // 2. Validate tier availability before doing anything
+            for (const item of cartItems) {
+                const tier = tiers.find(t => t.id === item.tier_id);
+                if (!tier) throw new Error(`Tier no encontrado: ${item.tier_id}`);
+                const available = tier.quantity - (tier.sold || 0);
+                if (item.quantity > available) {
+                    throw new Error(
+                        `No hay suficientes boletas disponibles para "${tier.name}". ` +
+                        `Disponibles: ${available} · Solicitadas: ${item.quantity}`
+                    );
+                }
+            }
+
+            // 3. Prepare common data
             // NORMALIZATION: Ensure email is lowercase and trimmed
             const finalEmail = (customerInfo?.email || 'anon@mail.com').toLowerCase().trim();
             const finalName = customerInfo?.name || 'Anon';
