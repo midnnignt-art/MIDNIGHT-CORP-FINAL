@@ -280,7 +280,26 @@ const SettlementModal: React.FC<{
       setImagePreview(null);
       setUploadProgress('');
     } catch (e: any) {
-      setError(e.message || 'Error al guardar');
+      const raw: string = e.message || e.error_description || JSON.stringify(e);
+      let friendly = raw;
+
+      if (raw.includes('row-level security') || raw.includes('42501'))
+        friendly = 'Sin permisos para insertar en event_settlements. Ve a Supabase → Authentication → Policies y agrega una política INSERT para event_settlements (o desactiva RLS en esa tabla).';
+      else if (raw.includes('foreign key') || raw.includes('23503'))
+        friendly = `Error de referencia en la BD: ${raw}`;
+      else if (raw.includes('not-null') || raw.includes('23502'))
+        friendly = `Un campo requerido está vacío: ${raw}`;
+      else if (raw.includes('event_settlements_event_id_promoter_id_key'))
+        friendly = '⚠️ La tabla event_settlements tiene una restricción UNIQUE que bloquea múltiples pagos. Abre Supabase → SQL Editor y ejecuta: ALTER TABLE event_settlements DROP CONSTRAINT IF EXISTS event_settlements_event_id_promoter_id_key;';
+      else if (raw.includes('unique') || raw.includes('23505'))
+        friendly = `Violación de clave única en la BD: ${raw}`;
+      else if (raw.includes('storage') || raw.includes('bucket'))
+        friendly = `Error al subir la imagen: ${raw}. Verifica que el bucket "comprobantes" existe y tiene política de INSERT.`;
+      else if (raw.includes('JWT') || raw.includes('auth') || raw.toLowerCase().includes('unauthorized'))
+        friendly = 'Sesión expirada. Recarga la página y vuelve a iniciar sesión.';
+
+      setError(friendly);
+      console.error('[SettlementModal] Error:', e);
     } finally {
       setLoading(false);
       setUploadProgress('');
