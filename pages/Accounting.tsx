@@ -1551,6 +1551,20 @@ export const Accounting: React.FC = () => {
           return `${names[parseInt(mo) - 1]} ${y}`;
         };
 
+        // % sobre ingresos totales del período (o acumulado)
+        const pct = (val: number, base: number) =>
+          base === 0 ? '—' : `${((val / base) * 100).toFixed(1)}%`;
+
+        // Barra proporcional de color según positivo/negativo
+        const Bar = ({ val, base, positive = true }: { val: number; base: number; positive?: boolean }) => {
+          const w = base === 0 ? 0 : Math.min(Math.abs(val / base) * 100, 100);
+          return (
+            <div className="w-full h-0.5 bg-white/[0.05] rounded-full mt-1 overflow-hidden">
+              <div className={`h-full rounded-full ${positive ? 'bg-emerald-500/50' : 'bg-red-500/40'}`} style={{ width: `${w}%` }} />
+            </div>
+          );
+        };
+
         return (
           <div className="space-y-6">
             {/* Title */}
@@ -1559,6 +1573,7 @@ export const Accounting: React.FC = () => {
               <p className="text-[10px] text-white/40 font-light tracking-widest uppercase mt-1">
                 Período acumulado al {new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })}
               </p>
+              <p className="text-[9px] text-white/20 mt-1">La columna <span className="text-white/40 font-bold">%</span> indica qué parte de los ingresos totales representa cada concepto</p>
             </div>
 
             {monthlyPnL.length === 0 ? (
@@ -1568,8 +1583,9 @@ export const Accounting: React.FC = () => {
               </div>
             ) : (
               <>
-                {/* Per month blocks */}
-                {monthlyPnL.map(row => (
+                {monthlyPnL.map(row => {
+                  const base = row.totalIngresos;
+                  return (
                   <div key={row.month} className="bg-white/[0.02] border border-white/5 rounded-2xl overflow-hidden">
                     {/* Month Header */}
                     <div className="flex items-center justify-between px-5 py-4 bg-white/[0.03] border-b border-white/5">
@@ -1581,6 +1597,9 @@ export const Accounting: React.FC = () => {
                         <span className="text-[10px] text-emerald-400/60 font-bold">{fmtShort(row.totalIngresos)} ingresos</span>
                         <span className={`text-[11px] font-black ${row.utilidadNeta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                           {row.utilidadNeta >= 0 ? '+' : ''}{fmtShort(row.utilidadNeta)} neto
+                        </span>
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${row.utilidadNeta >= 0 ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'}`}>
+                          {pct(row.utilidadNeta, base)} margen
                         </span>
                       </div>
                     </div>
@@ -1603,114 +1622,138 @@ export const Accounting: React.FC = () => {
                       </div>
                     )}
 
+                    {/* Column headers */}
+                    <div className="grid grid-cols-4 px-5 py-1.5 bg-white/[0.02] border-b border-white/[0.04]">
+                      <span className="text-[8px] font-black text-white/20 uppercase tracking-widest col-span-2">Concepto</span>
+                      <span className="text-[8px] font-black text-white/20 uppercase tracking-widest text-right">Valor</span>
+                      <span className="text-[8px] font-black text-white/20 uppercase tracking-widest text-right">% Ingr.</span>
+                    </div>
+
                     {/* P&L Lines */}
                     <div className="divide-y divide-white/[0.03]">
-                      {/* INGRESOS header */}
-                      <div className="grid grid-cols-3 px-5 py-2 bg-emerald-500/[0.04]">
-                        <span className="text-[9px] font-black text-emerald-400/60 uppercase col-span-2">(+) INGRESOS OPERACIONALES</span>
-                        <span />
+                      {/* INGRESOS */}
+                      <div className="grid grid-cols-4 px-5 py-1.5 bg-emerald-500/[0.04]">
+                        <span className="text-[9px] font-black text-emerald-400/60 uppercase col-span-4">(+) INGRESOS OPERACIONALES</span>
                       </div>
-                      <div className="grid grid-cols-3 px-5 py-2 hover:bg-white/[0.02]">
+                      <div className="grid grid-cols-4 px-5 py-2 hover:bg-white/[0.02]">
                         <span className="text-[11px] text-white/60 col-span-2 pl-5">Venta de Boletas</span>
                         <span className="text-[11px] text-emerald-400 text-right font-bold">{fmt(row.totalIngresosBoletas)}</span>
+                        <span className="text-[11px] text-white/30 text-right">{pct(row.totalIngresosBoletas, base)}</span>
                       </div>
-                      <div className="grid grid-cols-3 px-5 py-2 hover:bg-white/[0.02]">
+                      <div className="grid grid-cols-4 px-5 py-2 hover:bg-white/[0.02]">
                         <span className="text-[11px] text-white/60 col-span-2 pl-5">Otros Ingresos Operacionales</span>
                         <span className="text-[11px] text-emerald-400 text-right font-bold">{fmt(row.totalOtrosIngresos)}</span>
+                        <span className="text-[11px] text-white/30 text-right">{pct(row.totalOtrosIngresos, base)}</span>
                       </div>
-                      <div className="grid grid-cols-3 px-5 py-2.5 bg-emerald-500/[0.06]">
+                      <div className="grid grid-cols-4 px-5 py-2.5 bg-emerald-500/[0.06]">
                         <span className="text-[11px] font-black text-emerald-400 uppercase col-span-2 pl-2">= TOTAL INGRESOS</span>
                         <span className="text-[11px] font-black text-emerald-400 text-right">{fmt(row.totalIngresos)}</span>
+                        <span className="text-[11px] font-black text-emerald-400/60 text-right">100%</span>
                       </div>
 
-                      {/* COSTOS header */}
-                      <div className="grid grid-cols-3 px-5 py-2 bg-red-500/[0.04]">
-                        <span className="text-[9px] font-black text-red-400/60 uppercase col-span-2">(-) COSTOS DEL SERVICIO</span>
-                        <span />
+                      {/* COSTOS */}
+                      <div className="grid grid-cols-4 px-5 py-1.5 bg-red-500/[0.04]">
+                        <span className="text-[9px] font-black text-red-400/60 uppercase col-span-4">(-) COSTOS DEL SERVICIO</span>
                       </div>
-                      <div className="grid grid-cols-3 px-5 py-2 hover:bg-white/[0.02]">
-                        <span className="text-[11px] text-white/60 col-span-2 pl-5">Comisiones a Vendedores</span>
+                      <div className="grid grid-cols-4 px-5 py-2 hover:bg-white/[0.02]">
+                        <div className="col-span-2 pl-5">
+                          <span className="text-[11px] text-white/60">Comisiones a Vendedores</span>
+                          <Bar val={row.totalComisiones} base={base} positive={false} />
+                        </div>
                         <span className="text-[11px] text-red-400/80 text-right font-bold">({fmt(row.totalComisiones)})</span>
+                        <span className="text-[11px] text-red-400/50 text-right">{pct(row.totalComisiones, base)}</span>
                       </div>
-                      <div className="grid grid-cols-3 px-5 py-2 hover:bg-white/[0.02]">
-                        <span className="text-[11px] text-white/60 col-span-2 pl-5">Costos Directos de Eventos</span>
+                      <div className="grid grid-cols-4 px-5 py-2 hover:bg-white/[0.02]">
+                        <div className="col-span-2 pl-5">
+                          <span className="text-[11px] text-white/60">Costos Directos de Eventos</span>
+                          <Bar val={row.totalCostosEvento} base={base} positive={false} />
+                        </div>
                         <span className="text-[11px] text-red-400/80 text-right font-bold">({fmt(row.totalCostosEvento)})</span>
+                        <span className="text-[11px] text-red-400/50 text-right">{pct(row.totalCostosEvento, base)}</span>
                       </div>
-                      <div className="grid grid-cols-3 px-5 py-2.5 bg-red-500/[0.06]">
+                      <div className="grid grid-cols-4 px-5 py-2.5 bg-red-500/[0.06]">
                         <span className="text-[11px] font-black text-red-400 uppercase col-span-2 pl-2">= TOTAL COSTOS</span>
                         <span className="text-[11px] font-black text-red-400 text-right">({fmt(row.totalComisiones + row.totalCostosEvento)})</span>
+                        <span className="text-[11px] font-black text-red-400/60 text-right">{pct(row.totalComisiones + row.totalCostosEvento, base)}</span>
                       </div>
 
                       {/* UTILIDAD BRUTA */}
-                      <div className={`grid grid-cols-3 px-5 py-3 ${row.utilidadBruta >= 0 ? 'bg-emerald-500/10 border-t border-b border-emerald-500/20' : 'bg-red-500/10 border-t border-b border-red-500/20'}`}>
+                      <div className={`grid grid-cols-4 px-5 py-3 ${row.utilidadBruta >= 0 ? 'bg-emerald-500/10 border-t border-b border-emerald-500/20' : 'bg-red-500/10 border-t border-b border-red-500/20'}`}>
                         <span className={`text-xs font-black uppercase col-span-2 ${row.utilidadBruta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>= UTILIDAD BRUTA</span>
                         <span className={`text-xs font-black text-right ${row.utilidadBruta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmt(row.utilidadBruta)}</span>
+                        <span className={`text-xs font-black text-right ${row.utilidadBruta >= 0 ? 'text-emerald-400/70' : 'text-red-400/70'}`}>{pct(row.utilidadBruta, base)}</span>
                       </div>
 
                       {/* GASTOS OPERATIVOS */}
-                      <div className="grid grid-cols-3 px-5 py-2 hover:bg-white/[0.02]">
-                        <span className="text-[11px] text-white/60 col-span-2">(-) GASTOS OPERATIVOS</span>
+                      <div className="grid grid-cols-4 px-5 py-2 hover:bg-white/[0.02]">
+                        <div className="col-span-2">
+                          <span className="text-[11px] text-white/60">(-) Gastos Operativos</span>
+                          <Bar val={row.totalGastosOpe} base={base} positive={false} />
+                        </div>
                         <span className="text-[11px] text-red-400/70 text-right font-bold">({fmt(row.totalGastosOpe)})</span>
+                        <span className="text-[11px] text-red-400/40 text-right">{pct(row.totalGastosOpe, base)}</span>
                       </div>
 
                       {/* UTILIDAD OPERACIONAL */}
-                      <div className={`grid grid-cols-3 px-5 py-2.5 ${row.utilidadOperacional >= 0 ? 'bg-emerald-500/5' : 'bg-red-500/5'}`}>
+                      <div className={`grid grid-cols-4 px-5 py-2.5 ${row.utilidadOperacional >= 0 ? 'bg-emerald-500/5' : 'bg-red-500/5'}`}>
                         <span className={`text-[11px] font-black uppercase col-span-2 ${row.utilidadOperacional >= 0 ? 'text-emerald-400/80' : 'text-red-400'}`}>= UTILIDAD OPERACIONAL</span>
                         <span className={`text-[11px] font-black text-right ${row.utilidadOperacional >= 0 ? 'text-emerald-400/80' : 'text-red-400'}`}>{fmt(row.utilidadOperacional)}</span>
+                        <span className={`text-[11px] font-black text-right ${row.utilidadOperacional >= 0 ? 'text-emerald-400/50' : 'text-red-400/50'}`}>{pct(row.utilidadOperacional, base)}</span>
                       </div>
 
                       {/* IMPUESTO */}
-                      <div className="grid grid-cols-3 px-5 py-2 hover:bg-white/[0.02]">
-                        <span className="text-[11px] text-white/50 col-span-2">(-) IMPUESTO RÉGIMEN SIMPLE (est.)</span>
+                      <div className="grid grid-cols-4 px-5 py-2 hover:bg-white/[0.02]">
+                        <span className="text-[11px] text-white/50 col-span-2">(-) Impuesto Régimen Simple (5.9%)</span>
                         <span className="text-[11px] text-amber-400/70 text-right font-bold">({fmt(row.impuesto)})</span>
+                        <span className="text-[11px] text-amber-400/40 text-right">{pct(row.impuesto, base)}</span>
                       </div>
 
                       {/* UTILIDAD NETA */}
-                      <div className={`grid grid-cols-3 px-5 py-4 ${row.utilidadNeta >= 0 ? 'bg-emerald-500/10 border-t-2 border-emerald-500/30' : 'bg-red-500/10 border-t-2 border-red-500/30'}`}>
+                      <div className={`grid grid-cols-4 px-5 py-4 ${row.utilidadNeta >= 0 ? 'bg-emerald-500/10 border-t-2 border-emerald-500/30' : 'bg-red-500/10 border-t-2 border-red-500/30'}`}>
                         <span className={`text-sm font-black uppercase col-span-2 ${row.utilidadNeta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>= UTILIDAD NETA</span>
                         <span className={`text-sm font-black text-right ${row.utilidadNeta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmt(row.utilidadNeta)}</span>
+                        <span className={`text-sm font-black text-right ${row.utilidadNeta >= 0 ? 'text-emerald-400/70' : 'text-red-400/70'}`}>{pct(row.utilidadNeta, base)}</span>
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
 
                 {/* Grand Total Row */}
                 <div className="bg-white/[0.03] border border-white/10 rounded-2xl overflow-hidden">
                   <div className="px-5 py-3 bg-white/[0.04] border-b border-white/10">
                     <span className="text-[10px] font-black text-white uppercase tracking-widest">TOTALES ACUMULADOS · TODOS LOS PERÍODOS</span>
                   </div>
+                  {/* Column headers */}
+                  <div className="grid grid-cols-4 px-5 py-1.5 border-b border-white/[0.05]">
+                    <span className="text-[8px] font-black text-white/20 uppercase col-span-2">Concepto</span>
+                    <span className="text-[8px] font-black text-white/20 uppercase text-right">Valor</span>
+                    <span className="text-[8px] font-black text-white/20 uppercase text-right">% Ingr.</span>
+                  </div>
                   <div className="divide-y divide-white/5">
-                    <div className="grid grid-cols-3 px-5 py-2.5">
-                      <span className="text-[11px] text-white/60 col-span-2">Total Ingresos</span>
-                      <span className="text-[11px] font-black text-emerald-400 text-right">{fmt(grandTotalIngresos)}</span>
-                    </div>
-                    <div className="grid grid-cols-3 px-5 py-2.5">
-                      <span className="text-[11px] text-white/60 col-span-2">Total Comisiones</span>
-                      <span className="text-[11px] font-bold text-red-400/80 text-right">({fmt(grandTotalComisiones)})</span>
-                    </div>
-                    <div className="grid grid-cols-3 px-5 py-2.5">
-                      <span className="text-[11px] text-white/60 col-span-2">Total Costos de Eventos</span>
-                      <span className="text-[11px] font-bold text-red-400/80 text-right">({fmt(grandTotalCostos)})</span>
-                    </div>
-                    <div className="grid grid-cols-3 px-5 py-2.5">
-                      <span className="text-[11px] text-white/60 col-span-2">Utilidad Bruta</span>
-                      <span className={`text-[11px] font-black text-right ${grandUtilidadBruta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmt(grandUtilidadBruta)}</span>
-                    </div>
-                    <div className="grid grid-cols-3 px-5 py-2.5">
-                      <span className="text-[11px] text-white/60 col-span-2">Total Gastos Operativos</span>
-                      <span className="text-[11px] font-bold text-red-400/80 text-right">({fmt(grandTotalGastos)})</span>
-                    </div>
-                    <div className="grid grid-cols-3 px-5 py-2.5">
-                      <span className="text-[11px] text-white/60 col-span-2">Utilidad Operacional</span>
-                      <span className={`text-[11px] font-black text-right ${grandUtilidadOpe >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmt(grandUtilidadOpe)}</span>
-                    </div>
-                    <div className="grid grid-cols-3 px-5 py-2.5">
-                      <span className="text-[11px] text-white/60 col-span-2">Total Impuesto (est.)</span>
-                      <span className="text-[11px] font-bold text-amber-400/70 text-right">({fmt(grandImpuesto)})</span>
-                    </div>
-                    <div className={`grid grid-cols-3 px-5 py-4 ${grandUtilidadNeta >= 0 ? 'bg-emerald-500/10' : 'bg-red-500/10'}`}>
+                    {[
+                      { label: 'Total Ingresos', value: grandTotalIngresos, color: 'text-emerald-400', pctBase: grandTotalIngresos, bold: true },
+                      { label: 'Comisiones a Vendedores', value: -grandTotalComisiones, color: 'text-red-400/80', pctBase: grandTotalIngresos, bold: false },
+                      { label: 'Costos Directos de Eventos', value: -grandTotalCostos, color: 'text-red-400/80', pctBase: grandTotalIngresos, bold: false },
+                      { label: 'Utilidad Bruta', value: grandUtilidadBruta, color: grandUtilidadBruta >= 0 ? 'text-emerald-400' : 'text-red-400', pctBase: grandTotalIngresos, bold: true },
+                      { label: 'Gastos Operativos', value: -grandTotalGastos, color: 'text-red-400/80', pctBase: grandTotalIngresos, bold: false },
+                      { label: 'Utilidad Operacional', value: grandUtilidadOpe, color: grandUtilidadOpe >= 0 ? 'text-emerald-400' : 'text-red-400', pctBase: grandTotalIngresos, bold: true },
+                      { label: 'Impuesto Estimado (5.9%)', value: -grandImpuesto, color: 'text-amber-400/70', pctBase: grandTotalIngresos, bold: false },
+                    ].map(item => (
+                      <div key={item.label} className="grid grid-cols-4 px-5 py-2.5 hover:bg-white/[0.02]">
+                        <span className={`text-[11px] col-span-2 ${item.bold ? 'font-black text-white' : 'text-white/60'}`}>{item.label}</span>
+                        <span className={`text-[11px] text-right ${item.bold ? 'font-black' : 'font-bold'} ${item.color}`}>
+                          {item.value < 0 ? `(${fmt(Math.abs(item.value))})` : fmt(item.value)}
+                        </span>
+                        <span className={`text-[11px] text-right text-white/30`}>
+                          {pct(Math.abs(item.value), item.pctBase)}
+                        </span>
+                      </div>
+                    ))}
+                    <div className={`grid grid-cols-4 px-5 py-4 ${grandUtilidadNeta >= 0 ? 'bg-emerald-500/10' : 'bg-red-500/10'}`}>
                       <span className={`text-sm font-black uppercase col-span-2 ${grandUtilidadNeta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>= UTILIDAD NETA TOTAL</span>
                       <span className={`text-sm font-black text-right ${grandUtilidadNeta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmt(grandUtilidadNeta)}</span>
+                      <span className={`text-sm font-black text-right ${grandUtilidadNeta >= 0 ? 'text-emerald-400/70' : 'text-red-400/70'}`}>{pct(grandUtilidadNeta, grandTotalIngresos)}</span>
                     </div>
                   </div>
                 </div>
