@@ -716,6 +716,7 @@ export const Accounting: React.FC = () => {
   const [primaAcciones, setPrimaAcciones] = useState(() => Number(localStorage.getItem('midnight_primaAcciones') || '0'));
   const [activosFijos, setActivosFijos] = useState(() => Number(localStorage.getItem('midnight_activosFijos') || '0'));
   const [editingBalance, setEditingBalance] = useState(false);
+  const [balanceOpenRow, setBalanceOpenRow] = useState<string | null>(null);
 
   const saveBalanceInputs = (cap: number, prima: number, fijos: number) => {
     localStorage.setItem('midnight_capitalSocial', cap.toString());
@@ -1311,27 +1312,65 @@ export const Accounting: React.FC = () => {
         const totalPasivoPatrimonio = totalPasivos + totalPatrimonio;              // = totalActivos
 
         // ── HELPERS UI ───────────────────────────────────────────────────────────
-        const Row = ({ label, value, indent = 0, color = 'white', sub }: {
-          label: string; value: number; indent?: number; color?: string; sub?: string;
-        }) => (
-          <div className="grid grid-cols-3 gap-0 px-5 py-2.5 border-b border-white/[0.03] hover:bg-white/[0.015] transition-all">
-            <div className={`col-span-2 ${indent === 1 ? 'pl-6' : indent === 2 ? 'pl-10' : ''}`}>
-              <span className={`text-xs font-medium ${
-                color === 'emerald' ? 'text-emerald-400' :
-                color === 'red' ? 'text-red-400' :
-                color === 'violet' ? 'text-violet-400' :
-                color === 'amber' ? 'text-amber-400' : 'text-white/75'
-              }`}>{label}</span>
-              {sub && <p className="text-[9px] text-white/25 mt-0.5 leading-relaxed">{sub}</p>}
+        type DetailItem = { label: string; value: number; sign?: '+' | '-' | '=' };
+
+        const Row = ({ id, label, value, indent = 0, color = 'white', sub, detail }: {
+          id: string; label: string; value: number; indent?: number; color?: string; sub?: string;
+          detail?: DetailItem[];
+        }) => {
+          const isOpen = balanceOpenRow === id;
+          const hasDetail = detail && detail.length > 0;
+          return (
+            <div className="border-b border-white/[0.03]">
+              <div
+                className={`grid grid-cols-3 gap-0 px-5 py-2.5 transition-all ${hasDetail ? 'cursor-pointer hover:bg-white/[0.025]' : 'hover:bg-white/[0.015]'} ${isOpen ? 'bg-white/[0.02]' : ''}`}
+                onClick={() => hasDetail && setBalanceOpenRow(isOpen ? null : id)}
+              >
+                <div className={`col-span-2 flex items-start gap-2 ${indent === 1 ? 'pl-6' : indent === 2 ? 'pl-10' : ''}`}>
+                  <div className="flex-1">
+                    <span className={`text-xs font-medium ${
+                      color === 'emerald' ? 'text-emerald-400' :
+                      color === 'red' ? 'text-red-400' :
+                      color === 'violet' ? 'text-violet-400' :
+                      color === 'amber' ? 'text-amber-400' : 'text-white/75'
+                    }`}>{label}</span>
+                    {sub && <p className="text-[9px] text-white/25 mt-0.5 leading-relaxed">{sub}</p>}
+                  </div>
+                  {hasDetail && (
+                    <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded mt-0.5 flex-shrink-0 ${isOpen ? 'bg-white/10 text-white/60' : 'bg-white/[0.04] text-white/20'}`}>
+                      {isOpen ? '▲' : '▼'}
+                    </span>
+                  )}
+                </div>
+                <span className={`text-xs text-right font-bold ${
+                  color === 'emerald' ? 'text-emerald-400' :
+                  color === 'red' ? 'text-red-400' :
+                  color === 'violet' ? 'text-violet-400' :
+                  color === 'amber' ? 'text-amber-400' : 'text-white/60'
+                }`}>{fmt(value)}</span>
+              </div>
+              {/* Desglose expandible */}
+              {isOpen && hasDetail && (
+                <div className="bg-black/40 border-t border-white/[0.05] px-5 py-3 space-y-1.5">
+                  <p className="text-[8px] font-black text-white/20 uppercase tracking-widest mb-2">Desglose del cálculo</p>
+                  {detail!.map((d, i) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[9px] font-black w-3 ${d.sign === '+' ? 'text-emerald-400' : d.sign === '-' ? 'text-red-400' : 'text-white/40'}`}>
+                          {d.sign ?? ''}
+                        </span>
+                        <span className="text-[10px] text-white/50">{d.label}</span>
+                      </div>
+                      <span className={`text-[10px] font-bold ${d.sign === '+' ? 'text-emerald-400' : d.sign === '-' ? 'text-red-400/80' : 'text-white font-black'}`}>
+                        {d.sign === '-' ? `(${fmt(d.value)})` : fmt(d.value)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-            <span className={`text-xs text-right font-bold ${
-              color === 'emerald' ? 'text-emerald-400' :
-              color === 'red' ? 'text-red-400' :
-              color === 'violet' ? 'text-violet-400' :
-              color === 'amber' ? 'text-amber-400' : 'text-white/60'
-            }`}>{fmt(value)}</span>
-          </div>
-        );
+          );
+        };
 
         const Total = ({ label, value, color, size = 'md' }: {
           label: string; value: number; color: string; size?: 'md' | 'lg';
@@ -1425,15 +1464,40 @@ export const Accounting: React.FC = () => {
               <div className="border-l-4 border-l-emerald-500/60">
                 <Section label="▸ ACTIVO" color="emerald" />
                 <Sub label="Activo Corriente — dinero disponible hoy" color="emerald" />
-                <Row label="Efectivo en Caja / Banco" value={efectivoCaja} indent={2} color="emerald"
-                  sub={`Ventas cobradas + pagos de promotores + ingresos registrados + préstamos − gastos pagados − compras activos − pagos préstamos`} />
-                <Row label="Cuentas por Cobrar — Promotores" value={cxc} indent={2} color="amber"
-                  sub={cxc > 0 ? `Plata que los promotores todavía te deben · ${cuentasPorCobrar.length} promotor(es)` : 'Todos los promotores están a paz y salvo'} />
+                <Row id="efectivo" label="Efectivo en Caja / Banco" value={efectivoCaja} indent={2} color="emerald"
+                  sub="Haz clic para ver el desglose"
+                  detail={[
+                    { label: 'Ventas directas cobradas (sin promotor)', value: completedOrders.filter(o => !o.staff_id).reduce((s,o) => s + o.total, 0), sign: '+' },
+                    { label: `Pagos recibidos de promotores (${settlements.length} transacciones)`, value: settlements.reduce((s,se) => s + se.amount_sent, 0), sign: '+' },
+                    { label: `Ingresos registrados manualmente (${movIncomes.length})`, value: movIncomes.reduce((s,m) => s + m.amount, 0), sign: '+' },
+                    { label: `Préstamos recibidos`, value: loanReceived, sign: '+' },
+                    { label: `Gastos operativos pagados (${movExpenses.length})`, value: movExpenses.reduce((s,m) => s + m.amount, 0), sign: '-' },
+                    { label: 'Costos de eventos pagados', value: eventCostsPaid, sign: '-' },
+                    { label: 'Compras de activos fijos', value: assetPurchases, sign: '-' },
+                    { label: 'Pagos de préstamos', value: loanPayments, sign: '-' },
+                    { label: 'EFECTIVO NETO', value: efectivoCaja, sign: '=' },
+                  ]} />
+                <Row id="cxc" label="Cuentas por Cobrar — Promotores" value={cxc} indent={2} color="amber"
+                  sub={cxc > 0 ? `Clic para ver deudas por promotor (${cuentasPorCobrar.length})` : 'Todos los promotores están a paz y salvo'}
+                  detail={cuentasPorCobrar.map(r => ({
+                    label: `${r.promoter?.name ?? 'Sin nombre'} · ${r.event?.title ?? '?'}`,
+                    value: r.deuda,
+                    sign: '+' as const,
+                  }))} />
                 <Total label="Subtotal Activo Corriente" value={totalActivoCorriente} color="emerald" />
 
                 <Sub label="Activo No Corriente — bienes físicos" color="emerald" />
-                <Row label="Inmovilizado / Activos Fijos" value={inmovilizado} indent={2} color="emerald"
-                  sub={`Manual: ${fmt(activosFijos)} + Compras registradas: ${fmt(assetPurchases)}`} />
+                <Row id="inmovilizado" label="Inmovilizado / Activos Fijos" value={inmovilizado} indent={2} color="emerald"
+                  sub="Clic para ver desglose"
+                  detail={[
+                    { label: 'Ingresado manualmente (Editar Capital)', value: activosFijos, sign: '+' },
+                    ...accountingMovements.filter(m => m.category === 'asset_purchase').map(m => ({
+                      label: `${m.date} · ${m.description}`,
+                      value: m.amount,
+                      sign: '+' as const,
+                    })),
+                    { label: 'TOTAL INMOVILIZADO', value: inmovilizado, sign: '=' },
+                  ]} />
                 <Total label="Subtotal Activo No Corriente" value={totalActivoNoCorriente} color="emerald" />
 
                 <Total label="▸ TOTAL ACTIVO" value={totalActivos} color="emerald" size="lg" />
@@ -1443,18 +1507,41 @@ export const Accounting: React.FC = () => {
               <div className="border-l-4 border-l-red-500/60 mt-2">
                 <Section label="▸ PASIVO" color="red" />
                 <Sub label="Pasivo Corriente — deudas a corto plazo" color="red" />
-                <Row label="Costos de Eventos — Pendientes de Pago" value={cuentasPorPagar} indent={2}
+                <Row id="cxp" label="Costos de Eventos — Pendientes de Pago" value={cuentasPorPagar} indent={2}
                   color={cuentasPorPagar > 0 ? 'red' : 'white'}
-                  sub="Gastos ya comprometidos en eventos pero aún no pagados" />
-                <Row label="Impuesto Estimado — Régimen Simple 5.9%" value={taxCalc.tax} indent={2}
+                  sub={cuentasPorPagar > 0 ? 'Clic para ver cuáles' : 'Sin costos pendientes'}
+                  detail={events.flatMap(e => (e.costs || []).filter(c => c.status === 'pending').map(c => ({
+                    label: `${e.title} · ${c.concept}`,
+                    value: c.amount,
+                    sign: '+' as const,
+                  })))} />
+                <Row id="impuesto" label="Impuesto Estimado — Régimen Simple 5.9%" value={taxCalc.tax} indent={2}
                   color={taxCalc.tax > 0 ? 'amber' : 'white'}
-                  sub={`Sobre ${fmt(totalIncome)} ingresos operacionales`} />
+                  sub="Clic para ver el cálculo"
+                  detail={[
+                    { label: 'Ingresos operacionales (base gravable)', value: totalIncome, sign: '+' },
+                    { label: 'Tasa Régimen Simple — Eventos y Conciertos', value: 0.059 * 100, sign: '=' },
+                    { label: `Impuesto estimado (${totalIncome.toLocaleString('es-CO')} × 5.9%)`, value: taxCalc.tax, sign: '=' },
+                  ]} />
                 <Total label="Subtotal Pasivo Corriente" value={totalPasivosCorrientes} color="red" />
 
                 <Sub label="Pasivo No Corriente — deudas a largo plazo" color="red" />
-                <Row label="Préstamos por Pagar" value={deudaFinanciera} indent={2}
+                <Row id="prestamos" label="Préstamos por Pagar" value={deudaFinanciera} indent={2}
                   color={deudaFinanciera > 0 ? 'red' : 'white'}
-                  sub={deudaFinanciera > 0 ? `Recibido: ${fmt(loanReceived)} − Devuelto: ${fmt(loanPayments)}` : 'Sin préstamos activos'} />
+                  sub={deudaFinanciera > 0 ? 'Clic para ver movimientos' : 'Sin préstamos activos'}
+                  detail={[
+                    ...accountingMovements.filter(m => m.category === 'loan_received').map(m => ({
+                      label: `${m.date} · ${m.description} (recibido)`,
+                      value: m.amount,
+                      sign: '+' as const,
+                    })),
+                    ...accountingMovements.filter(m => m.category === 'loan_payment').map(m => ({
+                      label: `${m.date} · ${m.description} (pago)`,
+                      value: m.amount,
+                      sign: '-' as const,
+                    })),
+                    { label: 'SALDO PENDIENTE', value: deudaFinanciera, sign: '=' },
+                  ]} />
                 <Total label="Subtotal Pasivo No Corriente" value={totalPasivosNoCorrientes} color="red" />
 
                 <Total label="▸ TOTAL PASIVO" value={totalPasivos} color="red" size="lg" />
@@ -1464,13 +1551,20 @@ export const Accounting: React.FC = () => {
               <div className="border-l-4 border-l-violet-500/60 mt-2">
                 <Section label="▸ PATRIMONIO" color="violet" />
                 <Sub label="Lo que les pertenece a los dueños = Activos − Pasivos" color="violet" />
-                <Row label="Capital Social" value={capitalSocial} indent={2} color="violet"
+                <Row id="capital" label="Capital Social" value={capitalSocial} indent={2} color="violet"
                   sub={capitalSocial === 0 ? '⚠ Ingresa con el botón Editar Capital' : 'Aportes iniciales de los socios'} />
-                <Row label="Prima / Aportes Adicionales" value={primaAcciones} indent={2} color="violet"
+                <Row id="prima" label="Prima / Aportes Adicionales" value={primaAcciones} indent={2} color="violet"
                   sub="Aportes de socios distintos al capital mínimo" />
-                <Row label="Utilidades del Período" value={utilidadesBalance} indent={2}
+                <Row id="utilidades" label="Utilidades del Período" value={utilidadesBalance} indent={2}
                   color={utilidadesBalance >= 0 ? 'emerald' : 'red'}
-                  sub={`Activos (${fmt(totalActivos)}) − Pasivos (${fmt(totalPasivos)}) − Capital (${fmt(capitalSocial + primaAcciones)})`} />
+                  sub="Clic para ver el cálculo"
+                  detail={[
+                    { label: 'Total Activos', value: totalActivos, sign: '+' },
+                    { label: 'Total Pasivos', value: totalPasivos, sign: '-' },
+                    { label: 'Capital Social', value: capitalSocial, sign: '-' },
+                    { label: 'Prima / Aportes', value: primaAcciones, sign: '-' },
+                    { label: 'UTILIDADES DEL PERÍODO', value: utilidadesBalance, sign: '=' },
+                  ]} />
                 <Total label="▸ TOTAL PATRIMONIO" value={totalPatrimonio} color="violet" size="lg" />
               </div>
 
