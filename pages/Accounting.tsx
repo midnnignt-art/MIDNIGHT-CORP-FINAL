@@ -1,5 +1,9 @@
 import React, { useState, useMemo, useRef } from 'react';
 import {
+  ResponsiveContainer, LineChart, Line,
+  XAxis, YAxis, CartesianGrid, Tooltip,
+} from 'recharts';
+import {
   TrendingUp, TrendingDown, DollarSign, BarChart2, FileText,
   Calendar, Tag, Plus, Trash2, X,
   AlertTriangle, Award, Percent, ArrowUpRight, ArrowDownRight,
@@ -915,6 +919,14 @@ export const Accounting: React.FC = () => {
     [events]
   );
 
+  // ── BALANCE SHEET TOTALS (shared: Resumen + Balance tabs) ───────────────────
+  const bsEfectivoCaja = Math.max(0, efectivoRecibido);
+  const bsInmovilizado = activosFijos + assetPurchases;
+  const bsTotalActivos = bsEfectivoCaja + totalCuentasPorCobrar + bsInmovilizado;
+  const bsTotalPasivos = cuentasPorPagar + taxCalc.tax + deudaFinanciera;
+  const bsTotalPatrimonio = bsTotalActivos - bsTotalPasivos;
+  const bsUtilidadesBalance = bsTotalPatrimonio - capitalSocial - primaAcciones;
+
   // ── COMMISSIONS TOTAL ─────────────────────────────────────────────────────────
   const totalComisionesGanadas = useMemo(() =>
     completedOrders.reduce((s, o) => s + (o.commission_amount || 0), 0),
@@ -979,7 +991,7 @@ export const Accounting: React.FC = () => {
         const totalGastosOpe = row.events.reduce((s, e) => s + e.otrosGastos, 0) + row.gastosOperativos;
         const utilidadBruta = totalIngresos - totalComisiones - totalCostosEvento;
         const utilidadOperacional = utilidadBruta - totalGastosOpe;
-        const impuesto = utilidadOperacional > 0 ? calculateSimpleTax(utilidadOperacional * 12).tax / 12 : 0; // monthly estimate
+        const impuesto = totalIngresos > 0 ? totalIngresos * TAX_RATE : 0; // 5.9% sobre ingresos brutos (Régimen Simple)
         const utilidadNeta = utilidadOperacional - impuesto;
         return {
           ...row,
@@ -989,6 +1001,14 @@ export const Accounting: React.FC = () => {
         };
       });
   }, [events, completedOrders, accountingMovements, movIncomes, movExpenses]);
+
+  // Totales acumulados del P&L (idénticos a lo que muestra Estado de Resultados)
+  const pylTotalIngresos    = useMemo(() => monthlyPnL.reduce((s, r) => s + r.totalIngresos, 0), [monthlyPnL]);
+  const pylTotalComisiones  = useMemo(() => monthlyPnL.reduce((s, r) => s + r.totalComisiones, 0), [monthlyPnL]);
+  const pylTotalCostos      = useMemo(() => monthlyPnL.reduce((s, r) => s + r.totalCostosEvento, 0), [monthlyPnL]);
+  const pylTotalGastos      = useMemo(() => monthlyPnL.reduce((s, r) => s + r.totalGastosOpe, 0), [monthlyPnL]);
+  const pylImpuesto         = useMemo(() => monthlyPnL.reduce((s, r) => s + r.impuesto, 0), [monthlyPnL]);
+  const pylUtilidadNeta     = useMemo(() => monthlyPnL.reduce((s, r) => s + r.utilidadNeta, 0), [monthlyPnL]);
 
   const tabs = [
     { id: 'resumen', label: 'Resumen' },
@@ -1037,147 +1057,282 @@ export const Accounting: React.FC = () => {
       </div>
 
       {/* ── TAB: RESUMEN ─────────────────────────────────────────────────── */}
-      {activeTab === 'resumen' && (
-        <div className="space-y-6">
-          {/* Company Header */}
-          <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-5">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+      {activeTab === 'resumen' && (() => {
+        const margenNeto = pylTotalIngresos > 0 ? (pylUtilidadNeta / pylTotalIngresos) * 100 : 0;
+        const pylTotalEgresos = pylTotalComisiones + pylTotalCostos + pylTotalGastos;
+        return (
+          <div className="space-y-5">
+            {/* Header */}
+            <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-5 flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-black text-white tracking-tighter uppercase">MIDNIGHT EVENTS SAS</h3>
-                <p className="text-[10px] text-white/40 font-light tracking-widest uppercase mt-0.5">Centro de Control Financiero · Súper Admin</p>
+                <p className="text-[10px] text-white/40 font-light tracking-widest uppercase mt-0.5">Resumen Financiero</p>
               </div>
               <div className="text-right">
-                <p className="text-[9px] text-white/30 uppercase tracking-widest font-black">Fecha de corte</p>
+                <p className="text-[9px] text-white/30 uppercase tracking-widest font-black">Corte</p>
                 <p className="text-xs text-white/60 font-bold">{new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
               </div>
             </div>
-          </div>
 
-          {/* 5 KPI Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <KpiCard label="Ingresos Totales" value={fmtShort(totalIncome)} sub={`${completedOrders.length} órdenes + movimientos`} color="green" icon={<TrendingUp size={14} />} />
-            <KpiCard label="Gastos Totales" value={fmtShort(totalExpenses)} sub="Costos + movimientos" color="red" icon={<TrendingDown size={14} />} />
-            <KpiCard label="Utilidad Neta" value={fmtShort(netResult)} sub={`Margen: ${margin.toFixed(1)}%`} color={netResult >= 0 ? 'green' : 'red'} icon={<DollarSign size={14} />} />
-            <KpiCard label="Cuentas por Cobrar" value={fmtShort(totalCuentasPorCobrar)} sub="Pendiente de promotores" color="white" icon={<Users size={14} />} />
-            <KpiCard label="Efectivo Recibido" value={fmtShort(efectivoRecibido)} sub="Caja real + transferencias" color="purple" icon={<Banknote size={14} />} />
-          </div>
+            {/* KPIs — idénticos al Estado de Resultados */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <KpiCard label="Ingresos Brutos" value={fmtShort(pylTotalIngresos)} sub={`${completedOrders.length} órdenes + movimientos`} color="green" icon={<TrendingUp size={14} />} />
+              <KpiCard label="Egresos Totales" value={fmtShort(pylTotalEgresos)} sub="Comisiones + costos + gastos" color="red" icon={<TrendingDown size={14} />} />
+              <KpiCard label="Impuesto (5.9%)" value={fmtShort(pylImpuesto)} sub="Régimen Simple sobre ingresos" color="purple" icon={<Percent size={14} />} />
+              <KpiCard label="Utilidad Neta" value={fmtShort(pylUtilidadNeta)} sub={`Margen ${margenNeto.toFixed(1)}%`} color={pylUtilidadNeta >= 0 ? 'green' : 'red'} icon={<DollarSign size={14} />} />
+            </div>
 
-          {/* Mini Balance */}
-          <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-5">
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-4">Resumen de Situación Financiera</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Activos */}
-              <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4">
-                <p className="text-[9px] font-black text-emerald-400/70 uppercase tracking-widest mb-3">ACTIVOS</p>
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-[11px] text-white/60">
-                    <span>Efectivo en caja (neto)</span><span className="text-emerald-400 font-bold">{fmt(Math.max(0, efectivoRecibido))}</span>
+            {/* Gráfica mes a mes */}
+            {monthlyPnL.length > 0 && (() => {
+              const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+              const SERIES = [
+                { key: 'Ingresos',       color: '#34d399', dash: ''        },
+                { key: 'Costos Evento',  color: '#fb923c', dash: '5 3'     },
+                { key: 'Gastos Oper.',   color: '#f87171', dash: '5 3'     },
+                { key: 'Utilidad Neta',  color: '#a78bfa', dash: ''        },
+              ];
+
+              const chartData = [...monthlyPnL]
+                .sort((a, b) => (a.month < b.month ? -1 : a.month > b.month ? 1 : 0))
+                .map(r => {
+                  const [y, mo] = r.month.split('-');
+                  return {
+                    mes: `${MONTHS[parseInt(mo) - 1]} ${y.slice(2)}`,
+                    'Ingresos':      r.totalIngresos,
+                    'Costos Evento': r.totalCostosEvento,
+                    'Gastos Oper.':  r.totalGastosOpe,
+                    'Utilidad Neta': r.utilidadNeta,
+                  };
+                });
+
+              const fmtAxis = (v: number) => {
+                if (Math.abs(v) >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
+                if (Math.abs(v) >= 1_000)     return `$${(v / 1_000).toFixed(0)}K`;
+                return `$${v}`;
+              };
+
+              const CustomTooltip = ({ active, payload, label }: any) => {
+                if (!active || !payload?.length) return null;
+                return (
+                  <div className="bg-[#080808] border border-white/[0.07] rounded-2xl px-4 py-3 shadow-2xl min-w-[200px]">
+                    <p className="text-[9px] font-black uppercase tracking-[0.15em] text-white/30 mb-3">{label}</p>
+                    <div className="space-y-2">
+                      {payload.map((p: any) => (
+                        <div key={p.name} className="flex items-center justify-between gap-8">
+                          <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: p.color, boxShadow: `0 0 6px ${p.color}` }} />
+                            <span className="text-[10px] text-white/40 font-medium">{p.name}</span>
+                          </div>
+                          <span className="text-[11px] font-black tabular-nums" style={{ color: p.color }}>
+                            {new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(p.value)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex justify-between text-[11px] text-white/60">
-                    <span>Cuentas por cobrar</span><span className="text-amber-400 font-bold">{fmt(totalCuentasPorCobrar)}</span>
+                );
+              };
+
+              return (
+                <div className="bg-white/[0.02] border border-white/5 rounded-2xl overflow-hidden">
+                  {/* Header */}
+                  <div className="px-6 pt-5 pb-4 flex items-start justify-between">
+                    <div>
+                      <h3 className="text-[10px] font-black uppercase tracking-widest text-white/40">Evolución Mes a Mes</h3>
+                      <p className="text-[9px] text-white/20 mt-0.5">Tendencia financiera acumulada por período</p>
+                    </div>
+                    {/* Leyenda */}
+                    <div className="flex flex-wrap gap-x-4 gap-y-1.5 justify-end">
+                      {SERIES.map(s => (
+                        <div key={s.key} className="flex items-center gap-1.5">
+                          <span className="w-4 h-[2px] rounded-full flex-shrink-0" style={{ backgroundColor: s.color, opacity: 0.8 }} />
+                          <span className="text-[9px] font-black uppercase tracking-wider" style={{ color: s.color, opacity: 0.6 }}>{s.key}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="border-t border-emerald-500/20 pt-2 flex justify-between font-black text-white text-xs">
-                    <span>TOTAL ACTIVOS</span><span className="text-emerald-400">{fmt(efectivoRecibido + totalCuentasPorCobrar)}</span>
+
+                  {/* Chart */}
+                  <div className="px-2 pb-5">
+                    <ResponsiveContainer width="100%" height={260}>
+                      <LineChart data={chartData} margin={{ top: 8, right: 24, left: 0, bottom: 0 }}>
+                        <defs>
+                          {SERIES.map(s => (
+                            <linearGradient key={s.key} id={`grad-${s.key}`} x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor={s.color} stopOpacity={0.15} />
+                              <stop offset="100%" stopColor={s.color} stopOpacity={0} />
+                            </linearGradient>
+                          ))}
+                        </defs>
+                        <CartesianGrid strokeDasharray="2 6" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                        <XAxis
+                          dataKey="mes"
+                          tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 10, fontWeight: 700, fontFamily: 'inherit' }}
+                          axisLine={false} tickLine={false} dy={8}
+                        />
+                        <YAxis
+                          tickFormatter={fmtAxis}
+                          tick={{ fill: 'rgba(255,255,255,0.18)', fontSize: 9, fontFamily: 'inherit' }}
+                          axisLine={false} tickLine={false} width={52}
+                        />
+                        <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.06)', strokeWidth: 1 }} />
+                        {SERIES.map(s => (
+                          <Line
+                            key={s.key}
+                            dataKey={s.key}
+                            type="monotone"
+                            stroke={s.color}
+                            strokeWidth={1.5}
+                            strokeDasharray={s.dash}
+                            dot={false}
+                            activeDot={{ r: 4, fill: s.color, strokeWidth: 0, style: { filter: `drop-shadow(0 0 6px ${s.color})` } }}
+                          />
+                        ))}
+                      </LineChart>
+                    </ResponsiveContainer>
                   </div>
                 </div>
+              );
+            })()}
+
+            {/* Mini Balance — mismos datos que Balance General */}
+            <div className="bg-white/[0.02] border border-white/5 rounded-2xl overflow-hidden">
+              <div className="px-5 py-3 border-b border-white/5 bg-white/[0.02]">
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-white/40">Situación Financiera · Balance General</h3>
+                <p className="text-[9px] text-white/20 mt-0.5">Los valores son idénticos a la pestaña Balance General</p>
               </div>
-              {/* Pasivos */}
-              <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4">
-                <p className="text-[9px] font-black text-red-400/70 uppercase tracking-widest mb-3">PASIVOS</p>
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-[11px] text-white/60">
-                    <span>Costos pendientes</span><span className="text-red-400 font-bold">{fmt(cuentasPorPagar)}</span>
+              <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-white/5">
+
+                {/* ACTIVOS */}
+                <div className="p-5 space-y-2">
+                  <p className="text-[9px] font-black text-emerald-400/70 uppercase tracking-widest mb-3">ACTIVOS</p>
+                  <div className="flex justify-between text-[11px] text-white/50">
+                    <span>Efectivo en caja</span>
+                    <span className="text-emerald-400 font-bold">{fmt(bsEfectivoCaja)}</span>
                   </div>
-                  <div className="flex justify-between text-[11px] text-white/60">
-                    <span>Impuesto estimado</span><span className="text-amber-400 font-bold">{fmt(taxCalc.tax)}</span>
+                  <div className="flex justify-between text-[11px] text-white/50">
+                    <span>Cuentas por cobrar</span>
+                    <span className="text-amber-400 font-bold">{fmt(totalCuentasPorCobrar)}</span>
                   </div>
-                  <div className="border-t border-red-500/20 pt-2 flex justify-between font-black text-white text-xs">
-                    <span>TOTAL PASIVOS</span><span className="text-red-400">{fmt(cuentasPorPagar + taxCalc.tax)}</span>
+                  <div className="flex justify-between text-[11px] text-white/50">
+                    <span>Inmovilizado / Activos fijos</span>
+                    <span className="text-emerald-400/70 font-bold">{fmt(bsInmovilizado)}</span>
+                  </div>
+                  <div className="border-t border-white/10 pt-2 flex justify-between font-black text-xs">
+                    <span className="text-white/70">TOTAL ACTIVOS</span>
+                    <span className="text-emerald-400">{fmt(bsTotalActivos)}</span>
                   </div>
                 </div>
-              </div>
-              {/* Patrimonio */}
-              <div className="bg-violet-500/5 border border-violet-500/20 rounded-xl p-4">
-                <p className="text-[9px] font-black text-violet-400/70 uppercase tracking-widest mb-3">PATRIMONIO</p>
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-[11px] text-white/60">
-                    <span>Resultado del período</span><span className={`font-bold ${netResult >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmt(netResult)}</span>
+
+                {/* PASIVOS */}
+                <div className="p-5 space-y-2">
+                  <p className="text-[9px] font-black text-red-400/70 uppercase tracking-widest mb-3">PASIVOS</p>
+                  <div className="flex justify-between text-[11px] text-white/50">
+                    <span>Costos pendientes</span>
+                    <span className="text-red-400 font-bold">{fmt(cuentasPorPagar)}</span>
                   </div>
-                  <div className="flex justify-between text-[11px] text-white/60">
-                    <span>Utilidad neta est.</span><span className="text-violet-400 font-bold">{fmt(netResult - taxCalc.tax)}</span>
+                  <div className="flex justify-between text-[11px] text-white/50">
+                    <span>Impuesto estimado (5.9%)</span>
+                    <span className="text-amber-400 font-bold">{fmt(taxCalc.tax)}</span>
                   </div>
-                  <div className="border-t border-violet-500/20 pt-2 flex justify-between font-black text-white text-xs">
-                    <span>TOTAL PATRIMONIO</span><span className="text-violet-400">{fmt(netResult)}</span>
+                  <div className="flex justify-between text-[11px] text-white/50">
+                    <span>Préstamos por pagar</span>
+                    <span className="text-red-400/70 font-bold">{fmt(deudaFinanciera)}</span>
                   </div>
+                  <div className="border-t border-white/10 pt-2 flex justify-between font-black text-xs">
+                    <span className="text-white/70">TOTAL PASIVOS</span>
+                    <span className="text-red-400">{fmt(bsTotalPasivos)}</span>
+                  </div>
+                </div>
+
+                {/* PATRIMONIO */}
+                <div className="p-5 space-y-2">
+                  <p className="text-[9px] font-black text-violet-400/70 uppercase tracking-widest mb-3">PATRIMONIO</p>
+                  <div className="flex justify-between text-[11px] text-white/50">
+                    <span>Capital social</span>
+                    <span className="text-violet-400/70 font-bold">{fmt(capitalSocial)}</span>
+                  </div>
+                  <div className="flex justify-between text-[11px] text-white/50">
+                    <span>Prima / Aportes adicionales</span>
+                    <span className="text-violet-400/70 font-bold">{fmt(primaAcciones)}</span>
+                  </div>
+                  <div className="flex justify-between text-[11px] text-white/50">
+                    <span>Utilidades del período</span>
+                    <span className={`font-bold ${bsUtilidadesBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmt(bsUtilidadesBalance)}</span>
+                  </div>
+                  <div className="border-t border-white/10 pt-2 flex justify-between font-black text-xs">
+                    <span className="text-white/70">TOTAL PATRIMONIO</span>
+                    <span className="text-violet-400">{fmt(bsTotalPatrimonio)}</span>
+                  </div>
+                  <p className="text-[8px] text-white/20 mt-1">Activos ({fmt(bsTotalActivos)}) − Pasivos ({fmt(bsTotalPasivos)}) = {fmt(bsTotalPatrimonio)} ✓</p>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Cuentas por Cobrar Table */}
-          <div className="bg-white/[0.02] border border-white/5 rounded-2xl overflow-hidden">
-            <div className="flex items-center gap-2 p-5 border-b border-white/5">
-              <Send size={12} className="text-amber-400" />
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-white/40">Cuentas por Cobrar · Deudas de Promotores</h3>
-              {totalCuentasPorCobrar > 0 && (
-                <span className="ml-auto text-xs font-black text-amber-400">{fmt(totalCuentasPorCobrar)}</span>
+            {/* Cuentas por Cobrar */}
+            <div className="bg-white/[0.02] border border-white/5 rounded-2xl overflow-hidden">
+              <div className="flex items-center gap-2 p-5 border-b border-white/5">
+                <Send size={12} className="text-amber-400" />
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-white/40">Cuentas por Cobrar · Deudas de Promotores</h3>
+                {totalCuentasPorCobrar > 0 && (
+                  <span className="ml-auto text-xs font-black text-amber-400">{fmt(totalCuentasPorCobrar)}</span>
+                )}
+              </div>
+              {cuentasPorCobrar.length === 0 ? (
+                <div className="p-10 text-center">
+                  <CheckCircle2 size={28} className="text-emerald-500/30 mx-auto mb-2" />
+                  <p className="text-white/20 text-[10px] uppercase tracking-widest">Sin deudas pendientes</p>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-5 gap-2 px-5 py-2.5 border-b border-white/5">
+                    <span className="text-[9px] font-black text-white/30 uppercase tracking-widest col-span-1">Evento</span>
+                    <span className="text-[9px] font-black text-white/30 uppercase tracking-widest col-span-1">Promotor</span>
+                    <span className="text-[9px] font-black text-white/30 uppercase tracking-widest text-right">Debe Enviar</span>
+                    <span className="text-[9px] font-black text-white/30 uppercase tracking-widest text-right">Ya Enviado</span>
+                    <span className="text-[9px] font-black text-amber-400/60 uppercase tracking-widest text-right">Deuda</span>
+                  </div>
+                  <div className="divide-y divide-white/[0.03]">
+                    {cuentasPorCobrar.map((r, i) => (
+                      <div key={i} className="grid grid-cols-5 gap-2 px-5 py-3 hover:bg-white/[0.02] transition-all border-l-2 border-l-amber-500/40">
+                        <span className="text-[11px] text-white/60 truncate">{r.event?.title ?? '—'}</span>
+                        <span className="text-[11px] text-white font-bold truncate">{r.promoter?.name ?? '—'}</span>
+                        <span className="text-[11px] text-white/60 text-right">{fmt(r.dineroAEnviar)}</span>
+                        <span className="text-[11px] text-emerald-400 text-right">{fmt(r.yaEnviado)}</span>
+                        <span className="text-[11px] font-black text-amber-400 text-right">{fmt(r.deuda)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-5 gap-2 px-5 py-3 bg-white/5">
+                    <span className="text-[10px] font-black text-white uppercase col-span-2">TOTAL</span>
+                    <span /><span />
+                    <span className="text-[10px] font-black text-amber-400 text-right">{fmt(totalCuentasPorCobrar)}</span>
+                  </div>
+                </>
               )}
             </div>
-            {cuentasPorCobrar.length === 0 ? (
-              <div className="p-10 text-center">
-                <CheckCircle2 size={28} className="text-emerald-500/30 mx-auto mb-2" />
-                <p className="text-white/20 text-[10px] uppercase tracking-widest">Sin deudas pendientes</p>
-              </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-5 gap-2 px-5 py-2.5 border-b border-white/5">
-                  <span className="text-[9px] font-black text-white/30 uppercase tracking-widest col-span-1">Evento</span>
-                  <span className="text-[9px] font-black text-white/30 uppercase tracking-widest col-span-1">Promotor</span>
-                  <span className="text-[9px] font-black text-white/30 uppercase tracking-widest text-right">Debe Enviar</span>
-                  <span className="text-[9px] font-black text-white/30 uppercase tracking-widest text-right">Ya Enviado</span>
-                  <span className="text-[9px] font-black text-amber-400/60 uppercase tracking-widest text-right">Deuda</span>
-                </div>
-                <div className="divide-y divide-white/[0.03]">
-                  {cuentasPorCobrar.map((r, i) => (
-                    <div key={i} className="grid grid-cols-5 gap-2 px-5 py-3 hover:bg-white/[0.02] transition-all border-l-2 border-l-amber-500/40">
-                      <span className="text-[11px] text-white/60 truncate col-span-1">{r.event?.title ?? '—'}</span>
-                      <span className="text-[11px] text-white font-bold truncate col-span-1">{r.promoter?.name ?? '—'}</span>
-                      <span className="text-[11px] text-white/60 text-right">{fmt(r.dineroAEnviar)}</span>
-                      <span className="text-[11px] text-emerald-400 text-right">{fmt(r.yaEnviado)}</span>
-                      <span className="text-[11px] font-black text-amber-400 text-right">{fmt(r.deuda)}</span>
+
+            {/* Gastos por Categoría */}
+            {expenseByCategory.length > 0 && (
+              <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-5">
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-4">Gastos por Categoría</h3>
+                <div className="space-y-2">
+                  {expenseByCategory.map(({ cat, amount, label }) => (
+                    <div key={cat} className="flex items-center gap-3">
+                      <div className="w-24 text-[9px] text-white/40 uppercase truncate">{label}</div>
+                      <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                        <div className="h-full bg-red-500/50 rounded-full" style={{ width: `${Math.min((amount / totalExpenses) * 100, 100)}%` }} />
+                      </div>
+                      <div className="w-20 text-right text-[10px] font-bold text-white/60">{fmtShort(amount)}</div>
+                      <div className="w-10 text-right text-[9px] text-white/30">{totalExpenses > 0 ? ((amount / totalExpenses) * 100).toFixed(0) : 0}%</div>
                     </div>
                   ))}
                 </div>
-                <div className="grid grid-cols-5 gap-2 px-5 py-3 bg-white/5">
-                  <span className="text-[10px] font-black text-white uppercase col-span-2">TOTAL</span>
-                  <span />
-                  <span />
-                  <span className="text-[10px] font-black text-amber-400 text-right">{fmt(totalCuentasPorCobrar)}</span>
-                </div>
-              </>
+              </div>
             )}
           </div>
-
-          {/* GASTOS POR CATEGORÍA */}
-          {expenseByCategory.length > 0 && (
-            <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-5">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-4">Gastos por Categoría</h3>
-              <div className="space-y-2">
-                {expenseByCategory.map(({ cat, amount, label }) => (
-                  <div key={cat} className="flex items-center gap-3">
-                    <div className="w-24 text-[9px] text-white/40 uppercase truncate">{label}</div>
-                    <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                      <div className="h-full bg-red-500/50 rounded-full" style={{ width: `${Math.min((amount / totalExpenses) * 100, 100)}%` }} />
-                    </div>
-                    <div className="w-20 text-right text-[10px] font-bold text-white/60">{fmtShort(amount)}</div>
-                    <div className="w-10 text-right text-[9px] text-white/30">{((amount / totalExpenses) * 100).toFixed(0)}%</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+        );
+      })()}
 
       {/* ── TAB: MOVIMIENTOS ─────────────────────────────────────────────── */}
       {activeTab === 'movimientos' && (
@@ -1281,35 +1436,20 @@ export const Accounting: React.FC = () => {
         //   − Costos de eventos ya pagados
         //   − Compras de activos fijos (esa plata salió de caja)
         //   − Pagos de préstamos (esa plata también salió)
-        const efectivoCaja = Math.max(0, efectivoRecibido);
-
-        // CxC: lo que los promotores todavía te deben
+        // Usar los totales calculados a nivel de componente (consistentes con Resumen)
+        const efectivoCaja = bsEfectivoCaja;
         const cxc = totalCuentasPorCobrar;
-
-        // Activos fijos: bienes físicos de la empresa
-        //   = Ingresado manualmente + compras registradas como "Compra de Activo Fijo"
-        const inmovilizado = activosFijos + assetPurchases;
-
+        const inmovilizado = bsInmovilizado;
         const totalActivoCorriente = efectivoCaja + cxc;
         const totalActivoNoCorriente = inmovilizado;
-        const totalActivos = totalActivoCorriente + totalActivoNoCorriente;
-
-        // ── PASIVOS ──────────────────────────────────────────────────────────────
-        // CxP: gastos de eventos comprometidos pero aún no pagados
+        const totalActivos = bsTotalActivos;
         const totalPasivosCorrientes = cuentasPorPagar + taxCalc.tax;
-        // Préstamos: lo que se recibió como préstamo menos lo ya devuelto
         const totalPasivosNoCorrientes = deudaFinanciera;
-        const totalPasivos = totalPasivosCorrientes + totalPasivosNoCorrientes;
-
-        // ── PATRIMONIO (RESIDUAL) ─────────────────────────────────────────────────
-        // Patrimonio Neto = lo que le pertenece a los dueños = Activos − Pasivos
-        // Las "Utilidades del Período" son el número que hace cuadrar el balance:
-        //   Utilidades = Patrimonio Neto − Capital Social − Aportes
-        // Esto es contablemente correcto y garantiza que el cuadre sea SIEMPRE $0.
-        const patrimonioNeto = totalActivos - totalPasivos;
-        const utilidadesBalance = patrimonioNeto - capitalSocial - primaAcciones;
-        const totalPatrimonio = capitalSocial + primaAcciones + utilidadesBalance; // = patrimonioNeto
-        const totalPasivoPatrimonio = totalPasivos + totalPatrimonio;              // = totalActivos
+        const totalPasivos = bsTotalPasivos;
+        const totalPatrimonio = bsTotalPatrimonio;
+        const utilidadesBalance = bsUtilidadesBalance;
+        const totalPasivoPatrimonio = totalPasivos + totalPatrimonio;
+        const cuadre = totalActivos - totalPasivoPatrimonio; // siempre 0
 
         // ── HELPERS UI ───────────────────────────────────────────────────────────
         type DetailItem = { label: string; value: number; sign?: '+' | '-' | '=' };
@@ -1443,7 +1583,7 @@ export const Accounting: React.FC = () => {
               {[
                 { label: 'TOTAL ACTIVOS', value: totalActivos, sub: 'Lo que tiene la empresa', color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' },
                 { label: 'TOTAL PASIVOS', value: totalPasivos, sub: 'Lo que debe la empresa', color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/20' },
-                { label: 'PATRIMONIO NETO', value: patrimonioNeto, sub: 'Lo que es de los dueños', color: patrimonioNeto >= 0 ? 'text-violet-400' : 'text-red-400', bg: patrimonioNeto >= 0 ? 'bg-violet-500/10 border-violet-500/20' : 'bg-red-500/10 border-red-500/20' },
+                { label: 'PATRIMONIO NETO', value: totalPatrimonio, sub: 'Lo que es de los dueños', color: totalPatrimonio >= 0 ? 'text-violet-400' : 'text-red-400', bg: totalPatrimonio >= 0 ? 'bg-violet-500/10 border-violet-500/20' : 'bg-red-500/10 border-red-500/20' },
               ].map(k => (
                 <div key={k.label} className={`rounded-xl border p-4 ${k.bg}`}>
                   <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-2">{k.label}</p>
@@ -1550,7 +1690,7 @@ export const Accounting: React.FC = () => {
               {/* PATRIMONIO */}
               <div className="border-l-4 border-l-violet-500/60 mt-2">
                 <Section label="▸ PATRIMONIO" color="violet" />
-                <Sub label="Lo que les pertenece a los dueños = Activos − Pasivos" color="violet" />
+                <Sub label="Capital Social + Prima + Utilidades del Período" color="violet" />
                 <Row id="capital" label="Capital Social" value={capitalSocial} indent={2} color="violet"
                   sub={capitalSocial === 0 ? '⚠ Ingresa con el botón Editar Capital' : 'Aportes iniciales de los socios'} />
                 <Row id="prima" label="Prima / Aportes Adicionales" value={primaAcciones} indent={2} color="violet"
@@ -1559,24 +1699,32 @@ export const Accounting: React.FC = () => {
                   color={utilidadesBalance >= 0 ? 'emerald' : 'red'}
                   sub="Clic para ver el cálculo"
                   detail={[
-                    { label: 'Total Activos', value: totalActivos, sign: '+' },
-                    { label: 'Total Pasivos', value: totalPasivos, sign: '-' },
-                    { label: 'Capital Social', value: capitalSocial, sign: '-' },
-                    { label: 'Prima / Aportes', value: primaAcciones, sign: '-' },
+                    { label: 'Patrimonio total (Activos − Pasivos)', value: totalPatrimonio, sign: '+' },
+                    { label: 'Menos Capital Social aportado', value: capitalSocial, sign: '-' },
+                    { label: 'Menos Prima / Aportes adicionales', value: primaAcciones, sign: '-' },
                     { label: 'UTILIDADES DEL PERÍODO', value: utilidadesBalance, sign: '=' },
                   ]} />
                 <Total label="▸ TOTAL PATRIMONIO" value={totalPatrimonio} color="violet" size="lg" />
               </div>
 
               {/* CUADRE */}
-              <div className="grid grid-cols-3 gap-0 px-5 py-4 bg-emerald-500/10 border-t-2 border-emerald-500/30 mt-2">
+              <div className={`grid grid-cols-3 gap-0 px-5 py-4 border-t-2 mt-2 ${Math.abs(cuadre) < 1 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
                 <div className="col-span-2">
-                  <span className="text-sm font-black text-emerald-400 uppercase">✓ BALANCE CUADRADO</span>
+                  <span className={`text-sm font-black uppercase ${Math.abs(cuadre) < 1 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {Math.abs(cuadre) < 1 ? '✓ BALANCE CUADRADO' : '⚠ DIFERENCIA DE CUADRE'}
+                  </span>
                   <p className="text-[9px] text-white/25 mt-0.5">
-                    Total Activo ({fmt(totalActivos)}) = Total Pasivo + Patrimonio ({fmt(totalPasivoPatrimonio)})
+                    Activos ({fmt(totalActivos)}) − (Pasivos + Patrimonio) ({fmt(totalPasivoPatrimonio)})
                   </p>
+                  {Math.abs(cuadre) >= 1 && (
+                    <p className="text-[9px] text-red-300/60 mt-1">
+                      Hay movimientos fuera de la contabilidad doble. Registra los ingresos de boletas como movimiento manual para cuadrar.
+                    </p>
+                  )}
                 </div>
-                <span className="text-sm font-black text-emerald-400 text-right">$0</span>
+                <span className={`text-sm font-black text-right ${Math.abs(cuadre) < 1 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {Math.abs(cuadre) < 1 ? '$0' : fmt(cuadre)}
+                </span>
               </div>
             </div>
 
