@@ -574,15 +574,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 }
             }
 
-            // 2. Validate tier availability before doing anything
+            // 2. Validate tier availability — count real tickets from completed orders
             for (const item of cartItems) {
                 const tier = tiers.find(t => t.id === item.tier_id);
                 if (!tier) throw new Error(`Tier no encontrado: ${item.tier_id}`);
-                const available = tier.quantity - (tier.sold || 0);
+                const soldTickets = orders
+                    .filter(o => o.status === 'completed')
+                    .flatMap(o => o.items || [])
+                    .filter(i => i.tier_id === item.tier_id)
+                    .reduce((s, i) => s + (i.quantity || 1), 0);
+                const available = tier.quantity - soldTickets;
                 if (item.quantity > available) {
                     throw new Error(
-                        `No hay suficientes boletas disponibles para "${tier.name}". ` +
-                        `Disponibles: ${available} · Solicitadas: ${item.quantity}`
+                        `No hay suficientes boletas para "${tier.name}". ` +
+                        `Solicitadas: ${item.quantity} · Disponibles: ${available}`
                     );
                 }
             }

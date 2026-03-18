@@ -495,15 +495,20 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
         const event = events.find(e => e.id === selectedEventId);
         if (!event) throw new Error("Evento no encontrado");
 
-        // Validar disponibilidad antes de procesar
+        // Validar disponibilidad contando tickets reales de órdenes completadas
         for (const item of cart) {
             const tier = tiers.find(t => t.id === item.tierId);
             if (!tier) continue;
-            const available = tier.quantity - (tier.sold || 0);
+            const soldTickets = orders
+                .filter(o => o.status === 'completed')
+                .flatMap(o => o.items || [])
+                .filter(i => i.tier_id === item.tierId)
+                .reduce((s, i) => s + (i.quantity || 1), 0);
+            const available = tier.quantity - soldTickets;
             if (item.quantity > available) {
                 throw new Error(
                     `No hay suficientes boletas para "${tier.name}".\n` +
-                    `Disponibles: ${available} · Solicitadas: ${item.quantity}`
+                    `Solicitadas: ${item.quantity} · Disponibles: ${available}`
                 );
             }
         }
@@ -1414,21 +1419,24 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                                 <div className="space-y-3">
                                     {getEventTiers(selectedEventId).map(tier => {
                                         const inCart = cart.find(c => c.tierId === tier.id)?.quantity || 0;
-                                        const available = tier.quantity - (tier.sold || 0);
+                                        const soldTickets = orders
+                                            .filter(o => o.status === 'completed')
+                                            .flatMap(o => o.items || [])
+                                            .filter(i => i.tier_id === tier.id)
+                                            .reduce((s, i) => s + (i.quantity || 1), 0);
+                                        const available = tier.quantity - soldTickets;
                                         const soldOut = available <= 0;
                                         const atLimit = inCart >= available;
                                         return (
-                                            <div key={tier.id} className={`flex justify-between items-center p-2 rounded-lg ${soldOut ? 'bg-zinc-900/50 opacity-50' : 'bg-zinc-800/50'}`}>
+                                            <div key={tier.id} className={`flex justify-between items-center bg-zinc-800/50 p-2 rounded-lg ${soldOut ? 'opacity-40' : ''}`}>
                                                 <div>
                                                     <p className="text-xs font-bold text-white">{tier.name}</p>
                                                     <p className="text-[10px] text-zinc-500">${tier.price.toLocaleString()}</p>
-                                                    <p className={`text-[9px] font-bold mt-0.5 ${soldOut ? 'text-red-400' : available <= 10 ? 'text-amber-400' : 'text-zinc-600'}`}>
-                                                        {soldOut ? 'AGOTADO' : `${available} disponibles`}
-                                                    </p>
+                                                    {soldOut && <p className="text-[9px] font-bold text-red-400 mt-0.5">AGOTADO</p>}
                                                 </div>
                                                 <div className="flex items-center gap-3">
                                                     <button onClick={() => updateCart(tier.id, Math.max(0, inCart - 1))} disabled={inCart === 0} className="w-6 h-6 bg-zinc-700 rounded-full text-white hover:bg-zinc-600 flex items-center justify-center font-bold disabled:opacity-30">-</button>
-                                                    <span className={`font-bold w-4 text-center text-sm ${atLimit && !soldOut ? 'text-amber-400' : 'text-white'}`}>{inCart}</span>
+                                                    <span className="font-bold text-white w-4 text-center text-sm">{inCart}</span>
                                                     <button onClick={() => updateCart(tier.id, inCart + 1)} disabled={atLimit || soldOut} className="w-6 h-6 bg-zinc-700 rounded-full text-white hover:bg-zinc-600 flex items-center justify-center font-bold disabled:opacity-30 disabled:cursor-not-allowed">+</button>
                                                 </div>
                                             </div>
