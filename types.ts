@@ -183,6 +183,7 @@ export type AccountingIncomeCategory =
   | 'merchandise'
   | 'bar_services'
   | 'venue_rental'
+  | 'loan_received'      // Préstamo recibido → DR Caja / CR Préstamos por Pagar
   | 'other_income';
 
 export type AccountingExpenseCategory =
@@ -194,6 +195,8 @@ export type AccountingExpenseCategory =
   | 'logistics'
   | 'administrative'
   | 'taxes'
+  | 'asset_purchase'     // Compra activo fijo → DR Inmovilizado / CR Caja
+  | 'loan_payment'       // Pago préstamo → DR Préstamos por Pagar / CR Caja
   | 'other_expense';
 
 export interface AccountingMovement {

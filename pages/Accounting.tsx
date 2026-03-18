@@ -39,16 +39,17 @@ const uploadComprobante = async (file: File, eventId: string, promoterId: string
 // ── CONSTANTS ────────────────────────────────────────────────────────────────
 const UVT_2025 = 49799; // COP
 
-const INCOME_CATEGORIES: { value: string; label: string }[] = [
+const INCOME_CATEGORIES: { value: string; label: string; hint?: string }[] = [
   { value: 'ticket_sales', label: 'Venta de Boletas' },
   { value: 'sponsorship', label: 'Patrocinio / Sponsorship' },
   { value: 'merchandise', label: 'Merchandising' },
   { value: 'bar_services', label: 'Bar / Servicios F&B' },
   { value: 'venue_rental', label: 'Alquiler de Espacio' },
+  { value: 'loan_received', label: '💳 Préstamo Recibido', hint: 'DR Caja · CR Préstamos por Pagar — no cuenta como ingreso operacional' },
   { value: 'other_income', label: 'Otro Ingreso' },
 ];
 
-const EXPENSE_CATEGORIES: { value: string; label: string; icon: React.ReactNode }[] = [
+const EXPENSE_CATEGORIES: { value: string; label: string; icon: React.ReactNode; hint?: string }[] = [
   { value: 'venue', label: 'Venue / Locación', icon: <Building2 size={12} /> },
   { value: 'production', label: 'Producción', icon: <Settings size={12} /> },
   { value: 'staff', label: 'Personal / Staff', icon: <Users size={12} /> },
@@ -57,6 +58,8 @@ const EXPENSE_CATEGORIES: { value: string; label: string; icon: React.ReactNode 
   { value: 'logistics', label: 'Logística', icon: <Truck size={12} /> },
   { value: 'administrative', label: 'Administrativo', icon: <FileText size={12} /> },
   { value: 'taxes', label: 'Impuestos / Tasas', icon: <Percent size={12} /> },
+  { value: 'asset_purchase', label: '🏗️ Compra de Activo Fijo', icon: <Building2 size={12} />, hint: 'DR Inmovilizado · CR Caja — se agrega al balance como activo fijo, no como gasto operacional' },
+  { value: 'loan_payment', label: '💸 Pago de Préstamo', icon: <CreditCard size={12} />, hint: 'DR Préstamos por Pagar · CR Caja — reduce la deuda financiera, no es gasto operacional' },
   { value: 'other_expense', label: 'Otro Gasto', icon: <Globe size={12} /> },
 ];
 
@@ -78,14 +81,11 @@ const fmtShort = (n: number) => {
 };
 
 // ── TAX CALCULATION (Régimen Simple Colombia 2025) ───────────────────────────
+// Actividad: Eventos y Conciertos → tarifa fija 5.9% (Art. 908 E.T.)
+const TAX_RATE = 0.059;
 const calculateSimpleTax = (annualIncome: number) => {
+  const rate = TAX_RATE;
   const uvts = annualIncome / UVT_2025;
-  let rate = 0;
-  // Actividades de entretenimiento, esparcimiento y similares
-  if (uvts <= 6000) rate = 0.02;
-  else if (uvts <= 15000) rate = 0.028;
-  else if (uvts <= 30000) rate = 0.081;
-  else rate = 0.116;
   return { tax: annualIncome * rate, rate, uvts };
 };
 
@@ -131,10 +131,12 @@ const MovementForm: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   };
 
   const cats = form.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+  const selectedCat = cats.find(c => c.value === form.category);
+  const isBalanceSheetOnly = ['loan_received', 'asset_purchase', 'loan_payment'].includes(form.category);
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl">
-      <div className="w-full max-w-md bg-[#0d0d0d] border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl overflow-y-auto">
+      <div className="w-full max-w-md bg-[#0d0d0d] border border-white/10 rounded-2xl shadow-2xl overflow-hidden my-auto">
         <div className="flex items-center justify-between p-5 border-b border-white/5">
           <h3 className="font-black text-white text-sm uppercase tracking-widest">Nuevo Movimiento</h3>
           <button onClick={onClose} className="text-white/30 hover:text-white"><X size={16} /></button>
@@ -149,7 +151,7 @@ const MovementForm: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             </button>
             <button type="button" onClick={() => setForm(f => ({ ...f, type: 'expense', category: 'venue' }))}
               className={`flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${form.type === 'expense' ? 'bg-red-500/20 text-red-400' : 'text-white/20 hover:text-white/40'}`}>
-              <TrendingDown size={12} /> Gasto
+              <TrendingDown size={12} /> Gasto / Salida
             </button>
           </div>
 
@@ -175,6 +177,12 @@ const MovementForm: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-white text-xs">
               {cats.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
             </select>
+            {/* Double-entry hint */}
+            {selectedCat && 'hint' in selectedCat && selectedCat.hint && (
+              <div className={`mt-2 px-3 py-2 rounded-lg border text-[9px] font-bold leading-relaxed ${isBalanceSheetOnly ? 'bg-violet-500/10 border-violet-500/20 text-violet-300' : 'bg-white/5 border-white/5 text-white/30'}`}>
+                📋 {selectedCat.hint}
+              </div>
+            )}
           </div>
 
           {/* Event */}
@@ -709,9 +717,18 @@ export const Accounting: React.FC = () => {
   // Total income from ticket sales (orders)
   const orderIncome = useMemo(() => completedOrders.reduce((s, o) => s + (o.total || 0), 0), [completedOrders]);
 
-  // Extra income movements
-  const movIncomes = useMemo(() => accountingMovements.filter(m => m.type === 'income'), [accountingMovements]);
-  const movExpenses = useMemo(() => accountingMovements.filter(m => m.type === 'expense'), [accountingMovements]);
+  // Balance-sheet-only categories (excluded from P&L)
+  const BALANCE_ONLY_CATS = ['loan_received', 'asset_purchase', 'loan_payment'];
+
+  // Operational movements (affect P&L)
+  const movIncomes = useMemo(() => accountingMovements.filter(m => m.type === 'income' && !BALANCE_ONLY_CATS.includes(m.category)), [accountingMovements]);
+  const movExpenses = useMemo(() => accountingMovements.filter(m => m.type === 'expense' && !BALANCE_ONLY_CATS.includes(m.category)), [accountingMovements]);
+
+  // Balance-sheet movements
+  const loanReceived = useMemo(() => accountingMovements.filter(m => m.category === 'loan_received').reduce((s, m) => s + m.amount, 0), [accountingMovements]);
+  const loanPayments = useMemo(() => accountingMovements.filter(m => m.category === 'loan_payment').reduce((s, m) => s + m.amount, 0), [accountingMovements]);
+  const assetPurchases = useMemo(() => accountingMovements.filter(m => m.category === 'asset_purchase').reduce((s, m) => s + m.amount, 0), [accountingMovements]);
+  const deudaFinanciera = Math.max(0, loanReceived - loanPayments);
 
   const totalMovIncome = useMemo(() => movIncomes.reduce((s, m) => s + m.amount, 0), [movIncomes]);
   const totalMovExpense = useMemo(() => movExpenses.reduce((s, m) => s + m.amount, 0), [movExpenses]);
@@ -859,10 +876,17 @@ export const Accounting: React.FC = () => {
       .reduce((s, o) => s + (o.total || 0), 0);
     // Settled amounts (promoters physically sent this)
     const settled = settlements.reduce((s, se) => s + se.amount_sent, 0);
-    // Income movements (registered cash received)
+    // Operational income movements
     const incomeMovs = movIncomes.reduce((s, m) => s + m.amount, 0);
-    return directSales + settled + incomeMovs;
-  }, [completedOrders, settlements, movIncomes]);
+    // Loan funds received (increase cash)
+    const loans = loanReceived;
+    // Asset purchases and loan payments reduce cash
+    const cashOut = assetPurchases + loanPayments;
+    // Operational expenses reduce cash
+    const opExpenses = movExpenses.reduce((s, m) => s + m.amount, 0);
+    // Net cash = all cash in - all cash out
+    return directSales + settled + incomeMovs + loans - cashOut - opExpenses - eventCostsPaid;
+  }, [completedOrders, settlements, movIncomes, movExpenses, loanReceived, assetPurchases, loanPayments, eventCostsPaid]);
 
   // ── PENDING COSTS (Cuentas por Pagar) ─────────────────────────────────────────
   const cuentasPorPagar = useMemo(() =>
@@ -1027,7 +1051,7 @@ export const Accounting: React.FC = () => {
                 <p className="text-[9px] font-black text-emerald-400/70 uppercase tracking-widest mb-3">ACTIVOS</p>
                 <div className="space-y-1.5">
                   <div className="flex justify-between text-[11px] text-white/60">
-                    <span>Efectivo recibido</span><span className="text-emerald-400 font-bold">{fmt(efectivoRecibido)}</span>
+                    <span>Efectivo en caja (neto)</span><span className="text-emerald-400 font-bold">{fmt(Math.max(0, efectivoRecibido))}</span>
                   </div>
                   <div className="flex justify-between text-[11px] text-white/60">
                     <span>Cuentas por cobrar</span><span className="text-amber-400 font-bold">{fmt(totalCuentasPorCobrar)}</span>
@@ -1227,11 +1251,13 @@ export const Accounting: React.FC = () => {
 
       {/* ── TAB: BALANCE GENERAL ──────────────────────────────────────────── */}
       {activeTab === 'balance' && (() => {
-        const totalActivoCorriente = efectivoRecibido + totalCuentasPorCobrar;
-        const totalActivoNoCorriente = activosFijos;
+        const totalInmovilizado = activosFijos + assetPurchases; // manual + compras registradas
+        const totalActivoCorriente = Math.max(0, efectivoRecibido) + totalCuentasPorCobrar;
+        const totalActivoNoCorriente = totalInmovilizado;
         const totalActivos = totalActivoCorriente + totalActivoNoCorriente;
         const totalPasivosCorrientes = cuentasPorPagar + taxCalc.tax;
-        const totalPasivos = totalPasivosCorrientes;
+        const totalPasivosNoCorrientes = deudaFinanciera; // préstamos netos
+        const totalPasivos = totalPasivosCorrientes + totalPasivosNoCorrientes;
         const utilidadesNetas = netResult - taxCalc.tax;
         const reservaLegal = Math.max(0, utilidadesNetas * 0.10);
         const totalPatrimonio = capitalSocial + primaAcciones + utilidadesNetas + reservaLegal;
@@ -1315,16 +1341,18 @@ export const Accounting: React.FC = () => {
                 </div>
 
                 <SubHeader label="ACTIVO CORRIENTE" color="emerald" />
-                <Row label="Efectivo y Equivalentes de Caja" value={efectivoRecibido} indent={2}
-                  sub="Ventas directas + pagos recibidos de promotores" />
+                <Row label="Efectivo y Equivalentes de Caja" value={Math.max(0, efectivoRecibido)} indent={2}
+                  sub="Caja neta: ingresos recibidos − gastos pagados − compras activos − pagos préstamos" />
                 <Row label="Cuentas por Cobrar (Promotores)" value={totalCuentasPorCobrar} indent={2} color="amber"
                   sub="Dinero pendiente de enviar · registrado como activo" />
                 <Row label="Inventario de Mercancias" value={0} indent={2} />
                 <SectionTotal label="TOTAL ACTIVO CORRIENTE" value={totalActivoCorriente} color="emerald" />
 
                 <SubHeader label="ACTIVO NO CORRIENTE" color="emerald" />
-                <Row label="Inmovilizado (Neto)" value={activosFijos} indent={2}
-                  sub={activosFijos === 0 ? 'Registra activos fijos con el botón Editar Capital' : undefined} />
+                <Row label="Inmovilizado — Capital Propio" value={activosFijos} indent={2}
+                  sub={activosFijos === 0 ? 'Registra con el botón Editar Capital' : 'Ingresado manualmente'} />
+                <Row label="Inmovilizado — Compras Registradas" value={assetPurchases} indent={2}
+                  sub={assetPurchases > 0 ? `${accountingMovements.filter(m => m.category === 'asset_purchase').length} compra(s) registrada(s)` : 'Registra compras con categoría "Compra de Activo Fijo"'} />
                 <Row label="Otros Activos No Corrientes" value={0} indent={2} />
                 <SectionTotal label="TOTAL ACTIVO NO CORRIENTE" value={totalActivoNoCorriente} color="emerald" />
 
@@ -1347,8 +1375,10 @@ export const Accounting: React.FC = () => {
                 <SectionTotal label="TOTAL PASIVOS CORRIENTES" value={totalPasivosCorrientes} color="red" />
 
                 <SubHeader label="PASIVOS NO CORRIENTES" color="red" />
-                <Row label="Deudas a Largo Plazo" value={0} indent={2} />
-                <SectionTotal label="TOTAL PASIVOS NO CORRIENTES" value={0} color="red" />
+                <Row label="Préstamos por Pagar (neto)" value={deudaFinanciera} indent={2} color={deudaFinanciera > 0 ? 'red' : 'white'}
+                  sub={deudaFinanciera > 0 ? `Recibido: ${fmt(loanReceived)} · Pagado: ${fmt(loanPayments)}` : 'Sin préstamos activos'} />
+                <Row label="Otros Pasivos No Corrientes" value={0} indent={2} />
+                <SectionTotal label="TOTAL PASIVOS NO CORRIENTES" value={totalPasivosNoCorrientes} color="red" />
 
                 <div className="grid grid-cols-3 gap-0 px-5 py-3.5 bg-red-500/15 border-t-2 border-red-500/40">
                   <span className="text-sm font-black text-red-400 uppercase col-span-2">TOTAL PASIVO</span>
@@ -1690,8 +1720,8 @@ export const Accounting: React.FC = () => {
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
               <div>
-                <p className="text-[9px] text-white/30 uppercase font-bold mb-1">UVT 2025</p>
-                <p className="text-sm font-black text-white">{fmt(UVT_2025)}</p>
+                <p className="text-[9px] text-white/30 uppercase font-bold mb-1">Actividad CIIU</p>
+                <p className="text-sm font-black text-white">Eventos y Conciertos</p>
               </div>
               <div>
                 <p className="text-[9px] text-white/30 uppercase font-bold mb-1">Ingresos Gravables</p>
@@ -1722,24 +1752,30 @@ export const Accounting: React.FC = () => {
 
           {/* Tabla de tarifas */}
           <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-5">
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-4">Tabla de Tarifas — Entretenimiento</h3>
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-4">Tarifa Régimen Simple — Eventos y Conciertos (Art. 908 E.T.)</h3>
             <div className="space-y-2">
-              {[
-                { range: '0 — 6,000 UVT', uvt: '0 — $298.8M', rate: '2.0%', active: taxCalc.uvts <= 6000 },
-                { range: '6,001 — 15,000 UVT', uvt: '$298.8M — $747M', rate: '2.8%', active: taxCalc.uvts > 6000 && taxCalc.uvts <= 15000 },
-                { range: '15,001 — 30,000 UVT', uvt: '$747M — $1,494M', rate: '8.1%', active: taxCalc.uvts > 15000 && taxCalc.uvts <= 30000 },
-                { range: '> 30,000 UVT', uvt: '> $1,494M', rate: '11.6%', active: taxCalc.uvts > 30000 },
-              ].map(row => (
-                <div key={row.range} className={`flex items-center gap-4 p-3 rounded-lg transition-all ${row.active ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-white/[0.02]'}`}>
-                  {row.active && <div className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />}
-                  {!row.active && <div className="w-1.5 h-1.5 rounded-full bg-white/10 flex-shrink-0" />}
-                  <span className={`text-xs flex-1 font-bold ${row.active ? 'text-amber-400' : 'text-white/30'}`}>{row.range}</span>
-                  <span className={`text-[9px] flex-1 ${row.active ? 'text-amber-400/60' : 'text-white/20'}`}>{row.uvt}</span>
-                  <span className={`text-sm font-black ${row.active ? 'text-amber-400' : 'text-white/20'}`}>{row.rate}</span>
+              <div className="flex items-center gap-4 p-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                <div className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-xs font-black text-amber-400">Tarifa única — todos los rangos de ingresos</p>
+                  <p className="text-[9px] text-amber-400/60 mt-0.5">Actividad: Eventos, conciertos y espectáculos públicos</p>
                 </div>
-              ))}
+                <span className="text-2xl font-black text-amber-400">5.9%</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                <div className="bg-white/[0.03] rounded-lg p-3">
+                  <p className="text-[9px] text-white/30 uppercase font-black mb-1">Base gravable</p>
+                  <p className="text-sm font-bold text-white">{fmt(annualProjected)}</p>
+                  <p className="text-[9px] text-white/20">Ingresos operacionales</p>
+                </div>
+                <div className="bg-amber-500/10 rounded-lg p-3">
+                  <p className="text-[9px] text-amber-400/60 uppercase font-black mb-1">Impuesto a pagar</p>
+                  <p className="text-sm font-bold text-amber-400">{fmt(taxCalc.tax)}</p>
+                  <p className="text-[9px] text-amber-400/40">Consolidado anual</p>
+                </div>
+              </div>
             </div>
-            <p className="text-[9px] text-white/20 mt-3 italic">* Estimación orientativa. Consulta con tu contador para la declaración oficial.</p>
+            <p className="text-[9px] text-white/20 mt-3 italic">* Tarifa fija 5.9% para actividades de eventos y conciertos (Decreto 1091/2020). Estimación orientativa — consulta con tu contador.</p>
           </div>
         </div>
       )}
