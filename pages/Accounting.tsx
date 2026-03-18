@@ -460,6 +460,40 @@ const KpiCard: React.FC<{
   );
 };
 
+// ── BALANCE CAPITAL EDITOR (extracted to avoid hooks-in-IIFE violation) ───────
+const BalanceCapitalEditor: React.FC<{
+  capitalSocial: number;
+  primaAcciones: number;
+  activosFijos: number;
+  onSave: (cap: number, prima: number, fijos: number) => void;
+}> = ({ capitalSocial, primaAcciones, activosFijos, onSave }) => {
+  const [tmpCap, setTmpCap] = useState(capitalSocial.toString());
+  const [tmpPrima, setTmpPrima] = useState(primaAcciones.toString());
+  const [tmpFijos, setTmpFijos] = useState(activosFijos.toString());
+  return (
+    <div className="bg-violet-500/5 border border-violet-500/20 rounded-2xl p-5 space-y-3">
+      <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest">Datos del Patrimonio y Activos Fijos</p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {[
+          { label: 'Capital Social (COP)', val: tmpCap, set: setTmpCap },
+          { label: 'Prima en Acciones / Aportes (COP)', val: tmpPrima, set: setTmpPrima },
+          { label: 'Inmovilizado Neto / Activos Fijos (COP)', val: tmpFijos, set: setTmpFijos },
+        ].map(f => (
+          <div key={f.label}>
+            <label className="text-[9px] font-black text-white/30 uppercase tracking-widest block mb-1">{f.label}</label>
+            <input type="number" value={f.val} onChange={e => f.set(e.target.value)}
+              className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-white text-sm font-bold placeholder:text-white/15" />
+          </div>
+        ))}
+      </div>
+      <button onClick={() => onSave(Number(tmpCap)||0, Number(tmpPrima)||0, Number(tmpFijos)||0)}
+        className="flex items-center gap-2 px-4 py-2 bg-white text-black font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-white/90 transition-all">
+        <CheckCircle2 size={12} /> Guardar
+      </button>
+    </div>
+  );
+};
+
 // ── EVENT COSTS PANEL (extracted to avoid hooks-in-IIFE violation) ────────────
 const COST_CATS = [
   { v: 'venue', l: 'Venue / Locación' },
@@ -1257,33 +1291,14 @@ export const Accounting: React.FC = () => {
             </div>
 
             {/* Manual inputs panel */}
-            {editingBalance && (() => {
-              const [tmpCap, setTmpCap] = useState(capitalSocial.toString());
-              const [tmpPrima, setTmpPrima] = useState(primaAcciones.toString());
-              const [tmpFijos, setTmpFijos] = useState(activosFijos.toString());
-              return (
-                <div className="bg-violet-500/5 border border-violet-500/20 rounded-2xl p-5 space-y-3">
-                  <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest">Datos del Patrimonio y Activos Fijos</p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {[
-                      { label: 'Capital Social (COP)', val: tmpCap, set: setTmpCap },
-                      { label: 'Prima en Acciones / Aportes (COP)', val: tmpPrima, set: setTmpPrima },
-                      { label: 'Inmovilizado Neto / Activos Fijos (COP)', val: tmpFijos, set: setTmpFijos },
-                    ].map(f => (
-                      <div key={f.label}>
-                        <label className="text-[9px] font-black text-white/30 uppercase tracking-widest block mb-1">{f.label}</label>
-                        <input type="number" value={f.val} onChange={e => f.set(e.target.value)}
-                          className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-white text-sm font-bold placeholder:text-white/15" />
-                      </div>
-                    ))}
-                  </div>
-                  <button onClick={() => saveBalanceInputs(Number(tmpCap)||0, Number(tmpPrima)||0, Number(tmpFijos)||0)}
-                    className="flex items-center gap-2 px-4 py-2 bg-white text-black font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-white/90 transition-all">
-                    <CheckCircle2 size={12} /> Guardar
-                  </button>
-                </div>
-              );
-            })()}
+            {editingBalance && (
+              <BalanceCapitalEditor
+                capitalSocial={capitalSocial}
+                primaAcciones={primaAcciones}
+                activosFijos={activosFijos}
+                onSave={saveBalanceInputs}
+              />
+            )}
 
             {/* Balance Table */}
             <div className="bg-white/[0.02] border border-white/5 rounded-2xl overflow-hidden">
