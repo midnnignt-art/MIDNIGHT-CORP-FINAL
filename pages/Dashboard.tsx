@@ -680,8 +680,12 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
           </div>
 
           <div className="relative z-10 flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-              <div className="flex items-center bg-black border border-white/10 rounded-xl px-4 py-3 min-w-[200px] md:min-w-[300px]">
+              <div className="flex items-center bg-black border border-white/10 rounded-xl px-4 py-3 min-w-[200px] md:min-w-[300px] gap-3">
                   <p className="text-xs text-zinc-400 font-mono truncate flex-1">{referralLink}</p>
+                  <div className="flex items-center gap-1.5 flex-shrink-0 bg-white/5 rounded-lg px-2.5 py-1.5">
+                      <Eye size={12} className="text-white/40" />
+                      <span className="text-xs font-black text-white/60 tabular-nums">{(currentUser.link_views || 0).toLocaleString('es-CO')}</span>
+                  </div>
               </div>
               <div className="flex gap-2">
                   <Button onClick={handleCopyLink} className={`font-bold h-12 transition-all ${linkCopied ? 'bg-emerald-500 text-black' : 'bg-white text-black'}`}>

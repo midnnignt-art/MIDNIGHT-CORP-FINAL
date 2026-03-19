@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { supabase } from './lib/supabase';
 import { Navbar } from './components/Navbar';
 import { Showcase } from './pages/Showcase';
 import { Dashboard } from './pages/Dashboard';
@@ -42,9 +43,16 @@ const App: React.FC = () => {
           localStorage.setItem('midnight_referral_code', code);
           // 2. IMPORTANTE: Guardar ID para la Base de Datos (Comisiones)
           localStorage.setItem('midnight_referral_code_id', promoter.user_id);
-          
+
+          // 3. Incrementar contador de vistas del landing page
+          supabase
+            .from('profiles')
+            .update({ link_views: (promoter.link_views || 0) + 1 })
+            .eq('id', promoter.user_id)
+            .then(() => {});
+
           setReferralToast({ show: true, name: promoter.name });
-          
+
           // Limpiar la URL para que se vea limpia pero manteniendo la sesión
           const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
           window.history.pushState({path: newUrl}, '', newUrl);

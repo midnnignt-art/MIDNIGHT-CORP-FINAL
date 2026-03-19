@@ -124,6 +124,7 @@ export interface Promoter {
   total_sales: number; // Ventas propias
   total_commission_earned: number;
   team_sales_volume?: number; // Ventas de su equipo (si es manager)
+  link_views?: number; // Vistas al landing page personal
 }
 
 export interface Wallet {

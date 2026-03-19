@@ -170,7 +170,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 sales_team_id: p.sales_team_id,
                 manager_id: p.manager_id,
                 total_sales: p.total_sales || 0,
-                total_commission_earned: p.total_commission_earned || 0
+                total_commission_earned: p.total_commission_earned || 0,
+                link_views: p.link_views || 0
             }));
 
             const mappedOrders: Order[] = (ordersData || []).map((o: any) => ({
