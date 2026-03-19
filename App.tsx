@@ -25,42 +25,42 @@ const App: React.FC = () => {
   
   const [referralToast, setReferralToast] = useState<{show: boolean, name: string}>({show: false, name: ''});
 
+  // Capturar el código INMEDIATAMENTE al montar (antes de que se limpie la URL)
+  const [pendingRef, setPendingRef] = useState<string | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('ref');
+  });
+
   // Check for Success Page redirect from Bold
   const isSuccessPage = window.location.pathname === '/gracias';
 
   // Lógica de Atribución de Referidos (Landing Page Personalizada)
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const refCode = params.get('ref');
-    
-    // Si hay promotores cargados y un código en la URL
-    if (refCode && promoters.length > 0) {
-      const code = refCode.toUpperCase();
-      const promoter = promoters.find(p => p.code === code);
-      
-      if (promoter) {
-          // 1. Guardar Código para la UI
-          localStorage.setItem('midnight_referral_code', code);
-          // 2. IMPORTANTE: Guardar ID para la Base de Datos (Comisiones)
-          localStorage.setItem('midnight_referral_code_id', promoter.user_id);
+    if (!pendingRef || promoters.length === 0) return;
 
-          // 3. Incrementar contador de vistas del landing page
-          supabase
-            .from('profiles')
-            .update({ link_views: (promoter.link_views || 0) + 1 })
-            .eq('id', promoter.user_id)
-            .then(() => {});
+    const code = pendingRef.toUpperCase();
+    const promoter = promoters.find(p => p.code === code);
 
-          setReferralToast({ show: true, name: promoter.name });
+    if (promoter) {
+      // 1. Guardar para la UI y atribución de ventas
+      localStorage.setItem('midnight_referral_code', code);
+      localStorage.setItem('midnight_referral_code_id', promoter.user_id);
 
-          // Limpiar la URL para que se vea limpia pero manteniendo la sesión
-          const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-          window.history.pushState({path: newUrl}, '', newUrl);
+      // 2. Incrementar contador via RPC (bypasa RLS con SECURITY DEFINER)
+      supabase.rpc('increment_link_views', { p_code: code }).then(() => {});
 
-          setTimeout(() => setReferralToast({ show: false, name: '' }), 5000);
-      }
+      // 3. Mostrar toast de bienvenida
+      setReferralToast({ show: true, name: promoter.name });
+      setTimeout(() => setReferralToast({ show: false, name: '' }), 5000);
+
+      // 4. Limpiar la URL
+      const cleanUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
+      window.history.pushState({}, '', cleanUrl);
+
+      // 5. No volver a procesar
+      setPendingRef(null);
     }
-  }, [promoters]);
+  }, [promoters, pendingRef]);
 
   useEffect(() => {
     if (!currentUser && (currentPage === 'dashboard' || currentPage === 'admin-events' || currentPage === 'projections' || currentPage === 'contabilidad')) {
