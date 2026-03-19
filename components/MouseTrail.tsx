@@ -1,97 +1,84 @@
 import React, { useEffect, useRef } from 'react';
 
+// ── Breathing Orb ─────────────────────────────────────────────────────────────
+// A single soft orb that follows the cursor with spring lag and breathes gently.
+// Desktop-only (pointer: fine). Uses a single div — zero canvas overhead.
+
 export const MouseTrail: React.FC = () => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const orbRef  = useRef<HTMLDivElement>(null);
+  const posRef  = useRef({ x: -200, y: -200 });   // current rendered position
+  const targetRef = useRef({ x: -200, y: -200 }); // where cursor actually is
+  const movingRef = useRef(false);
+  const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const animRef   = useRef<number>(0);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (window.matchMedia('(pointer: coarse)').matches) return;
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const orb = orbRef.current;
+    if (!orb) return;
 
-    let animationFrameId: number;
-    let particles: Particle[] = [];
+    const onMove = (e: MouseEvent) => {
+      targetRef.current = { x: e.clientX, y: e.clientY };
 
-    const resize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      if (!movingRef.current) {
+        movingRef.current = true;
+        orb.style.transform = `translate(-50%, -50%) scale(1.5)`;
+        orb.style.opacity   = '1';
+      }
+
+      if (idleTimer.current) clearTimeout(idleTimer.current);
+      idleTimer.current = setTimeout(() => {
+        movingRef.current = false;
+        orb.style.transform = `translate(-50%, -50%) scale(1)`;
+        orb.style.opacity   = '0.75';
+      }, 120);
     };
 
-    window.addEventListener('resize', resize);
-    resize();
+    window.addEventListener('mousemove', onMove);
 
-    class Particle {
-      x: number;
-      y: number;
-      size: number;
-      speedX: number;
-      speedY: number;
-      color: string;
-      opacity: number;
+    // Lerp loop — 0.09 gives a silky lag without feeling sluggish
+    const LERP = 0.09;
+    const tick = () => {
+      const p = posRef.current;
+      const t = targetRef.current;
 
-      constructor(x: number, y: number) {
-        this.x = x;
-        this.y = y;
-        this.size = Math.random() * 3 + 1;
-        this.speedX = (Math.random() - 0.5) * 2;
-        this.speedY = (Math.random() - 0.5) * 2;
-        this.color = '#490F7C'; // --eclipse
-        this.opacity = 1;
+      p.x += (t.x - p.x) * LERP;
+      p.y += (t.y - p.y) * LERP;
+
+      if (orb) {
+        orb.style.left = `${p.x}px`;
+        orb.style.top  = `${p.y}px`;
       }
 
-      update() {
-        this.x += this.speedX;
-        this.y += this.speedY;
-        if (this.size > 0.2) this.size -= 0.05;
-        this.opacity -= 0.02;
-      }
-
-      draw() {
-        if (!ctx) return;
-        ctx.fillStyle = this.color;
-        ctx.globalAlpha = this.opacity;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-
-    const handleMouseMove = (e: MouseEvent) => {
-      for (let i = 0; i < 3; i++) {
-        particles.push(new Particle(e.clientX, e.clientY));
-      }
+      animRef.current = requestAnimationFrame(tick);
     };
-
-    window.addEventListener('mousemove', handleMouseMove);
-
-    const animate = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      for (let i = 0; i < particles.length; i++) {
-        particles[i].update();
-        particles[i].draw();
-        if (particles[i].opacity <= 0) {
-          particles.splice(i, 1);
-          i--;
-        }
-      }
-      animationFrameId = requestAnimationFrame(animate);
-    };
-
-    animate();
+    animRef.current = requestAnimationFrame(tick);
 
     return () => {
-      window.removeEventListener('resize', resize);
-      window.removeEventListener('mousemove', handleMouseMove);
-      cancelAnimationFrame(animationFrameId);
+      window.removeEventListener('mousemove', onMove);
+      cancelAnimationFrame(animRef.current);
+      if (idleTimer.current) clearTimeout(idleTimer.current);
     };
   }, []);
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="fixed inset-0 pointer-events-none z-[5]"
-      style={{ mixBlendMode: 'screen' }}
+    <div
+      ref={orbRef}
+      aria-hidden
+      className="fixed pointer-events-none z-[9] will-change-transform"
+      style={{
+        left: '-200px',
+        top:  '-200px',
+        width:  '420px',
+        height: '420px',
+        transform: 'translate(-50%, -50%) scale(1)',
+        opacity: 0.85,
+        transition: 'transform 0.6s cubic-bezier(0.34,1.56,0.64,1), opacity 0.5s ease',
+        background: 'radial-gradient(circle, rgba(160,40,255,0.32) 0%, rgba(110,15,190,0.18) 35%, rgba(73,15,124,0.06) 60%, transparent 75%)',
+        mixBlendMode: 'screen',
+        animation: 'orb-breathe 3.8s ease-in-out infinite',
+      }}
     />
   );
 };

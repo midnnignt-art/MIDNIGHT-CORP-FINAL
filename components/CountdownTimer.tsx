@@ -44,13 +44,13 @@ export const CountdownTimer: React.FC<CountdownTimerProps> = ({ targetDate }) =>
   const formatNumber = (num: number) => num.toString().padStart(2, '0');
 
   return (
-    <div className="flex gap-4 md:gap-8 justify-center items-center">
+    <div className="flex gap-3 sm:gap-4 md:gap-8 justify-center items-center">
       <TimeUnit value={formatNumber(timeLeft.days)} label="DAYS" />
-      <span className="text-2xl md:text-4xl font-black text-moonlight/30 mb-6">:</span>
+      <span className="text-xl sm:text-2xl md:text-4xl font-black text-moonlight/30 mb-5 md:mb-6">:</span>
       <TimeUnit value={formatNumber(timeLeft.hours)} label="HOURS" />
-      <span className="text-2xl md:text-4xl font-black text-moonlight/30 mb-6">:</span>
+      <span className="text-xl sm:text-2xl md:text-4xl font-black text-moonlight/30 mb-5 md:mb-6">:</span>
       <TimeUnit value={formatNumber(timeLeft.minutes)} label="MINS" />
-      <span className="text-2xl md:text-4xl font-black text-moonlight/30 mb-6">:</span>
+      <span className="text-xl sm:text-2xl md:text-4xl font-black text-moonlight/30 mb-5 md:mb-6">:</span>
       <TimeUnit value={formatNumber(timeLeft.seconds)} label="SECS" />
     </div>
   );
@@ -58,10 +58,10 @@ export const CountdownTimer: React.FC<CountdownTimerProps> = ({ targetDate }) =>
 
 const TimeUnit: React.FC<{ value: string; label: string }> = ({ value, label }) => (
   <div className="flex flex-col items-center">
-    <span className="text-4xl md:text-7xl font-black tracking-tighter text-moonlight tabular-nums">
+    <span className="text-3xl sm:text-4xl md:text-7xl font-black tracking-tighter text-moonlight tabular-nums">
       {value}
     </span>
-    <span className="text-[8px] md:text-[10px] font-light tracking-[0.3em] text-moonlight/50 mt-2">
+    <span className="text-[7px] sm:text-[8px] md:text-[10px] font-light tracking-[0.2em] md:tracking-[0.3em] text-moonlight/50 mt-1 md:mt-2">
       {label}
     </span>
   </div>

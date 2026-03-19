@@ -257,7 +257,7 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
   };
 
   return (
-    <div className="bg-void/95 backdrop-blur-2xl rounded-none border border-moonlight/10 overflow-hidden w-full max-w-md mx-auto shadow-[0_0_100px_rgba(0,0,0,0.5)] relative">
+    <div className="bg-void/95 backdrop-blur-2xl rounded-none border border-moonlight/10 overflow-hidden w-full mx-auto shadow-[0_0_100px_rgba(0,0,0,0.5)] relative">
       
       {currentCustomer && step < 2.5 && (
           <div className="absolute top-6 right-8 z-20">
@@ -265,7 +265,7 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
           </div>
       )}
 
-      <div className="p-8 md:p-12">
+      <div className="p-5 sm:p-8 md:p-12">
         <AnimatePresence mode="wait">
           
           {step === 0 && (
@@ -332,7 +332,7 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
                     <User size={12}/> {name}
                 </p>
               </div>
-              <div className="bg-white/5 p-8 border border-moonlight/5 space-y-4">
+              <div className="bg-white/5 p-5 md:p-8 border border-moonlight/5 space-y-4">
                   <div className="flex justify-between text-moonlight/40 text-[10px] font-light tracking-[0.3em] uppercase"><span>Producto</span><span>Tickets ({selectedItems.length})</span></div>
                   <div className="flex justify-between text-moonlight font-black text-xl pt-4 border-t border-moonlight/10 tabular-nums"><span>Total</span><span>${subtotal.toLocaleString()}</span></div>
               </div>
@@ -344,7 +344,7 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
 
           {step === 2.5 && pendingOrder && (
              <motion.div key="s2.5" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-8 py-4">
-                 <div className={`p-8 transition-colors duration-500 ${paymentStatus === 'failed' || gatewayStatus === 'error' ? 'bg-red-600/10 border border-red-600/30' : paymentStatus === 'paid' ? 'bg-emerald-600/10 border border-emerald-600/30' : 'bg-white/5 border border-moonlight/10'}`}>
+                 <div className={`p-5 md:p-8 transition-colors duration-500 ${paymentStatus === 'failed' || gatewayStatus === 'error' ? 'bg-red-600/10 border border-red-600/30' : paymentStatus === 'paid' ? 'bg-emerald-600/10 border border-emerald-600/30' : 'bg-white/5 border border-moonlight/10'}`}>
                      <h3 className="text-xl font-black text-moonlight uppercase tracking-[0.3em] flex items-center justify-center gap-3 mb-4">
                          {paymentStatus === 'paid' ? (
                              <span className="text-emerald-500 flex items-center gap-2">✅ Pago Aprobado</span>

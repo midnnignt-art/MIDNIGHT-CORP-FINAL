@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Calendar, MapPin } from 'lucide-react';
 import { Event } from '../types';
 import { Button } from './ui/button';
@@ -12,18 +12,26 @@ interface EventCardProps {
 export const EventCard: React.FC<EventCardProps> = ({ event, onBuy }) => {
   const { getEventTiers } = useStore();
   const tiers = getEventTiers(event.id);
-  
+  const [imgLoaded, setImgLoaded] = useState(false);
+
   // Find lowest price
   const minPrice = tiers.length > 0 ? Math.min(...tiers.map(t => t.price)) : 0;
 
   return (
     <div className="group relative overflow-hidden rounded-none bg-void border border-moonlight/10 transition-all duration-500 hover:border-eclipse hover:shadow-[0_0_50px_rgba(73,15,124,0.1)]">
       {/* Image Container */}
-      <div className="relative aspect-[4/5] overflow-hidden">
-        <img 
-          src={event.cover_image} 
-          alt={event.title} 
-          className="h-full w-full object-cover transition-transform duration-1000 group-hover:scale-110 opacity-60 group-hover:opacity-100"
+      <div className="relative aspect-[4/5] overflow-hidden bg-void">
+        {/* Skeleton shimmer */}
+        {!imgLoaded && (
+          <div className="absolute inset-0 bg-gradient-to-r from-white/5 via-white/10 to-white/5 animate-pulse" />
+        )}
+        <img
+          src={event.cover_image}
+          alt={event.title}
+          loading="lazy"
+          decoding="async"
+          onLoad={() => setImgLoaded(true)}
+          className={`h-full w-full object-cover transition-all duration-700 group-hover:scale-110 opacity-60 group-hover:opacity-100 ${imgLoaded ? 'opacity-60' : 'opacity-0'}`}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-void via-void/20 to-transparent" />
         

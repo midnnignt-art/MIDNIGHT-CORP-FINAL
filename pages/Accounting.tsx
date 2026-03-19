@@ -1035,14 +1035,14 @@ export const Accounting: React.FC = () => {
       )}
 
       {/* HEADER */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h2 className="text-3xl md:text-5xl font-black text-moonlight uppercase tracking-tighter">Contabilidad</h2>
-          <p className="text-moonlight/30 text-xs font-light tracking-[0.3em] uppercase mt-1">Centro Financiero · Súper Admin</p>
+      <div className="flex items-center justify-between mb-6 md:mb-8 gap-3">
+        <div className="min-w-0">
+          <h2 className="text-2xl md:text-5xl font-black text-moonlight uppercase tracking-tighter">Contabilidad</h2>
+          <p className="text-moonlight/30 text-[10px] font-light tracking-[0.2em] md:tracking-[0.3em] uppercase mt-1">Centro Financiero · Súper Admin</p>
         </div>
         <button onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-white text-black font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-white/90 transition-all">
-          <Plus size={14} /> Movimiento
+          className="flex-shrink-0 flex items-center gap-2 px-3 py-2.5 md:px-4 bg-white text-black font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-white/90 transition-all min-h-[44px]">
+          <Plus size={14} /> <span className="hidden sm:inline">Movimiento</span>
         </button>
       </div>
 
@@ -1063,14 +1063,14 @@ export const Accounting: React.FC = () => {
         return (
           <div className="space-y-5">
             {/* Header */}
-            <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-5 flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-black text-white tracking-tighter uppercase">MIDNIGHT EVENTS SAS</h3>
+            <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 md:p-5 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="text-base md:text-lg font-black text-white tracking-tighter uppercase truncate">MIDNIGHT EVENTS SAS</h3>
                 <p className="text-[10px] text-white/40 font-light tracking-widest uppercase mt-0.5">Resumen Financiero</p>
               </div>
-              <div className="text-right">
+              <div className="text-right flex-shrink-0">
                 <p className="text-[9px] text-white/30 uppercase tracking-widest font-black">Corte</p>
-                <p className="text-xs text-white/60 font-bold">{new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                <p className="text-[10px] md:text-xs text-white/60 font-bold">{new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
               </div>
             </div>
 

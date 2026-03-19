@@ -72,3 +72,9 @@ body {
     top: 2.5rem;
   }
 }
+
+/* ── Breathing Orb cursor ───────────────────────────────────────────────────── */
+@keyframes orb-breathe {
+  0%,  100% { filter: blur(32px) brightness(1);    }
+  50%        { filter: blur(48px) brightness(1.45); }
+}

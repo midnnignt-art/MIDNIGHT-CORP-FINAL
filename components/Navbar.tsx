@@ -122,13 +122,13 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
                         <span className="text-base font-black tracking-tighter text-white">MIDNIGHT</span>
                         <span className="text-[5px] font-light tracking-[0.6em] text-moonlight/20 uppercase">Worldwide</span>
                      </div>
-                     <button onClick={() => setMenuOpen(false)} className="p-1.5 hover:bg-white/5 rounded-full text-white/20 hover:text-white transition-all">
-                         <X size={16}/>
+                     <button onClick={() => setMenuOpen(false)} className="p-2.5 hover:bg-white/5 rounded-full text-white/20 hover:text-white transition-all">
+                         <X size={18}/>
                      </button>
                 </div>
                 
-                <div className="p-4 space-y-0.5">
-                    <button onClick={() => handleNavigateAction('home')} className={`w-full text-left py-2.5 px-4 rounded-lg flex items-center justify-between group transition-all ${currentPage === 'home' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
+                <div className="p-3 space-y-0.5">
+                    <button onClick={() => handleNavigateAction('home')} className={`w-full text-left py-3 px-4 rounded-lg flex items-center justify-between group transition-all min-h-[44px] ${currentPage === 'home' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
                         <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-3">
                             Vitrina
                         </span>
@@ -136,7 +136,7 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
                     </button>
 
                     {currentUser && (
-                        <button onClick={() => handleNavigateAction('dashboard')} className={`w-full text-left py-2.5 px-4 rounded-lg flex items-center justify-between group transition-all ${currentPage === 'dashboard' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
+                        <button onClick={() => handleNavigateAction('dashboard')} className={`w-full text-left py-3 px-4 rounded-lg flex items-center justify-between group transition-all min-h-[44px] ${currentPage === 'dashboard' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
                              <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-3">
                                 Command
                              </span>
@@ -145,7 +145,7 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
                     )}
 
                     {currentCustomer && (
-                        <button onClick={() => handleNavigateAction('tickets')} className={`w-full text-left py-2.5 px-4 rounded-lg flex items-center justify-between group transition-all ${currentPage === 'tickets' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
+                        <button onClick={() => handleNavigateAction('tickets')} className={`w-full text-left py-3 px-4 rounded-lg flex items-center justify-between group transition-all min-h-[44px] ${currentPage === 'tickets' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
                              <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-3">
                                 Entradas
                              </span>
@@ -154,29 +154,29 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
                     )}
 
                     {(currentUser?.role === UserRole.ADMIN || currentUser?.role === 'ADMIN') && (
-                        <div className="pt-3 mt-3 border-t border-white/5 space-y-0.5">
-                            <button onClick={() => handleNavigateAction('admin-events')} className={`w-full text-left py-2.5 px-4 rounded-lg flex items-center justify-between group transition-all ${currentPage === 'admin-events' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
+                        <div className="pt-2 mt-2 border-t border-white/5 space-y-0.5">
+                            <button onClick={() => handleNavigateAction('admin-events')} className={`w-full text-left py-3 px-4 rounded-lg flex items-center justify-between group transition-all min-h-[44px] ${currentPage === 'admin-events' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
                                 <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-3">
                                     Backoffice
                                 </span>
                             </button>
-                            <button onClick={() => handleNavigateAction('magic')} className={`w-full text-left py-2.5 px-4 rounded-lg flex items-center justify-between group transition-all ${currentPage === 'magic' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
+                            <button onClick={() => handleNavigateAction('magic')} className={`w-full text-left py-3 px-4 rounded-lg flex items-center justify-between group transition-all min-h-[44px] ${currentPage === 'magic' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
                                 <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-3">
                                     MÁGIC
                                 </span>
                             </button>
-                            <button onClick={() => handleNavigateAction('projections')} className={`w-full text-left py-2.5 px-4 rounded-lg flex items-center justify-between group transition-all ${currentPage === 'projections' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
+                            <button onClick={() => handleNavigateAction('projections')} className={`w-full text-left py-3 px-4 rounded-lg flex items-center justify-between group transition-all min-h-[44px] ${currentPage === 'projections' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
                                 <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-3">
                                     Finanzas
                                 </span>
                             </button>
-                            <button onClick={() => handleNavigateAction('contabilidad')} className={`w-full text-left py-2.5 px-4 rounded-lg flex items-center justify-between group transition-all ${currentPage === 'contabilidad' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
+                            <button onClick={() => handleNavigateAction('contabilidad')} className={`w-full text-left py-3 px-4 rounded-lg flex items-center justify-between group transition-all min-h-[44px] ${currentPage === 'contabilidad' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
                                 <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-3">
                                     Contabilidad
                                 </span>
                                 <div className={`w-1 h-1 rounded-full bg-white transition-all ${currentPage === 'contabilidad' ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}`} />
                             </button>
-                            <button onClick={() => handleNavigateAction('top-clients')} className={`w-full text-left py-2.5 px-4 rounded-lg flex items-center justify-between group transition-all ${currentPage === 'top-clients' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
+                            <button onClick={() => handleNavigateAction('top-clients')} className={`w-full text-left py-3 px-4 rounded-lg flex items-center justify-between group transition-all min-h-[44px] ${currentPage === 'top-clients' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
                                 <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-3">
                                     Top Clients
                                 </span>
@@ -215,7 +215,7 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
                     ) : (
                         <button 
                             onClick={() => { setMenuOpen(false); setShowAccessModal(true); }} 
-                            className="w-full h-10 font-bold bg-white/5 hover:bg-white/10 text-white text-[9px] uppercase tracking-[0.2em] transition-all rounded-lg border border-white/5"
+                            className="w-full h-11 font-bold bg-white/5 hover:bg-white/10 text-white text-[9px] uppercase tracking-[0.2em] transition-all rounded-lg border border-white/5"
                         >
                             Acceso
                         </button>

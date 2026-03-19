@@ -109,7 +109,7 @@ const App: React.FC = () => {
 
       {referralToast.show && (
           <div className="fixed top-24 right-0 left-0 md:left-auto md:right-12 z-[90] flex justify-center md:justify-end animate-in slide-in-from-top-5 duration-500">
-              <div className="bg-eclipse/20 border border-eclipse/30 backdrop-blur-xl text-moonlight px-8 py-5 rounded-none shadow-[0_0_50px_rgba(73,15,124,0.2)] flex items-center gap-5">
+              <div className="bg-eclipse/20 border border-eclipse/30 backdrop-blur-xl text-moonlight px-5 md:px-8 py-4 md:py-5 rounded-none shadow-[0_0_50px_rgba(73,15,124,0.2)] flex items-center gap-4 md:gap-5 mx-4 md:mx-0">
                   <div className="bg-eclipse/40 p-2.5 rounded-full">
                       <CheckCircle2 className="w-5 h-5 text-moonlight" />
                   </div>
@@ -123,7 +123,7 @@ const App: React.FC = () => {
 
       <main>
         {currentPage === 'home' && <Showcase onBuy={handleBuyTicket} onNavigate={handleNavigate} />}
-        <div className={currentPage === 'home' ? '' : 'pt-24 px-6 md:px-12 max-w-7xl mx-auto pb-20'}>
+        <div className={currentPage === 'home' ? '' : 'pt-20 md:pt-24 px-4 sm:px-6 md:px-12 max-w-7xl mx-auto pb-20'}>
           {currentPage === 'dashboard' && <Dashboard role={currentUser?.role || UserRole.GUEST} />}
           {currentPage === 'admin-events' && <AdminEvents role={currentUser?.role || UserRole.GUEST} />}
           {currentPage === 'projections' && <Projections role={currentUser?.role || UserRole.GUEST} />}
@@ -132,8 +132,8 @@ const App: React.FC = () => {
           {currentPage === 'tickets' && (
             <div className="animate-in fade-in slide-in-from-bottom-5 duration-700">
                 <div className="mb-12 text-center">
-                    <h2 className="text-4xl md:text-6xl font-black text-moonlight uppercase tracking-tighter mb-4">Mis Entradas</h2>
-                    <p className="text-moonlight/40 text-xs md:text-sm font-light tracking-[0.3em] uppercase">Tus códigos de acceso para las próximas experiencias</p>
+                    <h2 className="text-3xl md:text-6xl font-black text-moonlight uppercase tracking-tighter mb-4">Mis Entradas</h2>
+                    <p className="text-moonlight/40 text-xs md:text-sm font-light tracking-[0.15em] md:tracking-[0.3em] uppercase">Tus códigos de acceso para las próximas experiencias</p>
                 </div>
                 <TicketWallet />
             </div>

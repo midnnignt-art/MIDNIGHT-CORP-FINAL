@@ -164,7 +164,7 @@ export default function TicketWallet() {
 
       {viewMode === 'carousel' ? (
         <div className="relative w-full max-w-md mx-auto">
-          <div className="relative h-[520px] sm:h-[580px] w-full flex items-center justify-center overflow-hidden">
+          <div className="relative h-[420px] sm:h-[480px] md:h-[520px] w-full flex items-center justify-center overflow-hidden">
             <AnimatePresence initial={false} custom={direction} mode="wait">
               <motion.div
                 key={page}
@@ -203,12 +203,12 @@ export default function TicketWallet() {
           {/* Navigation Controls */}
           <div className="flex flex-col items-center gap-6 mt-4">
             <div className="flex items-center gap-8">
-              <button 
+              <button
                 onClick={() => paginate(-1)}
                 disabled={page === 0}
-                className={`p-3 rounded-full border border-white/10 transition-all ${page === 0 ? 'opacity-10 cursor-not-allowed' : 'hover:bg-white/10 text-white'}`}
+                className={`p-3.5 rounded-full border border-white/10 transition-all min-w-[44px] min-h-[44px] flex items-center justify-center ${page === 0 ? 'opacity-10 cursor-not-allowed' : 'hover:bg-white/10 text-white'}`}
               >
-                <ChevronLeft size={24} />
+                <ChevronLeft size={22} />
               </button>
               
               <div className="flex gap-2">
@@ -220,12 +220,12 @@ export default function TicketWallet() {
                 ))}
               </div>
 
-              <button 
+              <button
                 onClick={() => paginate(1)}
                 disabled={page === myOrders.length - 1}
-                className={`p-3 rounded-full border border-white/10 transition-all ${page === myOrders.length - 1 ? 'opacity-10 cursor-not-allowed' : 'hover:bg-white/10 text-white'}`}
+                className={`p-3.5 rounded-full border border-white/10 transition-all min-w-[44px] min-h-[44px] flex items-center justify-center ${page === myOrders.length - 1 ? 'opacity-10 cursor-not-allowed' : 'hover:bg-white/10 text-white'}`}
               >
-                <ChevronRight size={24} />
+                <ChevronRight size={22} />
               </button>
             </div>
             

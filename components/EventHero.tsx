@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion as _motion } from 'framer-motion';
 import { Calendar, MapPin, Clock, Users, Sparkles } from 'lucide-react';
 import { Badge } from './ui/badge';
@@ -15,22 +15,25 @@ interface EventHeroProps {
 
 export default function EventHero({ event, className }: EventHeroProps) {
   const eventDate = event?.event_date ? new Date(event.event_date) : new Date();
-  const soldPercentage = event?.total_capacity 
-    ? Math.round((event.tickets_sold / event.total_capacity) * 100) 
+  const soldPercentage = event?.total_capacity
+    ? Math.round((event.tickets_sold / event.total_capacity) * 100)
     : 0;
+  const [imgLoaded, setImgLoaded] = useState(false);
 
   return (
     <div className={cn("relative min-h-[50vh] flex items-end rounded-3xl overflow-hidden mb-8", className)}>
       {/* Background image */}
-      <div className="absolute inset-0">
-        {event?.cover_image ? (
-          <img 
-            src={event.cover_image} 
+      <div className="absolute inset-0 bg-gradient-to-br from-purple-900 via-zinc-900 to-black">
+        {event?.cover_image && (
+          <img
+            src={event.cover_image}
             alt={event.title}
-            className="w-full h-full object-cover"
+            loading="eager"
+            decoding="async"
+            fetchPriority="high"
+            onLoad={() => setImgLoaded(true)}
+            className={`w-full h-full object-cover transition-opacity duration-700 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
           />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-purple-900 via-zinc-900 to-black" />
         )}
         {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-midnight-950 via-midnight-950/80 to-transparent" />

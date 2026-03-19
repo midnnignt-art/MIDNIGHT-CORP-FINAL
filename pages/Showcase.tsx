@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Event } from '../types';
-import { motion as _motion } from 'framer-motion';
+import { motion as _motion, AnimatePresence } from 'framer-motion';
 import { CountdownTimer } from '../components/CountdownTimer';
 import { MouseTrail } from '../components/MouseTrail';
 import { ArrowRight, Barcode, ChevronDown } from 'lucide-react';
@@ -67,26 +67,35 @@ export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
     }
   }, [dbStatus, isFullyLoaded]);
 
-  if (!isFullyLoaded && (dbStatus === 'syncing' || loadingProgress < 100)) {
-    return <EclipseLoader progress={loadingProgress} />;
-  }
+  const showLoader = !isFullyLoaded && (dbStatus === 'syncing' || loadingProgress < 100);
 
-  if (activeEvents.length === 0) {
-    return (
-      <div className="min-h-screen bg-void flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-24 h-24 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-8">
-           <Barcode className="w-10 h-10 text-moonlight/20" strokeWidth={1} />
-        </div>
-        <h2 className="text-2xl md:text-4xl font-black text-moonlight uppercase tracking-tighter mb-4">Próximamente</h2>
-        <p className="text-moonlight/40 text-xs md:text-sm font-light tracking-[0.3em] uppercase max-w-md leading-relaxed">
-          Estamos preparando las próximas experiencias. Suscríbete para ser el primero en enterarte.
-        </p>
-      </div>
-    );
-  }
-
+  // Always render the full tree so content is ready when loader exits.
+  // The EclipseLoader is a fixed overlay — AnimatePresence handles its exit animation.
   return (
-    <div className="relative w-full bg-void font-sans">
+    <>
+      {/* Loader overlay — mounts/unmounts with animated exit */}
+      <AnimatePresence>
+        {showLoader && <EclipseLoader key="loader" progress={loadingProgress} />}
+      </AnimatePresence>
+
+      {/* Main content — fades in once loader is gone */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: isFullyLoaded ? 1 : 0 }}
+        transition={{ duration: 0.9, delay: 0.1, ease: [0.4, 0, 0.2, 1] }}
+        className="relative w-full bg-void font-sans"
+      >
+      {activeEvents.length === 0 ? (
+        <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
+          <div className="w-24 h-24 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-8">
+            <Barcode className="w-10 h-10 text-moonlight/20" strokeWidth={1} />
+          </div>
+          <h2 className="text-2xl md:text-4xl font-black text-moonlight uppercase tracking-tighter mb-4">Próximamente</h2>
+          <p className="text-moonlight/40 text-xs md:text-sm font-light tracking-[0.3em] uppercase max-w-md leading-relaxed">
+            Estamos preparando las próximas experiencias. Suscríbete para ser el primero en enterarte.
+          </p>
+        </div>
+      ) : (<>
       <MouseTrail />
       <div className="noise-overlay" />
 
@@ -97,9 +106,9 @@ export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
         const isSoonest = index === 0;
 
         return (
-          <div key={event.id} className="relative h-screen w-full flex flex-col md:flex-row border-b border-moonlight/5 last:border-b-0">
+          <div key={event.id} className="relative min-h-screen w-full flex flex-col md:flex-row border-b border-moonlight/5 last:border-b-0">
             {/* PANEL IZQUIERDO (40% - EL VISUAL) */}
-            <div className="relative w-full md:w-[40%] h-[50vh] md:h-screen overflow-hidden border-b md:border-b-0 md:border-r border-moonlight/10">
+            <div className="relative w-full md:w-[40%] h-[45vh] md:h-screen overflow-hidden border-b md:border-b-0 md:border-r border-moonlight/10">
               <motion.div 
                 initial={{ scale: 1.1, opacity: 0 }}
                 whileInView={{ scale: 1, opacity: 1 }}
@@ -147,7 +156,7 @@ export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
             </div>
 
             {/* PANEL DERECHO (60% - EL MOTOR) */}
-            <div className="relative w-full md:w-[60%] h-[50vh] md:h-screen flex flex-col items-center justify-center px-6 md:px-12 bg-void">
+            <div className="relative w-full md:w-[60%] flex-1 md:h-screen flex flex-col items-center justify-center px-6 md:px-12 bg-void py-8 md:py-0">
               
               {/* MICROCOPYS ANCLAS */}
               <div className="absolute top-24 left-12 hidden md:block z-20">
@@ -165,7 +174,7 @@ export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
                 whileInView={{ y: 0, opacity: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: 0.3, duration: 0.8 }}
-                className="text-center space-y-6 md:space-y-10 w-full max-w-2xl"
+                className="text-center space-y-4 md:space-y-10 w-full max-w-2xl"
               >
                 <div className="space-y-2">
                   {isSoonest && (
@@ -179,16 +188,16 @@ export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
                       </span>
                     </motion.div>
                   )}
-                  <h1 className="text-4xl md:text-7xl lg:text-8xl font-black tracking-tighter text-moonlight uppercase leading-none break-words">
+                  <h1 className="text-3xl sm:text-4xl md:text-7xl lg:text-8xl font-black tracking-tighter text-moonlight uppercase leading-none break-words">
                     {event.city}
                   </h1>
-                  <h2 className="text-xl md:text-3xl font-light tracking-[0.3em] text-moonlight/60 uppercase">
+                  <h2 className="text-base sm:text-xl md:text-3xl font-light tracking-[0.1em] sm:tracking-[0.2em] md:tracking-[0.3em] text-moonlight/60 uppercase">
                     {formattedDate}
                   </h2>
                 </div>
 
                 {/* TIMER */}
-                <div className="py-4 md:py-8 border-y border-moonlight/5">
+                <div className="py-3 md:py-8 border-y border-moonlight/5">
                   <CountdownTimer targetDate={event.event_date} />
                 </div>
 
@@ -197,7 +206,7 @@ export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
                   <button
                     onClick={() => !isSoldOut && onBuy(event)}
                     disabled={isSoldOut}
-                    className={`group relative overflow-hidden px-12 md:px-20 py-5 md:py-6 rounded-none transition-all duration-500 ${
+                    className={`group relative overflow-hidden px-8 sm:px-12 md:px-20 py-4 md:py-6 rounded-none transition-all duration-500 ${
                       isSoldOut 
                         ? 'bg-white/5 cursor-not-allowed border border-white/10' 
                         : 'bg-eclipse hover:bg-eclipse/80 shadow-[0_0_40px_rgba(73,15,124,0.3)] hover:shadow-[0_0_60px_rgba(73,15,124,0.5)]'
@@ -236,7 +245,9 @@ export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
           Midnight Worldwide • Experience Finance Protocol • 2026
         </p>
       </div>
-    </div>
+      </>)}
+      </motion.div>
+    </>
   );
 };
 

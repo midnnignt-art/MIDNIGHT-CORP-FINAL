@@ -679,20 +679,21 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
               </p>
           </div>
 
-          <div className="relative z-10 flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-              <div className="flex items-center bg-black border border-white/10 rounded-xl px-4 py-3 min-w-[200px] md:min-w-[300px] gap-3">
-                  <p className="text-xs text-zinc-400 font-mono truncate flex-1">{referralLink}</p>
+          <div className="relative z-10 flex flex-col gap-3 w-full md:w-auto">
+              <div className="flex items-center bg-black border border-white/10 rounded-xl px-4 py-3 gap-3 w-full md:min-w-[300px]">
+                  <p className="text-xs text-zinc-400 font-mono truncate flex-1 min-w-0">{referralLink}</p>
                   <div className="flex items-center gap-1.5 flex-shrink-0 bg-white/5 rounded-lg px-2.5 py-1.5">
                       <Eye size={12} className="text-white/40" />
                       <span className="text-xs font-black text-white/60 tabular-nums">{(currentUser.link_views || 0).toLocaleString('es-CO')}</span>
                   </div>
               </div>
-              <div className="flex gap-2">
-                  <Button onClick={handleCopyLink} className={`font-bold h-12 transition-all ${linkCopied ? 'bg-emerald-500 text-black' : 'bg-white text-black'}`}>
+              <div className="flex gap-2 w-full">
+                  <Button onClick={handleCopyLink} className={`font-bold h-12 flex-1 sm:flex-none transition-all ${linkCopied ? 'bg-emerald-500 text-black' : 'bg-white text-black'}`}>
                       {linkCopied ? <Check size={18}/> : <Copy size={18}/>}
+                      <span className="ml-2 text-xs">{linkCopied ? 'COPIADO' : 'COPIAR'}</span>
                   </Button>
-                  <Button onClick={handleShareWhatsapp} className="bg-[#25D366] text-white font-bold h-12 px-4">
-                      <MessageCircle size={20} className="mr-2"/> WHATSAPP
+                  <Button onClick={handleShareWhatsapp} className="bg-[#25D366] text-white font-bold h-12 px-4 flex-1 sm:flex-none">
+                      <MessageCircle size={18} className="mr-2"/> WHATSAPP
                   </Button>
               </div>
           </div>
@@ -986,16 +987,17 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                               </Button>
                           </div>
                           <div className="overflow-x-auto">
-                              <table className="w-full text-left">
+                              <p className="text-[8px] text-zinc-600 uppercase tracking-widest px-4 py-2 md:hidden">← Desliza para ver más →</p>
+                              <table className="w-full text-left min-w-[640px]">
                                   <thead className="bg-black/40 text-[9px] md:text-[10px] text-zinc-500 uppercase font-black tracking-widest">
                                       <tr>
                                           <th className="p-3 md:p-6">Squad / Manager</th>
-                                          <th className="p-3 md:p-6 text-right text-purple-400">Digital (Qty/$)</th>
-                                          <th className="p-3 md:p-6 text-right text-amber-400">Efectivo (Qty/$)</th>
-                                          <th className="p-3 md:p-6 text-right text-white">Recaudo Efectivo</th>
-                                          <th className="p-3 md:p-6 text-right text-emerald-500">Comis. Total</th>
-                                          <th className="p-3 md:p-6 text-right text-neon-blue">A Liquidar (Neto)</th>
-                                          <th className="p-3 md:p-6 text-center">Auditoría</th>
+                                          <th className="p-3 md:p-6 text-right text-purple-400">Digital</th>
+                                          <th className="p-3 md:p-6 text-right text-amber-400">Efectivo</th>
+                                          <th className="p-3 md:p-6 text-right text-white">Recaudo</th>
+                                          <th className="p-3 md:p-6 text-right text-emerald-500">Comis.</th>
+                                          <th className="p-3 md:p-6 text-right text-neon-blue">A Liquidar</th>
+                                          <th className="p-3 md:p-6 text-center">Ver</th>
                                       </tr>
                                   </thead>
                                   <tbody className="divide-y divide-white/5 text-xs md:text-sm">
@@ -1005,7 +1007,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                                                   <div className={`font-black text-white ${team.id === 'virtual_organic' ? 'text-neon-purple text-base' : team.isVirtual ? 'text-amber-500 text-sm' : ''}`}>{team.name}</div>
                                                   <div className="text-[9px] text-zinc-500 font-bold uppercase mt-1">Mgr: {team.manager_name || 'N/A'}</div>
                                               </td>
-                                              
+
                                               {/* Digital Column */}
                                               <td className="p-3 md:p-6 text-right text-purple-400/80">
                                                   <div className="font-bold">{team.digitalQty} und</div>
@@ -1017,15 +1019,16 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                                                   <div className="font-bold">{team.cashQty} und</div>
                                                   <div className="text-[9px]">${team.cashGross.toLocaleString()}</div>
                                               </td>
-                                              
+
                                               {/* Cash Held (Same as Cash Gross) */}
                                               <td className="p-3 md:p-6 text-right font-bold text-white border-l border-white/5">${team.cashGross.toLocaleString()}</td>
-                                              
+
                                               <td className="p-3 md:p-6 text-right font-bold text-emerald-500">${team.commission.toLocaleString()}</td>
                                               <td className="p-3 md:p-6 text-right font-black text-neon-blue text-base border-l border-white/5 bg-white/[0.02]">${team.net.toLocaleString()}</td>
                                               <td className="p-3 md:p-6 text-center">
                                                   <button onClick={() => { setViewingTeamId(team.id); setExpandedMemberId(null); }} className="p-2 bg-white/5 rounded-lg md:rounded-xl hover:bg-neon-purple/20 text-zinc-500 hover:text-neon-purple transition-all border border-transparent hover:border-neon-purple/20 flex items-center justify-center mx-auto">
-                                                      <Users size={14} className="md:w-4 md:h-4 mr-2"/> Miembros
+                                                      <Users size={14} className="md:w-4 md:h-4 md:mr-2"/>
+                                                      <span className="hidden md:inline">Miembros</span>
                                                   </button>
                                               </td>
                                           </tr>
