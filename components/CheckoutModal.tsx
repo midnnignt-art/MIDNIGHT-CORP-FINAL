@@ -27,12 +27,27 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ event, isOpen, onC
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/90 backdrop-blur-md transition-opacity" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onClick={onClose} />
+
       <div className="relative w-full sm:max-w-md z-10 sm:p-4">
-          <div className="absolute -top-14 right-4 sm:right-0 z-20">
-             <button onClick={onClose} className="p-3.5 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all"><X className="w-5 h-5" /></button>
+
+        {/* Close button — above sheet on mobile, top-right on desktop */}
+        <div className="absolute -top-12 right-4 sm:right-0 z-20">
+          <button onClick={onClose} className="p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Bottom-sheet wrapper on mobile */}
+        <div className="rounded-t-3xl sm:rounded-none overflow-hidden max-h-[82vh] sm:max-h-none overflow-y-auto">
+          {/* Drag handle — mobile only */}
+          <div className="sm:hidden flex justify-center pt-3 pb-1 bg-void">
+            <div className="w-10 h-1 rounded-full bg-white/20" />
           </div>
+
           <QuickCheckout event={event} tiers={tiers} onComplete={handleComplete} />
+        </div>
+
       </div>
     </div>
   );

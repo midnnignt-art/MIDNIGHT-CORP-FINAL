@@ -265,7 +265,7 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
           </div>
       )}
 
-      <div className="p-5 sm:p-8 md:p-12">
+      <div className="p-4 sm:p-8 md:p-12">
         <AnimatePresence mode="wait">
           
           {step === 0 && (
