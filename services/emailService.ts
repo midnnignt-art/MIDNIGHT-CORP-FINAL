@@ -70,18 +70,36 @@ export const sendTicketEmail = async (orderOrOrders: Order | Order[], event: Eve
                 ${ticketsHtml}
               </div>
 
-              <!-- CTA -->
+              ${orders.length >= 2 ? `
+              <!-- INSTRUCCIONES PORTAL (solo cuando hay 2+ tickets) -->
+              <div style="margin: 40px 0; background: linear-gradient(135deg, #0d0022 0%, #1a0444 100%); border: 1px solid rgba(176,38,255,0.3); border-radius: 20px; padding: 28px 24px;">
+                <p style="color: #b026ff; font-size: 9px; font-weight: 900; letter-spacing: 3px; text-transform: uppercase; margin: 0 0 12px 0;">Tus ${orders.length} entradas están disponibles online</p>
+                <p style="color: #ffffff; font-size: 14px; font-weight: 900; margin: 0 0 8px 0; line-height: 1.3;">Accede a tu billetera de entradas</p>
+                <p style="color: #8E9299; font-size: 12px; line-height: 1.7; margin: 0 0 20px 0;">
+                  1. Ve a <strong style="color:#fff">${APP_URL}</strong><br/>
+                  2. Abre el menú (esquina superior derecha)<br/>
+                  3. Toca <strong style="color:#b026ff">"Acceso"</strong> e ingresa este correo<br/>
+                  4. Revisa tu bandeja de entrada para el código<br/>
+                  5. Toca <strong style="color:#fff">"Entradas"</strong> para ver todos tus QR
+                </p>
+                <a href="${APP_URL}" style="background-color: #b026ff; color: #ffffff; padding: 14px 28px; border-radius: 100px; text-decoration: none; font-weight: 900; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; display: inline-block; box-shadow: 0 0 30px rgba(176,38,255,0.4);">
+                  VER MIS ENTRADAS →
+                </a>
+              </div>
+              ` : `
+              <!-- CTA SIMPLE (1 ticket) -->
               <div style="margin: 60px 0; text-align: center; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 40px;">
                 <p style="color: #ffffff; font-size: 14px; font-weight: bold; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">
                     Accede a tus entradas online
                 </p>
                 <p style="color: #8E9299; font-size: 12px; line-height: 1.6; margin-bottom: 30px; max-width: 320px; margin-left: auto; margin-right: auto;">
-                    Puedes encontrar tus entradas iniciando sesión en nuestra plataforma. Busca la opción <strong>"ENTRADAS"</strong> en el menú superior derecho.
+                    Puedes encontrar tu entrada iniciando sesión en nuestra plataforma. Busca la opción <strong>"ENTRADAS"</strong> en el menú superior derecho.
                 </p>
                 <a href="${APP_URL}" style="background-color: #490F7C; color: #ffffff; padding: 18px 36px; border-radius: 100px; text-decoration: none; font-weight: 900; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; display: inline-block; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 0 20px rgba(73, 15, 124, 0.4);">
                   IR A MIDNIGHT
                 </a>
               </div>
+              `}
 
               <!-- FOOTER -->
               <div style="text-align: center; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 40px;">

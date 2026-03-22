@@ -1,16 +1,23 @@
 import React, { useState, useMemo } from 'react';
 import { motion as _motion, AnimatePresence } from 'framer-motion';
-import { QrCode, Ticket, ChevronLeft, ChevronRight } from 'lucide-react';
+import { QrCode, Ticket, ChevronLeft, ChevronRight, Send, X, Loader2 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { MidnightTicketCard } from './MidnightTicketCard';
+import { toast } from '../lib/toast';
 
 const motion = _motion as any;
 
 export default function TicketWallet() {
-  const { orders, events, currentCustomer } = useStore();
+  const { orders, events, currentCustomer, transferTicket } = useStore();
   const [viewMode, setViewMode] = useState<'carousel' | 'list'>('carousel');
   const [filterEventId, setFilterEventId] = useState<string>('all');
   const [[page, direction], setPage] = useState([0, 0]);
+
+  // Transfer state
+  const [transferOrderId, setTransferOrderId] = useState<string | null>(null);
+  const [transferEmail, setTransferEmail] = useState('');
+  const [transferName, setTransferName] = useState('');
+  const [transferLoading, setTransferLoading] = useState(false);
 
   const myOrders = useMemo(() => {
     if (!currentCustomer?.email) return [];
@@ -38,6 +45,25 @@ export default function TicketWallet() {
     const nextPage = page + newDirection;
     if (nextPage < 0 || nextPage >= myOrders.length) return;
     setPage([nextPage, newDirection]);
+  };
+
+  const handleTransfer = async () => {
+    if (!transferOrderId || !transferEmail.includes('@')) {
+      toast.error('Ingresa un email válido');
+      return;
+    }
+    setTransferLoading(true);
+    const ok = await transferTicket(transferOrderId, transferEmail, transferName);
+    setTransferLoading(false);
+    if (ok) {
+      toast.success(`Entrada transferida a ${transferEmail}`);
+      setTransferOrderId(null);
+      setTransferEmail('');
+      setTransferName('');
+      setPage([0, 0]);
+    } else {
+      toast.error('No se pudo transferir la entrada. Intenta más tarde.');
+    }
   };
 
   if (!currentCustomer) {
@@ -126,6 +152,63 @@ export default function TicketWallet() {
 
   return (
     <div className="relative w-full max-w-2xl mx-auto px-4">
+      {/* TRANSFER MODAL */}
+      <AnimatePresence>
+        {transferOrderId && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="w-full max-w-sm bg-zinc-900 border border-white/10 rounded-[2rem] p-7 relative"
+            >
+              <button onClick={() => { setTransferOrderId(null); setTransferEmail(''); setTransferName(''); }}
+                className="absolute top-5 right-5 text-zinc-600 hover:text-white"><X size={20} /></button>
+              <div className="flex justify-center mb-5">
+                <div className="w-12 h-12 bg-neon-purple/10 rounded-2xl flex items-center justify-center border border-neon-purple/20">
+                  <Send size={20} className="text-neon-purple" />
+                </div>
+              </div>
+              <h2 className="text-lg font-black text-white text-center mb-1 uppercase">Transferir Entrada</h2>
+              <p className="text-zinc-500 text-[10px] text-center mb-6 uppercase font-bold tracking-widest">La entrada desaparecerá de tu billetera</p>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest block mb-1">Email del destinatario *</label>
+                  <input
+                    type="email"
+                    placeholder="amigo@email.com"
+                    value={transferEmail}
+                    onChange={e => setTransferEmail(e.target.value)}
+                    className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-bold focus:border-neon-purple outline-none"
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest block mb-1">Nombre (opcional)</label>
+                  <input
+                    type="text"
+                    placeholder="Nombre del destinatario"
+                    value={transferName}
+                    onChange={e => setTransferName(e.target.value)}
+                    className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-bold focus:border-neon-purple outline-none"
+                  />
+                </div>
+                <button
+                  onClick={handleTransfer}
+                  disabled={transferLoading || !transferEmail.includes('@')}
+                  className="w-full h-13 bg-neon-purple text-white font-black text-xs uppercase tracking-widest rounded-xl py-3.5 hover:bg-neon-purple/90 transition-all disabled:opacity-40 flex items-center justify-center gap-2 mt-2"
+                >
+                  {transferLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                  {transferLoading ? 'Transfiriendo...' : 'Confirmar Transferencia'}
+                </button>
+                <p className="text-[9px] text-zinc-600 text-center">
+                  Esta acción no se puede deshacer. El destinatario verá la entrada en su billetera.
+                </p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
       {/* Filters & View Toggle */}
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
         {/* Event Filter */}
@@ -232,6 +315,16 @@ export default function TicketWallet() {
             <p className="text-center text-[10px] text-zinc-500 uppercase font-black tracking-[0.3em]">
               {currentIndex + 1} / {myOrders.length} • DESLIZA PARA NAVEGAR
             </p>
+
+            {/* Transfer button for current ticket */}
+            {!myOrders[currentIndex]?.used && (
+              <button
+                onClick={() => setTransferOrderId(myOrders[currentIndex].id)}
+                className="flex items-center gap-2 text-[10px] text-zinc-600 hover:text-neon-purple font-black uppercase tracking-widest transition-all"
+              >
+                <Send size={12} /> Transferir esta entrada
+              </button>
+            )}
           </div>
         </div>
       ) : (
@@ -239,10 +332,18 @@ export default function TicketWallet() {
           {myOrders.map((order) => (
             <div key={order.id} className="flex justify-center">
               <div className="w-full max-w-sm">
-                <MidnightTicketCard 
-                  order={order} 
-                  event={events.find(e => e.id === order.event_id)} 
+                <MidnightTicketCard
+                  order={order}
+                  event={events.find(e => e.id === order.event_id)}
                 />
+                {!order.used && (
+                  <button
+                    onClick={() => setTransferOrderId(order.id)}
+                    className="mt-3 flex items-center gap-2 text-[10px] text-zinc-600 hover:text-neon-purple font-black uppercase tracking-widest transition-all mx-auto"
+                  >
+                    <Send size={12} /> Transferir entrada
+                  </button>
+                )}
               </div>
             </div>
           ))}

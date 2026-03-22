@@ -85,8 +85,10 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   const isHead = currentUser.role === UserRole.HEAD_OF_SALES || isAdmin;
   const isManager = currentUser.role === UserRole.MANAGER || isHead; 
   
-  const myTeam = teams.find(t => t.manager_id === currentUser.user_id); 
-  
+  const myTeam = teams.find(t => t.manager_id === currentUser.user_id);
+  // HoS ve solo sus equipos; Admin ve todos
+  const recruitableTeams = isAdmin ? teams : teams.filter(t => t.manager_id === currentUser.user_id);
+
   // Staff disponible para vincular (sin equipo asignado)
   const availableStaffToLink = promoters.filter(p => !p.sales_team_id && p.role !== UserRole.ADMIN);
 
@@ -752,6 +754,19 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                       <input type="number" placeholder="0" value={debtUploadForm.amount}
                         onChange={e => setDebtUploadForm(f => ({ ...f, amount: e.target.value }))}
                         className="w-full bg-black border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm font-bold placeholder:text-white/15" />
+                      {(() => {
+                        const remaining = showDebtUpload.dineroAEnviar - showDebtUpload.totalEnviado;
+                        const entered = Number(debtUploadForm.amount);
+                        if (entered > remaining && entered > 0) {
+                          const credit = entered - remaining;
+                          return (
+                            <p className="text-[9px] text-blue-400 font-black mt-1 flex items-center gap-1">
+                              ℹ️ Excede la deuda — se registrará {fmt(credit)} como crédito a favor del promotor
+                            </p>
+                          );
+                        }
+                        return null;
+                      })()}
                     </div>
 
                     {/* Método */}
@@ -1525,8 +1540,8 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                                     onChange={e => setSelectedRecruitmentTeamId(e.target.value)}
                                     className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-bold focus:border-neon-purple outline-none appearance-none"
                                 >
-                                    <option value="">-- Independiente (Sin Squad) --</option>
-                                    {teams.map(team => (
+                                    {isAdmin && <option value="">-- Independiente (Sin Squad) --</option>}
+                                    {recruitableTeams.map(team => (
                                         <option key={team.id} value={team.id}>{team.name}</option>
                                     ))}
                                 </select>
@@ -1573,7 +1588,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                                     className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-bold focus:border-neon-blue outline-none appearance-none"
                                 >
                                     <option value="">-- Seleccionar Squad --</option>
-                                    {teams.map(team => (
+                                    {recruitableTeams.map(team => (
                                         <option key={team.id} value={team.id}>{team.name}</option>
                                     ))}
                                 </select>

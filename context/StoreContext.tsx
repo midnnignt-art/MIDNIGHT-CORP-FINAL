@@ -51,6 +51,7 @@ interface StoreContextType {
     deleteAccountingMovement: (id: string) => Promise<void>;
     addSettlement: (data: { event_id: string; promoter_id: string; amount_sent: number; payment_method: string; comprobante_url?: string; notes?: string }) => Promise<void>;
     deleteSettlement: (id: string) => Promise<void>;
+    transferTicket: (orderId: string, toEmail: string, toName?: string) => Promise<boolean>;
     fetchData: () => Promise<void>;
 }
 
@@ -836,6 +837,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         await fetchData();
     };
 
+    const transferTicket = async (orderId: string, toEmail: string, toName?: string): Promise<boolean> => {
+        try {
+            const normalized = toEmail.toLowerCase().trim();
+            const { error } = await supabase
+                .from('orders')
+                .update({
+                    customer_email: normalized,
+                    customer_name: toName?.trim() || normalized.split('@')[0],
+                })
+                .eq('id', orderId);
+            if (error) throw error;
+            await fetchData();
+            return true;
+        } catch (e) {
+            console.error('Error transferring ticket:', e);
+            return false;
+        }
+    };
+
     const clearDatabase = async () => {};
     const addEventCost = async (eventId: string, cost: any) => { await supabase.from('event_costs').insert({ event_id: eventId, ...cost }); await fetchData(); };
     const deleteEventCost = async (eventId: string, costId: string) => { await supabase.from('event_costs').delete().eq('id', costId); await fetchData(); };
@@ -962,7 +982,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             getEventTiers, addEvent, updateEvent, archiveEvent, restoreEvent, hardDeleteEvent,
             addStaff, deleteStaff, createTeam, updateStaffTeam, deleteTeam, createOrder, clearDatabase,
             addEventCost, deleteEventCost, updateCostStatus, updateCostActual, updateGallery, validateTicket, validarYQuemarTicket,
-            addAccountingMovement, deleteAccountingMovement, addSettlement, deleteSettlement, fetchData
+            addAccountingMovement, deleteAccountingMovement, addSettlement, deleteSettlement, transferTicket, fetchData
         }}>
             {children}
         </StoreContext.Provider>
