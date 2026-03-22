@@ -118,30 +118,57 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
       window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
-  // --- EXPORTAR LIQUIDACIÓN CSV ---
-  const handleExportLiquidation = (data: any[], totals: any) => {
+  // --- EXPORTAR LIQUIDACIÓN EXCEL (.xlsx) ---
+  const handleExportLiquidation = async (data: any[], totals: any) => {
       if (!selectedEventFilter) { toast.error("Selecciona un evento primero."); return; }
       const eventName = events.find(e => e.id === selectedEventFilter)?.title || 'Evento';
-      
-      let csvContent = "data:text/csv;charset=utf-8,";
-      // Headers
-      csvContent += "Squad,Manager,Ventas Digital($),Ventas Efectivo($),Recaudo Efectivo,Comision Total,A Liquidar (Neto)\n";
-      
-      data.forEach(row => {
-          csvContent += `${row.name},${row.manager_name || 'N/A'},${row.digitalGross},${row.cashGross},${row.cashGross},${row.commission},${row.net}\n`;
-      });
-      
-      // Footer Row
-      if(totals) {
-         csvContent += `TOTALES,,${totals.digitalGross},${totals.cashGross},${totals.cashGross},${totals.totalCommission},${totals.netLiquidation}\n`; 
+
+      const XLSX = await import('xlsx');
+
+      const rows = data.map(row => ({
+          'Squad': row.name,
+          'Manager': row.manager_name || 'N/A',
+          'Digital (und)': row.digitalQty ?? 0,
+          'Ventas Digital ($)': row.digitalGross,
+          'Efectivo (und)': row.cashQty ?? 0,
+          'Ventas Efectivo ($)': row.cashGross,
+          'Recaudo Efectivo ($)': row.cashGross,
+          'Comisión Total ($)': row.commission,
+          'A Liquidar – Neto ($)': row.net,
+      }));
+
+      if (totals) {
+          rows.push({
+              'Squad': 'TOTALES',
+              'Manager': '',
+              'Digital (und)': totals.digitalQty ?? 0,
+              'Ventas Digital ($)': totals.digitalGross,
+              'Efectivo (und)': totals.cashQty ?? 0,
+              'Ventas Efectivo ($)': totals.cashGross,
+              'Recaudo Efectivo ($)': totals.cashGross,
+              'Comisión Total ($)': totals.totalCommission,
+              'A Liquidar – Neto ($)': totals.netLiquidation,
+          });
       }
 
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `Liquidacion_General_${eventName}.csv`);
-      document.body.appendChild(link);
-      link.click();
+      const ws = XLSX.utils.json_to_sheet(rows);
+      // Column widths
+      ws['!cols'] = [{ wch: 28 }, { wch: 22 }, { wch: 14 }, { wch: 20 }, { wch: 14 }, { wch: 20 }, { wch: 22 }, { wch: 20 }, { wch: 22 }];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Liquidación');
+
+      // Metadata sheet
+      const metaData = [
+          ['Reporte generado:', new Date().toLocaleString('es-CO')],
+          ['Evento:', eventName],
+          ['Midnight Corp — Liquidación Maestra'],
+      ];
+      const metaWs = XLSX.utils.aoa_to_sheet(metaData);
+      XLSX.utils.book_append_sheet(wb, metaWs, 'Info');
+
+      XLSX.writeFile(wb, `Liquidacion_${eventName.replace(/\s+/g, '_')}.xlsx`);
+      toast.success('Reporte exportado correctamente');
   };
 
   // --- LÓGICA DE LIQUIDACIÓN GLOBAL (ADMIN/HEAD) ---
@@ -949,6 +976,189 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
             <p className="text-2xl md:text-4xl font-black text-white">${kpiCommissions.toLocaleString()}</p>
         </div>
       </div>
+
+      {/* ─── SALES INTELLIGENCE (HEAD OF SALES / ADMIN) ──────────────────── */}
+      {isHead && (() => {
+        // All completed orders
+        const allCompleted = orders.filter(o => o.status === 'completed');
+
+        // ── 1. Squad performance (global, no event filter) ──────────────────
+        const squadStats = teams.map(team => {
+          const memberIds = [team.manager_id, ...team.members_ids];
+          const tOrders = allCompleted.filter(o => o.staff_id && memberIds.includes(o.staff_id));
+          const revenue = tOrders.reduce((s, o) => s + o.total, 0);
+          const tickets = tOrders.reduce((s, o) => s + o.items.reduce((a, i) => a + i.quantity, 0), 0);
+          const cash = tOrders.filter(o => o.payment_method === 'cash').reduce((s, o) => s + o.total, 0);
+          const digital = revenue - cash;
+          const commissions = tOrders.reduce((s, o) => s + o.commission_amount, 0);
+          return {
+            id: team.id, name: team.name,
+            manager: promoters.find(p => p.user_id === team.manager_id)?.name || '—',
+            revenue, tickets, cash, digital, commissions,
+            net: cash - commissions,
+          };
+        }).sort((a, b) => b.revenue - a.revenue);
+
+        const maxRevenue = Math.max(...squadStats.map(s => s.revenue), 1);
+
+        // ── 2. Top clients (by total spend) ─────────────────────────────────
+        const clientMap: Record<string, { name: string; email: string; spend: number; count: number }> = {};
+        allCompleted.forEach(o => {
+          const key = o.customer_email?.toLowerCase() || 'anon';
+          if (!clientMap[key]) clientMap[key] = { name: o.customer_name || key, email: key, spend: 0, count: 0 };
+          clientMap[key].spend += o.total;
+          clientMap[key].count += 1;
+        });
+        const topClients = Object.values(clientMap).sort((a, b) => b.spend - a.spend).slice(0, 5);
+
+        // ── 3. Channel mix & payment methods ────────────────────────────────
+        const totalRevenue = allCompleted.reduce((s, o) => s + o.total, 0) || 1;
+        const digitalRev = allCompleted.filter(o => o.payment_method !== 'cash').reduce((s, o) => s + o.total, 0);
+        const cashRev = totalRevenue - digitalRev;
+        const digitalPct = Math.round((digitalRev / totalRevenue) * 100);
+        const cashPct = 100 - digitalPct;
+
+        // ── 4. Top selling days ──────────────────────────────────────────────
+        const dayMap: Record<number, number> = {0:0,1:0,2:0,3:0,4:0,5:0,6:0};
+        allCompleted.forEach(o => {
+          const d = new Date(o.timestamp).getDay();
+          dayMap[d] += o.total;
+        });
+        const dayNames = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+        const maxDay = Math.max(...Object.values(dayMap), 1);
+
+        const fmt = (n: number) => new Intl.NumberFormat('es-CO', { notation: 'compact', maximumFractionDigits: 1 }).format(n);
+
+        return (
+          <div className="mb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 rounded-xl bg-neon-purple/10 border border-neon-purple/20 flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-neon-purple" />
+              </div>
+              <div>
+                <h2 className="text-lg md:text-xl font-black text-white uppercase tracking-tighter">Sales Intelligence</h2>
+                <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">Todos los eventos · Datos en tiempo real</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+
+              {/* Squad Scorecards */}
+              <div className="lg:col-span-2 bg-zinc-900/50 border border-white/5 rounded-[2rem] p-5 md:p-6">
+                <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <Users size={12} /> Squads — Rendimiento Global
+                </h3>
+                <div className="space-y-3">
+                  {squadStats.length === 0 && (
+                    <p className="text-zinc-600 text-xs uppercase font-bold text-center py-4">Sin datos de squads</p>
+                  )}
+                  {squadStats.map(sq => (
+                    <div key={sq.id} className="group">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-xs font-black text-white truncate">{sq.name}</span>
+                          <span className="text-[9px] text-zinc-600 font-bold hidden sm:inline">· {sq.manager}</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-[10px] font-black shrink-0">
+                          <span className="text-emerald-400">{sq.tickets} 🎟</span>
+                          <span className="text-white">${fmt(sq.revenue)}</span>
+                        </div>
+                      </div>
+                      <div className="w-full bg-white/5 rounded-full h-1.5 overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-neon-purple to-neon-blue rounded-full transition-all duration-700"
+                          style={{ width: `${(sq.revenue / maxRevenue) * 100}%` }}
+                        />
+                      </div>
+                      <div className="flex gap-4 mt-1 text-[9px] text-zinc-600 font-bold">
+                        <span className="text-purple-400">Digital: ${fmt(sq.digital)}</span>
+                        <span className="text-amber-400">Efectivo: ${fmt(sq.cash)}</span>
+                        <span className="text-emerald-400">Net: ${fmt(sq.net)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Channel Mix + Day Analysis */}
+              <div className="space-y-4">
+                {/* Channel Mix */}
+                <div className="bg-zinc-900/50 border border-white/5 rounded-[2rem] p-5">
+                  <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <PieChart size={12} /> Canal de Venta
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex justify-between text-[10px] font-black mb-1">
+                        <span className="text-neon-blue">Digital</span>
+                        <span className="text-white">{digitalPct}%</span>
+                      </div>
+                      <div className="w-full bg-white/5 rounded-full h-2 overflow-hidden">
+                        <div className="h-full bg-neon-blue rounded-full" style={{ width: `${digitalPct}%` }} />
+                      </div>
+                      <p className="text-[9px] text-zinc-600 mt-0.5">${fmt(digitalRev)}</p>
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-[10px] font-black mb-1">
+                        <span className="text-amber-400">Efectivo</span>
+                        <span className="text-white">{cashPct}%</span>
+                      </div>
+                      <div className="w-full bg-white/5 rounded-full h-2 overflow-hidden">
+                        <div className="h-full bg-amber-400 rounded-full" style={{ width: `${cashPct}%` }} />
+                      </div>
+                      <p className="text-[9px] text-zinc-600 mt-0.5">${fmt(cashRev)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Day of week */}
+                <div className="bg-zinc-900/50 border border-white/5 rounded-[2rem] p-5">
+                  <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <Calendar size={12} /> Ventas por Día
+                  </h3>
+                  <div className="flex items-end gap-1.5 h-16">
+                    {[0,1,2,3,4,5,6].map(d => (
+                      <div key={d} className="flex-1 flex flex-col items-center gap-1">
+                        <div
+                          className="w-full bg-neon-purple/40 rounded-t-sm transition-all duration-500 hover:bg-neon-purple"
+                          style={{ height: `${(dayMap[d] / maxDay) * 100}%`, minHeight: dayMap[d] > 0 ? '4px' : '0' }}
+                        />
+                        <span className="text-[7px] text-zinc-600 font-bold">{dayNames[d]}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Top Clients */}
+            <div className="bg-zinc-900/50 border border-white/5 rounded-[2rem] p-5 md:p-6">
+              <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <Award size={12} /> Top Clientes — Por Gasto Total
+              </h3>
+              {topClients.length === 0 ? (
+                <p className="text-zinc-600 text-xs uppercase font-bold text-center py-4">Sin datos de clientes</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+                  {topClients.map((c, i) => (
+                    <div key={c.email} className={`rounded-2xl p-4 border ${i === 0 ? 'border-amber-500/30 bg-amber-500/5' : 'border-white/5 bg-white/[0.02]'}`}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black ${i === 0 ? 'bg-amber-400 text-black' : 'bg-zinc-700 text-white'}`}>
+                          {i + 1}
+                        </div>
+                        <span className="text-[9px] text-zinc-500 font-bold">{c.count} compra{c.count !== 1 ? 's' : ''}</span>
+                      </div>
+                      <p className="text-xs font-black text-white truncate">{c.name}</p>
+                      <p className="text-[9px] text-zinc-600 truncate">{c.email}</p>
+                      <p className="text-sm font-black text-emerald-400 mt-2">${c.spend.toLocaleString()}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* --- PANEL MAESTRO DE LIQUIDACIÓN (ADMIN / HEAD OF SALES) --- */}
       {isHead && (

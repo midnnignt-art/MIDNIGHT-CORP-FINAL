@@ -276,44 +276,33 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
         }
     };
 
-    const handleExportDatabase = () => {
+    const handleExportDatabase = async () => {
         if (!auditData) return;
-        
-        let csvContent = "data:text/csv;charset=utf-8,";
-        // Header Row
-        csvContent += "Nombre Cliente,Correo Electronico,Cantidad,Tipo Boleta,Valor Total,Fecha Compra,Medio Pago,Promotor,Etapa\n";
-        
+        const XLSX = await import('xlsx');
+        const rows: any[] = [];
         auditData.eventOrders.forEach(order => {
             const promoterName = promoters.find(p => p.user_id === order.staff_id)?.name || 'Venta Directa';
-            
-            // For each item in the order, we could list them differently, but usually we just list items
-            // However, to be precise with "Tipo de Boleta" and "Etapa", we iterate items.
             order.items.forEach(item => {
                 const tier = auditData.tiers.find(t => t.id === item.tier_id);
-                const stage = tier?.stage || 'general';
-                
-                // Construct Row
-                const row = [
-                    order.customer_name,
-                    order.customer_email,
-                    item.quantity,
-                    item.tier_name,
-                    item.subtotal,
-                    new Date(order.timestamp).toLocaleString(),
-                    order.payment_method,
-                    promoterName,
-                    stage
-                ];
-                csvContent += row.join(",") + "\n";
+                rows.push({
+                    'Nombre Cliente': order.customer_name,
+                    'Correo Electrónico': order.customer_email,
+                    'Cantidad': item.quantity,
+                    'Tipo Boleta': item.tier_name,
+                    'Valor Total ($)': item.subtotal,
+                    'Fecha Compra': new Date(order.timestamp).toLocaleString('es-CO'),
+                    'Medio de Pago': order.payment_method,
+                    'Promotor': promoterName,
+                    'Etapa': tier?.stage || 'general',
+                });
             });
         });
-
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `DB_Ventas_${auditData.event.title}.csv`);
-        document.body.appendChild(link);
-        link.click();
+        const ws = XLSX.utils.json_to_sheet(rows);
+        ws['!cols'] = [{ wch: 28 }, { wch: 32 }, { wch: 10 }, { wch: 20 }, { wch: 16 }, { wch: 22 }, { wch: 16 }, { wch: 24 }, { wch: 12 }];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Ventas');
+        XLSX.writeFile(wb, `DB_Ventas_${auditData.event.title.replace(/\s+/g, '_')}.xlsx`);
+        toast.success('Base de datos exportada correctamente');
     };
 
     return (
