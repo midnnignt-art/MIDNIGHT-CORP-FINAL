@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
 import { X, Upload, Trash2, Save } from 'lucide-react';
 import { GalleryItem } from '../types';
+import { toast as showToast } from '../lib/toast';
 
 interface MagicPanelProps {
   isOpen: boolean;
@@ -63,7 +64,7 @@ const MagicPanel: React.FC<MagicPanelProps> = ({ isOpen, onClose }) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        alert("Máx 5MB por foto.");
+        showToast.error("Máx 5MB por foto.");
         return;
       }
       const reader = new FileReader();
@@ -94,7 +95,7 @@ const MagicPanel: React.FC<MagicPanelProps> = ({ isOpen, onClose }) => {
     const row2Items = localItems.filter(item => item.row === 2 && item.image_url !== '');
 
     if (row1Items.length < 4 || row2Items.length < 4) {
-      alert("Necesitas al menos 4 imágenes en CADA FILA para activar la galería. Agrega más fotos antes de publicar.");
+      showToast.error("Necesitas al menos 4 imágenes en CADA FILA para activar la galería.");
       return;
     }
 

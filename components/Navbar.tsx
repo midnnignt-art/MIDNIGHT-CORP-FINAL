@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, LogOut, Loader2, AlertCircle, Mail, ArrowRight } from 'lucide-react';
+import { toast } from '../lib/toast';
 import { Button } from './ui/button';
 import { UserRole } from '../types';
 import { useStore } from '../context/StoreContext';
@@ -51,7 +52,7 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
 
   // PASO 2: Verificar OTP — el sistema detecta automáticamente staff o cliente
   const handleOtpVerify = async () => {
-      if (otpCode.length < 6) return setAuthError('Código incompleto');
+      if (otpCode.length < 4) return setAuthError('Código incompleto');
       setIsLoading(true); setAuthError('');
 
       const success = await verifyOtpUnified(unifiedEmail.trim(), otpCode);
@@ -68,7 +69,7 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
       if(currentUser?.code) {
           const link = `https://midnightcorp.click/?ref=${currentUser.code}`;
           navigator.clipboard.writeText(link);
-          alert('Link copiado al portapapeles');
+          toast.success('Link copiado al portapapeles');
       }
   };
 
@@ -279,9 +280,9 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
                             <Input
                                 autoFocus
                                 placeholder="000000"
-                                maxLength={8}
+                                maxLength={6}
                                 value={otpCode}
-                                onChange={e => { setOtpCode(e.target.value); setAuthError(''); }}
+                                onChange={e => { setOtpCode(e.target.value.replace(/\D/g, '')); setAuthError(''); }}
                                 className="h-14 md:h-16 bg-black border-white/10 text-center font-black text-xl md:text-3xl tracking-[0.5em]"
                             />
                             {authError && (

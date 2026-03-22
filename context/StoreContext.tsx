@@ -365,10 +365,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             await supabase.from('ticket_tiers').insert(tiersToInsert);
             await fetchData();
         } catch (error: any) {
-            alert(`Error: ${error.message}`);
+            console.error("Error adding event:", error);
+            throw error;
         }
     };
-    
+
     const updateEvent = async (id: string, eventData: any, tierData: any[]) => { 
         try {
             // 1. Actualizar datos básicos del evento
@@ -447,9 +448,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }
 
             await fetchData();
-        } catch (error: any) { 
+        } catch (error: any) {
             console.error("Error updating event:", error);
-            alert(`Error al actualizar evento: ${error.message}`);
+            throw error;
         }
     };
 
@@ -461,7 +462,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             await fetchData();
         } catch (error: any) {
             console.error("Error archiving event:", error);
-            alert(`Error al archivar evento: ${error.message}`);
+            throw error;
         }
     };
 
@@ -473,7 +474,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             await fetchData();
         } catch (error: any) {
             console.error("Error restoring event:", error);
-            alert(`Error al restaurar evento: ${error.message}`);
+            throw error;
         }
     };
 
@@ -501,7 +502,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
              await fetchData();
         } catch (error: any) {
             console.error("Error deleting event:", error);
-            alert(`Error al eliminar evento permanentemente: ${error.message}`);
+            throw error;
         }
     };
     

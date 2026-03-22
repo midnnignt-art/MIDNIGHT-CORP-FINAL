@@ -6,6 +6,7 @@ import { TicketTier, Order } from '../types';
 import TicketSelector from './TicketSelector';
 import { useStore } from '../context/StoreContext';
 import { supabase } from '../lib/supabase';
+import { toast } from '../lib/toast';
 
 const motion = _motion as any;
 
@@ -251,7 +252,7 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
       setStep(2.5);
       
     } catch (error: any) {
-      alert(`Error: ${error.message}`);
+      toast.error(`Error: ${error.message}`);
       setIsProcessing(false);
     }
   };

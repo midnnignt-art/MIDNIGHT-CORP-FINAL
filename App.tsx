@@ -15,6 +15,7 @@ import { useStore } from './context/StoreContext';
 import { CheckCircle2 } from 'lucide-react';
 
 import TicketWallet from './components/TicketWallet';
+import { ToastContainer } from './components/ToastContainer';
 
 const App: React.FC = () => {
   const { currentUser, promoters, currentCustomer } = useStore();
@@ -147,10 +148,12 @@ const App: React.FC = () => {
         onClose={handlePurchaseComplete} 
       />
 
-      <MagicPanel 
-        isOpen={isMagicOpen} 
-        onClose={() => setIsMagicOpen(false)} 
+      <MagicPanel
+        isOpen={isMagicOpen}
+        onClose={() => setIsMagicOpen(false)}
       />
+
+      <ToastContainer />
     </div>
   );
 };

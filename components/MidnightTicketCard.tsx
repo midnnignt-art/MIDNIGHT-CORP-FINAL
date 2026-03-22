@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { Download } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { Event, Order } from '../types';
+import { toast } from '../lib/toast';
 
 interface MidnightTicketCardProps {
     order: Order;
@@ -14,26 +15,50 @@ export const MidnightTicketCard: React.FC<MidnightTicketCardProps> = ({ order, e
 
     const handleDownload = async () => {
         if (!ticketRef.current || isDownloading) return;
-        
         setIsDownloading(true);
+
         try {
-            const canvas = await html2canvas(ticketRef.current, {
+            // Pre-fetch QR as blob URL to avoid html2canvas CORS issues
+            const qrImgEl = ticketRef.current.querySelector('img') as HTMLImageElement | null;
+            let blobUrl: string | null = null;
+            const originalSrc = qrImgEl?.src;
+
+            if (qrImgEl) {
+                const res = await fetch(qrUrl);
+                const blob = await res.blob();
+                blobUrl = URL.createObjectURL(blob);
+                qrImgEl.src = blobUrl;
+                await new Promise<void>(resolve => { qrImgEl.onload = () => resolve(); });
+            }
+
+            // Temporarily remove max-height so html2canvas captures the full card
+            const el = ticketRef.current;
+            const prevMaxH = el.style.maxHeight;
+            el.style.maxHeight = 'none';
+
+            const canvas = await html2canvas(el, {
                 backgroundColor: '#0B0316',
-                scale: 2, // Higher quality
+                scale: 2,
                 logging: false,
-                useCORS: true // Important for external images like QR
+                useCORS: false,
+                allowTaint: false,
             });
-            
-            const image = canvas.toDataURL("image/png");
+
+            el.style.maxHeight = prevMaxH;
+
+            // Restore original QR src
+            if (qrImgEl && originalSrc) qrImgEl.src = originalSrc;
+            if (blobUrl) URL.revokeObjectURL(blobUrl);
+
             const link = document.createElement('a');
-            link.href = image;
+            link.href = canvas.toDataURL('image/png');
             link.download = `MIDNIGHT_TICKET_${order.order_number}.png`;
             link.click();
-            
-            alert("Tu boleta ha sido guardada 🌙");
+
+            toast.success('Tu boleta ha sido guardada');
         } catch (error) {
-            console.error("Error generating ticket image:", error);
-            alert("Error al descargar la boleta.");
+            console.error('Error generating ticket image:', error);
+            toast.error('Error al descargar la boleta.');
         } finally {
             setIsDownloading(false);
         }

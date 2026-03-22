@@ -3,6 +3,7 @@ import { motion as _motion } from 'framer-motion';
 import { Wallet, TrendingUp, ArrowUpRight, RefreshCw, Eye, EyeOff } from 'lucide-react';
 import { Button } from './ui/button';
 import { cn } from '../lib/utils';
+import { toast } from '../lib/toast';
 import { Wallet as WalletType } from '../types';
 
 const motion = _motion as any;
@@ -139,7 +140,7 @@ export default function LiquidityWidget({
         {/* Quick action */}
         <Button 
           className="w-full mt-6 h-12 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-black font-semibold"
-          onClick={() => alert("Solicitud de retiro procesada.")}
+          onClick={() => toast.info("Solicitud de retiro procesada.")}
         >
           <TrendingUp className="w-4 h-4 mr-2" />
           Retirar Fondos

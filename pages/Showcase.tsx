@@ -19,8 +19,9 @@ interface ShowcaseProps {
 export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
   const { events, dbStatus } = useStore();
   const [activeEvents, setActiveEvents] = useState<Event[]>([]);
-  const [loadingProgress, setLoadingProgress] = useState(0);
-  const [isFullyLoaded, setIsFullyLoaded] = useState(false);
+  // Si los datos ya están cargados (ej: vuelta al home tras logout), saltamos el loader
+  const [loadingProgress, setLoadingProgress] = useState(() => dbStatus === 'synced' ? 100 : 0);
+  const [isFullyLoaded, setIsFullyLoaded] = useState(() => dbStatus === 'synced');
 
   useEffect(() => {
     const now = new Date().getTime();

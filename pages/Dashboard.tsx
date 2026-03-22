@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
+import { toast } from '../lib/toast';
 import { UserRole, Promoter, SalesTeam, Order } from '../types';
 import { Button } from '../components/ui/button';
 import { Banknote, Award, Target, History, Users, Plus, X, Layers, UserPlus, TrendingUp, Sparkles, ChevronRight, Trash2, ShieldCheck, PieChart, Eye, Calendar, Ticket, ArrowRightLeft, ScrollText, Wallet, Link as LinkIcon, Copy, Share2, Check, Smartphone, User, Search, Filter, Loader2, Download, BarChart, AlertTriangle, CreditCard, Mail, Globe, MessageCircle, ChevronDown, ChevronUp, Laptop, Coins, UserCheck, QrCode, Send, CheckCircle2, Link2, ImagePlus, ZoomIn } from 'lucide-react';
@@ -66,7 +67,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   // Recruitment State
   const [newStaffName, setNewStaffName] = useState('');
   const [newStaffCode, setNewStaffCode] = useState('');
-  const [newStaffPassword, setNewStaffPassword] = useState(''); 
+  const [newStaffEmail, setNewStaffEmail] = useState('');
   const [selectedRecruitmentTeamId, setSelectedRecruitmentTeamId] = useState<string>('');
   const [recruitmentMode, setRecruitmentMode] = useState<'create' | 'link'>('create');
   const [selectedStaffIdToLink, setSelectedStaffIdToLink] = useState<string>('');
@@ -117,7 +118,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
 
   // --- EXPORTAR LIQUIDACIÓN CSV ---
   const handleExportLiquidation = (data: any[], totals: any) => {
-      if (!selectedEventFilter) return alert("Selecciona un evento primero.");
+      if (!selectedEventFilter) { toast.error("Selecciona un evento primero."); return; }
       const eventName = events.find(e => e.id === selectedEventFilter)?.title || 'Evento';
       
       let csvContent = "data:text/csv;charset=utf-8,";
@@ -486,8 +487,8 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
 
   const handleManualSale = async () => {
     if (!selectedEventId || cart.length === 0) return;
-    if (!manualCustomerInfo.name) return alert("Nombre del cliente obligatorio.");
-    if (!manualCustomerInfo.email.includes('@')) return alert("Email del cliente obligatorio y válido.");
+    if (!manualCustomerInfo.name) { toast.error("Nombre del cliente obligatorio."); return; }
+    if (!manualCustomerInfo.email.includes('@')) { toast.error("Email del cliente obligatorio y válido."); return; }
     
     setIsProcessingSale(true);
 
@@ -558,11 +559,11 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
             setManualCustomerInfo({ name: '', email: '' });
             setShowManualSale(false); 
             setSelectedEventId('');
-            alert(`¡Venta Registrada Exitosamente!\nSe han generado ${createdOrders.length} boletas individuales.\nTotal: $${total.toLocaleString()}`);
+            toast.success(`${createdOrders.length} boletas generadas — Total: $${total.toLocaleString()}`);
         }
     } catch (error: any) {
         console.error("Error in manual sale:", error);
-        alert(`Error al procesar venta: ${error.message}`);
+        toast.error(`Error al procesar venta: ${error.message}`);
     } finally {
         setIsProcessingSale(false);
     }
@@ -571,8 +572,8 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
 
 
   const handleLinkExistingStaff = async () => {
-      if (!selectedStaffIdToLink) return alert("Selecciona un promotor disponible.");
-      if (!selectedRecruitmentTeamId) return alert("Selecciona un Squad de destino.");
+      if (!selectedStaffIdToLink) { toast.error("Selecciona un promotor disponible."); return; }
+      if (!selectedRecruitmentTeamId) { toast.error("Selecciona un Squad de destino."); return; }
 
       const staff = promoters.find(p => p.user_id === selectedStaffIdToLink);
       const team = teams.find(t => t.id === selectedRecruitmentTeamId);
@@ -580,56 +581,45 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
       if (!staff || !team) return;
 
       try {
-          // Update staff team
           await useStore().updateStaffTeam(staff.user_id, team.id);
-          
-          alert(`¡${staff.name} ha sido vinculado al Squad ${team.name}!`);
+          toast.success(`${staff.name} vinculado al Squad ${team.name}`);
           setSelectedStaffIdToLink(''); setShowRecruitmentModal(false);
       } catch (error: any) {
           console.error("Error linking staff:", error);
-          alert("Error al vincular promotor.");
+          toast.error("Error al vincular promotor.");
       }
   };
 
   const handleManagerRecruit = async () => {
-      if (!newStaffName || !newStaffCode || !newStaffPassword) {
-          return alert("Por favor completa todos los campos.");
+      if (!newStaffName || !newStaffEmail) {
+          toast.error("Nombre y Email son obligatorios.");
+          return;
+      }
+      if (!newStaffEmail.includes('@')) {
+          toast.error("Ingresa un email válido. El promotor lo usará para iniciar sesión.");
+          return;
       }
 
-      // Determine target team and manager
-      let targetTeamId = selectedRecruitmentTeamId || null;
-      let targetManagerId = null;
-
-      if (targetTeamId) {
-          const team = teams.find(t => t.id === targetTeamId);
-          if (team) {
-              targetManagerId = team.manager_id;
-          }
-      } else {
-          // If independent, no manager assigned (or could be the recruiter if desired, but usually null for true independent)
-          targetManagerId = null;
-      }
+      const targetTeamId = selectedRecruitmentTeamId || null;
+      const targetManagerId = targetTeamId ? (teams.find(t => t.id === targetTeamId)?.manager_id ?? null) : null;
+      const finalCode = newStaffCode.toUpperCase() || newStaffEmail.split('@')[0].toUpperCase();
 
       try {
-          // Generate a fake email for the system if not provided
-          const systemEmail = `${newStaffCode.toLowerCase()}@midnight.staff`;
-
-          await addStaff({ 
-              name: newStaffName, 
-              code: newStaffCode.toUpperCase(), 
-              password: newStaffPassword, 
-              email: systemEmail,
-              role: UserRole.PROMOTER, 
-              sales_team_id: targetTeamId, 
-              manager_id: targetManagerId 
+          await addStaff({
+              name: newStaffName,
+              code: finalCode,
+              email: newStaffEmail.toLowerCase().trim(),
+              role: UserRole.PROMOTER,
+              sales_team_id: targetTeamId,
+              manager_id: targetManagerId
           });
-          
+
           const teamName = targetTeamId ? teams.find(t => t.id === targetTeamId)?.name : "Independiente";
-          alert(`¡${newStaffName} ha sido registrado exitosamente!\nAsignado a: ${teamName}`);
-          setNewStaffName(''); setNewStaffCode(''); setNewStaffPassword(''); setShowRecruitmentModal(false);
+          toast.success(`${newStaffName} registrado — Squad: ${teamName}`);
+          setNewStaffName(''); setNewStaffCode(''); setNewStaffEmail(''); setShowRecruitmentModal(false);
       } catch (error: any) {
           console.error("Error recruiting:", error);
-          alert(`Error al registrar promotor: ${error.message || 'Intenta nuevamente'}`);
+          toast.error(`Error al registrar promotor: ${error.message || 'Intenta nuevamente'}`);
       }
   };
 
@@ -835,7 +825,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                           setDebtUploadForm({ amount: '', method: 'transfer', notes: '' });
                           setDebtImageFile(null);
                           setDebtImagePreview(null);
-                        } catch (e: any) { alert(e.message); }
+                        } catch (e: any) { toast.error(e.message); }
                         finally { setDebtUploadLoading(false); setDebtUploadProgress(''); }
                       }}
                       className="w-full py-3 bg-white text-black font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-white/90 transition-all disabled:opacity-40 flex items-center justify-center gap-2">
@@ -1524,8 +1514,8 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                                 <input value={newStaffCode} onChange={e => setNewStaffCode(e.target.value)} className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-black uppercase tracking-widest text-center focus:border-neon-purple outline-none" placeholder="EJ: ANA2024" />
                             </div>
                             <div>
-                                <label className="text-[10px] text-zinc-500 uppercase font-bold mb-1 block">Contraseña</label>
-                                <input type="text" value={newStaffPassword} onChange={e => setNewStaffPassword(e.target.value)} className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-mono focus:border-neon-purple outline-none" placeholder="1234" />
+                                <label className="text-[10px] text-zinc-500 uppercase font-bold mb-1 block">Email (para inicio de sesión)</label>
+                                <input type="email" value={newStaffEmail} onChange={e => setNewStaffEmail(e.target.value)} className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-mono focus:border-neon-purple outline-none" placeholder="promotor@gmail.com" />
                             </div>
 
                             <div>
@@ -1548,7 +1538,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                                 </p>
                             </div>
 
-                            <Button onClick={handleManagerRecruit} disabled={!newStaffName || !newStaffCode || !newStaffPassword} fullWidth className="bg-white text-black font-black h-14 text-sm rounded-xl hover:bg-zinc-200 mt-2">
+                            <Button onClick={handleManagerRecruit} disabled={!newStaffName || !newStaffEmail} fullWidth className="bg-white text-black font-black h-14 text-sm rounded-xl hover:bg-zinc-200 mt-2">
                                 REGISTRAR PROMOTOR
                             </Button>
                         </div>
@@ -1737,10 +1727,71 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
         )}
       </AnimatePresence>
 
+      {/* MODAL DETALLE PROMOTOR (Ranking General - modo promotores) */}
+      <AnimatePresence>
+        {viewingStaffId && (() => {
+            const staffData = (generalRankingData as any[]).find((p: any) => p.user_id === viewingStaffId);
+            if (!staffData) return null;
+            return (
+              <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md">
+                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+                  className="bg-zinc-900 border border-white/10 p-6 md:p-8 rounded-[2.5rem] w-full max-w-4xl shadow-2xl relative max-h-[90vh] overflow-y-auto">
+                  <button onClick={() => setViewingStaffId(null)} className="absolute top-6 right-6 text-zinc-600 hover:text-white"><X size={24}/></button>
+                  <div className="mb-6">
+                    <h2 className="text-2xl font-black text-white flex items-center gap-3">
+                      <User className="text-neon-purple"/> {staffData.name}
+                    </h2>
+                    <p className="text-zinc-500 font-bold uppercase text-xs mt-1">
+                      {staffData.role} · Código: {staffData.code}
+                    </p>
+                    <div className="flex gap-6 mt-4">
+                      <div><p className="text-[9px] text-zinc-500 uppercase font-bold">Tickets</p><p className="text-2xl font-black text-white">{staffData.ticketsSold}</p></div>
+                      <div><p className="text-[9px] text-zinc-500 uppercase font-bold">Revenue</p><p className="text-2xl font-black text-emerald-400">${staffData.revenue.toLocaleString()}</p></div>
+                      <div><p className="text-[9px] text-zinc-500 uppercase font-bold">Comisión</p><p className="text-2xl font-black text-neon-blue">${staffData.commission.toLocaleString()}</p></div>
+                    </div>
+                  </div>
+                  <div className="bg-zinc-950 border border-white/5 rounded-2xl overflow-hidden">
+                    <div className="bg-zinc-800/50 p-3 border-b border-white/5 flex items-center gap-2">
+                      <ScrollText size={14} className="text-neon-purple"/>
+                      <span className="text-xs font-black text-white uppercase tracking-widest">Historial de Ventas ({staffData.orders?.length || 0} órdenes)</span>
+                    </div>
+                    {staffData.orders && staffData.orders.length > 0 ? (
+                      <table className="w-full text-left text-[10px] md:text-xs">
+                        <thead className="bg-black/20 text-zinc-500 uppercase font-bold">
+                          <tr>
+                            <th className="p-3">Fecha</th>
+                            <th className="p-3">Cliente</th>
+                            <th className="p-3">Boleta</th>
+                            <th className="p-3 text-right">Método</th>
+                            <th className="p-3 text-right">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5 text-zinc-300">
+                          {staffData.orders.map((o: any) => (
+                            <tr key={o.id} className="hover:bg-white/5">
+                              <td className="p-3 text-zinc-500">{new Date(o.timestamp).toLocaleDateString()} {new Date(o.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</td>
+                              <td className="p-3 font-bold text-white">{o.customer_name}</td>
+                              <td className="p-3">{o.items?.map((i: any) => i.tier_name).join(', ')}</td>
+                              <td className="p-3 text-right capitalize">{o.payment_method}</td>
+                              <td className="p-3 text-right font-bold text-emerald-400">${o.total?.toLocaleString()}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <p className="p-8 text-center text-zinc-600 text-xs uppercase font-bold">Sin ventas registradas</p>
+                    )}
+                  </div>
+                </motion.div>
+              </div>
+            );
+        })()}
+      </AnimatePresence>
+
       {showScanner && (
-        <QRScanner 
+        <QRScanner
           eventId={scannerEventId}
-          onClose={() => setShowScanner(false)} 
+          onClose={() => setShowScanner(false)}
         />
       )}
     </div>

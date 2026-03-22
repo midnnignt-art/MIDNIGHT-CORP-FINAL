@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { toast } from '../lib/toast';
 import { 
     Trash2, Plus, Pencil, Save, Users, ShieldCheck,
     UserCog, BadgeCheck, Database, Download, Upload, AlertTriangle,
@@ -182,7 +183,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
         const file = e.target.files?.[0];
         if (file) {
             if (file.size > 5 * 1024 * 1024) {
-                alert("Máx 5MB por foto.");
+                toast.error("Máx 5MB por foto.");
                 return;
             }
             const reader = new FileReader();
@@ -195,8 +196,8 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
     };
 
     const handleCreateOrUpdateEvent = async () => {
-        if (!eventForm.title || !eventForm.date) return alert("Faltan datos básicos del evento");
-        
+        if (!eventForm.title || !eventForm.date) { toast.error("Faltan datos básicos del evento"); return; }
+
         const eventData = {
             title: eventForm.title,
             description: eventForm.description,
@@ -219,18 +220,17 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
         try {
             if (editingEventId) {
                 await updateEvent(editingEventId, eventData, cleanTiers);
-                alert("Evento actualizado correctamente");
+                toast.success("Evento actualizado correctamente");
             } else {
                 await addEvent(eventData, cleanTiers);
-                alert("Evento creado correctamente");
+                toast.success("Evento creado correctamente");
             }
             setIsCreatingEvent(false);
             setEditingEventId(null);
             setEventForm({ title: '', description: '', venue: '', city: '', date: '', time: '', cover_image: '' });
             setTierRows([{ id: undefined, name: 'General', price: 0, commission_fixed: 0, quantity: 0, stage: 'general' }]);
         } catch (e: any) {
-            console.error(e);
-            alert(`Error: ${e.message}`);
+            toast.error(`Error: ${e.message}`);
         }
     };
 
@@ -242,16 +242,16 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
     };
 
     const handleCreateTeam = () => {
-        if (!newTeamName) return alert("Ingresa un nombre para el equipo.");
-        if (!selectedManagerId) return alert("Debes seleccionar un manager.");
+        if (!newTeamName) { toast.error("Ingresa un nombre para el equipo."); return; }
+        if (!selectedManagerId) { toast.error("Debes seleccionar un manager."); return; }
         createTeam(newTeamName, selectedManagerId);
         setNewTeamName(''); setSelectedManagerId('');
-        alert('Squad creado exitosamente');
+        toast.success('Squad creado exitosamente');
     };
 
     const handleCreateStaff = async () => {
-        if (!staffName || !staffEmail || !staffPassword) return alert("Nombre, Email y Contraseña son obligatorios.");
-        if (!staffEmail.includes('@')) return alert("El email del staff es requerido para el nuevo sistema de login.");
+        if (!staffName || !staffEmail) { toast.error("Nombre y Email son obligatorios."); return; }
+        if (!staffEmail.includes('@')) { toast.error("Ingresa un email válido para el login OTP."); return; }
 
         const finalCode = staffCode.toUpperCase() || staffEmail.split('@')[0].toUpperCase();
 
@@ -259,14 +259,13 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
             await addStaff({
                 name: staffName,
                 code: finalCode,
-                password: staffPassword,
                 email: staffEmail.toLowerCase().trim(),
                 role: staffRole
             });
-            setStaffName(''); setStaffCode(''); setStaffPassword('1234'); setStaffEmail('');
-            alert(`✅ Staff registrado. Login con email: ${staffEmail.toLowerCase().trim()}`);
+            setStaffName(''); setStaffCode(''); setStaffEmail('');
+            toast.success(`Staff registrado. Login con email: ${staffEmail.toLowerCase().trim()}`);
         } catch (error: any) {
-            alert(`❌ Error al registrar staff: ${error.message || 'Verifica que el email no esté duplicado.'}`);
+            toast.error(`Error al registrar staff: ${error.message || 'Verifica que el email no esté duplicado.'}`);
         }
     };
 
