@@ -52,7 +52,7 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
 
   // PASO 2: Verificar OTP — el sistema detecta automáticamente staff o cliente
   const handleOtpVerify = async () => {
-      if (otpCode.length < 4) return setAuthError('Código incompleto');
+      if (otpCode.length < 6) return setAuthError('Código incompleto');
       setIsLoading(true); setAuthError('');
 
       const success = await verifyOtpUnified(unifiedEmail.trim(), otpCode);
@@ -279,8 +279,8 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
                         <div className="space-y-3">
                             <Input
                                 autoFocus
-                                placeholder="0000"
-                                maxLength={4}
+                                placeholder="000000"
+                                maxLength={6}
                                 value={otpCode}
                                 onChange={e => { setOtpCode(e.target.value.replace(/\D/g, '')); setAuthError(''); }}
                                 className="h-14 md:h-16 bg-black border-white/10 text-center font-black text-xl md:text-3xl tracking-[0.5em]"
