@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import {
-  ResponsiveContainer, ComposedChart, LineChart, Line, Bar,
+  ResponsiveContainer, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts';
 import {
@@ -1085,15 +1085,12 @@ export const Accounting: React.FC = () => {
             {/* Gráfica mes a mes */}
             {monthlyPnL.length > 0 && (() => {
               const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-              const LINES = [
+              const SERIES = [
                 { key: 'Ingresos',       color: '#34d399', dash: ''    },
+                { key: 'Costos Evento',  color: '#fb923c', dash: '5 3' },
+                { key: 'Gastos Oper.',   color: '#f87171', dash: '5 3' },
                 { key: 'Utilidad Neta',  color: '#a78bfa', dash: ''    },
               ];
-              const BARS = [
-                { key: 'Costos Evento',  color: '#fb923c' },
-                { key: 'Gastos Oper.',   color: '#f87171' },
-              ];
-              const SERIES = [...LINES, ...BARS];
 
               const chartData = [...monthlyPnL]
                 .sort((a, b) => (a.month < b.month ? -1 : a.month > b.month ? 1 : 0))
@@ -1146,15 +1143,9 @@ export const Accounting: React.FC = () => {
                     </div>
                     {/* Leyenda */}
                     <div className="flex flex-wrap gap-x-4 gap-y-1.5 justify-end">
-                      {LINES.map(s => (
+                      {SERIES.map(s => (
                         <div key={s.key} className="flex items-center gap-1.5">
                           <span className="w-4 h-[2px] rounded-full flex-shrink-0" style={{ backgroundColor: s.color, opacity: 0.8 }} />
-                          <span className="text-[9px] font-black uppercase tracking-wider" style={{ color: s.color, opacity: 0.6 }}>{s.key}</span>
-                        </div>
-                      ))}
-                      {BARS.map(s => (
-                        <div key={s.key} className="flex items-center gap-1.5">
-                          <span className="w-3 h-3 rounded-[3px] flex-shrink-0" style={{ backgroundColor: s.color, opacity: 0.55 }} />
                           <span className="text-[9px] font-black uppercase tracking-wider" style={{ color: s.color, opacity: 0.6 }}>{s.key}</span>
                         </div>
                       ))}
@@ -1164,7 +1155,7 @@ export const Accounting: React.FC = () => {
                   {/* Chart */}
                   <div className="px-2 pb-5">
                     <ResponsiveContainer width="100%" height={260}>
-                      <ComposedChart data={chartData} margin={{ top: 8, right: 24, left: 0, bottom: 0 }}>
+                      <LineChart data={chartData} margin={{ top: 8, right: 24, left: 0, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="2 6" stroke="rgba(255,255,255,0.04)" vertical={false} />
                         <XAxis
                           dataKey="mes"
@@ -1177,28 +1168,19 @@ export const Accounting: React.FC = () => {
                           axisLine={false} tickLine={false} width={52}
                         />
                         <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.06)', strokeWidth: 1 }} />
-                        {BARS.map(s => (
-                          <Bar
-                            key={s.key}
-                            dataKey={s.key}
-                            fill={s.color}
-                            fillOpacity={0.55}
-                            radius={[3, 3, 0, 0]}
-                            maxBarSize={32}
-                          />
-                        ))}
-                        {LINES.map(s => (
+                        {SERIES.map(s => (
                           <Line
                             key={s.key}
                             dataKey={s.key}
                             type="monotone"
                             stroke={s.color}
                             strokeWidth={1.5}
+                            strokeDasharray={s.dash}
                             dot={{ r: 3, fill: s.color, strokeWidth: 0 }}
                             activeDot={{ r: 5, fill: s.color, strokeWidth: 0, style: { filter: `drop-shadow(0 0 6px ${s.color})` } }}
                           />
                         ))}
-                      </ComposedChart>
+                      </LineChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
