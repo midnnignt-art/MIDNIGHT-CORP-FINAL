@@ -227,7 +227,7 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
   };
 
   const handleVerifyOtp = async () => {
-    if (otp.length < 6) return setAuthError('El código debe tener 6 dígitos');
+    if (otp.length < 4) return setAuthError('El código debe tener 4 dígitos');
     setIsAuthLoading(true);
     setAuthError('');
     const success = await verifyCustomerOtp(email, otp);
@@ -313,9 +313,9 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
                    <h3 className="text-2xl md:text-3xl font-black text-moonlight uppercase tracking-tighter">Verificar</h3>
                    <p className="text-moonlight/40 text-[10px] font-light tracking-[0.2em] uppercase mt-2">Código enviado a {email}</p>
                </div>
-               <Input autoFocus placeholder="000000" value={otp} maxLength={8} onChange={e => setOtp(e.target.value)} className="h-20 bg-void border-moonlight/10 text-moonlight font-black text-3xl text-center tracking-[0.5em] focus:border-eclipse rounded-none" />
+               <Input autoFocus placeholder="0000" value={otp} maxLength={4} onChange={e => setOtp(e.target.value)} className="h-20 bg-void border-moonlight/10 text-moonlight font-black text-3xl text-center tracking-[0.5em] focus:border-eclipse rounded-none" />
                {authError && <p className="text-red-500 text-[10px] font-black uppercase tracking-widest text-center">{authError}</p>}
-               <button onClick={handleVerifyOtp} disabled={otp.length < 6 || isAuthLoading} className="w-full h-16 bg-moonlight text-void font-black text-sm uppercase tracking-[0.5em] hover:bg-moonlight/90 transition-all">
+               <button onClick={handleVerifyOtp} disabled={otp.length < 4 || isAuthLoading} className="w-full h-16 bg-moonlight text-void font-black text-sm uppercase tracking-[0.5em] hover:bg-moonlight/90 transition-all">
                   {isAuthLoading ? <Loader2 className="animate-spin mx-auto"/> : 'Verificar'}
                </button>
             </motion.div>
