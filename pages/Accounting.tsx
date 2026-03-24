@@ -759,7 +759,7 @@ export const Accounting: React.FC = () => {
 
   // Event costs from event_costs table
   const eventCostsPaid = useMemo(() =>
-    events.flatMap(e => e.costs || []).filter(c => c.status === 'paid').reduce((s, c) => s + (c.actual_amount ?? c.amount), 0),
+    events.flatMap(e => e.costs || []).filter(c => c.status === 'paid' || !c.status).reduce((s, c) => s + (c.actual_amount ?? c.amount), 0),
     [events]
   );
 
@@ -807,7 +807,7 @@ export const Accounting: React.FC = () => {
       else months[m].expense += mv.amount;
     });
     events.forEach(ev =>
-      (ev.costs || []).filter(c => c.status === 'paid').forEach(c => {
+      (ev.costs || []).filter(c => c.status === 'paid' || !c.status).forEach(c => {
         const m = currentMonth;
         if (!months[m]) months[m] = { income: 0, expense: 0 };
         months[m].expense += c.amount;
@@ -827,7 +827,7 @@ export const Accounting: React.FC = () => {
         const evOrderIncome = evOrders.reduce((s, o) => s + o.total, 0);
         const evMovIncome = movIncomes.filter(m => m.event_id === ev.id).reduce((s, m) => s + m.amount, 0);
         const evMovExpense = movExpenses.filter(m => m.event_id === ev.id).reduce((s, m) => s + m.amount, 0);
-        const evCosts = (ev.costs || []).filter(c => c.status === 'paid').reduce((s, c) => s + (c.actual_amount ?? c.amount), 0);
+        const evCosts = (ev.costs || []).filter(c => c.status === 'paid' || !c.status).reduce((s, c) => s + (c.actual_amount ?? c.amount), 0);
         const totalEvIncome = evOrderIncome + evMovIncome;
         const totalEvExpense = evMovExpense + evCosts;
         const netEv = totalEvIncome - totalEvExpense;
@@ -849,7 +849,7 @@ export const Accounting: React.FC = () => {
       map[m.category] = (map[m.category] || 0) + m.amount;
     });
     events.forEach(ev =>
-      (ev.costs || []).filter(c => c.status === 'paid').forEach(c => {
+      (ev.costs || []).filter(c => c.status === 'paid' || !c.status).forEach(c => {
         map[c.category] = (map[c.category] || 0) + c.amount;
       })
     );
@@ -960,7 +960,7 @@ export const Accounting: React.FC = () => {
       const evOrders = completedOrders.filter(o => o.event_id === ev.id);
       const ingresosBoletas = evOrders.reduce((s, o) => s + (o.total || 0), 0);
       const comisiones = evOrders.reduce((s, o) => s + (o.commission_amount || 0), 0);
-      const costosEvento = (ev.costs || []).filter(c => c.status === 'paid').reduce((s, c) => s + (c.actual_amount ?? c.amount), 0);
+      const costosEvento = (ev.costs || []).filter(c => c.status === 'paid' || !c.status).reduce((s, c) => s + (c.actual_amount ?? c.amount), 0);
       const otrosIngresos = movIncomes.filter(mv => mv.event_id === ev.id).reduce((s, m) => s + m.amount, 0);
       const otrosGastos = movExpenses.filter(mv => mv.event_id === ev.id).reduce((s, m) => s + m.amount, 0);
       const tickets = evOrders.length;
