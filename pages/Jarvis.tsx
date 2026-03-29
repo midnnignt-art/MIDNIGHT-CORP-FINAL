@@ -63,7 +63,7 @@ export default function Jarvis() {
         throw new Error("Response not JSON: " + raw.slice(0, 200));
       }
 
-      if (!res.ok) throw new Error(`API ${res.status}: ${data?.error || raw.slice(0, 200)}`);
+      if (!res.ok) throw new Error(`API ${res.status}: ${data?.error?.message || data?.error || raw.slice(0, 200)}`);
       if (data.type === "error") throw new Error(data.error?.message || "Unknown API error");
 
       const reply = (data.content || [])
