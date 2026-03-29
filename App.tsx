@@ -16,6 +16,7 @@ import { CheckCircle2 } from 'lucide-react';
 
 import TicketWallet from './components/TicketWallet';
 import { ToastContainer } from './components/ToastContainer';
+import Jarvis from './pages/Jarvis';
 
 const App: React.FC = () => {
   const { currentUser, promoters, currentCustomer } = useStore();
@@ -152,6 +153,8 @@ const App: React.FC = () => {
         isOpen={isMagicOpen}
         onClose={() => setIsMagicOpen(false)}
       />
+
+      {currentPage === 'juan' && <Jarvis />}
 
       <ToastContainer />
     </div>
