@@ -115,7 +115,7 @@ export const MidnightTicketCard: React.FC<MidnightTicketCardProps> = ({ order, e
                 </div>
 
                 {/* Footer Bar */}
-                <div className="bg-[#490F7C] py-3 text-center">
+                <div className="bg-[#490F7C] py-3 text-center rounded-b-[2rem]">
                     <span className="text-[9px] font-black text-white tracking-[0.2em] uppercase">
                         PRESENTA ESTE QR EN LA ENTRADA
                     </span>

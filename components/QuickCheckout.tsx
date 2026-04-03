@@ -258,7 +258,7 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
   };
 
   return (
-    <div className="bg-void/95 backdrop-blur-2xl rounded-none border border-moonlight/10 overflow-hidden w-full mx-auto shadow-[0_0_100px_rgba(0,0,0,0.5)] relative">
+    <div className="bg-void/95 backdrop-blur-2xl rounded-3xl border border-moonlight/10 overflow-hidden w-full mx-auto shadow-[0_0_100px_rgba(0,0,0,0.5)] relative">
       
       {currentCustomer && step < 2.5 && (
           <div className="absolute top-6 right-8 z-20">
@@ -277,10 +277,10 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
                 <span className="text-moonlight/40 font-light text-[10px] uppercase tracking-[0.3em]">Total</span>
                 <span className="text-3xl md:text-4xl font-black text-moonlight tabular-nums">${subtotal.toLocaleString()}</span>
               </div>
-              <button 
-                onClick={() => setStep(currentCustomer ? 2 : 1)} 
-                disabled={selectedItems.length === 0} 
-                className="w-full h-16 bg-moonlight text-void font-black text-sm uppercase tracking-[0.5em] hover:bg-moonlight/90 transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+              <button
+                onClick={() => setStep(currentCustomer ? 2 : 1)}
+                disabled={selectedItems.length === 0}
+                className="w-full h-16 bg-moonlight text-void font-black text-sm uppercase tracking-[0.5em] hover:bg-moonlight/90 transition-all disabled:opacity-20 disabled:cursor-not-allowed rounded-2xl"
               >
                 Continuar
               </button>
@@ -295,12 +295,12 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
                   <p className="text-moonlight/40 text-[10px] font-light tracking-[0.2em] uppercase mt-2">Para el envío de tickets</p>
               </div>
               <div className="space-y-4">
-                <Input placeholder="NOMBRE COMPLETO" value={name} onChange={e => setName(e.target.value)} className="h-14 bg-void border-moonlight/10 text-moonlight font-bold text-xs uppercase tracking-widest focus:border-eclipse rounded-none" />
-                <Input placeholder="CORREO ELECTRÓNICO" type="email" value={email} onChange={e => setEmail(e.target.value.toLowerCase())} className="h-14 bg-void border-moonlight/10 text-moonlight font-bold text-xs uppercase tracking-widest focus:border-eclipse rounded-none" />
-                <Input placeholder="TELÉFONO / CELULAR" type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="h-14 bg-void border-moonlight/10 text-moonlight font-bold text-xs uppercase tracking-widest focus:border-eclipse rounded-none" />
-                {authError && <p className="text-red-500 text-[10px] text-center font-black uppercase tracking-widest bg-red-500/10 p-3">{authError}</p>}
+                <Input placeholder="NOMBRE COMPLETO" value={name} onChange={e => setName(e.target.value)} className="h-14 bg-void border-moonlight/10 text-moonlight font-bold text-xs uppercase tracking-widest focus:border-eclipse rounded-2xl" />
+                <Input placeholder="CORREO ELECTRÓNICO" type="email" value={email} onChange={e => setEmail(e.target.value.toLowerCase())} className="h-14 bg-void border-moonlight/10 text-moonlight font-bold text-xs uppercase tracking-widest focus:border-eclipse rounded-2xl" />
+                <Input placeholder="TELÉFONO / CELULAR" type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="h-14 bg-void border-moonlight/10 text-moonlight font-bold text-xs uppercase tracking-widest focus:border-eclipse rounded-2xl" />
+                {authError && <p className="text-red-500 text-[10px] text-center font-black uppercase tracking-widest bg-red-500/10 p-3 rounded-xl">{authError}</p>}
               </div>
-              <button onClick={handleRequestOtp} disabled={!email || !name || isAuthLoading} className="w-full h-16 bg-eclipse text-moonlight font-black text-sm uppercase tracking-[0.5em] hover:bg-eclipse/80 transition-all disabled:opacity-20">
+              <button onClick={handleRequestOtp} disabled={!email || !name || isAuthLoading} className="w-full h-16 bg-eclipse text-moonlight font-black text-sm uppercase tracking-[0.5em] hover:bg-eclipse/80 transition-all disabled:opacity-20 rounded-2xl">
                   {isAuthLoading ? <Loader2 className="animate-spin mx-auto"/> : 'Continuar'}
               </button>
             </motion.div>
@@ -313,9 +313,9 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
                    <h3 className="text-2xl md:text-3xl font-black text-moonlight uppercase tracking-tighter">Verificar</h3>
                    <p className="text-moonlight/40 text-[10px] font-light tracking-[0.2em] uppercase mt-2">Código enviado a {email}</p>
                </div>
-               <Input autoFocus placeholder="000000" value={otp} maxLength={6} onChange={e => setOtp(e.target.value)} className="h-20 bg-void border-moonlight/10 text-moonlight font-black text-3xl text-center tracking-[0.5em] focus:border-eclipse rounded-none" />
+               <Input autoFocus placeholder="000000" value={otp} maxLength={6} onChange={e => setOtp(e.target.value)} className="h-20 bg-void border-moonlight/10 text-moonlight font-black text-3xl text-center tracking-[0.5em] focus:border-eclipse rounded-2xl" />
                {authError && <p className="text-red-500 text-[10px] font-black uppercase tracking-widest text-center">{authError}</p>}
-               <button onClick={handleVerifyOtp} disabled={otp.length < 6 || isAuthLoading} className="w-full h-16 bg-moonlight text-void font-black text-sm uppercase tracking-[0.5em] hover:bg-moonlight/90 transition-all">
+               <button onClick={handleVerifyOtp} disabled={otp.length < 6 || isAuthLoading} className="w-full h-16 bg-moonlight text-void font-black text-sm uppercase tracking-[0.5em] hover:bg-moonlight/90 transition-all rounded-2xl">
                   {isAuthLoading ? <Loader2 className="animate-spin mx-auto"/> : 'Verificar'}
                </button>
             </motion.div>
@@ -333,11 +333,11 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
                     <User size={12}/> {name}
                 </p>
               </div>
-              <div className="bg-white/5 p-5 md:p-8 border border-moonlight/5 space-y-4">
+              <div className="bg-white/5 p-5 md:p-8 border border-moonlight/5 space-y-4 rounded-2xl">
                   <div className="flex justify-between text-moonlight/40 text-[10px] font-light tracking-[0.3em] uppercase"><span>Producto</span><span>Tickets ({selectedItems.length})</span></div>
                   <div className="flex justify-between text-moonlight font-black text-xl pt-4 border-t border-moonlight/10 tabular-nums"><span>Total</span><span>${subtotal.toLocaleString()}</span></div>
               </div>
-              <button onClick={handlePayment} disabled={isProcessing} className="w-full h-16 bg-eclipse text-moonlight font-black text-sm uppercase tracking-[0.5em] hover:bg-eclipse/80 transition-all shadow-[0_0_40px_rgba(73,15,124,0.3)]">
+              <button onClick={handlePayment} disabled={isProcessing} className="w-full h-16 bg-eclipse text-moonlight font-black text-sm uppercase tracking-[0.5em] hover:bg-eclipse/80 transition-all shadow-[0_0_40px_rgba(73,15,124,0.3)] rounded-2xl">
                 {isProcessing ? <Loader2 className="animate-spin mx-auto" /> : "Ir a Pagar"}
               </button>
             </motion.div>
@@ -345,7 +345,7 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
 
           {step === 2.5 && pendingOrder && (
              <motion.div key="s2.5" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-8 py-4">
-                 <div className={`p-5 md:p-8 transition-colors duration-500 ${paymentStatus === 'failed' || gatewayStatus === 'error' ? 'bg-red-600/10 border border-red-600/30' : paymentStatus === 'paid' ? 'bg-emerald-600/10 border border-emerald-600/30' : 'bg-white/5 border border-moonlight/10'}`}>
+                 <div className={`p-5 md:p-8 transition-colors duration-500 rounded-2xl ${paymentStatus === 'failed' || gatewayStatus === 'error' ? 'bg-red-600/10 border border-red-600/30' : paymentStatus === 'paid' ? 'bg-emerald-600/10 border border-emerald-600/30' : 'bg-white/5 border border-moonlight/10'}`}>
                      <h3 className="text-xl font-black text-moonlight uppercase tracking-[0.3em] flex items-center justify-center gap-3 mb-4">
                          {paymentStatus === 'paid' ? (
                              <span className="text-emerald-500 flex items-center gap-2">✅ Pago Aprobado</span>
@@ -378,7 +378,7 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
                                      setPaymentStatus('pending');
                                      setGatewayStatus('idle');
                                      initiateBoldTransaction();
-                                 }} className="h-10 px-6 border border-red-500/30 hover:bg-red-500/10 text-red-500 transition-all mt-2">Reintentar</button>
+                                 }} className="h-10 px-6 border border-red-500/30 hover:bg-red-500/10 text-red-500 transition-all mt-2 rounded-xl">Reintentar</button>
                              </div>
                          )}
                          {paymentStatus === 'pending' && (

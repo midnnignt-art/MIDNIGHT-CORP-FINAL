@@ -13,8 +13,6 @@ export const MouseTrail: React.FC = () => {
   const animRef   = useRef<number>(0);
 
   useEffect(() => {
-    if (window.matchMedia('(pointer: coarse)').matches) return;
-
     const orb = orbRef.current;
     if (!orb) return;
 

@@ -39,7 +39,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ event, isOpen, onC
         </div>
 
         {/* Bottom-sheet wrapper on mobile */}
-        <div className="rounded-t-3xl sm:rounded-none overflow-hidden max-h-[82vh] sm:max-h-none overflow-y-auto">
+        <div className="rounded-t-3xl sm:rounded-3xl overflow-hidden max-h-[82vh] sm:max-h-none overflow-y-auto">
           {/* Drag handle — mobile only */}
           <div className="sm:hidden flex justify-center pt-3 pb-1 bg-void">
             <div className="w-10 h-1 rounded-full bg-white/20" />

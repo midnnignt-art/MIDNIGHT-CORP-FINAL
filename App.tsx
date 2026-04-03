@@ -110,7 +110,7 @@ const App: React.FC = () => {
 
       {referralToast.show && (
           <div className="fixed top-24 right-0 left-0 md:left-auto md:right-12 z-[90] flex justify-center md:justify-end animate-in slide-in-from-top-5 duration-500">
-              <div className="bg-eclipse/20 border border-eclipse/30 backdrop-blur-xl text-moonlight px-5 md:px-8 py-4 md:py-5 rounded-none shadow-[0_0_50px_rgba(73,15,124,0.2)] flex items-center gap-4 md:gap-5 mx-4 md:mx-0">
+              <div className="bg-eclipse/20 border border-eclipse/30 backdrop-blur-xl text-moonlight px-5 md:px-8 py-4 md:py-5 rounded-2xl shadow-[0_0_50px_rgba(73,15,124,0.2)] flex items-center gap-4 md:gap-5 mx-4 md:mx-0">
                   <div className="bg-eclipse/40 p-2.5 rounded-full">
                       <CheckCircle2 className="w-5 h-5 text-moonlight" />
                   </div>

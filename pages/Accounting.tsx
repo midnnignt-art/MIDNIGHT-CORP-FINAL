@@ -960,7 +960,7 @@ export const Accounting: React.FC = () => {
       const evOrders = completedOrders.filter(o => o.event_id === ev.id);
       const ingresosBoletas = evOrders.reduce((s, o) => s + (o.total || 0), 0);
       const comisiones = evOrders.reduce((s, o) => s + (o.commission_amount || 0), 0);
-      const costosEvento = (ev.costs || []).filter(c => c.status === 'paid' || !c.status).reduce((s, c) => s + (c.actual_amount ?? c.amount), 0);
+      const costosEvento = (ev.costs || []).reduce((s, c) => s + (c.actual_amount ?? c.amount), 0);
       const otrosIngresos = movIncomes.filter(mv => mv.event_id === ev.id).reduce((s, m) => s + m.amount, 0);
       const otrosGastos = movExpenses.filter(mv => mv.event_id === ev.id).reduce((s, m) => s + m.amount, 0);
       const tickets = evOrders.length;

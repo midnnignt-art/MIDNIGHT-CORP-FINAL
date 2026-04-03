@@ -18,7 +18,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onBuy }) => {
   const minPrice = tiers.length > 0 ? Math.min(...tiers.map(t => t.price)) : 0;
 
   return (
-    <div className="group relative overflow-hidden rounded-none bg-void border border-moonlight/10 transition-all duration-500 hover:border-eclipse hover:shadow-[0_0_50px_rgba(73,15,124,0.1)]">
+    <div className="group relative overflow-hidden rounded-3xl bg-void border border-moonlight/10 transition-all duration-500 hover:border-eclipse/60 hover:shadow-[0_0_60px_rgba(73,15,124,0.25)] cursor-pointer">
       {/* Image Container */}
       <div className="relative aspect-[4/5] overflow-hidden bg-void">
         {/* Skeleton shimmer */}
@@ -31,13 +31,13 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onBuy }) => {
           loading="lazy"
           decoding="async"
           onLoad={() => setImgLoaded(true)}
-          className={`h-full w-full object-cover transition-all duration-700 group-hover:scale-110 opacity-60 group-hover:opacity-100 ${imgLoaded ? 'opacity-60' : 'opacity-0'}`}
+          className={`h-full w-full object-cover transition-all duration-700 group-hover:scale-110 ${imgLoaded ? 'opacity-70 group-hover:opacity-100' : 'opacity-0'}`}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-void via-void/20 to-transparent" />
         
         {/* Floating Tag */}
-        <div className="absolute top-4 right-4 bg-eclipse px-3 py-1 border border-moonlight/10">
-          <span className="text-[10px] font-black tracking-widest uppercase text-moonlight">
+        <div className={`absolute top-4 right-4 px-3 py-1.5 rounded-full border ${event.status === 'sold_out' ? 'bg-white/10 border-moonlight/20' : 'bg-eclipse border-eclipse/50 shadow-[0_0_20px_rgba(73,15,124,0.5)]'}`}>
+          <span className={`text-[9px] font-black tracking-widest uppercase ${event.status === 'sold_out' ? 'text-moonlight/40' : 'text-moonlight'}`}>
             {event.status === 'sold_out' ? 'Agotado' : event.current_stage.replace('_', ' ').toUpperCase()}
           </span>
         </div>
@@ -66,13 +66,13 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onBuy }) => {
             <span className="text-[9px] text-moonlight/30 uppercase tracking-widest font-light">Desde</span>
             <span className="text-xl font-black text-moonlight tabular-nums">${minPrice.toLocaleString()}</span>
           </div>
-          <button 
+          <button
             onClick={() => onBuy(event)}
             disabled={event.status === 'sold_out'}
-            className={`px-6 py-2 text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${
-              event.status === 'sold_out' 
-                ? 'bg-white/5 text-moonlight/20 cursor-not-allowed' 
-                : 'bg-moonlight text-void hover:bg-eclipse hover:text-moonlight'
+            className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all duration-300 active:scale-[0.97] ${
+              event.status === 'sold_out'
+                ? 'bg-white/5 text-moonlight/20 cursor-not-allowed'
+                : 'bg-moonlight text-void hover:bg-eclipse hover:text-moonlight hover:shadow-[0_0_24px_rgba(73,15,124,0.5)]'
             }`}
           >
             {event.status === 'sold_out' ? 'Sold Out' : 'Tickets'}

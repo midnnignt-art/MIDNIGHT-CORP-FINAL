@@ -78,10 +78,10 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
     <nav className="fixed top-0 left-0 right-0 z-[80] bg-transparent px-6 md:px-12 h-20 md:h-24 flex items-center justify-between pointer-events-none">
       {/* LEFT NAV (Status Indicator) */}
       <div className="flex-1 flex items-center pointer-events-auto">
-        <div className="flex items-center gap-2 px-2 py-1 border border-moonlight/5 bg-void/20 backdrop-blur-sm rounded-full">
-          <div className={`w-1 h-1 rounded-full animate-pulse ${dbStatus === 'synced' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]'}`} />
-          <span className="text-[6px] font-black tracking-[0.2em] uppercase text-moonlight/20">
-            {dbStatus === 'synced' ? 'Online' : 'Offline'}
+        <div className="flex items-center gap-2 px-3 py-1.5 border border-moonlight/8 bg-void/40 backdrop-blur-sm rounded-full">
+          <div className={`w-1.5 h-1.5 rounded-full ${dbStatus === 'synced' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)] animate-pulse' : 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.7)] animate-pulse'}`} />
+          <span className="text-[7px] font-bold tracking-[0.25em] uppercase text-moonlight/35">
+            {dbStatus === 'synced' ? 'Online' : 'Sync'}
           </span>
         </div>
       </div>
@@ -228,19 +228,19 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
 
     {showAccessModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl">
-            <div className="w-full max-w-sm bg-zinc-900 border border-white/10 p-6 md:p-10 rounded-[2rem] md:rounded-[2.5rem] shadow-2xl relative overflow-hidden">
+            <div className="w-full max-w-sm bg-midnight border border-moonlight/8 p-6 md:p-10 rounded-3xl shadow-[0_40px_100px_rgba(0,0,0,0.9),0_0_0_1px_rgba(73,15,124,0.15)] relative overflow-hidden">
                 <button onClick={resetModal} className="absolute top-4 right-4 md:top-6 md:right-6 text-zinc-600 hover:text-white z-10"><X size={20}/></button>
 
                 {/* PASO 1: Email */}
                 {authStep === 'email' && (
                     <div className="animate-in fade-in zoom-in duration-300">
                         <div className="flex justify-center mb-5">
-                            <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10">
-                                <Mail size={22} className="text-white"/>
+                            <div className="w-14 h-14 bg-eclipse/20 rounded-2xl flex items-center justify-center border border-eclipse/30 shadow-[0_0_30px_rgba(73,15,124,0.3)]">
+                                <Mail size={22} className="text-moonlight"/>
                             </div>
                         </div>
-                        <h2 className="text-xl font-black text-white text-center mb-1">Bienvenido</h2>
-                        <p className="text-zinc-500 text-[10px] text-center mb-6 uppercase font-bold tracking-widest">Ingresa tu email para recibir tu código</p>
+                        <h2 className="text-xl font-black text-moonlight text-center mb-1">Bienvenido</h2>
+                        <p className="text-moonlight/30 text-[10px] text-center mb-6 uppercase font-bold tracking-widest">Ingresa tu email para recibir tu código</p>
                         <form onSubmit={handleEmailSubmit} className="space-y-3">
                             <Input
                                 autoFocus
@@ -269,13 +269,13 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
                             <ArrowRight className="rotate-180" size={12}/> Volver
                         </button>
                         <div className="flex justify-center mb-4">
-                            <div className="w-12 h-12 md:w-16 md:h-16 bg-white/5 rounded-2xl md:rounded-[2rem] flex items-center justify-center border border-white/10 relative">
-                                <Mail size={20} className="text-white"/>
-                                <div className="absolute inset-0 bg-eclipse/30 blur-xl rounded-full"></div>
+                            <div className="w-12 h-12 md:w-16 md:h-16 bg-eclipse/20 rounded-2xl flex items-center justify-center border border-eclipse/30 relative shadow-[0_0_30px_rgba(73,15,124,0.3)]">
+                                <Mail size={20} className="text-moonlight"/>
+                                <div className="absolute inset-0 bg-eclipse/20 blur-xl rounded-full"></div>
                             </div>
                         </div>
-                        <h2 className="text-lg font-black text-white text-center mb-1 uppercase">Revisa tu Email</h2>
-                        <p className="text-zinc-500 text-[10px] text-center mb-5">Código enviado a <span className="text-white font-bold">{unifiedEmail}</span></p>
+                        <h2 className="text-lg font-black text-moonlight text-center mb-1 uppercase">Revisa tu Email</h2>
+                        <p className="text-moonlight/30 text-[10px] text-center mb-5">Código enviado a <span className="text-moonlight font-bold">{unifiedEmail}</span></p>
                         <div className="space-y-3">
                             <Input
                                 autoFocus

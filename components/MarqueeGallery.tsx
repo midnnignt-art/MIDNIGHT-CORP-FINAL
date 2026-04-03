@@ -93,27 +93,27 @@ const MarqueeGallery: React.FC = () => {
 
 const GalleryCard: React.FC<{ item: any }> = ({ item }) => {
   return (
-    <div className="relative w-[200px] md:w-[310px] flex-shrink-0 group cursor-default">
+    <div className="relative w-[200px] md:w-[310px] flex-shrink-0 group cursor-pointer transition-transform duration-500 hover:-translate-y-1 rounded-2xl overflow-hidden">
       {/* Image Container */}
       <div className="relative aspect-[3/4] overflow-hidden">
         {/* Event Image */}
-        <img 
-          src={item.image_url || "https://picsum.photos/seed/midnight/280/373"} 
+        <img
+          src={item.image_url || "https://picsum.photos/seed/midnight/280/373"}
           alt={`${item.city} event`}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
           loading="lazy"
         />
 
         {/* Hover Overlay */}
-        <div className="absolute inset-0 bg-void/0 group-hover:bg-void/30 transition-colors duration-400 z-10" />
+        <div className="absolute inset-0 bg-eclipse/0 group-hover:bg-eclipse/15 transition-colors duration-500 z-10" />
       </div>
 
       {/* Footer */}
-      <div className="bg-moonlight p-[6px_10px] md:p-[10px_14px] flex justify-between items-center">
-        <span className="text-void font-bold uppercase text-[10px] md:text-[13px] tracking-[0.12em]">
+      <div className="bg-moonlight p-[6px_10px] md:p-[10px_14px] flex justify-between items-center transition-colors duration-300 group-hover:bg-eclipse group-hover:text-moonlight">
+        <span className="font-bold uppercase text-[10px] md:text-[13px] tracking-[0.12em] text-void group-hover:text-moonlight transition-colors duration-300">
           {item.city || 'CITY'}
         </span>
-        <span className="text-void font-light uppercase text-[8px] md:text-[11px] tracking-[0.1em]">
+        <span className="font-light uppercase text-[8px] md:text-[11px] tracking-[0.1em] text-void/60 group-hover:text-moonlight/70 transition-colors duration-300">
           {item.date || 'DATE'}
         </span>
       </div>

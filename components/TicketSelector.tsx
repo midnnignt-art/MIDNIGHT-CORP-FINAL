@@ -38,7 +38,7 @@ export default function TicketSelector({ tiers, selectedTiers, onSelect, classNa
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
             className={cn(
-              "relative p-6 rounded-none border transition-all duration-500",
+              "relative p-6 rounded-2xl border transition-all duration-500",
               isSelected 
                 ? "border-moonlight bg-moonlight/5 shadow-[0_0_30px_rgba(242,242,242,0.05)]" 
                 : "border-moonlight/10 bg-void hover:border-moonlight/30",
@@ -47,7 +47,7 @@ export default function TicketSelector({ tiers, selectedTiers, onSelect, classNa
           >
             {/* Stage badge */}
             {tier.stage === 'early_bird' && (
-              <div className="absolute -top-3 left-6 px-3 py-1 bg-eclipse text-[8px] font-black text-moonlight uppercase tracking-[0.2em] flex items-center gap-2">
+              <div className="absolute -top-3 left-6 px-3 py-1 bg-eclipse rounded-full text-[8px] font-black text-moonlight uppercase tracking-[0.2em] flex items-center gap-2">
                 <Sparkles className="w-3 h-3" />
                 Early Bird
               </div>

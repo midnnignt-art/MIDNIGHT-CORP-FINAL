@@ -88,11 +88,15 @@ export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
       >
       {activeEvents.length === 0 ? (
         <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
-          <div className="w-24 h-24 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-8">
-            <Barcode className="w-10 h-10 text-moonlight/20" strokeWidth={1} />
+          <div className="relative w-24 h-24 flex items-center justify-center mb-8">
+            <div className="absolute inset-0 bg-eclipse/20 blur-2xl rounded-full" />
+            <div className="relative w-full h-full rounded-full bg-midnight/60 border border-eclipse/20 flex items-center justify-center shadow-[0_0_40px_rgba(73,15,124,0.2)]">
+              <Barcode className="w-10 h-10 text-moonlight/30" strokeWidth={1} />
+            </div>
           </div>
           <h2 className="text-2xl md:text-4xl font-black text-moonlight uppercase tracking-tighter mb-4">Próximamente</h2>
-          <p className="text-moonlight/40 text-xs md:text-sm font-light tracking-[0.3em] uppercase max-w-md leading-relaxed">
+          <div className="w-12 h-px bg-eclipse mx-auto mb-5" />
+          <p className="text-moonlight/40 text-xs md:text-sm font-light tracking-[0.25em] uppercase max-w-md leading-relaxed">
             Estamos preparando las próximas experiencias. Suscríbete para ser el primero en enterarte.
           </p>
         </div>
@@ -207,10 +211,10 @@ export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
                   <button
                     onClick={() => !isSoldOut && onBuy(event)}
                     disabled={isSoldOut}
-                    className={`group relative overflow-hidden px-8 sm:px-12 md:px-20 py-4 md:py-6 rounded-none transition-all duration-500 ${
-                      isSoldOut 
-                        ? 'bg-white/5 cursor-not-allowed border border-white/10' 
-                        : 'bg-eclipse hover:bg-eclipse/80 shadow-[0_0_40px_rgba(73,15,124,0.3)] hover:shadow-[0_0_60px_rgba(73,15,124,0.5)]'
+                    className={`group relative overflow-hidden px-8 sm:px-12 md:px-20 py-4 md:py-6 rounded-2xl transition-all duration-500 active:scale-[0.98] ${
+                      isSoldOut
+                        ? 'bg-white/5 cursor-not-allowed border border-white/10'
+                        : 'bg-eclipse hover:bg-eclipse/80 shadow-[0_0_40px_rgba(73,15,124,0.3)] hover:shadow-[0_0_70px_rgba(73,15,124,0.6)]'
                     }`}
                   >
                     <span className={`relative z-10 text-xs md:text-sm font-black tracking-[0.5em] uppercase flex items-center gap-3 ${isSoldOut ? 'text-moonlight/30' : 'text-moonlight'}`}>
