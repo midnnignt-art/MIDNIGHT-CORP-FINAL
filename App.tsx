@@ -8,7 +8,6 @@ import { Projections } from './pages/Projections';
 import { TopClients } from './pages/TopClients';
 import { Accounting } from './pages/Accounting';
 import { SuccessPage } from './pages/SuccessPage'; // Importar nueva página
-import { PromptImprover } from './pages/PromptImprover';
 import { CheckoutModal } from './components/CheckoutModal';
 import MagicPanel from './components/MagicPanel';
 import { UserRole, Event } from './types';
@@ -131,7 +130,6 @@ const App: React.FC = () => {
           {currentPage === 'projections' && <Projections role={currentUser?.role || UserRole.GUEST} />}
           {currentPage === 'top-clients' && <TopClients role={currentUser?.role || UserRole.GUEST} />}
           {currentPage === 'contabilidad' && <Accounting />}
-          {currentPage === 'prompt-lab' && <PromptImprover />}
           {currentPage === 'tickets' && (
             <div className="animate-in fade-in slide-in-from-bottom-5 duration-700">
                 <div className="mb-12 text-center">
