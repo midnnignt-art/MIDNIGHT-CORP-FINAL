@@ -221,7 +221,7 @@ export const Projections: React.FC<ProjectionsProps> = ({ role }) => {
 
     }, [orders, selectedEventId, teams, promoters]);
 
-    const realFixedCosts = selectedEvent?.costs?.reduce((a,b)=>a+b.amount,0) || 0;
+    const realFixedCosts = selectedEvent?.costs?.filter(c => c.status === 'paid').reduce((a, b) => a + (b.actual_amount ?? b.amount), 0) || 0;
     
     // Utilidad: Total Revenue - Costos Fijos - Comisiones Reales
     const realUtility = realMetrics.revenue - realFixedCosts - realMetrics.comms;
