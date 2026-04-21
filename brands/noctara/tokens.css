@@ -1,0 +1,9 @@
+/* ── Noctara Brand Tokens ──────────────────────────────────────────────────── */
+:root {
+  --noctara-bg:    #000000;
+  --noctara-text:  #ffffff;
+  --noctara-cold:  #00E5FF;
+  --noctara-cold2: #3A8DFF;
+  --noctara-warm:  #FF7A00;
+  --noctara-warm2: #FFC857;
+}
