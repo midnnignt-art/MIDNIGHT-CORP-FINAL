@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, MotionConfig } from 'framer-motion';
 import { BrandTransition, BrandType } from './BrandTransition';
 
 // ── Star canvas ───────────────────────────────────────────────────────────────
@@ -52,7 +52,7 @@ const StarCanvas: React.FC = () => {
     return () => { window.removeEventListener('resize', resize); cancelAnimationFrame(raf); };
   }, []);
 
-  return <canvas ref={ref} className="absolute inset-0 w-full h-full pointer-events-none" />;
+  return <canvas ref={ref} className="absolute inset-0 w-full h-full pointer-events-none z-0" />;
 };
 
 // ── Portal ─────────────────────────────────────────────────────────────────────
@@ -348,6 +348,7 @@ const UniverseLanding: React.FC<UniverseLandingProps> = ({ onNavigate, currentPa
   };
 
   return (
+    <MotionConfig reducedMotion="never">
     <div className="relative min-h-screen bg-black overflow-hidden">
       {/* Starfield */}
       <StarCanvas />
@@ -371,17 +372,17 @@ const UniverseLanding: React.FC<UniverseLandingProps> = ({ onNavigate, currentPa
       <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-6 pt-20 pb-16">
 
         {/* MIDNIGHT — letter-by-letter reveal */}
-        <div className="flex items-end justify-center mb-3 overflow-hidden">
+        <div className="flex items-end justify-center mb-3">
           {LETTERS.map((ch, i) => (
             <motion.span
               key={i}
               className="text-[11vw] md:text-[8vw] lg:text-[7rem] font-black leading-none text-white"
               style={{ letterSpacing: '-0.04em' }}
-              initial={{ opacity: 0, y: 55, filter: 'blur(14px)' }}
-              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{
-                delay: 0.25 + i * 0.075,
-                duration: 0.7,
+                delay: 0.15 + i * 0.06,
+                duration: 0.55,
                 ease: [0.22, 1, 0.36, 1],
               }}
             >
@@ -395,7 +396,7 @@ const UniverseLanding: React.FC<UniverseLandingProps> = ({ onNavigate, currentPa
           className="text-[9px] md:text-[10px] font-light tracking-[0.55em] text-white/35 uppercase mb-16 md:mb-20"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 1.15, duration: 0.9 }}
+          transition={{ delay: 0.7, duration: 0.7 }}
         >
           Elige tu universo
         </motion.p>
@@ -405,7 +406,7 @@ const UniverseLanding: React.FC<UniverseLandingProps> = ({ onNavigate, currentPa
           className="w-full max-w-2xl md:max-w-3xl"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 1.5, duration: 0.8 }}
+          transition={{ delay: 0.9, duration: 0.7 }}
         >
           {/* Desktop: triangular/cascade grid */}
           <div className="hidden md:grid grid-cols-3 grid-rows-3 min-h-[420px]">
@@ -458,6 +459,7 @@ const UniverseLanding: React.FC<UniverseLandingProps> = ({ onNavigate, currentPa
         )}
       </AnimatePresence>
     </div>
+    </MotionConfig>
   );
 };
 
