@@ -16,10 +16,23 @@ import { CheckCircle2 } from 'lucide-react';
 
 import TicketWallet from './components/TicketWallet';
 import { ToastContainer } from './components/ToastContainer';
+import UniverseLanding from './components/UniverseLanding';
+
+const UNIVERSE_PAGES = ['universe', 'solstice', 'noctara', 'midnight-club'] as const;
+type UniversePage = typeof UNIVERSE_PAGES[number];
+
+function getInitialPage(): string {
+  const path = window.location.pathname;
+  if (path === '/universe') return 'universe';
+  if (path === '/solstice') return 'solstice';
+  if (path === '/noctara') return 'noctara';
+  if (path === '/midnight-club') return 'midnight-club';
+  return 'home';
+}
 
 const App: React.FC = () => {
   const { currentUser, promoters, currentCustomer } = useStore();
-  const [currentPage, setCurrentPage] = useState<string>('home');
+  const [currentPage, setCurrentPage] = useState<string>(getInitialPage);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isMagicOpen, setIsMagicOpen] = useState(false);
@@ -78,6 +91,12 @@ const App: React.FC = () => {
       return;
     }
     setCurrentPage(page);
+    // Sync URL for universe section pages
+    if ((UNIVERSE_PAGES as readonly string[]).includes(page)) {
+      window.history.pushState({}, '', `/${page}`);
+    } else if (page === 'home') {
+      window.history.pushState({}, '', '/');
+    }
     window.scrollTo(0, 0);
   };
 
@@ -93,6 +112,16 @@ const App: React.FC = () => {
   // Si la ruta es /gracias, mostramos el componente dedicado
   if (isSuccessPage) {
       return <SuccessPage />;
+  }
+
+  // Universe section — full-screen takeover, no existing Navbar/logo
+  if ((UNIVERSE_PAGES as readonly string[]).includes(currentPage)) {
+    return (
+      <div className="min-h-screen bg-black">
+        <UniverseLanding onNavigate={handleNavigate} currentPage={currentPage} />
+        <ToastContainer />
+      </div>
+    );
   }
 
   return (
