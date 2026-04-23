@@ -109,11 +109,11 @@ const GalleryCard: React.FC<{ item: any }> = ({ item }) => {
       </div>
 
       {/* Footer */}
-      <div className="bg-moonlight p-[6px_10px] md:p-[10px_14px] flex justify-between items-center transition-colors duration-300 group-hover:bg-eclipse group-hover:text-moonlight">
-        <span className="font-bold uppercase text-[10px] md:text-[13px] tracking-[0.12em] text-void group-hover:text-moonlight transition-colors duration-300">
+      <div className="bg-midnight border-t border-moonlight/20 shadow-[0_-1px_12px_rgba(242,242,242,0.06)] p-[6px_10px] md:p-[10px_14px] flex justify-between items-center transition-colors duration-300 group-hover:bg-eclipse">
+        <span className="font-bold uppercase text-[10px] md:text-[13px] tracking-[0.12em] text-moonlight transition-colors duration-300">
           {item.city || 'CITY'}
         </span>
-        <span className="font-light uppercase text-[8px] md:text-[11px] tracking-[0.1em] text-void/60 group-hover:text-moonlight/70 transition-colors duration-300">
+        <span className="font-light uppercase text-[8px] md:text-[11px] tracking-[0.1em] text-moonlight/50 group-hover:text-moonlight/70 transition-colors duration-300">
           {item.date || 'DATE'}
         </span>
       </div>
