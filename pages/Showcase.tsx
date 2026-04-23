@@ -111,7 +111,7 @@ export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
         const isSoonest = index === 0;
 
         return (
-          <div key={event.id} className="relative min-h-screen w-full flex flex-col md:flex-row border-b border-moonlight/5 last:border-b-0">
+          <div key={event.id} className="relative w-full flex flex-col md:flex-row md:min-h-screen border-b border-moonlight/5 last:border-b-0">
             {/* PANEL IZQUIERDO (40% - EL VISUAL) */}
             <div className="relative w-full md:w-[40%] h-[45vh] md:h-screen overflow-hidden border-b md:border-b-0 md:border-r border-moonlight/10">
               <motion.div 
@@ -161,7 +161,7 @@ export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
             </div>
 
             {/* PANEL DERECHO (60% - EL MOTOR) */}
-            <div className="relative w-full md:w-[60%] flex-1 md:h-screen flex flex-col items-center justify-center px-6 md:px-12 bg-void py-8 md:py-0">
+            <div className="relative w-full md:w-[60%] flex-1 md:h-screen flex flex-col items-center justify-start md:justify-center px-6 md:px-12 bg-void pt-7 pb-10 md:py-0">
               
               {/* MICROCOPYS ANCLAS */}
               <div className="absolute top-24 left-12 hidden md:block z-20">
@@ -174,12 +174,12 @@ export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
               </div>
 
               {/* EVENT INFO */}
-              <motion.div 
+              <motion.div
                 initial={{ y: 30, opacity: 0 }}
                 whileInView={{ y: 0, opacity: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: 0.3, duration: 0.8 }}
-                className="text-center space-y-4 md:space-y-10 w-full max-w-2xl"
+                className="text-center space-y-4 md:space-y-8 w-full max-w-2xl"
               >
                 <div className="space-y-2">
                   {isSoonest && (
@@ -199,10 +199,16 @@ export const Showcase: React.FC<ShowcaseProps> = ({ onBuy, onNavigate }) => {
                   <h2 className="text-base sm:text-xl md:text-3xl font-light tracking-[0.1em] sm:tracking-[0.2em] md:tracking-[0.3em] text-moonlight/60 uppercase">
                     {formattedDate}
                   </h2>
+
+                  {event.description && (
+                    <p className="text-[11px] sm:text-xs font-light tracking-[0.15em] text-moonlight/50 uppercase leading-relaxed max-w-xs sm:max-w-sm mx-auto pt-1">
+                      {event.description}
+                    </p>
+                  )}
                 </div>
 
                 {/* TIMER */}
-                <div className="py-3 md:py-8 border-y border-moonlight/5">
+                <div className="py-3 md:py-6 border-y border-moonlight/5">
                   <CountdownTimer targetDate={event.event_date} />
                 </div>
 
