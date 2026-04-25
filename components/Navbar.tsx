@@ -182,6 +182,12 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
                                     Top Clients
                                 </span>
                             </button>
+                            <button onClick={() => handleNavigateAction('codes-discounts')} className={`w-full text-left py-3 px-4 rounded-lg flex items-center justify-between group transition-all min-h-[44px] ${currentPage === 'codes-discounts' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
+                                <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-3">
+                                    Códigos y Descuentos
+                                </span>
+                                <div className={`w-1 h-1 rounded-full bg-white transition-all ${currentPage === 'codes-discounts' ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}`} />
+                            </button>
                         </div>
                     )}
                 </div>
