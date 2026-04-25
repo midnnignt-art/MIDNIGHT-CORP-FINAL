@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Tag, Ticket } from 'lucide-react';
+import { RuletaAdmin } from '../components/RuletaAdmin';
 
 type Tab = 'fase-inicio' | 'ruleta';
 
@@ -67,20 +68,7 @@ export const CodesDiscounts: React.FC = () => {
 
       {activeTab === 'ruleta' && (
         <div className="animate-in fade-in duration-500">
-          <div className="flex flex-col items-center justify-center py-24 border border-white/5 rounded-2xl bg-white/[0.01]">
-            <div className="w-16 h-16 rounded-2xl bg-[#C9A84C]/10 border border-[#C9A84C]/20 flex items-center justify-center mb-5">
-              <Tag size={28} className="text-[#C9A84C]/60" />
-            </div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/20 mb-2">
-              Próximamente
-            </p>
-            <h2 className="text-2xl font-black text-white uppercase tracking-tighter">
-              Ruleta
-            </h2>
-            <p className="text-white/20 text-xs font-light tracking-widest uppercase mt-2">
-              Configuración de ruleta de beneficios
-            </p>
-          </div>
+          <RuletaAdmin />
         </div>
       )}
     </div>
