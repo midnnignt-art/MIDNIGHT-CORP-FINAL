@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef } from 'react';
 import { toast } from '../lib/toast';
 import { UserRole, Promoter, SalesTeam, Order } from '../types';
 import { Button } from '../components/ui/button';
-import { Banknote, Award, Target, History, Users, Plus, X, Layers, UserPlus, TrendingUp, Sparkles, ChevronRight, Trash2, ShieldCheck, PieChart, Eye, Calendar, Ticket, ArrowRightLeft, ScrollText, Wallet, Link as LinkIcon, Copy, Share2, Check, Smartphone, User, Search, Filter, Loader2, Download, BarChart, AlertTriangle, CreditCard, Mail, Globe, MessageCircle, ChevronDown, ChevronUp, Laptop, Coins, UserCheck, QrCode, Send, CheckCircle2, Link2, ImagePlus, ZoomIn } from 'lucide-react';
+import { Banknote, Award, Target, History, Users, Plus, X, Layers, UserPlus, TrendingUp, Sparkles, ChevronRight, Trash2, ShieldCheck, PieChart, Eye, Calendar, Ticket, ArrowRightLeft, ScrollText, Wallet, Link as LinkIcon, Copy, Share2, Check, Smartphone, User, Search, Filter, Loader2, Download, BarChart, AlertTriangle, CreditCard, Mail, Globe, MessageCircle, ChevronDown, ChevronUp, Laptop, Coins, UserCheck, QrCode, Send, CheckCircle2, Link2, ImagePlus, ZoomIn, ScanLine } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { supabase } from '../lib/supabase';
 import PromoterRanking from '../components/PromoterRanking';
@@ -45,6 +45,14 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   
   // Link Sharing State
   const [linkCopied, setLinkCopied] = useState(false);
+
+  // Bouncer Links State
+  const [bouncerLinks, setBouncerLinks] = useState<{ token: string; label: string; event_id: string; active: boolean; created_at: string }[]>([]);
+  const [bouncerLinksLoaded, setBouncerLinksLoaded] = useState(false);
+  const [newBouncerLabel, setNewBouncerLabel] = useState('');
+  const [newBouncerEventId, setNewBouncerEventId] = useState('');
+  const [creatingBouncerLink, setCreatingBouncerLink] = useState(false);
+  const [copiedBouncerToken, setCopiedBouncerToken] = useState<string | null>(null);
 
   // Filters & Tabs
   const [selectedEventFilter, setSelectedEventFilter] = useState<string>(''); 
@@ -652,6 +660,42 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
       }
   };
 
+  const loadBouncerLinks = async () => {
+    const { data } = await supabase.from('bouncer_links').select('*').order('created_at', { ascending: false });
+    setBouncerLinks(data || []);
+    setBouncerLinksLoaded(true);
+  };
+
+  const createBouncerLink = async () => {
+    if (!newBouncerLabel.trim() || !newBouncerEventId) return;
+    setCreatingBouncerLink(true);
+    const token = Date.now().toString(36).toUpperCase() + Math.random().toString(36).substr(2, 5).toUpperCase();
+    const { error } = await supabase.from('bouncer_links').insert({
+      token,
+      event_id: newBouncerEventId,
+      label: newBouncerLabel.trim(),
+      active: true,
+    });
+    if (!error) {
+      setNewBouncerLabel('');
+      setNewBouncerEventId('');
+      await loadBouncerLinks();
+      toast.success('Link de acceso creado');
+    }
+    setCreatingBouncerLink(false);
+  };
+
+  const toggleBouncerLink = async (token: string, active: boolean) => {
+    await supabase.from('bouncer_links').update({ active: !active }).eq('token', token);
+    setBouncerLinks(prev => prev.map(l => l.token === token ? { ...l, active: !active } : l));
+  };
+
+  const copyBouncerLink = (token: string) => {
+    navigator.clipboard.writeText(`https://midnightcorp.click/bouncer?t=${token}`);
+    setCopiedBouncerToken(token);
+    setTimeout(() => setCopiedBouncerToken(null), 2000);
+  };
+
   return (
     <div className="min-h-screen pt-20 md:pt-24 px-4 max-w-7xl mx-auto pb-20">
       
@@ -717,6 +761,126 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
               </div>
           </div>
       </div>
+
+      {/* ── LINKS DE ACCESO (solo admin) ─────────────────────────────────────── */}
+      {isAdmin && (
+        <div className="mb-8 md:mb-12">
+          <button
+            onClick={() => { if (!bouncerLinksLoaded) loadBouncerLinks(); else setBouncerLinksLoaded(b => { loadBouncerLinks(); return b; }); }}
+            className="w-full bg-zinc-900/60 border border-white/10 rounded-[2rem] p-6 md:p-8 flex items-center justify-between gap-4 group transition-all hover:border-[#C9A84C]/20"
+            style={{ display: 'none' }}
+          />
+
+          <div className="bg-zinc-900/60 border border-white/10 rounded-[2rem] p-6 md:p-8">
+            {/* Header */}
+            <div
+              className="flex items-center justify-between mb-6 cursor-pointer"
+              onClick={() => { if (!bouncerLinksLoaded) loadBouncerLinks(); }}
+            >
+              <div>
+                <h3 className="text-lg md:text-xl font-black text-white flex items-center gap-3">
+                  <ScanLine className="text-[#C9A84C] w-5 h-5" /> LINKS DE ACCESO
+                </h3>
+                <p className="text-zinc-500 text-xs mt-1">Genera links de escaneo enlazados a un evento para porteros</p>
+              </div>
+              {!bouncerLinksLoaded && (
+                <button
+                  onClick={loadBouncerLinks}
+                  className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#C9A84C]/60 hover:text-[#C9A84C] border border-[#C9A84C]/20 hover:border-[#C9A84C]/40 px-4 py-2 rounded-xl transition-all"
+                  style={{ fontFamily: "'Space Mono', monospace" }}
+                >
+                  Cargar
+                </button>
+              )}
+            </div>
+
+            {bouncerLinksLoaded && (
+              <>
+                {/* Create new link */}
+                <div className="flex flex-col sm:flex-row gap-3 mb-6 p-4 bg-black/30 border border-white/5 rounded-2xl">
+                  <input
+                    placeholder="Nombre del punto (ej: Puerta Principal)"
+                    value={newBouncerLabel}
+                    onChange={e => setNewBouncerLabel(e.target.value)}
+                    className="flex-1 bg-zinc-900 border border-white/10 rounded-xl px-4 h-11 text-xs text-white placeholder:text-zinc-600 outline-none focus:border-[#C9A84C]/40"
+                  />
+                  <select
+                    value={newBouncerEventId}
+                    onChange={e => setNewBouncerEventId(e.target.value)}
+                    className="bg-zinc-900 border border-white/10 rounded-xl px-4 h-11 text-xs text-white outline-none focus:border-[#C9A84C]/40 sm:w-56"
+                  >
+                    <option value="">— Seleccionar evento —</option>
+                    {events.map(ev => (
+                      <option key={ev.id} value={ev.id}>{ev.title}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={createBouncerLink}
+                    disabled={creatingBouncerLink || !newBouncerLabel.trim() || !newBouncerEventId}
+                    className="h-11 px-5 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] bg-[#C9A84C] text-black disabled:opacity-30 disabled:cursor-not-allowed hover:opacity-90 transition-all flex items-center gap-2 whitespace-nowrap"
+                  >
+                    {creatingBouncerLink ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                    Crear link
+                  </button>
+                </div>
+
+                {/* Links list */}
+                {bouncerLinks.length === 0 ? (
+                  <p className="text-center text-zinc-600 text-xs uppercase font-bold py-8">
+                    No hay links creados aún
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {bouncerLinks.map(l => {
+                      const ev = events.find(e => e.id === l.event_id);
+                      const url = `https://midnightcorp.click/bouncer?t=${l.token}`;
+                      return (
+                        <div
+                          key={l.token}
+                          className={`flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-2xl border transition-all ${
+                            l.active ? 'bg-black/30 border-white/8' : 'bg-black/10 border-white/3 opacity-40'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${l.active ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)]' : 'bg-zinc-600'}`} />
+                            <div className="min-w-0">
+                              <p className="text-white font-black text-sm truncate">{l.label}</p>
+                              <p className="text-zinc-500 text-[10px] font-bold truncate">{ev?.title ?? l.event_id}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <button
+                              onClick={() => copyBouncerLink(l.token)}
+                              className={`flex items-center gap-1.5 h-9 px-3 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${
+                                copiedBouncerToken === l.token
+                                  ? 'bg-emerald-500 text-black'
+                                  : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
+                              }`}
+                            >
+                              {copiedBouncerToken === l.token ? <Check size={12} /> : <Copy size={12} />}
+                              {copiedBouncerToken === l.token ? 'Copiado' : 'Copiar'}
+                            </button>
+                            <button
+                              onClick={() => toggleBouncerLink(l.token, l.active)}
+                              className={`h-9 px-3 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border ${
+                                l.active
+                                  ? 'border-red-500/20 text-red-400/60 hover:bg-red-500/10 hover:text-red-400'
+                                  : 'border-emerald-500/20 text-emerald-400/60 hover:bg-emerald-500/10 hover:text-emerald-400'
+                              }`}
+                            >
+                              {l.active ? 'Desactivar' : 'Activar'}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── MI DEUDA ACTUAL (solo promotores no-admin) ─────────────────────── */}
       {!isAdmin && (() => {

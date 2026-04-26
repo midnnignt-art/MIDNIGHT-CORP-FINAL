@@ -8,7 +8,8 @@ import { Projections } from './pages/Projections';
 import { TopClients } from './pages/TopClients';
 import { Accounting } from './pages/Accounting';
 import { CodesDiscounts } from './pages/CodesDiscounts';
-import { SuccessPage } from './pages/SuccessPage'; // Importar nueva página
+import { SuccessPage } from './pages/SuccessPage';
+import BouncerScanner from './pages/BouncerScanner';
 import { CheckoutModal } from './components/CheckoutModal';
 import MagicPanel from './components/MagicPanel';
 import { UserRole, Event } from './types';
@@ -33,8 +34,9 @@ const App: React.FC = () => {
     return params.get('ref');
   });
 
-  // Check for Success Page redirect from Bold
-  const isSuccessPage = window.location.pathname === '/gracias';
+  // Check for special routes
+  const isSuccessPage  = window.location.pathname === '/gracias';
+  const isBouncerPage  = window.location.pathname === '/bouncer';
 
   // Lógica de Atribución de Referidos (Landing Page Personalizada)
   useEffect(() => {
@@ -91,10 +93,8 @@ const App: React.FC = () => {
       setIsCheckoutOpen(false);
   };
 
-  // Si la ruta es /gracias, mostramos el componente dedicado
-  if (isSuccessPage) {
-      return <SuccessPage />;
-  }
+  if (isSuccessPage) return <SuccessPage />;
+  if (isBouncerPage) return <BouncerScanner />;
 
   return (
     <div className="min-h-screen bg-void text-moonlight font-sans selection:bg-eclipse selection:text-white relative">
