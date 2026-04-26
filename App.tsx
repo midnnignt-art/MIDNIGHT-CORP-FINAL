@@ -21,13 +21,36 @@ import { CheckCircle2 } from 'lucide-react';
 
 import TicketWallet from './components/TicketWallet';
 import { ToastContainer } from './components/ToastContainer';
+import { Tag, X as XIcon } from 'lucide-react';
 
 const App: React.FC = () => {
-  const { currentUser, promoters, currentCustomer } = useStore();
+  const { currentUser, promoters, currentCustomer, events } = useStore();
   const [currentPage, setCurrentPage] = useState<string>('home');
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isMagicOpen, setIsMagicOpen] = useState(false);
+
+  // Discount banner — shown when user arrived via a discount link
+  const [discountBanner, setDiscountBanner] = useState<{ pct: number; label: string; tierName: string; eventId: string } | null>(() => {
+    const pct = parseInt(localStorage.getItem('ms_dc_pct') || '0');
+    if (!pct) return null;
+    return {
+      pct,
+      label:    localStorage.getItem('ms_dc_label')     || '',
+      tierName: localStorage.getItem('ms_dc_tier_name') || '',
+      eventId:  localStorage.getItem('ms_dc_event_id')  || '',
+    };
+  });
+
+  function handleDiscountBuy() {
+    if (!discountBanner?.eventId) return;
+    const ev = events.find(e => e.id === discountBanner.eventId);
+    if (ev) { setSelectedEvent(ev); setIsCheckoutOpen(true); }
+  }
+
+  function dismissDiscountBanner() {
+    setDiscountBanner(null);
+  }
   
   const [referralToast, setReferralToast] = useState<{show: boolean, name: string}>({show: false, name: ''});
 
@@ -117,6 +140,31 @@ const App: React.FC = () => {
         onNavigate={handleNavigate}
         currentPage={currentPage}
       />
+
+      {/* Discount banner */}
+      {discountBanner && (
+        <div className="fixed top-0 left-0 right-0 z-[95] flex items-center justify-center gap-3 px-4 py-3 animate-in slide-in-from-top-3 duration-500"
+          style={{ background: 'linear-gradient(90deg,#C9A84C,#A07820,#C9A84C)', backgroundSize: '200% 100%' }}
+        >
+          <Tag className="w-4 h-4 text-black/70 flex-shrink-0" />
+          <p className="text-black font-black text-xs md:text-sm tracking-wide text-center flex-1">
+            Tienes un <strong>{discountBanner.pct}% de descuento</strong>
+            {discountBanner.tierName ? <> en <strong>{discountBanner.tierName}</strong></> : ''}
+            {' '}— {discountBanner.label}
+          </p>
+          {discountBanner.eventId && (
+            <button
+              onClick={handleDiscountBuy}
+              className="bg-black/20 hover:bg-black/30 text-black font-black text-[10px] uppercase tracking-[0.2em] px-4 py-1.5 rounded-full transition-all flex-shrink-0"
+            >
+              Comprar →
+            </button>
+          )}
+          <button onClick={dismissDiscountBanner} className="text-black/50 hover:text-black transition-colors flex-shrink-0 p-1">
+            <XIcon size={16} />
+          </button>
+        </div>
+      )}
 
       {referralToast.show && (
           <div className="fixed top-24 right-0 left-0 md:left-auto md:right-12 z-[90] flex justify-center md:justify-end animate-in slide-in-from-top-5 duration-500">

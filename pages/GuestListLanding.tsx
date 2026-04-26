@@ -189,31 +189,12 @@ const GuestListLanding: React.FC<{ codigo: string }> = ({ codigo }) => {
       {/* CONFIRMATION */}
       {view === 'confirmation' && (
         <div style={{ ...wrap, animation: 'gl_in .6s ease' }}>
-          <CheckCircle2 style={{ width: 56, height: 56, color: '#C9A84C', marginBottom: 16, animation: 'gl_pop .6s ease' }} />
-          <div style={{ letterSpacing: 8, fontSize: 9, color: '#C9A84C88', ...mono, marginBottom: 10 }}>MIDNIGHT</div>
-          <h2 style={{ fontSize: 28, fontWeight: 400, margin: '0 0 4px' }}>¡Estás dentro!</h2>
-          <p style={{ color: '#666', fontSize: 12, marginBottom: 28, ...mono }}>Tu lugar está confirmado.</p>
+          <CheckCircle2 style={{ width: 64, height: 64, color: '#C9A84C', marginBottom: 20, animation: 'gl_pop .6s ease' }} />
+          <h2 style={{ fontSize: 32, fontWeight: 400, margin: '0 0 32px' }}>¡Estás dentro!</h2>
 
-          <div style={{ background: '#0C0C0C', border: '2px solid #C9A84C33', borderRadius: 16, padding: '24px', width: '100%', maxWidth: 360, marginBottom: 20, animation: 'gl_pulse 2s ease-in-out infinite' }}>
-            <p style={{ color: '#555', fontSize: 9, letterSpacing: 3, ...mono, textTransform: 'uppercase', marginBottom: 6 }}>Tu código de acceso</p>
-            <p style={{ color: '#C9A84C', fontSize: 28, fontWeight: 900, letterSpacing: 6, ...mono, margin: '0 0 12px' }}>{entryCode}</p>
-            <div style={{ height: 1, background: '#1A1A1A', marginBottom: 12 }} />
-            <p style={{ color: '#AAA098', fontSize: 13, margin: 0 }}>{name}</p>
-            <p style={{ color: '#444', fontSize: 11, margin: '4px 0 0', ...mono }}>{email}</p>
-            {ev && <p style={{ color: '#555', fontSize: 10, margin: '8px 0 0', ...mono }}>{ev.title}</p>}
-          </div>
-
-          <div style={{ background: '#0C0C0C', border: '1px solid #1A1A1A', borderRadius: 8, padding: '14px 18px', maxWidth: 360, textAlign: 'left', display: 'flex', gap: 12 }}>
-            <span style={{ fontSize: 20, flexShrink: 0 }}>📋</span>
-            <p style={{ color: '#AAA098', fontSize: 11, lineHeight: 1.7, margin: 0, ...mono }}>
-              Presenta este código o tu nombre <strong style={{ color: '#F5F0E8' }}>{name.split(' ')[0]}</strong> en la entrada.
-              {campaign?.free_until && <span style={{ display: 'block', marginTop: 4, color: '#555' }}>Entrada libre hasta las {new Date(campaign.free_until).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}.</span>}
-            </p>
-          </div>
-
-          <div style={{ background: '#0D1820', border: '1px solid #1A3A5C', borderRadius: 8, padding: '14px 18px', maxWidth: 360, textAlign: 'left', display: 'flex', gap: 12, marginTop: 10 }}>
-            <span style={{ fontSize: 18, flexShrink: 0 }}>📱</span>
-            <p style={{ color: '#AAA098', fontSize: 11, lineHeight: 1.7, margin: 0, ...mono }}>
+          <div style={{ background: '#0D1820', border: '1px solid #1A3A5C', borderRadius: 12, padding: '20px 22px', maxWidth: 380, width: '100%', textAlign: 'left', display: 'flex', gap: 14 }}>
+            <span style={{ fontSize: 22, flexShrink: 0, marginTop: 2 }}>📱</span>
+            <p style={{ color: '#AAA098', fontSize: 13, lineHeight: 1.8, margin: 0, fontFamily: "'Space Mono',monospace" }}>
               Entra en <strong style={{ color: '#F5F0E8' }}>midnightcorp.click</strong> e inicia sesión con{' '}
               <strong style={{ color: '#C9A84C' }}>{email}</strong> para ver tu entrada en{' '}
               <strong style={{ color: '#F5F0E8' }}>Mis Entradas</strong>.

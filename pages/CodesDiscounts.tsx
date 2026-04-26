@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Tag, Users, Percent, Plus, X, Copy, Check, Loader2, ToggleLeft, ToggleRight, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Tag, Users, Percent, Plus, X, Copy, Check, Loader2, ToggleLeft, ToggleRight, ExternalLink, ChevronDown, ChevronUp, Printer } from 'lucide-react';
 import { RuletaAdmin } from '../components/RuletaAdmin';
 import { supabase } from '../lib/supabase';
 import { useStore } from '../context/StoreContext';
@@ -53,6 +53,26 @@ export const CodesDiscounts: React.FC = () => {
   const [newBenLabel,  setNewBenLabel]  = useState('');
   const [newBenColor,  setNewBenColor]  = useState('#C9A84C');
   const [newBenProb,   setNewBenProb]   = useState(10);
+
+  // Per-campaign leads accordion
+  interface CampaignLead { id: string; name: string; email: string; benefit: string | null; benefit_color: string | null; registered_at: string; }
+  const [expandedId,     setExpandedId]     = useState<string | null>(null);
+  const [leadsCache,     setLeadsCache]     = useState<Record<string, CampaignLead[]>>({});
+  const [loadingLeadsId, setLoadingLeadsId] = useState<string | null>(null);
+
+  const toggleLeads = useCallback(async (id: string) => {
+    if (expandedId === id) { setExpandedId(null); return; }
+    setExpandedId(id);
+    if (leadsCache[id]) return;
+    setLoadingLeadsId(id);
+    const { data } = await supabase
+      .from('campaign_leads')
+      .select('id, name, email, benefit, benefit_color, registered_at')
+      .eq('campaign_id', id)
+      .order('registered_at', { ascending: false });
+    setLeadsCache(prev => ({ ...prev, [id]: (data ?? []) as CampaignLead[] }));
+    setLoadingLeadsId(null);
+  }, [expandedId, leadsCache]);
 
   useEffect(() => { loadCampaigns(); }, []);
 
@@ -292,8 +312,9 @@ export const CodesDiscounts: React.FC = () => {
                 const ev = events.find(e => e.id === c.event_id);
                 const url = `https://midnightcorp.click${meta.urlBase}${c.code}`;
                 return (
-                  <div key={c.id} className={`bg-white/[0.02] border rounded-2xl p-4 sm:p-5 transition-all ${c.active ? 'border-white/8' : 'border-white/3 opacity-50'}`}>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div key={c.id} className={`bg-white/[0.02] border rounded-2xl overflow-hidden transition-all ${c.active ? 'border-white/8' : 'border-white/3 opacity-50'}`}>
+                    {/* ─ Header row ─ */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 sm:p-5">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div className={`w-2 h-2 rounded-full flex-shrink-0 ${c.active ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)]' : 'bg-zinc-600'}`} />
                         <div className="min-w-0">
@@ -311,7 +332,17 @@ export const CodesDiscounts: React.FC = () => {
                       </div>
 
                       <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
-                        <div className="flex items-center gap-1.5 bg-black/30 border border-white/8 rounded-xl px-3 py-1.5 max-w-[200px] min-w-0">
+                        {c.type !== 'discount' && (
+                          <button
+                            onClick={() => toggleLeads(c.id)}
+                            className={`flex items-center gap-1.5 h-9 px-3 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all flex-shrink-0 ${expandedId === c.id ? 'bg-[#C9A84C]/15 text-[#C9A84C] border border-[#C9A84C]/25' : 'bg-white/5 text-white/40 hover:text-white/70'}`}
+                            style={{ fontFamily: "'Space Mono',monospace" }}
+                          >
+                            {expandedId === c.id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                            Participantes
+                          </button>
+                        )}
+                        <div className="flex items-center gap-1.5 bg-black/30 border border-white/8 rounded-xl px-3 py-1.5 max-w-[180px] min-w-0">
                           <span className="text-[9px] text-white/30 truncate flex-1 min-w-0" style={{ fontFamily: "'Space Mono',monospace" }}>{url.replace('https://', '')}</span>
                           <a href={url} target="_blank" rel="noreferrer" className="text-white/20 hover:text-white/60 flex-shrink-0"><ExternalLink size={11} /></a>
                         </div>
@@ -324,6 +355,91 @@ export const CodesDiscounts: React.FC = () => {
                         </button>
                       </div>
                     </div>
+
+                    {/* ─ Leads accordion ─ */}
+                    {expandedId === c.id && (
+                      <div className="border-t border-white/5 bg-black/20">
+                        {loadingLeadsId === c.id ? (
+                          <div className="flex justify-center py-8">
+                            <Loader2 size={16} className="animate-spin text-[#C9A84C]" />
+                          </div>
+                        ) : (() => {
+                          const leads = leadsCache[c.id] ?? [];
+                          const printId = `print-leads-${c.id}`;
+                          return (
+                            <>
+                              {/* Print-only CSS */}
+                              <style>{`
+                                @media print {
+                                  body > *:not(#${printId}) { display: none !important; }
+                                  #${printId} { display: block !important; position: fixed; inset: 0; padding: 32px; background: white; color: black; }
+                                  #${printId} table { width: 100%; border-collapse: collapse; font-size: 12px; }
+                                  #${printId} th, #${printId} td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+                                  #${printId} th { background: #f0f0f0; font-size: 10px; text-transform: uppercase; font-weight: bold; }
+                                  .no-print { display: none !important; }
+                                }
+                              `}</style>
+
+                              <div id={printId}>
+                                <div className="flex items-center justify-between px-5 py-3 no-print">
+                                  <p className="text-white/30 text-[10px] font-bold uppercase tracking-[0.3em]" style={{ fontFamily: "'Space Mono',monospace" }}>
+                                    {leads.length} participante{leads.length !== 1 ? 's' : ''}
+                                  </p>
+                                  {c.type === 'ruleta' && leads.length > 0 && (
+                                    <button
+                                      onClick={() => window.print()}
+                                      className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-[#C9A84C] hover:opacity-70 transition-opacity"
+                                      style={{ fontFamily: "'Space Mono',monospace" }}
+                                    >
+                                      <Printer size={13} /> Imprimir
+                                    </button>
+                                  )}
+                                </div>
+
+                                {leads.length === 0 ? (
+                                  <p className="text-center text-white/20 text-xs py-8 no-print" style={{ fontFamily: "'Space Mono',monospace" }}>
+                                    Aún no hay participantes
+                                  </p>
+                                ) : (
+                                  <div className="overflow-x-auto px-5 pb-5">
+                                    <table className="w-full text-sm">
+                                      <thead>
+                                        <tr className="border-b border-white/5">
+                                          {['Nombre', 'Email', ...(c.type === 'ruleta' ? ['Beneficio'] : []), 'Fecha'].map(h => (
+                                            <th key={h} className="text-left pb-2.5 pr-6 text-[9px] font-bold uppercase tracking-[0.3em] text-white/25" style={{ fontFamily: "'Space Mono',monospace" }}>{h}</th>
+                                          ))}
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {leads.map(l => (
+                                          <tr key={l.id} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors">
+                                            <td className="py-2.5 pr-6 text-white/80" style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15 }}>{l.name}</td>
+                                            <td className="py-2.5 pr-6 text-white/35 text-[11px]" style={{ fontFamily: "'Space Mono',monospace" }}>{l.email}</td>
+                                            {c.type === 'ruleta' && (
+                                              <td className="py-2.5 pr-6">
+                                                {l.benefit ? (
+                                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold" style={{ background: (l.benefit_color ?? '#C9A84C') + '22', color: l.benefit_color ?? '#C9A84C', fontFamily: "'Space Mono',monospace" }}>
+                                                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: l.benefit_color ?? '#C9A84C' }} />
+                                                    {l.benefit}
+                                                  </span>
+                                                ) : <span className="text-white/20 text-xs">—</span>}
+                                              </td>
+                                            )}
+                                            <td className="py-2.5 text-white/20 text-[10px]" style={{ fontFamily: "'Space Mono',monospace" }}>
+                                              {new Date(l.registered_at).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    )}
                   </div>
                 );
               })}
