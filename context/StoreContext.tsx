@@ -33,6 +33,7 @@ interface StoreContextType {
     archiveEvent: (id: string) => Promise<void>;
     restoreEvent: (id: string) => Promise<void>;
     hardDeleteEvent: (id: string) => Promise<void>;
+    setEventStatus: (id: string, status: 'published' | 'draft') => Promise<void>;
     addEventCost: (eventId: string, cost: Omit<EventCost, 'id' | 'event_id'>) => Promise<void>;
     deleteEventCost: (eventId: string, costId: string) => Promise<void>;
     updateCostStatus: (eventId: string, costId: string, status: 'pending' | 'paid' | 'cancelled') => Promise<void>;
@@ -475,6 +476,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             await fetchData();
         } catch (error: any) {
             console.error("Error restoring event:", error);
+            throw error;
+        }
+    };
+
+    // TOGGLE VISIBILITY (published ↔ draft — does NOT move to cementerio)
+    const setEventStatus = async (id: string, status: 'published' | 'draft') => {
+        try {
+            const { error } = await supabase.from('events').update({ status }).eq('id', id);
+            if (error) throw error;
+            await fetchData();
+        } catch (error: any) {
+            console.error("Error setting event status:", error);
             throw error;
         }
     };
@@ -979,7 +992,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         <StoreContext.Provider value={{
             events, tiers, promoters, orders, teams, galleryItems, accountingMovements, settlements, currentUser, currentCustomer, dbStatus,
             login, logout, requestCustomerOtp, verifyOtpUnified, verifyCustomerOtp, customerLogout,
-            getEventTiers, addEvent, updateEvent, archiveEvent, restoreEvent, hardDeleteEvent,
+            getEventTiers, addEvent, updateEvent, archiveEvent, restoreEvent, hardDeleteEvent, setEventStatus,
             addStaff, deleteStaff, createTeam, updateStaffTeam, deleteTeam, createOrder, clearDatabase,
             addEventCost, deleteEventCost, updateCostStatus, updateCostActual, updateGallery, validateTicket, validarYQuemarTicket,
             addAccountingMovement, deleteAccountingMovement, addSettlement, deleteSettlement, transferTicket, fetchData

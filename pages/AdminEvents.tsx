@@ -5,7 +5,7 @@ import {
     Trash2, Plus, Pencil, Save, Users, ShieldCheck,
     UserCog, BadgeCheck, Database, Download, Upload, AlertTriangle,
     HardDrive, RefreshCcw, Layers, Target, UserPlus, Calendar, MapPin, DollarSign, Ticket, Eye, ArrowLeft, Search, User, Filter, Share2, CheckCircle2, XCircle, MinusCircle, Lock, Key, X, UserMinus, UserCheck, Mail,
-    Tag, Percent, Loader2, Archive
+    Tag, Percent, Loader2, EyeOff
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { Button } from '../components/ui/button';
@@ -20,8 +20,8 @@ interface AdminEventsProps {
 }
 
 export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
-    const { 
-        events, addEvent, updateEvent, archiveEvent, restoreEvent, hardDeleteEvent, getEventTiers,
+    const {
+        events, addEvent, updateEvent, archiveEvent, restoreEvent, hardDeleteEvent, setEventStatus, getEventTiers,
         promoters, addStaff, deleteStaff, teams, createTeam, updateStaffTeam, deleteTeam,
         orders, dbStatus, clearDatabase
     } = useStore();
@@ -387,16 +387,21 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                 {selectedAuditId && auditData && (
                                     <>
                                         <Button onClick={() => handleEditEvent(auditData.event)} variant="outline" className="h-12"><Pencil size={16}/></Button>
-                                        <Button
-                                            onClick={async () => {
-                                                if (confirm(`¿Mover "${auditData.event.title}" al cementerio?`)) {
-                                                    await archiveEvent(selectedAuditId);
-                                                    setSelectedAuditId(null);
-                                                }
-                                            }}
-                                            variant="outline"
-                                            className="h-12 border-amber-500/30 hover:bg-amber-500/10 text-amber-500"
-                                        ><Archive size={16}/></Button>
+                                        {auditData.event.status === 'draft' ? (
+                                            <Button
+                                                onClick={async () => { await setEventStatus(selectedAuditId, 'published'); }}
+                                                variant="outline"
+                                                title="Activar en vitrina"
+                                                className="h-12 border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-400"
+                                            ><Eye size={16}/></Button>
+                                        ) : (
+                                            <Button
+                                                onClick={async () => { await setEventStatus(selectedAuditId, 'draft'); }}
+                                                variant="outline"
+                                                title="Ocultar de vitrina"
+                                                className="h-12 border-zinc-500/30 hover:bg-zinc-500/10 text-zinc-400"
+                                            ><EyeOff size={16}/></Button>
+                                        )}
                                         <Button
                                             onClick={async () => {
                                                 if (confirm(`¿ELIMINAR permanentemente "${auditData.event.title}"? No se puede deshacer.`)) {
