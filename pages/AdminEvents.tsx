@@ -101,11 +101,13 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
         if (!event) return null;
 
         const eventOrders = orders.filter(o => o.event_id === selectedAuditId && o.status === 'completed');
+        // salesOrders excludes guest_list for financial calcs (liquidations, ranking, revenue)
+        const salesOrders = eventOrders.filter(o => o.payment_method !== 'guest_list');
         const tiers = getEventTiers(selectedAuditId);
 
-        // Ranking
+        // Ranking (financial — no guest_list)
         const rankingMap: {[key: string]: {name: string, tickets: number, revenue: number}} = {};
-        eventOrders.forEach(o => {
+        salesOrders.forEach(o => {
             const pid = o.staff_id || 'organica';
             const pname = promoters.find(p => p.user_id === pid)?.name || 'Venta Directa';
             const tqty = o.items.reduce((acc, i) => acc + i.quantity, 0);
@@ -131,20 +133,24 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
             };
         });
 
-        // Stage Groups (Early Bird, Presale, etc)
+        // Stage Groups with revenue (using salesOrders for financial data)
         const stageGroups = Array.from(new Set(tiers.map(t => t.stage))).map(stage => {
             const stageTiers = tierStats.filter(t => t.stage === stage);
-            const totalQty = stageTiers.reduce((acc, t) => acc + t.quantity, 0);
-            const totalSold = stageTiers.reduce((acc, t) => acc + t.realSold, 0);
+            const totalQty   = stageTiers.reduce((acc, t) => acc + t.quantity, 0);
+            const totalSold  = stageTiers.reduce((acc, t) => acc + t.realSold, 0);
+            const revenue    = salesOrders.reduce((acc, o) =>
+                acc + o.items.filter(i => stageTiers.some(t => t.id === i.tier_id))
+                             .reduce((s, i) => s + i.subtotal, 0), 0);
             return {
-                stage: stage,
+                stage,
                 totalQty,
                 totalSold,
-                progress: totalQty > 0 ? (totalSold / totalQty) * 100 : 0
+                progress: totalQty > 0 ? (totalSold / totalQty) * 100 : 0,
+                revenue,
             };
         });
 
-        return { event, eventOrders, tiers, sortedRanking, tierStats, stageGroups };
+        return { event, eventOrders, salesOrders, tiers, sortedRanking, tierStats, stageGroups };
     }, [selectedAuditId, events, orders, promoters]);
 
     // --- HELPER: TEAM EDITING ---
@@ -362,54 +368,71 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
             )}
 
             {activeTab === 'events' && (
-                <div className="space-y-8">
-                    {!isCreatingEvent && !selectedAuditId ? (
-                        <div className="space-y-6">
-                             <div className="flex justify-between items-center bg-zinc-900/50 p-6 rounded-3xl border border-white/5">
-                                <div>
-                                    <h2 className="text-2xl font-black text-white">Eventos Activos</h2>
-                                    <p className="text-zinc-500 text-sm">Gestiona la cartelera y el inventario de tickets.</p>
-                                </div>
-                                <Button onClick={() => { setIsCreatingEvent(true); setEditingEventId(null); setTierRows([{id: undefined, name: 'General', price: 0, commission_fixed: 0, quantity: 0, stage: 'general'}]) }} className="bg-neon-purple text-white font-black h-12">
-                                    <Plus className="mr-2" /> CREAR EVENTO
-                                </Button>
-                            </div>
+                <div className="space-y-6">
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {events.filter(e => e.status !== 'archived').map(event => (
-                                    <div key={event.id} className="group relative bg-zinc-900 rounded-[2.5rem] overflow-hidden border border-white/5 hover:border-white/20 transition-all shadow-xl">
-                                        <div className="h-56 overflow-hidden relative">
-                                            <img src={event.cover_image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-60" alt={event.title} />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-transparent to-transparent"></div>
-                                            <div className="absolute bottom-4 left-6">
-                                                <h3 className="text-2xl font-black text-white mb-2">{event.title}</h3>
-                                                <div className="flex items-center gap-3 text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
-                                                    <span className="flex items-center gap-1"><Calendar size={12}/> {new Date(event.event_date).toLocaleDateString()}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="p-6">
-                                            <div className="grid grid-cols-3 gap-2">
-                                                <Button onClick={() => setSelectedAuditId(event.id)} variant="outline" className="h-12 border-neon-blue/20 text-neon-blue hover:bg-neon-blue/10"><Eye size={18}/></Button>
-                                                <Button onClick={() => handleEditEvent(event)} variant="outline" className="h-12"><Pencil size={18}/></Button>
-                                                <Button onClick={() => {if(confirm('¿Archivar evento? Pasará al Cementerio.')) archiveEvent(event.id)}} variant="danger" className="h-12 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white border-zinc-700"><Trash2 size={18}/></Button>
-                                            </div>
-                                        </div>
-                                    </div>
+                    {/* ── Event selector row ── */}
+                    {!isCreatingEvent && (
+                        <div className="flex flex-col sm:flex-row gap-3">
+                            <select
+                                value={selectedAuditId ?? ''}
+                                onChange={e => setSelectedAuditId(e.target.value || null)}
+                                className="flex-1 bg-zinc-900 border border-white/10 rounded-2xl px-5 py-3.5 text-white font-black text-sm focus:outline-none focus:border-neon-purple/40 appearance-none cursor-pointer"
+                            >
+                                <option value="">— Seleccionar evento —</option>
+                                {events.filter(e => e.status !== 'archived').map(ev => (
+                                    <option key={ev.id} value={ev.id}>{ev.title}</option>
                                 ))}
-                                {events.filter(e => e.status !== 'archived').length === 0 && <div className="col-span-full py-20 text-center text-zinc-600 font-bold uppercase tracking-widest border-2 border-dashed border-white/5 rounded-3xl">No hay eventos activos.</div>}
+                            </select>
+                            <div className="flex gap-2 flex-shrink-0">
+                                {selectedAuditId && auditData && (
+                                    <>
+                                        <Button onClick={() => handleEditEvent(auditData.event)} variant="outline" className="h-12"><Pencil size={16}/></Button>
+                                        <Button onClick={handleExportDatabase} className="bg-emerald-500 text-black font-black text-xs h-12">
+                                            <Download className="mr-2 w-4 h-4"/> Exportar
+                                        </Button>
+                                    </>
+                                )}
+                                <Button onClick={() => { setIsCreatingEvent(true); setEditingEventId(null); setTierRows([{id: undefined, name: 'General', price: 0, commission_fixed: 0, quantity: 0, stage: 'general'}]) }} className="bg-neon-purple text-white font-black h-12">
+                                    <Plus className="mr-2" size={16}/> Nuevo
+                                </Button>
                             </div>
                         </div>
-                    ) : selectedAuditId && auditData ? (
-                        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            <div className="flex justify-between items-center mb-8">
-                                <button onClick={() => setSelectedAuditId(null)} className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors font-bold uppercase text-xs tracking-widest">
-                                    <ArrowLeft size={20}/> Volver
-                                </button>
-                                <Button onClick={handleExportDatabase} className="bg-emerald-500 text-black font-black text-xs">
-                                    <Download className="mr-2 w-4 h-4"/> EXPORTAR BASE DE DATOS
-                                </Button>
+                    )}
+
+                    {/* ── Content ── */}
+                    {isCreatingEvent ? null : !selectedAuditId ? (
+                        <div className="py-20 text-center text-zinc-600 font-bold uppercase tracking-widest border-2 border-dashed border-white/5 rounded-3xl">
+                            Selecciona un evento para ver su información
+                        </div>
+                    ) : null}
+
+                    {!isCreatingEvent && selectedAuditId && auditData && (
+                        <div className="animate-in fade-in duration-400 space-y-8">
+
+                            {/* ── Stage banners ── */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                {auditData.stageGroups.map(sg => {
+                                    const pct = Math.round(sg.progress);
+                                    const stageLabel: Record<string, string> = {
+                                        early_bird: 'Early Bird', presale: 'Preventa',
+                                        general: 'General', door: 'Puerta'
+                                    };
+                                    return (
+                                        <div key={sg.stage} className="bg-zinc-900 border border-white/8 rounded-2xl p-5">
+                                            <p className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-3">{stageLabel[sg.stage] ?? sg.stage}</p>
+                                            <p className="text-3xl font-black text-white tabular-nums leading-none">{sg.totalSold}</p>
+                                            <p className="text-[10px] text-zinc-600 mb-3 mt-0.5">/ {sg.totalQty} boletos</p>
+                                            <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden mb-3">
+                                                <div className="h-full bg-neon-purple rounded-full transition-all duration-500" style={{ width: `${Math.min(pct, 100)}%` }} />
+                                            </div>
+                                            <p className="text-sm font-black text-neon-green tabular-nums">${sg.revenue.toLocaleString()}</p>
+                                            <p className="text-[9px] text-zinc-600">{pct}% vendido</p>
+                                        </div>
+                                    );
+                                })}
                             </div>
+
+                            {/* ── Existing audit content (no header row) ── */}
                             
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                                 <div className="lg:col-span-2 space-y-8">
@@ -591,7 +614,9 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                             </div>
 
                         </div>
-                    ) : (
+                    )}
+
+                    {isCreatingEvent && (
                         <div className="bg-zinc-900 border border-white/10 p-8 rounded-[2rem] max-w-4xl mx-auto">
                             <h2 className="text-2xl font-black text-white mb-6">Configurar Evento</h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">

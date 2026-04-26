@@ -190,7 +190,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   const globalLiquidationData = useMemo(() => {
       if (!isHead || !selectedEventFilter) return null;
 
-      const filteredOrders = orders.filter(o => o.event_id === selectedEventFilter && o.status === 'completed');
+      const filteredOrders = orders.filter(o => o.event_id === selectedEventFilter && o.status === 'completed' && o.payment_method !== 'guest_list');
       const eventTiers = getEventTiers(selectedEventFilter);
       const stages = Array.from(new Set(eventTiers.map(t => t.stage)));
 
@@ -395,7 +395,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
 
   // --- LOGICA RANKING GENERAL ---
   const generalRankingData = useMemo(() => {
-      let filteredOrders = orders.filter(o => o.status === 'completed');
+      let filteredOrders = orders.filter(o => o.status === 'completed' && o.payment_method !== 'guest_list');
       
       // 1. FILTER BY EVENT
       if (rankingFilterEvent !== 'all') {
@@ -483,14 +483,14 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
 
     // 2. CÁLCULO GENERAL (SIN FILTRO DE EVENTO O PARA OTROS ROLES)
     if (isHead) {
-        scopeOrders = orders.filter(o => o.status === 'completed');
+        scopeOrders = orders.filter(o => o.status === 'completed' && o.payment_method !== 'guest_list');
         label = "Global (Red Completa)";
     } else if (isManager) {
         const teamMemberIds = myTeam ? [currentUser.user_id, ...myTeam.members_ids] : [currentUser.user_id];
-        scopeOrders = orders.filter(o => o.status === 'completed' && o.staff_id && teamMemberIds.includes(o.staff_id));
+        scopeOrders = orders.filter(o => o.status === 'completed' && o.payment_method !== 'guest_list' && o.staff_id && teamMemberIds.includes(o.staff_id));
         label = myTeam ? `Squad: ${myTeam.name}` : "Vista Manager";
     } else {
-        scopeOrders = orders.filter(o => o.status === 'completed' && o.staff_id === currentUser.user_id);
+        scopeOrders = orders.filter(o => o.status === 'completed' && o.payment_method !== 'guest_list' && o.staff_id === currentUser.user_id);
         label = "Rendimiento Personal";
     }
 

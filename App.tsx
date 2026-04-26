@@ -141,10 +141,10 @@ const App: React.FC = () => {
         currentPage={currentPage}
       />
 
-      {/* Discount banner — floating pill, non-intrusive */}
+      {/* Discount banner — just below the Midnight logo */}
       {discountBanner && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[95] animate-in slide-in-from-bottom-3 duration-500 px-4 w-full max-w-sm">
-          <div className="flex items-center gap-2.5 bg-[#0A0A0A] border border-[#C9A84C]/30 rounded-full px-4 py-2 shadow-[0_0_24px_rgba(201,168,76,0.12)]">
+        <div className="fixed top-[4.5rem] md:top-[3.8rem] left-1/2 -translate-x-1/2 z-[95] animate-in slide-in-from-top-2 duration-400 px-4 w-full max-w-xs">
+          <div className="flex items-center gap-2.5 bg-[#0A0A0A]/95 border border-[#C9A84C]/30 rounded-full px-4 py-1.5 shadow-[0_0_20px_rgba(201,168,76,0.10)]">
             <span className="w-1.5 h-1.5 rounded-full bg-[#C9A84C] flex-shrink-0 shadow-[0_0_6px_#C9A84C]" />
             <p className="text-[#C9A84C] text-[11px] font-bold flex-1 truncate" style={{ fontFamily: "'Space Mono',monospace" }}>
               {discountBanner.pct}% off{discountBanner.tierName ? ` · ${discountBanner.tierName}` : ''}
