@@ -71,7 +71,9 @@ export interface TicketTier {
   price: number;
   quantity: number;
   sold: number;
-  commission_fixed: number;
+  commission_fixed: number;       // legacy — kept for backward compat
+  commission_manager: number;     // what admin owes the manager per ticket
+  commission_promoter_min: number; // minimum the manager must pay the promoter
   commission_percent: number;
   operational_percent: number;
   color: string;
@@ -107,8 +109,9 @@ export interface Order {
 export interface SalesTeam {
   id: string;
   name: string;
-  manager_id: string; // ID del Manager que lidera el equipo
-  team_lead_id?: string; // Head of Sales superior
+  manager_id: string;
+  team_lead_id?: string;
+  super_squad_id?: string;
   total_revenue: number;
   members_ids: string[];
 }
@@ -117,14 +120,32 @@ export interface Promoter {
   user_id: string;
   name: string;
   email: string;
-  code: string; 
+  code: string;
   role: UserRole | 'team_lead' | 'manager' | 'promoter';
-  sales_team_id?: string; // Equipo al que pertenece
-  manager_id?: string; // Jefe directo
-  total_sales: number; // Ventas propias
+  sales_team_id?: string;
+  manager_id?: string;
+  super_squad_id?: string;
+  total_sales: number;
   total_commission_earned: number;
-  team_sales_volume?: number; // Ventas de su equipo (si es manager)
-  link_views?: number; // Vistas al landing page personal
+  team_sales_volume?: number;
+  link_views?: number;
+}
+
+export interface SuperSquad {
+  id: string;
+  name: string;
+  head_id: string;
+  created_at: string;
+}
+
+export interface PromoterPayout {
+  id: string;
+  event_id: string;
+  manager_id: string;
+  promoter_id: string;
+  amount_per_ticket: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Wallet {

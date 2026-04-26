@@ -29,7 +29,7 @@ const compressImage = (file: File, maxPx = 1400, quality = 0.75): Promise<Blob> 
   });
 
 export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
-  const { events, promoters, orders, tiers, createOrder, getEventTiers, currentUser, teams, addStaff, validateTicket, fetchData, settlements, addSettlement } = useStore();
+  const { events, promoters, orders, tiers, createOrder, getEventTiers, currentUser, teams, superSquads, promoterPayouts, upsertPromoterPayout, addStaff, validateTicket, fetchData, settlements, addSettlement } = useStore();
   const [showDebtUpload, setShowDebtUpload] = useState<{ eventId: string; eventTitle: string; promoterId: string; dineroAEnviar: number; totalEnviado: number } | null>(null);
   const [debtUploadForm, setDebtUploadForm] = useState({ amount: '', method: 'transfer', notes: '' });
   const [debtImageFile, setDebtImageFile] = useState<File | null>(null);
@@ -84,6 +84,10 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   const [viewingStaffId, setViewingStaffId] = useState<string | null>(null);
   const [viewingTeamId, setViewingTeamId] = useState<string | null>(null);
   const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null);
+
+  // Commission breakdown — editable payout amounts per promoter
+  const [editingPayouts, setEditingPayouts] = useState<Record<string, string>>({}); // promoter_id → draft value
+  const [savingPayout, setSavingPayout] = useState<string | null>(null);
 
   useEffect(() => {
     if (currentUser?.role === UserRole.ADMIN) {
@@ -1547,6 +1551,124 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                       );
                   })()
               )}
+          </div>
+      )}
+
+      {/* --- PANEL COMISIONES MANAGER (COMISIÓN NETA DEL MANAGER) --- */}
+      {isManager && !isHead && myTeam && selectedEventFilter && (
+          <div className="space-y-4 mb-12 animate-in fade-in slide-in-from-bottom-6 duration-700">
+              <div className="flex items-center gap-3 px-1">
+                  <Coins className="text-[#C9A84C] w-5 h-5" />
+                  <h2 className="text-xl font-black text-white">Desglose de Comisiones</h2>
+                  <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">Admin paga al manager · Manager asigna al promotor</span>
+              </div>
+
+              <div className="bg-zinc-900/50 border border-[#C9A84C]/15 rounded-[2rem] overflow-hidden">
+                  <div className="overflow-x-auto">
+                      <table className="w-full text-left">
+                          <thead className="bg-black/40 text-[9px] md:text-[10px] text-zinc-500 uppercase font-black tracking-widest">
+                              <tr>
+                                  <th className="p-4 md:p-6">Promotor</th>
+                                  <th className="p-4 md:p-6 text-right">Boletas</th>
+                                  <th className="p-4 md:p-6 text-right text-neon-blue">Com. Admin→Manager</th>
+                                  <th className="p-4 md:p-6 text-right text-emerald-400">Pago al Promotor</th>
+                                  <th className="p-4 md:p-6 text-right" style={{ color: '#C9A84C' }}>Diferencia (Tuya)</th>
+                                  <th className="p-4 md:p-6 text-center text-zinc-500">Editar Pago</th>
+                              </tr>
+                          </thead>
+                          <tbody className="divide-y divide-white/5 text-xs md:text-sm">
+                              {(() => {
+                                  const teamMemberIds = [myTeam.manager_id, ...myTeam.members_ids];
+                                  const teamOrders = orders.filter(o => o.event_id === selectedEventFilter && o.status === 'completed' && o.payment_method !== 'guest_list');
+                                  const eventTiers = getEventTiers(selectedEventFilter);
+
+                                  let totalManagerComm = 0;
+                                  let totalPromoterPay = 0;
+
+                                  const rows = promoters
+                                      .filter(p => teamMemberIds.includes(p.user_id))
+                                      .map(p => {
+                                          const staffOrders = teamOrders.filter(o => o.staff_id === p.user_id);
+                                          const tickets = staffOrders.reduce((acc, o) => acc + o.items.reduce((s, i) => s + i.quantity, 0), 0);
+
+                                          // commission_manager per ticket (weighted avg if multiple tiers)
+                                          let commManagerTotal = 0;
+                                          staffOrders.forEach(o => {
+                                              o.items.forEach(item => {
+                                                  const tier = eventTiers.find(t => t.id === item.tier_id);
+                                                  commManagerTotal += (tier?.commission_manager || tier?.commission_fixed || 0) * item.quantity;
+                                              });
+                                          });
+
+                                          const payout = promoterPayouts.find(pp => pp.event_id === selectedEventFilter && pp.manager_id === currentUser.user_id && pp.promoter_id === p.user_id);
+                                          const payoutPerTicket = payout?.amount_per_ticket ?? (eventTiers[0]?.commission_promoter_min ?? 0);
+                                          const promoterPayTotal = payoutPerTicket * tickets;
+                                          const diff = commManagerTotal - promoterPayTotal;
+
+                                          totalManagerComm += commManagerTotal;
+                                          totalPromoterPay += promoterPayTotal;
+
+                                          const draftKey = p.user_id;
+                                          const draftVal = editingPayouts[draftKey] ?? String(payoutPerTicket);
+
+                                          return (
+                                              <tr key={p.user_id} className="hover:bg-white/[0.02] transition-colors">
+                                                  <td className="p-4 md:p-6 font-bold text-white">
+                                                      {p.name}
+                                                      <span className="ml-2 text-[9px] text-zinc-500 font-normal uppercase">{p.role}</span>
+                                                  </td>
+                                                  <td className="p-4 md:p-6 text-right font-black text-white">{tickets}</td>
+                                                  <td className="p-4 md:p-6 text-right font-bold text-neon-blue">${commManagerTotal.toLocaleString()}</td>
+                                                  <td className="p-4 md:p-6 text-right font-bold text-emerald-400">${promoterPayTotal.toLocaleString()}</td>
+                                                  <td className="p-4 md:p-6 text-right font-black text-lg" style={{ color: '#C9A84C' }}>${diff.toLocaleString()}</td>
+                                                  <td className="p-4 md:p-6">
+                                                      <div className="flex items-center gap-2 justify-center">
+                                                          <input
+                                                              type="number"
+                                                              value={draftVal}
+                                                              onChange={e => setEditingPayouts(prev => ({ ...prev, [draftKey]: e.target.value }))}
+                                                              className="w-20 bg-black border border-white/10 rounded-lg px-2 py-1 text-white text-xs text-center focus:outline-none focus:border-emerald-400"
+                                                              placeholder="0"
+                                                          />
+                                                          <button
+                                                              disabled={savingPayout === p.user_id}
+                                                              onClick={async () => {
+                                                                  setSavingPayout(p.user_id);
+                                                                  try {
+                                                                      await upsertPromoterPayout(selectedEventFilter, currentUser.user_id, p.user_id, Number(draftVal) || 0);
+                                                                      toast.success(`Pago actualizado para ${p.name}`);
+                                                                  } catch (e: any) { toast.error(e.message); }
+                                                                  finally { setSavingPayout(null); }
+                                                              }}
+                                                              className="text-emerald-400 hover:text-emerald-300 disabled:opacity-40 transition-colors"
+                                                          >
+                                                              {savingPayout === p.user_id ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                                                          </button>
+                                                      </div>
+                                                  </td>
+                                              </tr>
+                                          );
+                                      });
+
+                                  const totalDiff = totalManagerComm - totalPromoterPay;
+                                  return (
+                                      <>
+                                          {rows}
+                                          <tr className="bg-white/5 font-black border-t-2 border-white/10">
+                                              <td className="p-4 md:p-6 text-white uppercase tracking-widest">TOTALES</td>
+                                              <td className="p-4 md:p-6"></td>
+                                              <td className="p-4 md:p-6 text-right text-neon-blue">${totalManagerComm.toLocaleString()}</td>
+                                              <td className="p-4 md:p-6 text-right text-emerald-400">${totalPromoterPay.toLocaleString()}</td>
+                                              <td className="p-4 md:p-6 text-right text-lg font-black" style={{ color: '#C9A84C' }}>${totalDiff.toLocaleString()}</td>
+                                              <td className="p-4 md:p-6"></td>
+                                          </tr>
+                                      </>
+                                  );
+                              })()}
+                          </tbody>
+                      </table>
+                  </div>
+              </div>
           </div>
       )}
 

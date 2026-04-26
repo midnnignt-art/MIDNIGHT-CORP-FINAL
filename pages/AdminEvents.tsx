@@ -23,6 +23,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
     const {
         events, addEvent, updateEvent, archiveEvent, restoreEvent, hardDeleteEvent, setEventStatus, getEventTiers,
         promoters, addStaff, deleteStaff, teams, createTeam, updateStaffTeam, deleteTeam,
+        superSquads, createSuperSquad, deleteSuperSquad, assignTeamToSuperSquad,
         orders, dbStatus, clearDatabase
     } = useStore();
     
@@ -74,14 +75,20 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
     });
     
     const [tierRows, setTierRows] = useState<any[]>([
-        { id: undefined, name: 'General Early Bird', price: 50, commission_fixed: 5, quantity: 100, stage: 'early_bird' },
-        { id: undefined, name: 'VIP Access', price: 150, commission_fixed: 15, quantity: 50, stage: 'presale' }
+        { id: undefined, name: 'General Early Bird', price: 50, commission_manager: 0, commission_promoter_min: 0, quantity: 100, stage: 'early_bird' },
+        { id: undefined, name: 'VIP Access', price: 150, commission_manager: 0, commission_promoter_min: 0, quantity: 50, stage: 'presale' }
     ]);
 
     // --- STATE: Squad/Staff Form ---
     const [newTeamName, setNewTeamName] = useState('');
     const [selectedManagerId, setSelectedManagerId] = useState('');
     const [viewingTeamEditId, setViewingTeamEditId] = useState<string | null>(null);
+
+    // --- STATE: Super Squad ---
+    const [newSuperSquadName, setNewSuperSquadName] = useState('');
+    const [newSuperSquadHeadId, setNewSuperSquadHeadId] = useState('');
+    const [squadAssignTeamId, setSquadAssignTeamId] = useState('');
+    const [squadAssignSuperSquadId, setSquadAssignSuperSquadId] = useState('');
     
     // Staff Creation State
     const [staffName, setStaffName] = useState('');
@@ -160,7 +167,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
 
     // --- HANDLERS: Event ---
     const handleAddTierRow = () => {
-        setTierRows([...tierRows, { id: undefined, name: '', price: 0, commission_fixed: 0, quantity: 0, stage: 'general' }]);
+        setTierRows([...tierRows, { id: undefined, name: '', price: 0, commission_manager: 0, commission_promoter_min: 0, quantity: 0, stage: 'general' }]);
     };
 
     const handleRemoveTierRow = (index: number) => {
@@ -189,7 +196,8 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
             id: t.id,
             name: t.name,
             price: t.price,
-            commission_fixed: t.commission_fixed,
+            commission_manager: t.commission_manager || t.commission_fixed || 0,
+            commission_promoter_min: t.commission_promoter_min || 0,
             quantity: t.quantity,
             stage: t.stage
         })));
@@ -254,7 +262,8 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
             name: t.name,
             price: Number(t.price) || 0,
             quantity: Number(t.quantity) || 0,
-            commission_fixed: Number(t.commission_fixed) || 0,
+            commission_manager: Number(t.commission_manager) || 0,
+            commission_promoter_min: Number(t.commission_promoter_min) || 0,
             stage: t.stage || 'general'
         }));
 
@@ -269,7 +278,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
             setIsCreatingEvent(false);
             setEditingEventId(null);
             setEventForm({ title: '', description: '', venue: '', city: '', date: '', time: '', cover_image: '' });
-            setTierRows([{ id: undefined, name: 'General', price: 0, commission_fixed: 0, quantity: 0, stage: 'general' }]);
+            setTierRows([{ id: undefined, name: 'General', price: 0, commission_manager: 0, commission_promoter_min: 0, quantity: 0, stage: 'general' }]);
         } catch (e: any) {
             toast.error(`Error: ${e.message}`);
         }
@@ -279,7 +288,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
         setIsCreatingEvent(false);
         setEditingEventId(null);
         setEventForm({ title: '', description: '', venue: '', city: '', date: '', time: '', cover_image: '' });
-        setTierRows([{ id: undefined, name: 'General', price: 0, commission_fixed: 0, quantity: 0, stage: 'general' }]);
+        setTierRows([{ id: undefined, name: 'General', price: 0, commission_manager: 0, commission_promoter_min: 0, quantity: 0, stage: 'general' }]);
     };
 
     const handleCreateTeam = () => {
@@ -417,7 +426,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                         </Button>
                                     </>
                                 )}
-                                <Button onClick={() => { setIsCreatingEvent(true); setEditingEventId(null); setTierRows([{id: undefined, name: 'General', price: 0, commission_fixed: 0, quantity: 0, stage: 'general'}]) }} className="bg-neon-purple text-white font-black h-12">
+                                <Button onClick={() => { setIsCreatingEvent(true); setEditingEventId(null); setTierRows([{id: undefined, name: 'General', price: 0, commission_manager: 0, commission_promoter_min: 0, quantity: 0, stage: 'general'}]) }} className="bg-neon-purple text-white font-black h-12">
                                     <Plus className="mr-2" size={16}/> Nuevo
                                 </Button>
                             </div>
@@ -700,8 +709,8 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                 </div>
                                 <div className="space-y-4">
                                     {tierRows.map((tier, idx) => (
-                                        <div key={idx} className="bg-black/40 p-4 rounded-xl border border-white/5 grid grid-cols-1 md:grid-cols-12 gap-4 items-center animate-in slide-in-from-left-4">
-                                            <div className="md:col-span-4">
+                                        <div key={idx} className="bg-black/40 p-4 rounded-xl border border-white/5 grid grid-cols-2 md:grid-cols-12 gap-4 items-end animate-in slide-in-from-left-4">
+                                            <div className="col-span-2 md:col-span-3">
                                                 <label className="text-[10px] text-zinc-500 uppercase font-bold">Nombre Etapa</label>
                                                 <input value={tier.name} onChange={e => handleTierChange(idx, 'name', e.target.value)} className="w-full bg-transparent border-b border-white/20 py-2 text-white font-bold text-sm focus:outline-none focus:border-neon-purple" placeholder="Ej: Early Bird" />
                                             </div>
@@ -710,20 +719,24 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                                 <input type="number" value={tier.price} onChange={e => handleTierChange(idx, 'price', e.target.value)} className="w-full bg-transparent border-b border-white/20 py-2 text-white font-bold text-sm focus:outline-none focus:border-neon-green" placeholder="0" />
                                             </div>
                                             <div className="md:col-span-2">
-                                                <label className="text-[10px] text-zinc-500 uppercase font-bold">Comisión</label>
-                                                <input type="number" value={tier.commission_fixed} onChange={e => handleTierChange(idx, 'commission_fixed', e.target.value)} className="w-full bg-transparent border-b border-white/20 py-2 text-white font-bold text-sm focus:outline-none focus:border-neon-blue" placeholder="0" />
+                                                <label className="text-[10px] text-zinc-500 uppercase font-bold text-neon-blue">Com. Manager</label>
+                                                <input type="number" value={tier.commission_manager} onChange={e => handleTierChange(idx, 'commission_manager', e.target.value)} className="w-full bg-transparent border-b border-neon-blue/30 py-2 text-white font-bold text-sm focus:outline-none focus:border-neon-blue" placeholder="0" />
+                                            </div>
+                                            <div className="md:col-span-2">
+                                                <label className="text-[10px] text-zinc-500 uppercase font-bold text-emerald-400">Com. Promotor Mín</label>
+                                                <input type="number" value={tier.commission_promoter_min} onChange={e => handleTierChange(idx, 'commission_promoter_min', e.target.value)} className="w-full bg-transparent border-b border-emerald-500/30 py-2 text-white font-bold text-sm focus:outline-none focus:border-emerald-400" placeholder="0" />
                                             </div>
                                             <div className="md:col-span-2">
                                                 <label className="text-[10px] text-zinc-500 uppercase font-bold">Cantidad</label>
                                                 <input type="number" value={tier.quantity} onChange={e => handleTierChange(idx, 'quantity', e.target.value)} className="w-full bg-transparent border-b border-white/20 py-2 text-white font-bold text-sm focus:outline-none focus:border-white" placeholder="0" />
                                             </div>
-                                            <div className="md:col-span-2 flex justify-end">
-                                                <button onClick={() => handleRemoveTierRow(idx)} className="text-zinc-600 hover:text-red-500 transition-colors"><MinusCircle/></button>
+                                            <div className="md:col-span-1 flex justify-end">
+                                                <button onClick={() => handleRemoveTierRow(idx)} className="text-zinc-600 hover:text-red-500 transition-colors pb-2"><MinusCircle/></button>
                                             </div>
-                                            <div className="md:col-span-12">
+                                            <div className="col-span-2 md:col-span-12">
                                                  <label className="text-[10px] text-zinc-500 uppercase font-bold">Tipo de Etapa (Sistema)</label>
-                                                 <select 
-                                                    value={tier.stage} 
+                                                 <select
+                                                    value={tier.stage}
                                                     onChange={e => handleTierChange(idx, 'stage', e.target.value)}
                                                     className="w-full bg-black border border-white/10 p-2 rounded text-xs text-white uppercase font-bold mt-1"
                                                  >
@@ -838,6 +851,45 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                     <Button onClick={handleCreateTeam} fullWidth className="bg-neon-purple text-white">CREAR EQUIPO</Button>
                                 </div>
                             </div>
+
+                            {/* --- SUPER SQUADS --- */}
+                            <div className="bg-zinc-900 border border-[#C9A84C]/20 p-6 rounded-3xl">
+                                <h2 className="text-xl font-black mb-1" style={{ color: '#C9A84C' }}>Super Squad</h2>
+                                <p className="text-[10px] text-zinc-500 mb-5">Una Cabeza lidera múltiples squads y/o promotores directos.</p>
+                                <div className="space-y-3 mb-4">
+                                    <input value={newSuperSquadName} onChange={e => setNewSuperSquadName(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white" placeholder="Nombre del Super Squad" />
+                                    <select value={newSuperSquadHeadId} onChange={e => setNewSuperSquadHeadId(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white">
+                                        <option value="">Seleccionar Cabeza</option>
+                                        {promoters.filter(p => p.role === UserRole.HEAD_OF_SALES || p.role === UserRole.MANAGER).map(p => (
+                                            <option key={p.user_id} value={p.user_id}>{p.name} ({p.role})</option>
+                                        ))}
+                                    </select>
+                                    <Button onClick={async () => {
+                                        if (!newSuperSquadName || !newSuperSquadHeadId) { toast.error('Nombre y Cabeza son obligatorios'); return; }
+                                        try { await createSuperSquad(newSuperSquadName, newSuperSquadHeadId); setNewSuperSquadName(''); setNewSuperSquadHeadId(''); toast.success('Super Squad creado'); }
+                                        catch (e: any) { toast.error(e.message); }
+                                    }} fullWidth style={{ background: '#C9A84C', color: '#000' }}>CREAR SUPER SQUAD</Button>
+                                </div>
+
+                                {superSquads.length > 0 && (
+                                    <div className="space-y-3 mt-4 pt-4 border-t border-white/5">
+                                        <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Asignar squad a super squad</p>
+                                        <select value={squadAssignTeamId} onChange={e => setSquadAssignTeamId(e.target.value)} className="w-full bg-black border border-zinc-800 p-2.5 rounded-xl text-white text-sm">
+                                            <option value="">Seleccionar Squad</option>
+                                            {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                        </select>
+                                        <select value={squadAssignSuperSquadId} onChange={e => setSquadAssignSuperSquadId(e.target.value)} className="w-full bg-black border border-zinc-800 p-2.5 rounded-xl text-white text-sm">
+                                            <option value="">Seleccionar Super Squad</option>
+                                            {superSquads.map(ss => <option key={ss.id} value={ss.id}>{ss.name}</option>)}
+                                        </select>
+                                        <Button onClick={async () => {
+                                            if (!squadAssignTeamId || !squadAssignSuperSquadId) { toast.error('Selecciona squad y super squad'); return; }
+                                            await assignTeamToSuperSquad(squadAssignTeamId, squadAssignSuperSquadId);
+                                            toast.success('Squad asignado'); setSquadAssignTeamId(''); setSquadAssignSuperSquadId('');
+                                        }} fullWidth variant="outline" className="border-[#C9A84C]/30 text-[#C9A84C] hover:bg-[#C9A84C]/10">ASIGNAR</Button>
+                                    </div>
+                                )}
+                            </div>
                             {/* ------------------------------- */}
                         </div>
 
@@ -864,6 +916,35 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                     ))}
                                 </div>
                             </div>
+
+                            {superSquads.length > 0 && (
+                                <div>
+                                    <h3 className="text-lg font-black mb-4" style={{ color: '#C9A84C' }}>Super Squads</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {superSquads.map(ss => {
+                                            const head = promoters.find(p => p.user_id === ss.head_id);
+                                            const linkedTeams = teams.filter(t => t.super_squad_id === ss.id);
+                                            return (
+                                                <div key={ss.id} className="bg-black/40 border p-4 rounded-2xl" style={{ borderColor: '#C9A84C30' }}>
+                                                    <div className="flex justify-between items-start">
+                                                        <div>
+                                                            <h4 className="font-bold text-white">{ss.name}</h4>
+                                                            <p className="text-xs text-zinc-500 mt-0.5">Cabeza: {head?.name || 'N/A'}</p>
+                                                        </div>
+                                                        <button onClick={async () => { if (confirm('¿Eliminar Super Squad?')) await deleteSuperSquad(ss.id); }} className="text-zinc-700 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                                                    </div>
+                                                    <div className="mt-3 pt-3 border-t border-white/5 flex flex-wrap gap-1">
+                                                        {linkedTeams.length === 0
+                                                            ? <span className="text-[10px] text-zinc-600">Sin squads asignados</span>
+                                                            : linkedTeams.map(t => <span key={t.id} className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: '#C9A84C20', color: '#C9A84C' }}>{t.name}</span>)
+                                                        }
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
 
                             <div>
                                 <h3 className="text-lg font-black text-white mb-4">Lista Maestra</h3>

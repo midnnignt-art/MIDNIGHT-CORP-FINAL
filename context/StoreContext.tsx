@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import {
-  Event, Promoter, TicketTier, Order, UserRole, SalesTeam, EventCost, GalleryItem, AccountingMovement, EventSettlement
+  Event, Promoter, TicketTier, Order, UserRole, SalesTeam, EventCost, GalleryItem, AccountingMovement, EventSettlement, SuperSquad, PromoterPayout
 } from '../types';
 import { supabase } from '../lib/supabase';
 import { sendTicketEmail } from '../services/emailService';
@@ -11,6 +11,8 @@ interface StoreContextType {
     promoters: Promoter[];
     orders: Order[];
     teams: SalesTeam[];
+    superSquads: SuperSquad[];
+    promoterPayouts: PromoterPayout[];
     galleryItems: GalleryItem[];
     accountingMovements: AccountingMovement[];
     settlements: EventSettlement[];
@@ -53,6 +55,10 @@ interface StoreContextType {
     addSettlement: (data: { event_id: string; promoter_id: string; amount_sent: number; payment_method: string; comprobante_url?: string; notes?: string }) => Promise<void>;
     deleteSettlement: (id: string) => Promise<void>;
     transferTicket: (orderId: string, toEmail: string, toName?: string) => Promise<boolean>;
+    createSuperSquad: (name: string, headId: string) => Promise<void>;
+    deleteSuperSquad: (id: string) => Promise<void>;
+    assignTeamToSuperSquad: (teamId: string, superSquadId: string | null) => Promise<void>;
+    upsertPromoterPayout: (eventId: string, managerId: string, promoterId: string, amountPerTicket: number) => Promise<void>;
     fetchData: () => Promise<void>;
 }
 
@@ -74,6 +80,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const [teams, setTeams] = useState<SalesTeam[]>([]);
     const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
     
+    const [superSquads, setSuperSquads] = useState<SuperSquad[]>([]);
+    const [promoterPayouts, setPromoterPayouts] = useState<PromoterPayout[]>([]);
     const [accountingMovements, setAccountingMovements] = useState<AccountingMovement[]>([]);
     const [settlements, setSettlements] = useState<EventSettlement[]>([]);
 
@@ -156,6 +164,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const { data: profilesData } = await supabase.from('profiles').select('*');
             const { data: ordersData } = await supabase.from('orders').select(`*, items:order_items(*)`).order('created_at', { ascending: false });
             const { data: teamsData } = await supabase.from('sales_teams').select('*');
+            const { data: superSquadsData } = await supabase.from('super_squads').select('*').order('created_at', { ascending: false });
+            const { data: promoterPayoutsData } = await supabase.from('promoter_payouts').select('*');
             const { data: accountingData } = await supabase.from('accounting_movements').select('*').order('date', { ascending: false });
             const { data: settlementsData } = await supabase.from('event_settlements').select('*').order('created_at', { ascending: false });
 
@@ -171,6 +181,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 role: p.role,
                 sales_team_id: p.sales_team_id,
                 manager_id: p.manager_id,
+                super_squad_id: p.super_squad_id,
                 total_sales: p.total_sales || 0,
                 total_commission_earned: p.total_commission_earned || 0,
                 link_views: p.link_views || 0
@@ -199,6 +210,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setPromoters(mappedPromoters);
             setOrders(mappedOrders);
             setTeams(mappedTeams);
+            setSuperSquads(superSquadsData || []);
+            setPromoterPayouts(promoterPayoutsData || []);
             setAccountingMovements(accountingData || []);
             setSettlements(settlementsData || []);
             setDbStatus('synced');
@@ -360,7 +373,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 name: t.name,
                 price: Number(t.price),
                 quantity: Number(t.quantity),
-                commission_fixed: Number(t.commission_fixed),
+                commission_fixed: Number(t.commission_manager) || Number(t.commission_fixed) || 0,
+                commission_manager: Number(t.commission_manager) || 0,
+                commission_promoter_min: Number(t.commission_promoter_min) || 0,
                 stage: t.stage || 'general'
             }));
 
@@ -427,7 +442,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                             name: tier.name,
                             price: Number(tier.price),
                             quantity: Number(tier.quantity),
-                            commission_fixed: Number(tier.commission_fixed),
+                            commission_fixed: Number(tier.commission_manager) || Number(tier.commission_fixed) || 0,
+                            commission_manager: Number(tier.commission_manager) || 0,
+                            commission_promoter_min: Number(tier.commission_promoter_min) || 0,
                             stage: tier.stage,
                             active: true
                         })
@@ -441,7 +458,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                             name: tier.name,
                             price: Number(tier.price),
                             quantity: Number(tier.quantity),
-                            commission_fixed: Number(tier.commission_fixed),
+                            commission_fixed: Number(tier.commission_manager) || Number(tier.commission_fixed) || 0,
+                            commission_manager: Number(tier.commission_manager) || 0,
+                            commission_promoter_min: Number(tier.commission_promoter_min) || 0,
                             stage: tier.stage || 'general',
                             active: true
                         });
@@ -641,10 +660,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 // Improved uniqueness: MID + timestamp + random suffix
                 const orderNumber = `MID-${Date.now().toString().slice(-8)}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`.toUpperCase().trim();
                 
-                // Calculate commission for this single item
+                // Calculate commission for this single item (use commission_manager if set, else fall back to commission_fixed)
                 let commission = 0;
                 const tier = tiers.find(t => t.id === item.tier_id);
-                if (tier) commission = (tier.commission_fixed || 0);
+                if (tier) commission = tier.commission_manager || tier.commission_fixed || 0;
 
                 const orderPayload = {
                     order_number: orderNumber,
@@ -731,7 +750,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                         let totalCommission = 0;
                         expandedItems.forEach(item => {
                              const tier = tiers.find(t => t.id === item.tier_id);
-                             if (tier) totalCommission += (tier.commission_fixed || 0);
+                             if (tier) totalCommission += (tier.commission_manager || tier.commission_fixed || 0);
                         });
 
                         statsPromises.push(
@@ -869,6 +888,38 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
     };
 
+    const createSuperSquad = async (name: string, headId: string) => {
+        const { error } = await supabase.from('super_squads').insert({ name, head_id: headId });
+        if (error) throw error;
+        await fetchData();
+    };
+
+    const deleteSuperSquad = async (id: string) => {
+        // Unlink all teams from this super squad first
+        await supabase.from('sales_teams').update({ super_squad_id: null }).eq('super_squad_id', id);
+        const { error } = await supabase.from('super_squads').delete().eq('id', id);
+        if (error) throw error;
+        await fetchData();
+    };
+
+    const assignTeamToSuperSquad = async (teamId: string, superSquadId: string | null) => {
+        const { error } = await supabase.from('sales_teams').update({ super_squad_id: superSquadId }).eq('id', teamId);
+        if (error) throw error;
+        await fetchData();
+    };
+
+    const upsertPromoterPayout = async (eventId: string, managerId: string, promoterId: string, amountPerTicket: number) => {
+        const { error } = await supabase.from('promoter_payouts').upsert({
+            event_id: eventId,
+            manager_id: managerId,
+            promoter_id: promoterId,
+            amount_per_ticket: amountPerTicket,
+            updated_at: new Date().toISOString()
+        }, { onConflict: 'event_id,manager_id,promoter_id' });
+        if (error) throw error;
+        await fetchData();
+    };
+
     const clearDatabase = async () => {};
     const addEventCost = async (eventId: string, cost: any) => { await supabase.from('event_costs').insert({ event_id: eventId, ...cost }); await fetchData(); };
     const deleteEventCost = async (eventId: string, costId: string) => { await supabase.from('event_costs').delete().eq('id', costId); await fetchData(); };
@@ -990,12 +1041,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     return (
         <StoreContext.Provider value={{
-            events, tiers, promoters, orders, teams, galleryItems, accountingMovements, settlements, currentUser, currentCustomer, dbStatus,
+            events, tiers, promoters, orders, teams, superSquads, promoterPayouts, galleryItems, accountingMovements, settlements, currentUser, currentCustomer, dbStatus,
             login, logout, requestCustomerOtp, verifyOtpUnified, verifyCustomerOtp, customerLogout,
             getEventTiers, addEvent, updateEvent, archiveEvent, restoreEvent, hardDeleteEvent, setEventStatus,
             addStaff, deleteStaff, createTeam, updateStaffTeam, deleteTeam, createOrder, clearDatabase,
             addEventCost, deleteEventCost, updateCostStatus, updateCostActual, updateGallery, validateTicket, validarYQuemarTicket,
-            addAccountingMovement, deleteAccountingMovement, addSettlement, deleteSettlement, transferTicket, fetchData
+            addAccountingMovement, deleteAccountingMovement, addSettlement, deleteSettlement, transferTicket,
+            createSuperSquad, deleteSuperSquad, assignTeamToSuperSquad, upsertPromoterPayout, fetchData
         }}>
             {children}
         </StoreContext.Provider>
