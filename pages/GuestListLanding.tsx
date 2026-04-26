@@ -210,6 +210,15 @@ const GuestListLanding: React.FC<{ codigo: string }> = ({ codigo }) => {
               {campaign?.free_until && <span style={{ display: 'block', marginTop: 4, color: '#555' }}>Entrada libre hasta las {new Date(campaign.free_until).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}.</span>}
             </p>
           </div>
+
+          <div style={{ background: '#0D1820', border: '1px solid #1A3A5C', borderRadius: 8, padding: '14px 18px', maxWidth: 360, textAlign: 'left', display: 'flex', gap: 12, marginTop: 10 }}>
+            <span style={{ fontSize: 18, flexShrink: 0 }}>📱</span>
+            <p style={{ color: '#AAA098', fontSize: 11, lineHeight: 1.7, margin: 0, ...mono }}>
+              Entra en <strong style={{ color: '#F5F0E8' }}>midnightcorp.click</strong> e inicia sesión con{' '}
+              <strong style={{ color: '#C9A84C' }}>{email}</strong> para ver tu entrada en{' '}
+              <strong style={{ color: '#F5F0E8' }}>Mis Entradas</strong>.
+            </p>
+          </div>
         </div>
       )}
     </div>

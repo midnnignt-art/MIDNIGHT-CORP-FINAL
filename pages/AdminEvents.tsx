@@ -1,9 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { toast } from '../lib/toast';
-import { 
+import { supabase } from '../lib/supabase';
+import {
     Trash2, Plus, Pencil, Save, Users, ShieldCheck,
     UserCog, BadgeCheck, Database, Download, Upload, AlertTriangle,
-    HardDrive, RefreshCcw, Layers, Target, UserPlus, Calendar, MapPin, DollarSign, Ticket, Eye, ArrowLeft, Search, User, Filter, Share2, CheckCircle2, XCircle, MinusCircle, Lock, Key, X, UserMinus, UserCheck, Mail
+    HardDrive, RefreshCcw, Layers, Target, UserPlus, Calendar, MapPin, DollarSign, Ticket, Eye, ArrowLeft, Search, User, Filter, Share2, CheckCircle2, XCircle, MinusCircle, Lock, Key, X, UserMinus, UserCheck, Mail,
+    Tag, Percent, Loader2
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { Button } from '../components/ui/button';
@@ -29,6 +31,39 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
     
     // --- ESTADO: Navegación de Detalles de Evento ---
     const [selectedAuditId, setSelectedAuditId] = useState<string | null>(null);
+
+    // --- ESTADO: Campañas & Participantes del evento seleccionado ---
+    interface EventCampaignLead { id: string; name: string; email: string; benefit: string | null; registered_at: string; campaign_id: string; }
+    interface EventCampaignInfo { id: string; label: string; type: 'guest_list' | 'discount' | 'ruleta'; code: string; discount_pct: number | null; tier_name: string | null; leads: EventCampaignLead[]; }
+    const [eventCampaigns, setEventCampaigns] = useState<EventCampaignInfo[]>([]);
+    const [campaignsLoading, setCampaignsLoading] = useState(false);
+
+    useEffect(() => {
+        if (!selectedAuditId) return;
+        setCampaignsLoading(true);
+        setEventCampaigns([]);
+        (async () => {
+            const { data: camps } = await supabase
+                .from('campaigns')
+                .select('id, label, type, code, discount_pct, tier_name')
+                .eq('event_id', selectedAuditId);
+            if (!camps || camps.length === 0) { setCampaignsLoading(false); return; }
+            const ids = camps.map((c: any) => c.id);
+            const { data: leads } = await supabase
+                .from('campaign_leads')
+                .select('id, name, email, benefit, registered_at, campaign_id')
+                .in('campaign_id', ids)
+                .order('registered_at', { ascending: false });
+            const leadsArr = (leads ?? []) as EventCampaignLead[];
+            setEventCampaigns(
+                (camps as any[]).map(c => ({
+                    ...c,
+                    leads: leadsArr.filter(l => l.campaign_id === c.id),
+                }))
+            );
+            setCampaignsLoading(false);
+        })();
+    }, [selectedAuditId]);
 
     // --- STATE: Event Creation/Edit ---
     const [isCreatingEvent, setIsCreatingEvent] = useState(false);
@@ -468,6 +503,93 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* ── Campañas & Participantes ── */}
+                            <div className="mt-10">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <Tag className="text-[#C9A84C]" size={18} />
+                                    <h3 className="text-xl font-black text-white">Campañas & Participantes</h3>
+                                    {campaignsLoading && <Loader2 size={14} className="animate-spin text-zinc-500" />}
+                                </div>
+
+                                {!campaignsLoading && eventCampaigns.length === 0 && (
+                                    <div className="bg-zinc-900 border border-white/5 rounded-2xl p-8 text-center">
+                                        <p className="text-zinc-600 text-xs font-bold uppercase tracking-widest">No hay campañas para este evento</p>
+                                    </div>
+                                )}
+
+                                <div className="space-y-4">
+                                    {eventCampaigns.map(camp => {
+                                        const typeColor  = camp.type === 'guest_list' ? '#4A9EFF' : camp.type === 'discount' ? '#4ADE80' : '#C9A84C';
+                                        const typeLabel  = camp.type === 'guest_list' ? 'Guest List' : camp.type === 'discount' ? 'Descuento' : 'Ruleta';
+                                        const TypeIcon   = camp.type === 'guest_list' ? Users : camp.type === 'discount' ? Percent : Tag;
+                                        return (
+                                            <div key={camp.id} className="bg-zinc-900 border border-white/10 rounded-2xl overflow-hidden">
+                                                {/* Campaign header */}
+                                                <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
+                                                    <div className="flex items-center gap-3">
+                                                        <TypeIcon size={14} style={{ color: typeColor }} />
+                                                        <span className="text-white font-black text-sm">{camp.label}</span>
+                                                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full border" style={{ color: typeColor, borderColor: typeColor + '40', background: typeColor + '15', fontFamily: 'monospace' }}>
+                                                            {typeLabel}
+                                                        </span>
+                                                        {camp.type === 'discount' && camp.discount_pct && (
+                                                            <span className="text-[9px] font-bold text-[#4ADE80]" style={{ fontFamily: 'monospace' }}>
+                                                                {camp.discount_pct}% off{camp.tier_name ? ` · ${camp.tier_name}` : ''}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <span className="text-[10px] font-bold text-zinc-600" style={{ fontFamily: 'monospace' }}>
+                                                        {camp.leads.length} participante{camp.leads.length !== 1 ? 's' : ''}
+                                                    </span>
+                                                </div>
+
+                                                {/* Leads table */}
+                                                {camp.leads.length === 0 ? (
+                                                    <div className="px-6 py-5 text-center text-zinc-600 text-xs font-bold uppercase tracking-widest">
+                                                        Sin registros
+                                                    </div>
+                                                ) : (
+                                                    <div className="overflow-x-auto">
+                                                        <table className="w-full text-sm">
+                                                            <thead>
+                                                                <tr className="border-b border-white/5">
+                                                                    {['Nombre', 'Email', ...(camp.type === 'ruleta' ? ['Beneficio'] : []), 'Fecha'].map(h => (
+                                                                        <th key={h} className="text-left px-6 py-3 text-[9px] font-bold uppercase tracking-[0.3em] text-zinc-600">
+                                                                            {h}
+                                                                        </th>
+                                                                    ))}
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {camp.leads.map(l => (
+                                                                    <tr key={l.id} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
+                                                                        <td className="px-6 py-3 text-white/80 font-medium">{l.name}</td>
+                                                                        <td className="px-6 py-3 text-zinc-500 text-xs" style={{ fontFamily: 'monospace' }}>{l.email}</td>
+                                                                        {camp.type === 'ruleta' && (
+                                                                            <td className="px-6 py-3">
+                                                                                {l.benefit ? (
+                                                                                    <span className="text-[#C9A84C] text-xs font-bold" style={{ fontFamily: 'monospace' }}>{l.benefit}</span>
+                                                                                ) : (
+                                                                                    <span className="text-zinc-600 text-xs">—</span>
+                                                                                )}
+                                                                            </td>
+                                                                        )}
+                                                                        <td className="px-6 py-3 text-zinc-600 text-[10px]" style={{ fontFamily: 'monospace' }}>
+                                                                            {new Date(l.registered_at).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
                         </div>
                     ) : (
                         <div className="bg-zinc-900 border border-white/10 p-8 rounded-[2rem] max-w-4xl mx-auto">

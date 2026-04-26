@@ -36,6 +36,15 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
   const [gatewayStatus, setGatewayStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [gatewayMessage, setGatewayMessage] = useState('');
 
+  // Read applied discount from localStorage (set by DiscountLanding)
+  const [appliedDiscount] = useState(() => {
+    const pct    = parseInt(localStorage.getItem('ms_dc_pct')     || '0');
+    const tierId = localStorage.getItem('ms_dc_tier_id')  || null;
+    const label  = localStorage.getItem('ms_dc_label')    || '';
+    const tname  = localStorage.getItem('ms_dc_tier_name')|| '';
+    return pct > 0 ? { pct, tierId, label, tierName: tname } : null;
+  });
+
   useEffect(() => {
     if (currentCustomer) {
         setEmail(currentCustomer.email || '');
@@ -198,16 +207,24 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
     .filter(([_, qty]) => (qty as number) > 0)
     .map(([tierId, qty]) => {
       const tier = tiers.find(t => t.id === tierId);
-      return { 
-        tier_id: tier?.id, 
-        tier_name: tier?.name, 
-        quantity: qty as number, 
-        unit_price: tier?.price || 0,
-        subtotal: (tier?.price || 0) * (qty as number) 
+      const base = tier?.price || 0;
+      // Apply discount: if no tier_id restriction → applies to all tiers; if tier_id set → only that tier
+      const hasDiscount = appliedDiscount && (appliedDiscount.tierId === null || appliedDiscount.tierId === tierId);
+      const unitPrice   = hasDiscount ? Math.round(base * (1 - appliedDiscount!.pct / 100)) : base;
+      return {
+        tier_id:        tier?.id,
+        tier_name:      tier?.name,
+        quantity:       qty as number,
+        unit_price:     unitPrice,
+        original_price: hasDiscount ? base : undefined,
+        subtotal:       unitPrice * (qty as number),
       };
     });
 
   const subtotal = selectedItems.reduce((sum, item) => sum + item.subtotal, 0);
+  const discountAppliedToSelected = appliedDiscount && selectedItems.some(i =>
+    appliedDiscount.tierId === null || appliedDiscount.tierId === i.tier_id
+  );
 
   const translateError = (msg: string = '') => {
       const m = msg.toLowerCase();
@@ -272,10 +289,33 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
           {step === 0 && (
             <motion.div key="s0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-8">
               <h3 className="text-2xl md:text-3xl font-black text-moonlight uppercase tracking-tighter">Entradas</h3>
+
+              {/* Discount banner */}
+              {appliedDiscount && (
+                <div className="flex items-center gap-3 bg-[#C9A84C]/10 border border-[#C9A84C]/25 rounded-xl px-4 py-3">
+                  <span className="text-[#C9A84C] text-lg">🏷</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[#C9A84C] text-[10px] font-black uppercase tracking-[0.25em]" style={{ fontFamily: "'Space Mono',monospace" }}>
+                      Descuento {appliedDiscount.pct}% activo
+                    </p>
+                    <p className="text-moonlight/40 text-[9px] truncate" style={{ fontFamily: "'Space Mono',monospace" }}>
+                      {appliedDiscount.tierName ? `Boleta: ${appliedDiscount.tierName}` : appliedDiscount.label}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <TicketSelector tiers={tiers} selectedTiers={selectedTiers} onSelect={setSelectedTiers} />
               <div className="flex justify-between items-center py-6 border-t border-moonlight/10">
                 <span className="text-moonlight/40 font-light text-[10px] uppercase tracking-[0.3em]">Total</span>
-                <span className="text-3xl md:text-4xl font-black text-moonlight tabular-nums">${subtotal.toLocaleString()}</span>
+                <div className="text-right">
+                  {discountAppliedToSelected && (
+                    <p className="text-moonlight/30 text-sm line-through tabular-nums text-right">
+                      ${selectedItems.reduce((s, i) => s + (i.original_price ?? i.unit_price) * i.quantity, 0).toLocaleString()}
+                    </p>
+                  )}
+                  <span className="text-3xl md:text-4xl font-black text-moonlight tabular-nums">${subtotal.toLocaleString()}</span>
+                </div>
               </div>
               <button
                 onClick={() => setStep(currentCustomer ? 2 : 1)}

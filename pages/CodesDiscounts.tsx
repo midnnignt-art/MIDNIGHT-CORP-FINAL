@@ -8,7 +8,7 @@ type Tab = 'campañas' | 'ruleta';
 type CampaignType = 'guest_list' | 'discount' | 'ruleta';
 
 interface Benefit { id: number; label: string; color: string; prob: number; }
-interface Campaign { id: string; code: string; type: CampaignType; label: string; event_id: string; active: boolean; free_until: string | null; discount_pct: number | null; benefits: Benefit[] | null; benefit_valid_hours: number; created_at: string; }
+interface Campaign { id: string; code: string; type: CampaignType; label: string; event_id: string; active: boolean; free_until: string | null; discount_pct: number | null; tier_id: string | null; tier_name: string | null; benefits: Benefit[] | null; benefit_valid_hours: number; created_at: string; }
 
 const TYPE_META: Record<CampaignType, { label: string; icon: React.ReactNode; urlBase: string; color: string }> = {
   guest_list: { label: 'Guest List',  icon: <Users  size={12} />, urlBase: '/gl/',    color: '#4A9EFF' },
@@ -31,7 +31,7 @@ function genCode(type: CampaignType) {
 }
 
 export const CodesDiscounts: React.FC = () => {
-  const { events } = useStore();
+  const { events, getEventTiers } = useStore();
   const [activeTab, setActiveTab] = useState<Tab>('campañas');
 
   // Campaign list
@@ -47,6 +47,7 @@ export const CodesDiscounts: React.FC = () => {
   const [newEventId,   setNewEventId]   = useState('');
   const [newFreeUntil, setNewFreeUntil] = useState('');
   const [newDiscPct,   setNewDiscPct]   = useState(20);
+  const [newTierId,    setNewTierId]    = useState('');
   const [newBenefits,  setNewBenefits]  = useState<Benefit[]>(DEFAULT_BENEFITS);
   const [newValidHrs,  setNewValidHrs]  = useState(12);
   const [newBenLabel,  setNewBenLabel]  = useState('');
@@ -68,7 +69,14 @@ export const CodesDiscounts: React.FC = () => {
     const code = genCode(newType);
     const payload: any = { code, type: newType, label: newLabel.trim(), event_id: newEventId, active: true };
     if (newType === 'guest_list') payload.free_until = newFreeUntil || null;
-    if (newType === 'discount')   payload.discount_pct = newDiscPct;
+    if (newType === 'discount') {
+      payload.discount_pct = newDiscPct;
+      if (newTierId) {
+        const t = getEventTiers(newEventId).find(t => t.id === newTierId);
+        payload.tier_id   = newTierId;
+        payload.tier_name = t?.name ?? null;
+      }
+    }
     if (newType === 'ruleta')     { payload.benefits = newBenefits; payload.benefit_valid_hours = newValidHrs; }
     const { error } = await supabase.from('campaigns').insert(payload);
     if (!error) { resetForm(); await loadCampaigns(); }
@@ -77,7 +85,7 @@ export const CodesDiscounts: React.FC = () => {
 
   function resetForm() {
     setShowForm(false); setNewLabel(''); setNewEventId(''); setNewFreeUntil('');
-    setNewDiscPct(20); setNewBenefits(DEFAULT_BENEFITS); setNewValidHrs(12); setNewBenLabel(''); setNewBenProb(10); setNewBenColor('#C9A84C');
+    setNewDiscPct(20); setNewTierId(''); setNewBenefits(DEFAULT_BENEFITS); setNewValidHrs(12); setNewBenLabel(''); setNewBenProb(10); setNewBenColor('#C9A84C');
   }
 
   async function toggleCampaign(id: string, active: boolean) {
@@ -181,14 +189,38 @@ export const CodesDiscounts: React.FC = () => {
                 </div>
               )}
 
-              {/* Discount: pct */}
+              {/* Discount: pct + tier */}
               {newType === 'discount' && (
-                <div>
-                  <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-white/30 mb-2" style={{ fontFamily: "'Space Mono',monospace" }}>% de descuento</p>
-                  <div className="flex items-center gap-3">
-                    <input type="number" min={1} max={100} value={newDiscPct} onChange={e => setNewDiscPct(parseInt(e.target.value) || 1)} className="w-24 bg-black/40 border border-white/10 rounded-xl px-4 h-11 text-[#C9A84C] text-center font-bold outline-none focus:border-[#C9A84C]/40" style={{ fontFamily: 'monospace' }} />
-                    <span className="text-white/30 text-sm">%</span>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-white/30 mb-2" style={{ fontFamily: "'Space Mono',monospace" }}>% de descuento</p>
+                    <div className="flex items-center gap-3">
+                      <input type="number" min={1} max={100} value={newDiscPct} onChange={e => setNewDiscPct(parseInt(e.target.value) || 1)} className="w-24 bg-black/40 border border-white/10 rounded-xl px-4 h-11 text-[#C9A84C] text-center font-bold outline-none focus:border-[#C9A84C]/40" style={{ fontFamily: 'monospace' }} />
+                      <span className="text-white/30 text-sm">%</span>
+                    </div>
                   </div>
+                  {newEventId && (
+                    <div>
+                      <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-white/30 mb-2" style={{ fontFamily: "'Space Mono',monospace" }}>Aplicar a etapa / boleta</p>
+                      <select
+                        value={newTierId}
+                        onChange={e => setNewTierId(e.target.value)}
+                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 h-11 text-sm text-white outline-none focus:border-[#C9A84C]/40"
+                      >
+                        <option value="">— Todas las boletas —</option>
+                        {getEventTiers(newEventId).map(t => (
+                          <option key={t.id} value={t.id}>
+                            {t.name} · {t.stage.replace('_', ' ')} · ${t.price.toLocaleString()}
+                          </option>
+                        ))}
+                      </select>
+                      {!newTierId && (
+                        <p className="text-[9px] text-amber-400/60 mt-1.5" style={{ fontFamily: "'Space Mono',monospace" }}>
+                          ⚠ Sin etapa seleccionada el descuento aplica a todas las boletas
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -269,7 +301,12 @@ export const CodesDiscounts: React.FC = () => {
                             <span className="text-white font-black text-sm truncate">{c.label}</span>
                             <span className="flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full border flex-shrink-0" style={{ color: meta.color, borderColor: meta.color + '30', background: meta.color + '10', fontFamily: "'Space Mono',monospace" }}>{meta.icon}{meta.label}</span>
                           </div>
-                          <p className="text-white/30 text-[10px] truncate" style={{ fontFamily: "'Space Mono',monospace" }}>{ev?.title ?? '—'}</p>
+                          <p className="text-white/30 text-[10px] truncate" style={{ fontFamily: "'Space Mono',monospace" }}>
+                            {ev?.title ?? '—'}
+                            {c.type === 'discount' && c.discount_pct && (
+                              <span className="ml-2 text-[#4ADE80]">{c.discount_pct}% off{c.tier_name ? ` · ${c.tier_name}` : ''}</span>
+                            )}
+                          </p>
                         </div>
                       </div>
 
