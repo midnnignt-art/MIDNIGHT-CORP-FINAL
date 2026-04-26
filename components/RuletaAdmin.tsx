@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, Printer, Loader2 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 interface Benefit {
   id: number;
@@ -347,6 +348,22 @@ function WheelCanvas({
   );
 }
 
+// ── Leads interfaces ──────────────────────────────────────────────────────────
+interface RuletaLead {
+  id: string;
+  name: string;
+  email: string;
+  benefit: string | null;
+  benefit_color: string | null;
+  registered_at: string;
+  campaign_id: string;
+}
+interface RuletaCampaignMeta {
+  id: string;
+  label: string;
+  code: string;
+}
+
 // ── Main export ───────────────────────────────────────────────────────────────
 export const RuletaAdmin: React.FC = () => {
   const [benefits,  setBenefits]  = useState<Benefit[]>(MOCK_BENEFITS);
@@ -356,6 +373,35 @@ export const RuletaAdmin: React.FC = () => {
   const [newLabel,  setNewLabel]  = useState('');
   const [newProb,   setNewProb]   = useState(10);
   const [newColor,  setNewColor]  = useState('#C9A84C');
+
+  // Leads state
+  const [leads,        setLeads]        = useState<RuletaLead[]>([]);
+  const [campaigns,    setCampaigns]    = useState<RuletaCampaignMeta[]>([]);
+  const [leadsLoading, setLeadsLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadLeads() {
+      setLeadsLoading(true);
+      const { data: camps } = await supabase
+        .from('campaigns')
+        .select('id, label, code')
+        .eq('type', 'ruleta');
+      const campList = (camps ?? []) as RuletaCampaignMeta[];
+      setCampaigns(campList);
+
+      const ids = campList.map(c => c.id);
+      if (ids.length > 0) {
+        const { data: leadRows } = await supabase
+          .from('campaign_leads')
+          .select('id, name, email, benefit, benefit_color, registered_at, campaign_id')
+          .in('campaign_id', ids)
+          .order('registered_at', { ascending: false });
+        setLeads((leadRows ?? []) as RuletaLead[]);
+      }
+      setLeadsLoading(false);
+    }
+    loadLeads();
+  }, []);
 
   const total   = benefits.reduce((s, b) => s + b.prob, 0);
   const totalOk = Math.abs(total - 100) < 1;
@@ -369,6 +415,8 @@ export const RuletaAdmin: React.FC = () => {
   function handleResult(b: Benefit) { setResult(b); setHasSpun(true); }
   function resetSpin()               { setResult(null); setHasSpun(false); }
 
+  const campMap = Object.fromEntries(campaigns.map(c => [c.id, c]));
+
   return (
     <>
       <style>{`
@@ -378,9 +426,21 @@ export const RuletaAdmin: React.FC = () => {
         @keyframes mc_tapBounce    { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
         @keyframes mc_blink        { 0%,100%{opacity:1} 50%{opacity:0} }
         @keyframes mc_resultPop    { 0%{transform:scale(.4);opacity:0} 70%{transform:scale(1.1)} 100%{transform:scale(1);opacity:1} }
+        @media print {
+          body > * { visibility: hidden !important; }
+          #ruleta-leads-print, #ruleta-leads-print * { visibility: visible !important; }
+          #ruleta-leads-print { position: fixed; inset: 0; padding: 32px; background: white; color: black; }
+          #ruleta-leads-print .no-print { display: none !important; }
+          #ruleta-leads-print table { width: 100%; border-collapse: collapse; font-size: 12px; }
+          #ruleta-leads-print th, #ruleta-leads-print td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+          #ruleta-leads-print th { background: #f0f0f0; font-weight: bold; text-transform: uppercase; font-size: 10px; letter-spacing: 0.05em; }
+        }
       `}</style>
 
-      <div className="flex flex-col xl:flex-row gap-10 items-start">
+      <div className="flex flex-col gap-10">
+
+        {/* ── Wheel + Config row ── */}
+        <div className="flex flex-col xl:flex-row gap-10 items-start">
 
         {/* ── Wheel column ── */}
         <div className="flex flex-col items-center flex-shrink-0">
@@ -572,6 +632,114 @@ export const RuletaAdmin: React.FC = () => {
               </div>
             </div>
           </div>
+        </div>
+
+        </div>{/* end wheel+config row */}
+
+        {/* ── Leads table ── */}
+        <div id="ruleta-leads-print" className="bg-white/[0.02] border border-white/5 rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-5 no-print">
+            <div>
+              <p
+                className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/30"
+                style={{ fontFamily: "'Space Mono', monospace" }}
+              >
+                Participantes Ruleta
+              </p>
+              <p className="text-white text-sm font-black mt-0.5" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+                {leads.length} registros
+              </p>
+            </div>
+            <button
+              onClick={() => window.print()}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[#C9A84C]/30 text-[#C9A84C] hover:bg-[#C9A84C]/10 transition-all text-[10px] font-bold uppercase tracking-[0.25em]"
+              style={{ fontFamily: "'Space Mono', monospace" }}
+            >
+              <Printer size={13} />
+              Imprimir
+            </button>
+          </div>
+
+          {/* Print-only header */}
+          <div className="hidden" style={{ display: 'none' }} id="print-header">
+            <h1 style={{ fontFamily: 'sans-serif', fontSize: 18, fontWeight: 'bold', marginBottom: 4 }}>Midnight — Participantes Ruleta</h1>
+            <p style={{ fontFamily: 'monospace', fontSize: 11, color: '#555', marginBottom: 16 }}>
+              Generado: {new Date().toLocaleString('es-MX')} · Total: {leads.length}
+            </p>
+          </div>
+
+          {leadsLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="w-6 h-6 text-[#C9A84C] animate-spin" />
+            </div>
+          ) : leads.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-white/20 text-sm" style={{ fontFamily: "'Space Mono', monospace" }}>
+                Aún no hay participantes
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/5">
+                    {['Nombre', 'Email', 'Beneficio', 'Campaña', 'Fecha'].map(h => (
+                      <th
+                        key={h}
+                        className="text-left pb-3 pr-4 text-[9px] font-bold uppercase tracking-[0.3em] text-white/25"
+                        style={{ fontFamily: "'Space Mono', monospace" }}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {leads.map(l => {
+                    const camp = campMap[l.campaign_id];
+                    return (
+                      <tr key={l.id} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
+                        <td className="py-3 pr-4 text-white/80 font-medium" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 15 }}>
+                          {l.name}
+                        </td>
+                        <td className="py-3 pr-4 text-white/40 text-xs" style={{ fontFamily: "'Space Mono', monospace" }}>
+                          {l.email}
+                        </td>
+                        <td className="py-3 pr-4">
+                          {l.benefit ? (
+                            <span
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold"
+                              style={{
+                                background: (l.benefit_color ?? '#C9A84C') + '22',
+                                color: l.benefit_color ?? '#C9A84C',
+                                fontFamily: "'Space Mono', monospace",
+                                fontSize: 10,
+                                letterSpacing: '0.05em',
+                              }}
+                            >
+                              <span
+                                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                style={{ background: l.benefit_color ?? '#C9A84C' }}
+                              />
+                              {l.benefit}
+                            </span>
+                          ) : (
+                            <span className="text-white/20 text-xs">—</span>
+                          )}
+                        </td>
+                        <td className="py-3 pr-4 text-white/30 text-[10px]" style={{ fontFamily: "'Space Mono', monospace" }}>
+                          {camp?.label ?? '—'}
+                        </td>
+                        <td className="py-3 text-white/25 text-[10px]" style={{ fontFamily: "'Space Mono', monospace" }}>
+                          {new Date(l.registered_at).toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
       </div>

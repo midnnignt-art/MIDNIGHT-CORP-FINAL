@@ -10,6 +10,9 @@ import { Accounting } from './pages/Accounting';
 import { CodesDiscounts } from './pages/CodesDiscounts';
 import { SuccessPage } from './pages/SuccessPage';
 import BouncerScanner from './pages/BouncerScanner';
+import PromoLanding from './pages/PromoLanding';
+import GuestListLanding from './pages/GuestListLanding';
+import DiscountLanding from './pages/DiscountLanding';
 import { CheckoutModal } from './components/CheckoutModal';
 import MagicPanel from './components/MagicPanel';
 import { UserRole, Event } from './types';
@@ -37,6 +40,9 @@ const App: React.FC = () => {
   // Check for special routes
   const isSuccessPage  = window.location.pathname === '/gracias';
   const isBouncerPage  = window.location.pathname === '/bouncer';
+  const promoMatch     = window.location.pathname.match(/^\/promo\/([^/]+)$/);
+  const glMatch        = window.location.pathname.match(/^\/gl\/([^/]+)$/);
+  const discountMatch  = window.location.pathname.match(/^\/d\/([^/]+)$/);
 
   // Lógica de Atribución de Referidos (Landing Page Personalizada)
   useEffect(() => {
@@ -93,8 +99,11 @@ const App: React.FC = () => {
       setIsCheckoutOpen(false);
   };
 
-  if (isSuccessPage) return <SuccessPage />;
-  if (isBouncerPage) return <BouncerScanner />;
+  if (isSuccessPage)   return <SuccessPage />;
+  if (isBouncerPage)   return <BouncerScanner />;
+  if (promoMatch)      return <PromoLanding    codigo={promoMatch[1]} />;
+  if (glMatch)         return <GuestListLanding codigo={glMatch[1]} />;
+  if (discountMatch)   return <DiscountLanding  codigo={discountMatch[1]} />;
 
   return (
     <div className="min-h-screen bg-void text-moonlight font-sans selection:bg-eclipse selection:text-white relative">
