@@ -36,12 +36,12 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
   const [gatewayStatus, setGatewayStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [gatewayMessage, setGatewayMessage] = useState('');
 
-  // Read applied discount from localStorage (set by DiscountLanding)
+  // Read applied discount from sessionStorage (set by DiscountLanding, lives only for this tab session)
   const [appliedDiscount] = useState(() => {
-    const pct    = parseInt(localStorage.getItem('ms_dc_pct')     || '0');
-    const tierId = localStorage.getItem('ms_dc_tier_id')  || null;
-    const label  = localStorage.getItem('ms_dc_label')    || '';
-    const tname  = localStorage.getItem('ms_dc_tier_name')|| '';
+    const pct    = parseInt(sessionStorage.getItem('ms_dc_pct')     || '0');
+    const tierId = sessionStorage.getItem('ms_dc_tier_id')  || null;
+    const label  = sessionStorage.getItem('ms_dc_label')    || '';
+    const tname  = sessionStorage.getItem('ms_dc_tier_name')|| '';
     return pct > 0 ? { pct, tierId, label, tierName: tname } : null;
   });
 

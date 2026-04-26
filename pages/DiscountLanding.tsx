@@ -12,12 +12,12 @@ const DiscountLanding: React.FC<{ codigo: string }> = ({ codigo }) => {
       .maybeSingle()
       .then(({ data }) => {
         if (data && data.active) {
-          localStorage.setItem('ms_dc_code',     data.code);
-          localStorage.setItem('ms_dc_pct',      String(data.discount_pct));
-          localStorage.setItem('ms_dc_label',    data.label);
-          localStorage.setItem('ms_dc_event_id', data.event_id ?? '');
-          if (data.tier_id)   localStorage.setItem('ms_dc_tier_id',   data.tier_id);
-          if (data.tier_name) localStorage.setItem('ms_dc_tier_name', data.tier_name);
+          sessionStorage.setItem('ms_dc_code',     data.code);
+          sessionStorage.setItem('ms_dc_pct',      String(data.discount_pct));
+          sessionStorage.setItem('ms_dc_label',    data.label);
+          sessionStorage.setItem('ms_dc_event_id', data.event_id ?? '');
+          if (data.tier_id)   sessionStorage.setItem('ms_dc_tier_id',   data.tier_id);
+          if (data.tier_name) sessionStorage.setItem('ms_dc_tier_name', data.tier_name);
         }
         window.location.href = '/';
       });

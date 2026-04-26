@@ -32,13 +32,13 @@ const App: React.FC = () => {
 
   // Discount banner — shown when user arrived via a discount link
   const [discountBanner, setDiscountBanner] = useState<{ pct: number; label: string; tierName: string; eventId: string } | null>(() => {
-    const pct = parseInt(localStorage.getItem('ms_dc_pct') || '0');
+    const pct = parseInt(sessionStorage.getItem('ms_dc_pct') || '0');
     if (!pct) return null;
     return {
       pct,
-      label:    localStorage.getItem('ms_dc_label')     || '',
-      tierName: localStorage.getItem('ms_dc_tier_name') || '',
-      eventId:  localStorage.getItem('ms_dc_event_id')  || '',
+      label:    sessionStorage.getItem('ms_dc_label')     || '',
+      tierName: sessionStorage.getItem('ms_dc_tier_name') || '',
+      eventId:  sessionStorage.getItem('ms_dc_event_id')  || '',
     };
   });
 
@@ -48,8 +48,14 @@ const App: React.FC = () => {
     if (ev) { setSelectedEvent(ev); setIsCheckoutOpen(true); }
   }
 
+  function clearDiscountSession() {
+    ['ms_dc_code','ms_dc_pct','ms_dc_label','ms_dc_event_id','ms_dc_tier_id','ms_dc_tier_name']
+      .forEach(k => sessionStorage.removeItem(k));
+  }
+
   function dismissDiscountBanner() {
     setDiscountBanner(null);
+    clearDiscountSession();
   }
   
   const [referralToast, setReferralToast] = useState<{show: boolean, name: string}>({show: false, name: ''});
@@ -119,7 +125,9 @@ const App: React.FC = () => {
   };
 
   const handlePurchaseComplete = () => {
-      setIsCheckoutOpen(false);
+    setIsCheckoutOpen(false);
+    setDiscountBanner(null);
+    clearDiscountSession();
   };
 
   if (isSuccessPage)   return <SuccessPage />;
