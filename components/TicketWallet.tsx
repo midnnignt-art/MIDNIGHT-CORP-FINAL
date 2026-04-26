@@ -127,39 +127,44 @@ export default function TicketWallet() {
       {/* ── TRANSFER MODAL ────────────────────────────────────────────────── */}
       <AnimatePresence>
         {transferOrderId && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl">
+          <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center sm:p-4 bg-black/80 backdrop-blur-xl">
             <motion.div
-              initial={{ scale: 0.92, opacity: 0, y: 16 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.92, opacity: 0, y: 16 }}
-              transition={{ type: 'spring', damping: 24, stiffness: 200 }}
-              className="w-full max-w-sm bg-midnight border border-moonlight/10 rounded-3xl p-7 relative shadow-[0_40px_80px_rgba(0,0,0,0.8),0_0_0_1px_rgba(73,15,124,0.15)]"
+              initial={{ y: '100%', opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '100%', opacity: 0 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+              className="w-full sm:max-w-sm bg-[#0D0D1A] border border-moonlight/10 rounded-t-[2rem] sm:rounded-[2rem] p-6 relative shadow-[0_-20px_60px_rgba(0,0,0,0.6)]"
             >
+              {/* Handle bar mobile */}
+              <div className="w-10 h-1 bg-moonlight/15 rounded-full mx-auto mb-5 sm:hidden" />
+
               <button
                 onClick={() => { setTransferOrderId(null); setTransferEmail(''); setTransferName(''); }}
-                className="absolute top-5 right-5 text-moonlight/30 hover:text-moonlight transition-colors rounded-full p-1 hover:bg-white/5"
+                className="absolute top-5 right-5 text-moonlight/30 hover:text-moonlight transition-colors p-1"
               >
-                <X size={18} />
+                <X size={20} />
               </button>
 
-              <div className="flex justify-center mb-5">
-                <div className="w-14 h-14 bg-eclipse/20 rounded-2xl flex items-center justify-center border border-eclipse/30 shadow-[0_0_24px_rgba(73,15,124,0.3)]">
+              {/* Icon + title */}
+              <div className="flex items-center gap-4 mb-5">
+                <div className="w-12 h-12 bg-eclipse/20 rounded-2xl flex items-center justify-center border border-eclipse/30 flex-shrink-0">
                   <Send size={20} className="text-eclipse" />
                 </div>
+                <div>
+                  <h2 className="text-base font-black text-moonlight uppercase tracking-tight leading-none mb-1">Reenviar Entrada</h2>
+                  <p className="text-moonlight/35 text-[10px] font-medium">La entrada pasará a la billetera del destinatario</p>
+                </div>
               </div>
-
-              <h2 className="text-lg font-black text-moonlight text-center mb-1 uppercase tracking-tight">Transferir Entrada</h2>
-              <p className="text-moonlight/30 text-[10px] text-center mb-6 uppercase font-bold tracking-widest">La entrada desaparecerá de tu billetera</p>
 
               <div className="space-y-3">
                 <div>
                   <label className="text-[9px] font-black text-moonlight/40 uppercase tracking-widest block mb-1.5">Email del destinatario *</label>
                   <input
                     type="email"
-                    placeholder="amigo@email.com"
+                    placeholder="correo@ejemplo.com"
                     value={transferEmail}
                     onChange={e => setTransferEmail(e.target.value)}
-                    className="w-full bg-void border border-moonlight/10 rounded-2xl px-4 h-12 text-sm text-moonlight font-medium focus:border-eclipse outline-none transition-colors placeholder:text-moonlight/20"
+                    className="w-full bg-black/40 border border-moonlight/10 rounded-2xl px-4 h-12 text-sm text-moonlight font-medium focus:border-eclipse/60 outline-none transition-colors placeholder:text-moonlight/20"
                     autoFocus
                   />
                 </div>
@@ -167,21 +172,31 @@ export default function TicketWallet() {
                   <label className="text-[9px] font-black text-moonlight/40 uppercase tracking-widest block mb-1.5">Nombre (opcional)</label>
                   <input
                     type="text"
-                    placeholder="Nombre del destinatario"
+                    placeholder="¿A quién le envías la entrada?"
                     value={transferName}
                     onChange={e => setTransferName(e.target.value)}
-                    className="w-full bg-void border border-moonlight/10 rounded-2xl px-4 h-12 text-sm text-moonlight font-medium focus:border-eclipse outline-none transition-colors placeholder:text-moonlight/20"
+                    className="w-full bg-black/40 border border-moonlight/10 rounded-2xl px-4 h-12 text-sm text-moonlight font-medium focus:border-eclipse/60 outline-none transition-colors placeholder:text-moonlight/20"
                   />
                 </div>
-                <button
-                  onClick={handleTransfer}
-                  disabled={transferLoading || !transferEmail.includes('@')}
-                  className="w-full h-12 bg-eclipse hover:bg-eclipse/80 text-moonlight font-black text-xs uppercase tracking-widest rounded-2xl transition-all disabled:opacity-40 flex items-center justify-center gap-2 mt-2 shadow-[0_0_30px_rgba(73,15,124,0.3)] active:scale-[0.98]"
-                >
-                  {transferLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={14} />}
-                  {transferLoading ? 'Transfiriendo...' : 'Confirmar Transferencia'}
-                </button>
-                <p className="text-[9px] text-moonlight/20 text-center pt-1">
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={() => { setTransferOrderId(null); setTransferEmail(''); setTransferName(''); }}
+                    className="h-12 px-5 rounded-2xl border border-moonlight/10 text-moonlight/40 hover:text-moonlight hover:border-moonlight/20 text-xs font-black uppercase tracking-widest transition-all"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleTransfer}
+                    disabled={transferLoading || !transferEmail.includes('@')}
+                    className="flex-1 h-12 bg-eclipse hover:bg-eclipse/80 text-white font-black text-xs uppercase tracking-widest rounded-2xl transition-all disabled:opacity-40 flex items-center justify-center gap-2 shadow-[0_0_24px_rgba(73,15,124,0.35)] active:scale-[0.98]"
+                  >
+                    {transferLoading ? <Loader2 size={15} className="animate-spin" /> : <Send size={14} />}
+                    {transferLoading ? 'Enviando...' : 'Confirmar Envío'}
+                  </button>
+                </div>
+
+                <p className="text-[9px] text-moonlight/20 text-center">
                   Esta acción no se puede deshacer.
                 </p>
               </div>
@@ -263,6 +278,7 @@ export default function TicketWallet() {
                 <MidnightTicketCard
                   order={myOrders[currentIndex]}
                   event={events.find(e => e.id === myOrders[currentIndex].event_id)}
+                  onTransfer={() => setTransferOrderId(myOrders[currentIndex].id)}
                 />
               </motion.div>
             </AnimatePresence>
@@ -290,15 +306,6 @@ export default function TicketWallet() {
             </div>
           )}
 
-          {/* Transfer button */}
-          {!myOrders[currentIndex]?.used && (
-            <button
-              onClick={() => setTransferOrderId(myOrders[currentIndex].id)}
-              className="flex items-center gap-2 text-[10px] text-moonlight/30 hover:text-eclipse font-black uppercase tracking-widest transition-colors mx-auto mt-4"
-            >
-              <Send size={11} /> Transferir esta entrada
-            </button>
-          )}
         </div>
 
       ) : (
@@ -310,15 +317,8 @@ export default function TicketWallet() {
                 <MidnightTicketCard
                   order={order}
                   event={events.find(e => e.id === order.event_id)}
+                  onTransfer={() => setTransferOrderId(order.id)}
                 />
-                {!order.used && (
-                  <button
-                    onClick={() => setTransferOrderId(order.id)}
-                    className="mt-4 flex items-center gap-2 text-[10px] text-moonlight/30 hover:text-eclipse font-black uppercase tracking-widest transition-colors mx-auto"
-                  >
-                    <Send size={11} /> Transferir entrada
-                  </button>
-                )}
               </div>
             </div>
           ))}

@@ -1,11 +1,12 @@
 import React, { useRef } from 'react';
-import { Download } from 'lucide-react';
+import { Download, Send } from 'lucide-react';
 import { Event, Order } from '../types';
 import { toast } from '../lib/toast';
 
 interface MidnightTicketCardProps {
     order: Order;
     event?: Event;
+    onTransfer?: () => void;
 }
 
 // roundRect polyfill — avoids ctx.roundRect() which isn't on older iOS
@@ -23,7 +24,7 @@ function rrect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h
     ctx.closePath();
 }
 
-export const MidnightTicketCard: React.FC<MidnightTicketCardProps> = ({ order, event }) => {
+export const MidnightTicketCard: React.FC<MidnightTicketCardProps> = ({ order, event, onTransfer }) => {
     const [isDownloading, setIsDownloading] = React.useState(false);
 
     const qrUrl = `https://quickchart.io/qr?text=${encodeURIComponent(order.order_number)}&size=400&ecLevel=H&margin=1`;
@@ -252,8 +253,17 @@ export const MidnightTicketCard: React.FC<MidnightTicketCardProps> = ({ order, e
                 </div>
             </div>
 
-            {/* ACTION BUTTON */}
+            {/* ACTION BUTTONS */}
             <div className="w-full flex gap-3">
+                {onTransfer && !order.used && (
+                    <button
+                        onClick={onTransfer}
+                        className="flex-1 bg-eclipse/20 border border-eclipse/50 text-moonlight font-black h-12 rounded-2xl flex items-center justify-center gap-2 hover:bg-eclipse/40 hover:border-eclipse/80 transition-all active:scale-95"
+                    >
+                        <Send size={16} />
+                        <span className="text-xs uppercase tracking-widest">Reenviar</span>
+                    </button>
+                )}
                 <button
                     onClick={handleDownload}
                     disabled={isDownloading}
@@ -264,7 +274,7 @@ export const MidnightTicketCard: React.FC<MidnightTicketCardProps> = ({ order, e
                     ) : (
                         <>
                             <Download size={18} />
-                            <span className="text-xs uppercase tracking-widest">Descargar Imagen</span>
+                            <span className="text-xs uppercase tracking-widest">Descargar</span>
                         </>
                     )}
                 </button>
