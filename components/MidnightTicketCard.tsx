@@ -168,35 +168,29 @@ export const MidnightTicketCard: React.FC<MidnightTicketCardProps> = ({ order, e
             ctx.fillText('PRESENTA ESTE QR EN LA ENTRADA', W / 2, H - footerH / 2 + 4);
             ctx.letterSpacing = '0px';
 
-            // ── 9. Download ──────────────────────────────────────────────────
-            const dataUrl = canvas.toDataURL('image/png');
-            const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+            // ── 9. Download / Share ───────────────────────────────────────────
+            const blob = await new Promise<Blob | null>(res => canvas.toBlob(res, 'image/png'));
+            if (!blob) throw new Error('canvas toBlob failed');
 
-            if (isIOS) {
-                // iOS Safari can't trigger file downloads — open image in new tab, user saves with long-press
-                const win = window.open('', '_blank');
-                if (win) {
-                    win.document.write(
-                        `<!DOCTYPE html><html><head><title>MIDNIGHT Ticket</title>` +
-                        `<meta name="viewport" content="width=device-width,initial-scale=1">` +
-                        `<style>body{margin:0;background:#0B0316;display:flex;justify-content:center;align-items:flex-start;padding:16px;}` +
-                        `img{max-width:100%;border-radius:16px;}</style></head>` +
-                        `<body><img src="${dataUrl}" /></body></html>`
-                    );
-                    win.document.close();
-                } else {
-                    toast.error('Activa las ventanas emergentes para descargar');
-                }
+            const filename = `MIDNIGHT_TICKET_${order.order_number}.png`;
+            const file = new File([blob], filename, { type: 'image/png' });
+
+            // Web Share API (iOS & Android native share sheet — no popup needed)
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({ files: [file], title: 'Mi Entrada MIDNIGHT' });
             } else {
+                // Desktop fallback — direct download
+                const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
-                link.href = dataUrl;
-                link.download = `MIDNIGHT_TICKET_${order.order_number}.png`;
+                link.href = url;
+                link.download = filename;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
+                URL.revokeObjectURL(url);
             }
 
-            toast.success(isIOS ? 'Mantén presionada la imagen para guardarla' : 'Tu boleta ha sido guardada');
+            toast.success('¡Boleta guardada!');
         } catch (error) {
             console.error('Error generating ticket:', error);
             toast.error('Error al generar la boleta. Intenta de nuevo.');
