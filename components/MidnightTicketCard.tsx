@@ -18,20 +18,6 @@ export const MidnightTicketCard: React.FC<MidnightTicketCardProps> = ({ order, e
         setIsDownloading(true);
 
         try {
-            // Pre-fetch QR as blob URL to avoid html2canvas CORS issues
-            const qrImgEl = ticketRef.current.querySelector('img') as HTMLImageElement | null;
-            let blobUrl: string | null = null;
-            const originalSrc = qrImgEl?.src;
-
-            if (qrImgEl) {
-                const res = await fetch(qrUrl);
-                const blob = await res.blob();
-                blobUrl = URL.createObjectURL(blob);
-                qrImgEl.src = blobUrl;
-                await new Promise<void>(resolve => { qrImgEl.onload = () => resolve(); });
-            }
-
-            // Temporarily remove max-height so html2canvas captures the full card
             const el = ticketRef.current;
             const prevMaxH = el.style.maxHeight;
             el.style.maxHeight = 'none';
@@ -40,15 +26,11 @@ export const MidnightTicketCard: React.FC<MidnightTicketCardProps> = ({ order, e
                 backgroundColor: '#0B0316',
                 scale: 2,
                 logging: false,
-                useCORS: false,
+                useCORS: true,
                 allowTaint: false,
             });
 
             el.style.maxHeight = prevMaxH;
-
-            // Restore original QR src
-            if (qrImgEl && originalSrc) qrImgEl.src = originalSrc;
-            if (blobUrl) URL.revokeObjectURL(blobUrl);
 
             const link = document.createElement('a');
             link.href = canvas.toDataURL('image/png');

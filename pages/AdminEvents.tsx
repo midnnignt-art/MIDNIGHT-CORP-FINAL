@@ -5,7 +5,7 @@ import {
     Trash2, Plus, Pencil, Save, Users, ShieldCheck,
     UserCog, BadgeCheck, Database, Download, Upload, AlertTriangle,
     HardDrive, RefreshCcw, Layers, Target, UserPlus, Calendar, MapPin, DollarSign, Ticket, Eye, ArrowLeft, Search, User, Filter, Share2, CheckCircle2, XCircle, MinusCircle, Lock, Key, X, UserMinus, UserCheck, Mail,
-    Tag, Percent, Loader2
+    Tag, Percent, Loader2, Archive
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { Button } from '../components/ui/button';
@@ -387,6 +387,26 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                 {selectedAuditId && auditData && (
                                     <>
                                         <Button onClick={() => handleEditEvent(auditData.event)} variant="outline" className="h-12"><Pencil size={16}/></Button>
+                                        <Button
+                                            onClick={async () => {
+                                                if (confirm(`¿Mover "${auditData.event.title}" al cementerio?`)) {
+                                                    await archiveEvent(selectedAuditId);
+                                                    setSelectedAuditId(null);
+                                                }
+                                            }}
+                                            variant="outline"
+                                            className="h-12 border-amber-500/30 hover:bg-amber-500/10 text-amber-500"
+                                        ><Archive size={16}/></Button>
+                                        <Button
+                                            onClick={async () => {
+                                                if (confirm(`¿ELIMINAR permanentemente "${auditData.event.title}"? No se puede deshacer.`)) {
+                                                    await hardDeleteEvent(selectedAuditId);
+                                                    setSelectedAuditId(null);
+                                                }
+                                            }}
+                                            variant="outline"
+                                            className="h-12 border-red-500/30 hover:bg-red-500/10 text-red-500"
+                                        ><Trash2 size={16}/></Button>
                                         <Button onClick={handleExportDatabase} className="bg-emerald-500 text-black font-black text-xs h-12">
                                             <Download className="mr-2 w-4 h-4"/> Exportar
                                         </Button>

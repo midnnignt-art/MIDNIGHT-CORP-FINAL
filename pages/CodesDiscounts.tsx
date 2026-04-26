@@ -127,6 +127,44 @@ export const CodesDiscounts: React.FC = () => {
     setTimeout(() => setCopiedCode(null), 2000);
   }
 
+  function handlePrint(leads: CampaignLead[], campaignLabel: string, campaignType: CampaignType, eventTitle: string) {
+    const win = window.open('', '_blank');
+    if (!win) return;
+    const hasRuleta = campaignType === 'ruleta';
+    const headers = ['#', 'Nombre', 'Email', ...(hasRuleta ? ['Beneficio'] : []), 'Fecha'];
+    const rows = leads.map((l, i) => [
+      String(i + 1),
+      l.name,
+      l.email,
+      ...(hasRuleta ? [l.benefit ?? '—'] : []),
+      new Date(l.registered_at).toLocaleString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+    ]);
+    win.document.write(`<!DOCTYPE html><html lang="es"><head>
+      <meta charset="UTF-8">
+      <title>${campaignLabel} — Lista</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 28px 32px; color: #111; font-size: 13px; }
+        h1 { font-size: 20px; margin: 0 0 2px; }
+        p  { font-size: 11px; color: #666; margin: 0 0 18px; }
+        table { width: 100%; border-collapse: collapse; }
+        thead tr { background: #f0f0f0; }
+        th { text-align: left; padding: 7px 10px; font-size: 9px; text-transform: uppercase; letter-spacing: .08em; border: 1px solid #ccc; }
+        td { padding: 7px 10px; border: 1px solid #ddd; vertical-align: top; }
+        tbody tr:nth-child(even) td { background: #f9f9f9; }
+        @media print { @page { margin: 16mm; } }
+      </style>
+    </head><body>
+      <h1>${campaignLabel}</h1>
+      <p>${eventTitle} &nbsp;·&nbsp; ${leads.length} participante${leads.length !== 1 ? 's' : ''}</p>
+      <table>
+        <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+        <tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody>
+      </table>
+    </body></html>`);
+    win.document.close();
+    setTimeout(() => win.print(), 400);
+  }
+
   function addBenefit() {
     if (!newBenLabel.trim()) return;
     setNewBenefits(p => [...p, { id: Date.now(), label: newBenLabel.trim(), color: newBenColor, prob: newBenProb }]);
@@ -375,77 +413,62 @@ export const CodesDiscounts: React.FC = () => {
                           </div>
                         ) : (() => {
                           const leads = leadsCache[c.id] ?? [];
-                          const printId = `print-leads-${c.id}`;
                           return (
-                            <>
-                              {/* Print-only CSS */}
-                              <style>{`
-                                @media print {
-                                  body > *:not(#${printId}) { display: none !important; }
-                                  #${printId} { display: block !important; position: fixed; inset: 0; padding: 32px; background: white; color: black; }
-                                  #${printId} table { width: 100%; border-collapse: collapse; font-size: 12px; }
-                                  #${printId} th, #${printId} td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
-                                  #${printId} th { background: #f0f0f0; font-size: 10px; text-transform: uppercase; font-weight: bold; }
-                                  .no-print { display: none !important; }
-                                }
-                              `}</style>
-
-                              <div id={printId}>
-                                <div className="flex items-center justify-between px-5 py-3 no-print">
-                                  <p className="text-white/30 text-[10px] font-bold uppercase tracking-[0.3em]" style={{ fontFamily: "'Space Mono',monospace" }}>
-                                    {leads.length} participante{leads.length !== 1 ? 's' : ''}
-                                  </p>
-                                  {c.type === 'ruleta' && leads.length > 0 && (
-                                    <button
-                                      onClick={() => window.print()}
-                                      className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-[#C9A84C] hover:opacity-70 transition-opacity"
-                                      style={{ fontFamily: "'Space Mono',monospace" }}
-                                    >
-                                      <Printer size={13} /> Imprimir
-                                    </button>
-                                  )}
-                                </div>
-
-                                {leads.length === 0 ? (
-                                  <p className="text-center text-white/20 text-xs py-8 no-print" style={{ fontFamily: "'Space Mono',monospace" }}>
-                                    Aún no hay participantes
-                                  </p>
-                                ) : (
-                                  <div className="overflow-x-auto px-5 pb-5">
-                                    <table className="w-full text-sm">
-                                      <thead>
-                                        <tr className="border-b border-white/5">
-                                          {['Nombre', 'Email', ...(c.type === 'ruleta' ? ['Beneficio'] : []), 'Fecha'].map(h => (
-                                            <th key={h} className="text-left pb-2.5 pr-6 text-[9px] font-bold uppercase tracking-[0.3em] text-white/25" style={{ fontFamily: "'Space Mono',monospace" }}>{h}</th>
-                                          ))}
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {leads.map(l => (
-                                          <tr key={l.id} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors">
-                                            <td className="py-2.5 pr-6 text-white/80" style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15 }}>{l.name}</td>
-                                            <td className="py-2.5 pr-6 text-white/35 text-[11px]" style={{ fontFamily: "'Space Mono',monospace" }}>{l.email}</td>
-                                            {c.type === 'ruleta' && (
-                                              <td className="py-2.5 pr-6">
-                                                {l.benefit ? (
-                                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold" style={{ background: (l.benefit_color ?? '#C9A84C') + '22', color: l.benefit_color ?? '#C9A84C', fontFamily: "'Space Mono',monospace" }}>
-                                                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: l.benefit_color ?? '#C9A84C' }} />
-                                                    {l.benefit}
-                                                  </span>
-                                                ) : <span className="text-white/20 text-xs">—</span>}
-                                              </td>
-                                            )}
-                                            <td className="py-2.5 text-white/20 text-[10px]" style={{ fontFamily: "'Space Mono',monospace" }}>
-                                              {new Date(l.registered_at).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                                            </td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
+                            <div>
+                              <div className="flex items-center justify-between px-5 py-3">
+                                <p className="text-white/30 text-[10px] font-bold uppercase tracking-[0.3em]" style={{ fontFamily: "'Space Mono',monospace" }}>
+                                  {leads.length} participante{leads.length !== 1 ? 's' : ''}
+                                </p>
+                                {leads.length > 0 && (
+                                  <button
+                                    onClick={() => handlePrint(leads, c.label, c.type, ev?.title ?? '')}
+                                    className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-[#C9A84C] hover:opacity-70 transition-opacity"
+                                    style={{ fontFamily: "'Space Mono',monospace" }}
+                                  >
+                                    <Printer size={13} /> Imprimir PDF
+                                  </button>
                                 )}
                               </div>
-                            </>
+
+                              {leads.length === 0 ? (
+                                <p className="text-center text-white/20 text-xs py-8" style={{ fontFamily: "'Space Mono',monospace" }}>
+                                  Aún no hay participantes
+                                </p>
+                              ) : (
+                                <div className="overflow-x-auto px-5 pb-5">
+                                  <table className="w-full text-sm">
+                                    <thead>
+                                      <tr className="border-b border-white/5">
+                                        {['Nombre', 'Email', ...(c.type === 'ruleta' ? ['Beneficio'] : []), 'Fecha'].map(h => (
+                                          <th key={h} className="text-left pb-2.5 pr-6 text-[9px] font-bold uppercase tracking-[0.3em] text-white/25" style={{ fontFamily: "'Space Mono',monospace" }}>{h}</th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {leads.map(l => (
+                                        <tr key={l.id} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors">
+                                          <td className="py-2.5 pr-6 text-white/80" style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15 }}>{l.name}</td>
+                                          <td className="py-2.5 pr-6 text-white/35 text-[11px]" style={{ fontFamily: "'Space Mono',monospace" }}>{l.email}</td>
+                                          {c.type === 'ruleta' && (
+                                            <td className="py-2.5 pr-6">
+                                              {l.benefit ? (
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold" style={{ background: (l.benefit_color ?? '#C9A84C') + '22', color: l.benefit_color ?? '#C9A84C', fontFamily: "'Space Mono',monospace" }}>
+                                                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: l.benefit_color ?? '#C9A84C' }} />
+                                                  {l.benefit}
+                                                </span>
+                                              ) : <span className="text-white/20 text-xs">—</span>}
+                                            </td>
+                                          )}
+                                          <td className="py-2.5 text-white/20 text-[10px]" style={{ fontFamily: "'Space Mono',monospace" }}>
+                                            {new Date(l.registered_at).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
                           );
                         })()}
                       </div>
