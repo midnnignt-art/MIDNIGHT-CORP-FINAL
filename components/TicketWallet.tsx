@@ -8,7 +8,7 @@ import { toast } from '../lib/toast';
 const motion = _motion as any;
 
 export default function TicketWallet() {
-  const { orders, events, currentCustomer, transferTicket } = useStore();
+  const { orders, events, currentCustomer, currentUser, transferTicket } = useStore();
   const [viewMode, setViewMode] = useState<'carousel' | 'list'>('carousel');
   const [filterEventId, setFilterEventId] = useState<string>('all');
   const [[page, direction], setPage] = useState([0, 0]);
@@ -18,16 +18,18 @@ export default function TicketWallet() {
   const [transferName, setTransferName] = useState('');
   const [transferLoading, setTransferLoading] = useState(false);
 
+  const effectiveEmail = currentCustomer?.email || currentUser?.email || null;
+
   const myOrders = useMemo(() => {
-    if (!currentCustomer?.email) return [];
-    const userEmail = currentCustomer.email.toLowerCase().trim();
+    if (!effectiveEmail) return [];
+    const userEmail = effectiveEmail.toLowerCase().trim();
     return orders.filter(o => {
       const orderEmail = o.customer_email ? o.customer_email.toLowerCase().trim() : '';
       const matchesEmail = orderEmail === userEmail && o.status === 'completed';
       const matchesEvent = filterEventId === 'all' || o.event_id === filterEventId;
       return matchesEmail && matchesEvent;
     }).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  }, [orders, currentCustomer, filterEventId]);
+  }, [orders, effectiveEmail, filterEventId]);
 
   React.useEffect(() => {
     if (page >= myOrders.length && myOrders.length > 0) {
@@ -69,7 +71,7 @@ export default function TicketWallet() {
   };
 
   /* ── Empty / unauthenticated states ─────────────────────────────────────── */
-  if (!currentCustomer) {
+  if (!effectiveEmail) {
     return (
       <div className="text-center py-16 md:py-20 px-6 border border-moonlight/8 rounded-3xl bg-midnight/30 backdrop-blur-sm">
         <div className="w-16 h-16 md:w-20 md:h-20 bg-eclipse/20 rounded-full flex items-center justify-center mb-5 mx-auto border border-eclipse/20 shadow-[0_0_30px_rgba(73,15,124,0.2)]">
@@ -93,7 +95,7 @@ export default function TicketWallet() {
           setViewMode={setViewMode}
           events={events}
           orders={orders}
-          currentCustomer={currentCustomer}
+          effectiveEmail={effectiveEmail}
           showViewToggle={false}
         />
         <div className="text-center py-16 md:py-20 px-6 border border-moonlight/8 rounded-3xl bg-midnight/30 backdrop-blur-sm">
@@ -105,7 +107,7 @@ export default function TicketWallet() {
           </h3>
           <p className="text-moonlight/40 mt-2 max-w-xs mx-auto font-light text-xs md:text-sm">
             {filterEventId === 'all'
-              ? `No se encontraron tickets asociados a ${currentCustomer.email}.`
+              ? `No se encontraron tickets asociados a ${effectiveEmail}.`
               : 'No tienes entradas para el evento seleccionado.'}
           </p>
           {filterEventId !== 'all' && (
@@ -329,7 +331,7 @@ export default function TicketWallet() {
 }
 
 /* ── Filter Bar sub-component ──────────────────────────────────────────────── */
-function FilterBar({ filterEventId, setFilterEventId, viewMode, setViewMode, events, orders, currentCustomer, showViewToggle }: any) {
+function FilterBar({ filterEventId, setFilterEventId, viewMode, setViewMode, events, orders, effectiveEmail, showViewToggle }: any) {
   return (
     <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-8">
       <select
@@ -339,7 +341,7 @@ function FilterBar({ filterEventId, setFilterEventId, viewMode, setViewMode, eve
       >
         <option value="all">Todos los eventos</option>
         {events
-          .filter((e: any) => orders.some((o: any) => o.event_id === e.id && o.customer_email?.toLowerCase().trim() === currentCustomer?.email?.toLowerCase().trim()))
+          .filter((e: any) => orders.some((o: any) => o.event_id === e.id && o.customer_email?.toLowerCase().trim() === effectiveEmail?.toLowerCase().trim()))
           .map((e: any) => (
             <option key={e.id} value={e.id}>{e.title}</option>
           ))}

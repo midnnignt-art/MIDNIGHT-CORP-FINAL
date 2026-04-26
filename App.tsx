@@ -105,7 +105,7 @@ const App: React.FC = () => {
     if (!currentUser && (currentPage === 'dashboard' || currentPage === 'admin-events' || currentPage === 'projections' || currentPage === 'contabilidad' || currentPage === 'codes-discounts')) {
       setCurrentPage('home');
     }
-    if (!currentCustomer && currentPage === 'tickets') {
+    if (!currentCustomer && !currentUser && currentPage === 'tickets') {
       setCurrentPage('home');
     }
   }, [currentUser, currentCustomer]);

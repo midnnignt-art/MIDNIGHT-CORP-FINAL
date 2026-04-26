@@ -145,7 +145,7 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
                         </button>
                     )}
 
-                    {currentCustomer && (
+                    {(currentCustomer || currentUser) && (
                         <button onClick={() => handleNavigateAction('tickets')} className={`w-full text-left py-3 px-4 rounded-lg flex items-center justify-between group transition-all min-h-[44px] ${currentPage === 'tickets' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
                              <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-3">
                                 Entradas
