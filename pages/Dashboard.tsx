@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { toast } from '../lib/toast';
 import { UserRole, Promoter, SalesTeam, Order } from '../types';
 import { Button } from '../components/ui/button';
@@ -84,6 +84,13 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   const [viewingStaffId, setViewingStaffId] = useState<string | null>(null);
   const [viewingTeamId, setViewingTeamId] = useState<string | null>(null);
   const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (currentUser?.role === UserRole.ADMIN) {
+      supabase.from('bouncer_links').select('*').order('created_at', { ascending: false })
+        .then(({ data }) => { setBouncerLinks(data || []); setBouncerLinksLoaded(true); });
+    }
+  }, [currentUser?.role]);
 
   if (!currentUser) return null;
 
@@ -676,7 +683,9 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
       label: newBouncerLabel.trim(),
       active: true,
     });
-    if (!error) {
+    if (error) {
+      toast.error(`Error al crear link: ${error.message}`);
+    } else {
       setNewBouncerLabel('');
       setNewBouncerEventId('');
       await loadBouncerLinks();
@@ -764,121 +773,102 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
 
       {/* ── LINKS DE ACCESO (solo admin) ─────────────────────────────────────── */}
       {isAdmin && (
-        <div className="mb-8 md:mb-12">
-          <button
-            onClick={() => { if (!bouncerLinksLoaded) loadBouncerLinks(); else setBouncerLinksLoaded(b => { loadBouncerLinks(); return b; }); }}
-            className="w-full bg-zinc-900/60 border border-white/10 rounded-[2rem] p-6 md:p-8 flex items-center justify-between gap-4 group transition-all hover:border-[#C9A84C]/20"
-            style={{ display: 'none' }}
-          />
-
-          <div className="bg-zinc-900/60 border border-white/10 rounded-[2rem] p-6 md:p-8">
-            {/* Header */}
-            <div
-              className="flex items-center justify-between mb-6 cursor-pointer"
-              onClick={() => { if (!bouncerLinksLoaded) loadBouncerLinks(); }}
-            >
-              <div>
-                <h3 className="text-lg md:text-xl font-black text-white flex items-center gap-3">
-                  <ScanLine className="text-[#C9A84C] w-5 h-5" /> LINKS DE ACCESO
-                </h3>
-                <p className="text-zinc-500 text-xs mt-1">Genera links de escaneo enlazados a un evento para porteros</p>
-              </div>
-              {!bouncerLinksLoaded && (
-                <button
-                  onClick={loadBouncerLinks}
-                  className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#C9A84C]/60 hover:text-[#C9A84C] border border-[#C9A84C]/20 hover:border-[#C9A84C]/40 px-4 py-2 rounded-xl transition-all"
-                  style={{ fontFamily: "'Space Mono', monospace" }}
-                >
-                  Cargar
-                </button>
-              )}
+        <div className="mb-8 md:mb-12 bg-zinc-900/60 border border-white/10 rounded-[2rem] p-6 md:p-8">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-lg md:text-xl font-black text-white flex items-center gap-3">
+                <ScanLine className="text-[#C9A84C] w-5 h-5" /> LINKS DE ACCESO
+              </h3>
+              <p className="text-zinc-500 text-xs mt-1">Genera links de escaneo enlazados a un evento para porteros</p>
             </div>
-
-            {bouncerLinksLoaded && (
-              <>
-                {/* Create new link */}
-                <div className="flex flex-col sm:flex-row gap-3 mb-6 p-4 bg-black/30 border border-white/5 rounded-2xl">
-                  <input
-                    placeholder="Nombre del punto (ej: Puerta Principal)"
-                    value={newBouncerLabel}
-                    onChange={e => setNewBouncerLabel(e.target.value)}
-                    className="flex-1 bg-zinc-900 border border-white/10 rounded-xl px-4 h-11 text-xs text-white placeholder:text-zinc-600 outline-none focus:border-[#C9A84C]/40"
-                  />
-                  <select
-                    value={newBouncerEventId}
-                    onChange={e => setNewBouncerEventId(e.target.value)}
-                    className="bg-zinc-900 border border-white/10 rounded-xl px-4 h-11 text-xs text-white outline-none focus:border-[#C9A84C]/40 sm:w-56"
-                  >
-                    <option value="">— Seleccionar evento —</option>
-                    {events.map(ev => (
-                      <option key={ev.id} value={ev.id}>{ev.title}</option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={createBouncerLink}
-                    disabled={creatingBouncerLink || !newBouncerLabel.trim() || !newBouncerEventId}
-                    className="h-11 px-5 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] bg-[#C9A84C] text-black disabled:opacity-30 disabled:cursor-not-allowed hover:opacity-90 transition-all flex items-center gap-2 whitespace-nowrap"
-                  >
-                    {creatingBouncerLink ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-                    Crear link
-                  </button>
-                </div>
-
-                {/* Links list */}
-                {bouncerLinks.length === 0 ? (
-                  <p className="text-center text-zinc-600 text-xs uppercase font-bold py-8">
-                    No hay links creados aún
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {bouncerLinks.map(l => {
-                      const ev = events.find(e => e.id === l.event_id);
-                      const url = `https://midnightcorp.click/bouncer?t=${l.token}`;
-                      return (
-                        <div
-                          key={l.token}
-                          className={`flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-2xl border transition-all ${
-                            l.active ? 'bg-black/30 border-white/8' : 'bg-black/10 border-white/3 opacity-40'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${l.active ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)]' : 'bg-zinc-600'}`} />
-                            <div className="min-w-0">
-                              <p className="text-white font-black text-sm truncate">{l.label}</p>
-                              <p className="text-zinc-500 text-[10px] font-bold truncate">{ev?.title ?? l.event_id}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <button
-                              onClick={() => copyBouncerLink(l.token)}
-                              className={`flex items-center gap-1.5 h-9 px-3 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${
-                                copiedBouncerToken === l.token
-                                  ? 'bg-emerald-500 text-black'
-                                  : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
-                              }`}
-                            >
-                              {copiedBouncerToken === l.token ? <Check size={12} /> : <Copy size={12} />}
-                              {copiedBouncerToken === l.token ? 'Copiado' : 'Copiar'}
-                            </button>
-                            <button
-                              onClick={() => toggleBouncerLink(l.token, l.active)}
-                              className={`h-9 px-3 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border ${
-                                l.active
-                                  ? 'border-red-500/20 text-red-400/60 hover:bg-red-500/10 hover:text-red-400'
-                                  : 'border-emerald-500/20 text-emerald-400/60 hover:bg-emerald-500/10 hover:text-emerald-400'
-                              }`}
-                            >
-                              {l.active ? 'Desactivar' : 'Activar'}
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
-            )}
           </div>
+
+          {/* Create new link */}
+          <div className="flex flex-col sm:flex-row gap-3 mb-6 p-4 bg-black/30 border border-white/5 rounded-2xl">
+            <input
+              placeholder="Nombre del punto (ej: Puerta Principal)"
+              value={newBouncerLabel}
+              onChange={e => setNewBouncerLabel(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && createBouncerLink()}
+              className="flex-1 bg-zinc-900 border border-white/10 rounded-xl px-4 h-11 text-xs text-white placeholder:text-zinc-600 outline-none focus:border-[#C9A84C]/40"
+            />
+            <select
+              value={newBouncerEventId}
+              onChange={e => setNewBouncerEventId(e.target.value)}
+              className="bg-zinc-900 border border-white/10 rounded-xl px-4 h-11 text-xs text-white outline-none focus:border-[#C9A84C]/40 sm:w-56"
+            >
+              <option value="">— Seleccionar evento —</option>
+              {events.map(ev => (
+                <option key={ev.id} value={ev.id}>{ev.title}</option>
+              ))}
+            </select>
+            <button
+              onClick={createBouncerLink}
+              disabled={creatingBouncerLink || !newBouncerLabel.trim() || !newBouncerEventId}
+              className="h-11 px-5 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] bg-[#C9A84C] text-black disabled:opacity-30 disabled:cursor-not-allowed hover:opacity-90 transition-all flex items-center gap-2 whitespace-nowrap"
+            >
+              {creatingBouncerLink ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+              Crear link
+            </button>
+          </div>
+
+          {/* Links list */}
+          {!bouncerLinksLoaded ? (
+            <div className="flex items-center justify-center py-8 gap-3 text-zinc-600">
+              <Loader2 size={16} className="animate-spin" />
+              <span className="text-xs uppercase font-bold tracking-widest">Cargando...</span>
+            </div>
+          ) : bouncerLinks.length === 0 ? (
+            <p className="text-center text-zinc-600 text-xs uppercase font-bold py-8">
+              No hay links creados aún
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {bouncerLinks.map(l => {
+                const ev = events.find(e => e.id === l.event_id);
+                return (
+                  <div
+                    key={l.token}
+                    className={`flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-2xl border transition-all ${
+                      l.active ? 'bg-black/30 border-white/8' : 'bg-black/10 border-white/3 opacity-40'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${l.active ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)]' : 'bg-zinc-600'}`} />
+                      <div className="min-w-0">
+                        <p className="text-white font-black text-sm truncate">{l.label}</p>
+                        <p className="text-zinc-500 text-[10px] font-bold truncate">{ev?.title ?? l.event_id}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        onClick={() => copyBouncerLink(l.token)}
+                        className={`flex items-center gap-1.5 h-9 px-3 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${
+                          copiedBouncerToken === l.token
+                            ? 'bg-emerald-500 text-black'
+                            : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
+                        }`}
+                      >
+                        {copiedBouncerToken === l.token ? <Check size={12} /> : <Copy size={12} />}
+                        {copiedBouncerToken === l.token ? 'Copiado' : 'Copiar'}
+                      </button>
+                      <button
+                        onClick={() => toggleBouncerLink(l.token, l.active)}
+                        className={`h-9 px-3 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border ${
+                          l.active
+                            ? 'border-red-500/20 text-red-400/60 hover:bg-red-500/10 hover:text-red-400'
+                            : 'border-emerald-500/20 text-emerald-400/60 hover:bg-emerald-500/10 hover:text-emerald-400'
+                        }`}
+                      >
+                        {l.active ? 'Desactivar' : 'Activar'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
