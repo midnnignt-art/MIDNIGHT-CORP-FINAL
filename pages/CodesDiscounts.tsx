@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Tag, Users, Percent, Plus, X, Copy, Check, Loader2, ToggleLeft, ToggleRight, ExternalLink, ChevronDown, ChevronUp, Printer } from 'lucide-react';
+import { Tag, Users, Percent, Plus, X, Copy, Check, Loader2, ToggleLeft, ToggleRight, ExternalLink, ChevronDown, ChevronUp, Printer, Trash2 } from 'lucide-react';
 import { RuletaAdmin } from '../components/RuletaAdmin';
 import { supabase } from '../lib/supabase';
 import { useStore } from '../context/StoreContext';
@@ -106,6 +106,13 @@ export const CodesDiscounts: React.FC = () => {
   function resetForm() {
     setShowForm(false); setNewLabel(''); setNewEventId(''); setNewFreeUntil('');
     setNewDiscPct(20); setNewTierId(''); setNewBenefits(DEFAULT_BENEFITS); setNewValidHrs(12); setNewBenLabel(''); setNewBenProb(10); setNewBenColor('#C9A84C');
+  }
+
+  async function deleteCampaign(id: string) {
+    if (!window.confirm('¿Eliminar esta campaña permanentemente? Se borrarán también todos los participantes.')) return;
+    await supabase.from('campaigns').delete().eq('id', id);
+    setCampaigns(p => p.filter(c => c.id !== id));
+    if (expandedId === id) setExpandedId(null);
   }
 
   async function toggleCampaign(id: string, active: boolean) {
@@ -352,6 +359,9 @@ export const CodesDiscounts: React.FC = () => {
                         </button>
                         <button onClick={() => toggleCampaign(c.id, c.active)} className="text-white/20 hover:text-white/60 transition-colors flex-shrink-0">
                           {c.active ? <ToggleRight size={20} className="text-[#C9A84C]" /> : <ToggleLeft size={20} />}
+                        </button>
+                        <button onClick={() => deleteCampaign(c.id)} className="text-white/15 hover:text-red-400 transition-colors flex-shrink-0 p-1">
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </div>

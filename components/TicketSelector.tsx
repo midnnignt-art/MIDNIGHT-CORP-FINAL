@@ -1,11 +1,7 @@
 import React from 'react';
-import { motion as _motion } from 'framer-motion';
 import { Minus, Plus, Sparkles, Check } from 'lucide-react';
-import { Button } from './ui/button';
 import { cn } from '../lib/utils';
 import { TicketTier } from '../types';
-
-const motion = _motion as any;
 
 interface TicketSelectorProps {
     tiers: TicketTier[];
@@ -24,97 +20,68 @@ export default function TicketSelector({ tiers, selectedTiers, onSelect, classNa
   const getAvailable = (tier: TicketTier) => tier.quantity - (tier.sold || 0);
 
   return (
-    <div className={cn("space-y-3", className)}>
-      {tiers.map((tier, index) => {
+    <div className={cn('rounded-2xl border border-moonlight/10 overflow-hidden divide-y divide-moonlight/[0.06]', className)}>
+      {tiers.map((tier) => {
         const available = getAvailable(tier);
-        const selected = selectedTiers[tier.id] || 0;
+        const selected  = selectedTiers[tier.id] || 0;
         const isSelected = selected > 0;
-        const isSoldOut = available <= 0;
+        const isSoldOut  = available <= 0;
 
         return (
-          <motion.div
+          <div
             key={tier.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
             className={cn(
-              "relative p-6 rounded-2xl border transition-all duration-500",
-              isSelected 
-                ? "border-moonlight bg-moonlight/5 shadow-[0_0_30px_rgba(242,242,242,0.05)]" 
-                : "border-moonlight/10 bg-void hover:border-moonlight/30",
-              isSoldOut && "opacity-30 pointer-events-none"
+              'flex items-center justify-between px-4 py-3.5 transition-colors',
+              isSelected ? 'bg-moonlight/[0.04]' : 'bg-transparent',
+              isSoldOut && 'opacity-30 pointer-events-none'
             )}
           >
-            {/* Stage badge */}
-            {tier.stage === 'early_bird' && (
-              <div className="absolute -top-3 left-6 px-3 py-1 bg-eclipse rounded-full text-[8px] font-black text-moonlight uppercase tracking-[0.2em] flex items-center gap-2">
-                <Sparkles className="w-3 h-3" />
-                Early Bird
+            {/* Left: info */}
+            <div className="flex-1 min-w-0 pr-4">
+              <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                {tier.stage === 'early_bird' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-eclipse/70 rounded-full text-[8px] font-black text-moonlight/80 uppercase tracking-[0.15em]">
+                    <Sparkles className="w-2.5 h-2.5" /> Early Bird
+                  </span>
+                )}
+                <h3 className="text-sm font-black text-moonlight uppercase tracking-tight truncate">
+                  {tier.name}
+                </h3>
+                {isSelected && (
+                  <span className="w-4 h-4 rounded-full bg-eclipse flex items-center justify-center flex-shrink-0">
+                    <Check className="w-2.5 h-2.5 text-moonlight" />
+                  </span>
+                )}
+              </div>
+              <p className="text-base font-black text-moonlight tabular-nums leading-none">
+                ${tier.price.toLocaleString()}
+                <span className="text-[9px] text-moonlight/30 font-light ml-1 tracking-widest">COP</span>
+              </p>
+            </div>
+
+            {/* Right: controls */}
+            {isSoldOut ? (
+              <span className="text-[9px] text-moonlight/30 uppercase tracking-widest font-bold flex-shrink-0">Agotado</span>
+            ) : (
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  className="w-7 h-7 rounded-full border border-moonlight/15 flex items-center justify-center text-moonlight/40 hover:text-moonlight hover:border-moonlight/40 transition-all disabled:opacity-20"
+                  onClick={() => handleQuantityChange(tier.id, -1)}
+                  disabled={selected <= 0}
+                >
+                  <Minus className="w-3 h-3" />
+                </button>
+                <span className="w-4 text-center font-black text-moonlight text-sm tabular-nums">{selected}</span>
+                <button
+                  className="w-7 h-7 rounded-full border border-moonlight/15 flex items-center justify-center text-moonlight/40 hover:text-moonlight hover:border-moonlight/40 transition-all disabled:opacity-20"
+                  onClick={() => handleQuantityChange(tier.id, 1)}
+                  disabled={selected >= Math.min(10, available)}
+                >
+                  <Plus className="w-3 h-3" />
+                </button>
               </div>
             )}
-
-            <div className="flex items-start justify-between gap-6">
-              {/* Tier info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-3">
-                  <h3 className="text-lg font-black text-moonlight uppercase tracking-tight">{tier.name}</h3>
-                  {isSelected && (
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      className="w-5 h-5 rounded-full bg-eclipse flex items-center justify-center"
-                    >
-                      <Check className="w-3 h-3 text-moonlight" />
-                    </motion.div>
-                  )}
-                </div>
-                
-                {tier.description && (
-                  <p className="text-[10px] text-moonlight/40 mt-2 font-light tracking-wide leading-relaxed uppercase">{tier.description}</p>
-                )}
-
-                {tier.perks?.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-4">
-                    {tier.perks.slice(0, 3).map((perk, i) => (
-                      <span key={i} className="px-2 py-0.5 text-[8px] border border-moonlight/10 text-moonlight/30 uppercase tracking-widest">
-                        {perk}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Price & quantity */}
-              <div className="text-right flex flex-col items-end gap-4">
-                <div>
-                  <p className="text-2xl font-black text-moonlight tabular-nums">
-                    ${tier.price.toLocaleString()}
-                  </p>
-                  <p className="text-[9px] text-moonlight/30 uppercase font-light tracking-[0.3em]">COP</p>
-                </div>
-
-                {!isSoldOut && (
-                  <div className="flex items-center gap-4 bg-white/5 p-1 border border-moonlight/10">
-                    <button
-                      className="h-8 w-8 flex items-center justify-center text-moonlight/40 hover:text-moonlight transition-colors"
-                      onClick={() => handleQuantityChange(tier.id, -1)}
-                      disabled={selected <= 0}
-                    >
-                      <Minus className="w-4 h-4" />
-                    </button>
-                    <span className="w-6 text-center font-black text-moonlight tabular-nums text-sm">{selected}</span>
-                    <button
-                      className="h-8 w-8 flex items-center justify-center text-moonlight/40 hover:text-moonlight transition-colors"
-                      onClick={() => handleQuantityChange(tier.id, 1)}
-                      disabled={selected >= Math.min(10, available)}
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </motion.div>
+          </div>
         );
       })}
     </div>

@@ -141,28 +141,26 @@ const App: React.FC = () => {
         currentPage={currentPage}
       />
 
-      {/* Discount banner */}
+      {/* Discount banner — floating pill, non-intrusive */}
       {discountBanner && (
-        <div className="fixed top-0 left-0 right-0 z-[95] flex items-center justify-center gap-3 px-4 py-3 animate-in slide-in-from-top-3 duration-500"
-          style={{ background: 'linear-gradient(90deg,#C9A84C,#A07820,#C9A84C)', backgroundSize: '200% 100%' }}
-        >
-          <Tag className="w-4 h-4 text-black/70 flex-shrink-0" />
-          <p className="text-black font-black text-xs md:text-sm tracking-wide text-center flex-1">
-            Tienes un <strong>{discountBanner.pct}% de descuento</strong>
-            {discountBanner.tierName ? <> en <strong>{discountBanner.tierName}</strong></> : ''}
-            {' '}— {discountBanner.label}
-          </p>
-          {discountBanner.eventId && (
-            <button
-              onClick={handleDiscountBuy}
-              className="bg-black/20 hover:bg-black/30 text-black font-black text-[10px] uppercase tracking-[0.2em] px-4 py-1.5 rounded-full transition-all flex-shrink-0"
-            >
-              Comprar →
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[95] animate-in slide-in-from-bottom-3 duration-500 px-4 w-full max-w-sm">
+          <div className="flex items-center gap-2.5 bg-[#0A0A0A] border border-[#C9A84C]/30 rounded-full px-4 py-2 shadow-[0_0_24px_rgba(201,168,76,0.12)]">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#C9A84C] flex-shrink-0 shadow-[0_0_6px_#C9A84C]" />
+            <p className="text-[#C9A84C] text-[11px] font-bold flex-1 truncate" style={{ fontFamily: "'Space Mono',monospace" }}>
+              {discountBanner.pct}% off{discountBanner.tierName ? ` · ${discountBanner.tierName}` : ''}
+            </p>
+            {discountBanner.eventId && (
+              <button
+                onClick={handleDiscountBuy}
+                className="bg-[#C9A84C] text-black text-[9px] font-black uppercase tracking-[0.15em] px-3 py-1 rounded-full hover:opacity-90 transition-all flex-shrink-0 whitespace-nowrap"
+              >
+                Comprar →
+              </button>
+            )}
+            <button onClick={dismissDiscountBanner} className="text-white/20 hover:text-white/50 transition-colors flex-shrink-0">
+              <XIcon size={12} />
             </button>
-          )}
-          <button onClick={dismissDiscountBanner} className="text-black/50 hover:text-black transition-colors flex-shrink-0 p-1">
-            <XIcon size={16} />
-          </button>
+          </div>
         </div>
       )}
 
