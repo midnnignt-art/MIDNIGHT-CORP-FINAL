@@ -8,6 +8,7 @@ import { Projections } from './pages/Projections';
 import { TopClients } from './pages/TopClients';
 import { Accounting } from './pages/Accounting';
 import { CodesDiscounts } from './pages/CodesDiscounts';
+import { Ruleta } from './pages/Ruleta';
 import { SuccessPage } from './pages/SuccessPage';
 import BouncerScanner from './pages/BouncerScanner';
 import PromoLanding from './pages/PromoLanding';
@@ -195,6 +196,7 @@ const App: React.FC = () => {
           {currentPage === 'top-clients' && <TopClients role={currentUser?.role || UserRole.GUEST} />}
           {currentPage === 'contabilidad' && <Accounting />}
           {currentPage === 'codes-discounts' && <CodesDiscounts />}
+          {currentPage === 'ruleta' && <Ruleta />}
           {currentPage === 'tickets' && (
             <div className="animate-in fade-in slide-in-from-bottom-5 duration-700">
                 <div className="mb-12 text-center">

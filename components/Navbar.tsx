@@ -136,6 +136,14 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
                         <div className={`w-1 h-1 rounded-full bg-white transition-all ${currentPage === 'home' ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}`} />
                     </button>
 
+                    <button onClick={() => handleNavigateAction('ruleta')} className={`w-full text-left py-3 px-4 rounded-lg flex items-center justify-between group transition-all min-h-[44px] ${currentPage === 'ruleta' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
+                        <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-3">
+                            Ruleta
+                            <span className="text-[8px] tracking-[0.3em] px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(201,168,76,0.15)', color: '#C9A84C', fontFamily: "'JetBrains Mono', monospace" }}>LIVE</span>
+                        </span>
+                        <div className={`w-1 h-1 rounded-full bg-white transition-all ${currentPage === 'ruleta' ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}`} />
+                    </button>
+
                     {currentUser && (
                         <button onClick={() => handleNavigateAction('dashboard')} className={`w-full text-left py-3 px-4 rounded-lg flex items-center justify-between group transition-all min-h-[44px] ${currentPage === 'dashboard' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
                              <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-3">
