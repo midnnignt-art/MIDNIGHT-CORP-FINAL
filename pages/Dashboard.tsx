@@ -326,7 +326,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
         !teamManagerIds.includes(p.user_id)
       );
       
-      if (independentPromoters.length > 0) {
+      {
           const indepOrders = filteredOrders.filter(o => o.staff_id && independentPromoters.some(p => p.user_id === o.staff_id));
           const metrics = calculateMetrics(indepOrders);
           const breakdown = calculateBreakdown(indepOrders);
@@ -377,38 +377,36 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
 
       const organicOrders = filteredOrders.filter(o => !o.staff_id || adminIds.includes(o.staff_id));
 
-      if (organicOrders.length > 0) {
+      {
           // CRITICAL: Force No Commission for Organic/Admin group
           const metrics = calculateMetrics(organicOrders, true);
           const breakdown = calculateBreakdown(organicOrders);
 
-          const organicMembers: any[] = []; 
+          const organicMembers: any[] = [];
 
           // Web Direct
           const webOrders = organicOrders.filter(o => !o.staff_id);
-          if (webOrders.length > 0 || organicOrders.length > 0) {
-               if(webOrders.length > 0) {
-                   const wMetrics = calculateMetrics(webOrders, true); // Force 0 Commission
-                   organicMembers.push({
-                      user_id: 'web_direct',
-                      name: 'Venta Web / Directa',
-                      email: 'system@midnightcorp.click', 
-                      code: 'SYSTEM',
-                      role: UserRole.ADMIN, 
-                      ...wMetrics,
-                      commission: wMetrics.totalCommission,
-                      net: wMetrics.netLiquidation,
-                      breakdown: calculateBreakdown(webOrders),
-                      orders: webOrders
-                   });
-               }
+          if (webOrders.length > 0) {
+              const wMetrics = calculateMetrics(webOrders, true);
+              organicMembers.push({
+                  user_id: 'web_direct',
+                  name: 'Venta Web / Directa',
+                  email: 'system@midnightcorp.click',
+                  code: 'SYSTEM',
+                  role: UserRole.ADMIN,
+                  ...wMetrics,
+                  commission: wMetrics.totalCommission,
+                  net: wMetrics.netLiquidation,
+                  breakdown: calculateBreakdown(webOrders),
+                  orders: webOrders
+              });
           }
 
           // Admins
           adminPromoters.forEach(admin => {
               const aOrders = organicOrders.filter(o => o.staff_id === admin.user_id);
               if (aOrders.length > 0) {
-                  const aMetrics = calculateMetrics(aOrders, true); // Force 0 Commission
+                  const aMetrics = calculateMetrics(aOrders, true);
                   organicMembers.push({
                       ...admin,
                       ...aMetrics,
@@ -426,8 +424,8 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
               manager_name: 'Sistema Central',
               isVirtual: true,
               ...metrics,
-              commission: metrics.totalCommission, // Will be 0
-              net: metrics.netLiquidation, // Will equal cashGross
+              commission: metrics.totalCommission,
+              net: metrics.netLiquidation,
               ordersCount: metrics.totalQty,
               breakdown,
               members: organicMembers
@@ -1425,7 +1423,8 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                                   </thead>
                                   <tbody className="divide-y divide-white/5 text-xs md:text-sm">
                                       {(() => {
-                                          const virtualTeams = globalLiquidationData.allTeams.filter(t => t.isVirtual);
+                                          const organicTeam = globalLiquidationData.allTeams.find(t => t.id === 'virtual_organic');
+                                          const independentTeam = globalLiquidationData.allTeams.find(t => t.id === 'virtual_independent');
                                           const realTeams = globalLiquidationData.allTeams.filter(t => !t.isVirtual);
 
                                           const renderSquadRow = (team: typeof realTeams[0], indented = false) => (
@@ -1481,8 +1480,37 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
 
                                           const showGrouping = isGlobalHead && superSquadGroups.length > 0;
 
+                                          const renderVirtualRow = (team: NonNullable<typeof organicTeam>) => (
+                                              <tr key={team.id} className={`hover:bg-white/[0.02] transition-colors ${team.id === 'virtual_organic' ? 'bg-neon-purple/5 border-l-4 border-l-neon-purple border-t border-neon-purple/10' : 'bg-zinc-800/20 border-l-4 border-l-amber-500 border-t border-amber-500/10'}`}>
+                                                  <td className="p-3 md:p-6">
+                                                      <div className={`font-black ${team.id === 'virtual_organic' ? 'text-neon-purple text-sm md:text-base' : 'text-amber-500 text-xs md:text-sm'}`}>{team.name}</div>
+                                                      <div className="text-[9px] text-zinc-500 font-bold uppercase mt-1">{team.manager_name || 'N/A'}</div>
+                                                  </td>
+                                                  <td className="p-3 md:p-6 text-right text-purple-400/80">
+                                                      <div className="font-bold">{team.digitalQty} und</div>
+                                                      <div className="text-[9px]">${team.digitalGross.toLocaleString()}</div>
+                                                  </td>
+                                                  <td className="p-3 md:p-6 text-right text-amber-400/80">
+                                                      <div className="font-bold">{team.cashQty} und</div>
+                                                      <div className="text-[9px]">${team.cashGross.toLocaleString()}</div>
+                                                  </td>
+                                                  <td className="p-3 md:p-6 text-right font-bold text-white border-l border-white/5">${team.cashGross.toLocaleString()}</td>
+                                                  <td className="p-3 md:p-6 text-right font-bold text-emerald-500">${team.commission.toLocaleString()}</td>
+                                                  <td className="p-3 md:p-6 text-right font-black text-neon-blue text-base border-l border-white/5 bg-white/[0.02]">${team.net.toLocaleString()}</td>
+                                                  <td className="p-3 md:p-6 text-center">
+                                                      <button onClick={() => { setViewingTeamId(team.id); setExpandedMemberId(null); }} className="p-2 bg-white/5 rounded-lg md:rounded-xl hover:bg-neon-purple/20 text-zinc-500 hover:text-neon-purple transition-all border border-transparent hover:border-neon-purple/20 flex items-center justify-center mx-auto">
+                                                          <Users size={14} className="md:w-4 md:h-4 md:mr-2"/>
+                                                          <span className="hidden md:inline">Miembros</span>
+                                                      </button>
+                                                  </td>
+                                              </tr>
+                                          );
+
                                           return (
                                               <>
+                                                  {/* Organic always first */}
+                                                  {organicTeam && renderVirtualRow(organicTeam)}
+
                                                   {showGrouping ? (
                                                       <>
                                                           {superSquadGroups.map(({ ss, ssTeams, agg }) => (
@@ -1525,32 +1553,9 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                                                   ) : (
                                                       realTeams.map(team => renderSquadRow(team, false))
                                                   )}
-                                                  {/* Virtual groups always at bottom */}
-                                                  {virtualTeams.map(team => (
-                                                      <tr key={team.id} className={`hover:bg-white/[0.02] transition-colors ${team.id === 'virtual_organic' ? 'bg-neon-purple/5 border-l-4 border-l-neon-purple border-t border-neon-purple/10' : 'bg-zinc-800/20 border-l-4 border-l-amber-500 border-t border-amber-500/10'}`}>
-                                                          <td className="p-3 md:p-6">
-                                                              <div className={`font-black ${team.id === 'virtual_organic' ? 'text-neon-purple text-sm md:text-base' : 'text-amber-500 text-xs md:text-sm'}`}>{team.name}</div>
-                                                              <div className="text-[9px] text-zinc-500 font-bold uppercase mt-1">{team.manager_name || 'N/A'}</div>
-                                                          </td>
-                                                          <td className="p-3 md:p-6 text-right text-purple-400/80">
-                                                              <div className="font-bold">{team.digitalQty} und</div>
-                                                              <div className="text-[9px]">${team.digitalGross.toLocaleString()}</div>
-                                                          </td>
-                                                          <td className="p-3 md:p-6 text-right text-amber-400/80">
-                                                              <div className="font-bold">{team.cashQty} und</div>
-                                                              <div className="text-[9px]">${team.cashGross.toLocaleString()}</div>
-                                                          </td>
-                                                          <td className="p-3 md:p-6 text-right font-bold text-white border-l border-white/5">${team.cashGross.toLocaleString()}</td>
-                                                          <td className="p-3 md:p-6 text-right font-bold text-emerald-500">${team.commission.toLocaleString()}</td>
-                                                          <td className="p-3 md:p-6 text-right font-black text-neon-blue text-base border-l border-white/5 bg-white/[0.02]">${team.net.toLocaleString()}</td>
-                                                          <td className="p-3 md:p-6 text-center">
-                                                              <button onClick={() => { setViewingTeamId(team.id); setExpandedMemberId(null); }} className="p-2 bg-white/5 rounded-lg md:rounded-xl hover:bg-neon-purple/20 text-zinc-500 hover:text-neon-purple transition-all border border-transparent hover:border-neon-purple/20 flex items-center justify-center mx-auto">
-                                                                  <Users size={14} className="md:w-4 md:h-4 md:mr-2"/>
-                                                                  <span className="hidden md:inline">Miembros</span>
-                                                              </button>
-                                                          </td>
-                                                      </tr>
-                                                  ))}
+
+                                                  {/* Independents always last */}
+                                                  {independentTeam && renderVirtualRow(independentTeam)}
                                               </>
                                           );
                                       })()}
