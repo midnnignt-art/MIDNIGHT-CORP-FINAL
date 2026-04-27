@@ -101,12 +101,50 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   // PERMISOS
   const isAdmin = currentUser.role === UserRole.ADMIN;
   const isBouncer = currentUser.role === UserRole.BOUNCER || isAdmin;
-  const isHead = currentUser.role === UserRole.HEAD_OF_SALES || isAdmin;
-  const isManager = currentUser.role === UserRole.MANAGER || isHead; 
-  
+  const isHoS = currentUser.role === UserRole.HEAD_OF_SALES;
+
+  // Super squad que este usuario encabeza (si tiene uno)
+  const myHeadSuperSquad = superSquads.find(ss => ss.head_id === currentUser.user_id);
+
+  // Director global: Admin O HEAD_OF_SALES sin super squad asignado → ve todo
+  const isGlobalHead = isAdmin || (isHoS && !myHeadSuperSquad);
+
+  // Cabeza de super squad específico → ve solo su super squad
+  const isSuperSquadHead = isHoS && !!myHeadSuperSquad;
+
+  const isHead = isGlobalHead || isSuperSquadHead;
+  const isManager = currentUser.role === UserRole.MANAGER || isHead;
+
   const myTeam = teams.find(t => t.manager_id === currentUser.user_id);
-  // HoS ve solo sus equipos; Admin ve todos
-  const recruitableTeams = isAdmin ? teams : teams.filter(t => t.manager_id === currentUser.user_id);
+
+  // --- SCOPE DE DATOS SEGÚN ROL ---
+  // Qué equipos puede ver este usuario
+  const myScopeTeams = isGlobalHead
+    ? teams
+    : isSuperSquadHead
+      ? teams.filter(t => t.super_squad_id === myHeadSuperSquad!.id)
+      : myTeam ? [myTeam] : [];
+
+  // IDs de promotores que puede ver este usuario
+  const myScopeMemberIds: string[] = isGlobalHead
+    ? promoters.map(p => p.user_id)
+    : isSuperSquadHead
+      ? [...new Set(myScopeTeams.flatMap(t => [t.manager_id, ...t.members_ids]))]
+      : myTeam
+        ? [myTeam.manager_id, ...myTeam.members_ids]
+        : [currentUser.user_id];
+
+  // Promotores visibles para este usuario
+  const myScopePromoters = isGlobalHead
+    ? promoters
+    : promoters.filter(p => myScopeMemberIds.includes(p.user_id));
+
+  // Equipos que puede reclutar/gestionar
+  const recruitableTeams = isGlobalHead
+    ? teams
+    : isSuperSquadHead
+      ? myScopeTeams
+      : myTeam ? [myTeam] : [];
 
   // Staff disponible para vincular (sin equipo asignado)
   const availableStaffToLink = promoters.filter(p => !p.sales_team_id && p.role !== UserRole.ADMIN);
@@ -242,8 +280,8 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
           };
       };
 
-      // 1. Procesar Squads Reales
-      const teamStats = teams.map(team => {
+      // 1. Procesar Squads Reales (solo los del scope del usuario)
+      const teamStats = myScopeTeams.map(team => {
           const memberIds = [team.manager_id, ...team.members_ids];
           const teamOrders = filteredOrders.filter(o => o.staff_id && memberIds.includes(o.staff_id));
           
@@ -277,13 +315,12 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
           };
       });
 
-      // Identify Managers to exclude from Independents
+      // Identify Managers to exclude from Independents (from ALL teams, not just visible ones)
       const teamManagerIds = teams.map(t => t.manager_id).filter(id => id);
 
-      // 2. Procesar Promotores Independientes
-      // FIX: Exclude managers from independent list
-      const independentPromoters = promoters.filter(p => 
-        !p.sales_team_id && 
+      // 2. Procesar Promotores Independientes — filtrados al scope del usuario
+      const independentPromoters = myScopePromoters.filter(p =>
+        !p.sales_team_id &&
         p.role !== UserRole.ADMIN &&
         !teamManagerIds.includes(p.user_id)
       );
@@ -320,7 +357,19 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
           });
       }
 
-      // 3. Procesar Orgánico + Admin
+      // 3. Procesar Orgánico + Admin — solo visible para directores globales
+      if (!isGlobalHead) {
+          const grandTotals = teamStats.reduce((acc, team) => ({
+              digitalQty: acc.digitalQty + team.digitalQty,
+              digitalGross: acc.digitalGross + team.digitalGross,
+              cashQty: acc.cashQty + team.cashQty,
+              cashGross: acc.cashGross + team.cashGross,
+              totalCommission: acc.totalCommission + team.commission,
+              netLiquidation: acc.netLiquidation + team.net
+          }), { digitalQty: 0, digitalGross: 0, cashQty: 0, cashGross: 0, totalCommission: 0, netLiquidation: 0 });
+          return { allTeams: teamStats, stages, grandTotals };
+      }
+
       const adminPromoters = promoters.filter(p => p.role === UserRole.ADMIN);
       const adminIds = adminPromoters.map(p => p.user_id);
       if (!adminIds.includes('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11')) adminIds.push('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
@@ -395,7 +444,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
       }), { digitalQty: 0, digitalGross: 0, cashQty: 0, cashGross: 0, totalCommission: 0, netLiquidation: 0 });
 
       return { allTeams: teamStats, stages, grandTotals };
-  }, [orders, teams, promoters, isHead, selectedEventFilter, tiers]);
+  }, [orders, teams, myScopeTeams, myScopePromoters, promoters, isHead, isGlobalHead, selectedEventFilter, tiers]);
 
   // --- LOGICA RANKING GENERAL ---
   const generalRankingData = useMemo(() => {
@@ -416,17 +465,12 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
           filteredOrders = filteredOrders.filter(o => new Date(o.timestamp) <= endDate);
       }
 
-      // 3. FILTER BY SCOPE (MANAGER VIEW)
-      let scopePromoters = promoters;
-      if (isManager && !isHead && myTeam) {
-          // If Manager (but not Head/Admin), only show members of their team + themselves
-          const teamMemberIds = [myTeam.manager_id, ...myTeam.members_ids];
-          scopePromoters = promoters.filter(p => teamMemberIds.includes(p.user_id));
-      }
+      // 3. FILTER BY SCOPE — cada rol ve solo lo suyo
+      const scopePromoters = myScopePromoters;
 
       if (rankingViewMode === 'teams') {
-          // TEAM RANKING LOGIC
-          const teamStats = teams.map(team => {
+          // TEAM RANKING LOGIC — solo equipos del scope
+          const teamStats = myScopeTeams.map(team => {
               const memberIds = [team.manager_id, ...team.members_ids];
               const teamOrders = filteredOrders.filter(o => o.staff_id && memberIds.includes(o.staff_id));
               const ticketsSold = teamOrders.reduce((acc, o) => acc + o.items.reduce((sum, i) => sum + i.quantity, 0), 0);
@@ -465,7 +509,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
 
           return stats;
       }
-  }, [orders, promoters, rankingFilterEvent, rankingDateStart, rankingDateEnd, isManager, isHead, myTeam, rankingViewMode, teams]);
+  }, [orders, myScopePromoters, myScopeTeams, rankingFilterEvent, rankingDateStart, rankingDateEnd, rankingViewMode]);
 
 
   // --- CÁLCULO DE MÉTRICAS (KPIs) - SIEMPRE SINCRONIZADO CON TABLA ---
@@ -487,8 +531,15 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
 
     // 2. CÁLCULO GENERAL (SIN FILTRO DE EVENTO O PARA OTROS ROLES)
     if (isHead) {
-        scopeOrders = orders.filter(o => o.status === 'completed' && o.payment_method !== 'guest_list');
-        label = "Global (Red Completa)";
+        // Head ve solo su scope (global para Admin/HoS-sin-squad, filtrado para Cabeza de super squad)
+        scopeOrders = orders.filter(o =>
+            o.status === 'completed' &&
+            o.payment_method !== 'guest_list' &&
+            (isGlobalHead || myScopeMemberIds.includes(o.staff_id || ''))
+        );
+        label = isGlobalHead
+            ? "Global (Red Completa)"
+            : `Super Squad: ${myHeadSuperSquad?.name || ''}`;
     } else if (isManager) {
         const teamMemberIds = myTeam ? [currentUser.user_id, ...myTeam.members_ids] : [currentUser.user_id];
         scopeOrders = orders.filter(o => o.status === 'completed' && o.payment_method !== 'guest_list' && o.staff_id && teamMemberIds.includes(o.staff_id));
@@ -499,24 +550,20 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
     }
 
     const sales = scopeOrders.reduce((acc, o) => acc + o.total, 0);
-    
-    // Identify Admins to exclude from commission sum (SAME LOGIC AS TABLE)
+
     const adminIds = promoters.filter(p => p.role === UserRole.ADMIN).map(p => p.user_id);
     if (!adminIds.includes('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11')) adminIds.push('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
 
     const commissions = scopeOrders.reduce((acc, o) => {
-        // If order belongs to an Admin or has no staff (organic), commission is 0 for KPI
-        if (!o.staff_id || adminIds.includes(o.staff_id)) {
-            return acc;
-        }
+        if (!o.staff_id || adminIds.includes(o.staff_id)) return acc;
         return acc + o.commission_amount;
     }, 0);
-    
+
     const cashSales = scopeOrders.filter(o => o.payment_method === 'cash').reduce((acc, o) => acc + o.total, 0);
     const netToSend = cashSales - commissions;
 
     return { kpiSales: sales, kpiCommissions: commissions, kpiNetToSend: netToSend, scopeLabel: label };
-  }, [orders, currentUser, teams, isHead, isManager, myTeam, promoters, selectedEventFilter, globalLiquidationData]);
+  }, [orders, currentUser, myScopeMemberIds, isHead, isGlobalHead, isManager, myTeam, myHeadSuperSquad, promoters, selectedEventFilter, globalLiquidationData]);
 
   const updateCart = (tierId: string, qty: number) => {
       if (qty === 0) {
