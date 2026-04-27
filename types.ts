@@ -2,10 +2,11 @@
 
 export enum UserRole {
   GUEST = 'GUEST',
-  PROMOTER = 'PROMOTER', 
-  MANAGER = 'MANAGER',   
-  HEAD_OF_SALES = 'HEAD_OF_SALES', 
-  ADMIN = 'ADMIN', 
+  PROMOTER = 'PROMOTER',
+  MANAGER = 'MANAGER',
+  HEAD = 'HEAD',                   // Cabeza de super squad — ve solo su super squad
+  HEAD_OF_SALES = 'HEAD_OF_SALES', // Director global de ventas — ve todo
+  ADMIN = 'ADMIN',
   BOUNCER = 'BOUNCER',
 }
 

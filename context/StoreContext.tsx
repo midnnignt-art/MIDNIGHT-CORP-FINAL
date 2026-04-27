@@ -41,6 +41,7 @@ interface StoreContextType {
     updateCostStatus: (eventId: string, costId: string, status: 'pending' | 'paid' | 'cancelled') => Promise<void>;
     updateCostActual: (costId: string, actualAmount: number, status: 'paid' | 'pending') => Promise<void>;
     addStaff: (staffData: any) => Promise<void>;
+    updateStaff: (id: string, data: { name?: string; code?: string; role?: string; password?: string }) => Promise<void>;
     deleteStaff: (id: string) => Promise<void>;
     createTeam: (name: string, managerId: string) => Promise<void>;
     updateStaffTeam: (userId: string, teamId: string | null) => Promise<void>;
@@ -559,6 +560,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
     };
     
+    const updateStaff = async (id: string, data: { name?: string; code?: string; role?: string; password?: string }) => {
+        const payload: any = {};
+        if (data.name !== undefined) payload.full_name = data.name.trim();
+        if (data.code !== undefined) payload.code = data.code.trim().toUpperCase();
+        if (data.role !== undefined) payload.role = data.role;
+        if (data.password !== undefined) payload.password = data.password;
+        const { error } = await supabase.from('profiles').update(payload).eq('id', id);
+        if (error) throw error;
+        await fetchData();
+    };
+
     const deleteStaff = async (id: string) => { await supabase.from('profiles').delete().eq('id', id); await fetchData(); };
     const createTeam = async (name: string, managerId: string) => { 
         try {
@@ -1044,7 +1056,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             events, tiers, promoters, orders, teams, superSquads, promoterPayouts, galleryItems, accountingMovements, settlements, currentUser, currentCustomer, dbStatus,
             login, logout, requestCustomerOtp, verifyOtpUnified, verifyCustomerOtp, customerLogout,
             getEventTiers, addEvent, updateEvent, archiveEvent, restoreEvent, hardDeleteEvent, setEventStatus,
-            addStaff, deleteStaff, createTeam, updateStaffTeam, deleteTeam, createOrder, clearDatabase,
+            addStaff, updateStaff, deleteStaff, createTeam, updateStaffTeam, deleteTeam, createOrder, clearDatabase,
             addEventCost, deleteEventCost, updateCostStatus, updateCostActual, updateGallery, validateTicket, validarYQuemarTicket,
             addAccountingMovement, deleteAccountingMovement, addSettlement, deleteSettlement, transferTicket,
             createSuperSquad, deleteSuperSquad, assignTeamToSuperSquad, upsertPromoterPayout, fetchData

@@ -101,16 +101,17 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   // PERMISOS
   const isAdmin = currentUser.role === UserRole.ADMIN;
   const isBouncer = currentUser.role === UserRole.BOUNCER || isAdmin;
-  const isHoS = currentUser.role === UserRole.HEAD_OF_SALES;
 
-  // Super squad que este usuario encabeza (si tiene uno)
-  const myHeadSuperSquad = superSquads.find(ss => ss.head_id === currentUser.user_id);
+  // Director global de ventas (HEAD_OF_SALES) o Admin → ve absolutamente todo
+  const isGlobalHead = isAdmin || currentUser.role === UserRole.HEAD_OF_SALES;
 
-  // Director global: Admin O HEAD_OF_SALES sin super squad asignado → ve todo
-  const isGlobalHead = isAdmin || (isHoS && !myHeadSuperSquad);
+  // Cabeza de super squad (HEAD) → ve solo su super squad
+  const isSuperSquadHead = currentUser.role === UserRole.HEAD;
 
-  // Cabeza de super squad específico → ve solo su super squad
-  const isSuperSquadHead = isHoS && !!myHeadSuperSquad;
+  // Super squad que este usuario encabeza (solo aplica para HEAD)
+  const myHeadSuperSquad = isSuperSquadHead
+    ? superSquads.find(ss => ss.head_id === currentUser.user_id)
+    : null;
 
   const isHead = isGlobalHead || isSuperSquadHead;
   const isManager = currentUser.role === UserRole.MANAGER || isHead;
@@ -121,15 +122,15 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   // Qué equipos puede ver este usuario
   const myScopeTeams = isGlobalHead
     ? teams
-    : isSuperSquadHead
-      ? teams.filter(t => t.super_squad_id === myHeadSuperSquad!.id)
+    : isSuperSquadHead && myHeadSuperSquad
+      ? teams.filter(t => t.super_squad_id === myHeadSuperSquad.id)
       : myTeam ? [myTeam] : [];
 
   // IDs de promotores que puede ver este usuario
   const myScopeMemberIds: string[] = isGlobalHead
     ? promoters.map(p => p.user_id)
     : isSuperSquadHead
-      ? [...new Set(myScopeTeams.flatMap(t => [t.manager_id, ...t.members_ids]))]
+      ? [...new Set([currentUser.user_id, ...myScopeTeams.flatMap(t => [t.manager_id, ...t.members_ids])])]
       : myTeam
         ? [myTeam.manager_id, ...myTeam.members_ids]
         : [currentUser.user_id];
@@ -539,7 +540,9 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
         );
         label = isGlobalHead
             ? "Global (Red Completa)"
-            : `Super Squad: ${myHeadSuperSquad?.name || ''}`;
+            : myHeadSuperSquad
+              ? `Super Squad: ${myHeadSuperSquad.name}`
+              : "Mi Cabeza (sin super squad asignado)";
     } else if (isManager) {
         const teamMemberIds = myTeam ? [currentUser.user_id, ...myTeam.members_ids] : [currentUser.user_id];
         scopeOrders = orders.filter(o => o.status === 'completed' && o.payment_method !== 'guest_list' && o.staff_id && teamMemberIds.includes(o.staff_id));
@@ -763,7 +766,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6 mb-8 md:mb-12">
         <div>
           <h1 className="text-2xl md:text-5xl font-black text-white tracking-tighter">
-            {isAdmin ? 'MIDNIGHT COMMAND' : isHead ? 'CENTRAL DE VENTAS' : isManager ? 'MI SQUAD' : 'PORTAL STAFF'}
+            {isAdmin ? 'MIDNIGHT COMMAND' : isGlobalHead ? 'CENTRAL DE VENTAS' : isSuperSquadHead ? 'MI SUPER SQUAD' : isManager ? 'MI SQUAD' : 'PORTAL STAFF'}
           </h1>
           <div className="flex items-center gap-3 mt-2">
               <span className={`w-2 h-2 rounded-full animate-pulse ${isAdmin ? 'bg-neon-purple' : 'bg-emerald-500'}`}></span>

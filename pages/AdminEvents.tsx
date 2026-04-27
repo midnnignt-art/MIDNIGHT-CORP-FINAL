@@ -22,9 +22,9 @@ interface AdminEventsProps {
 export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
     const {
         events, addEvent, updateEvent, archiveEvent, restoreEvent, hardDeleteEvent, setEventStatus, getEventTiers,
-        promoters, addStaff, deleteStaff, teams, createTeam, updateStaffTeam, deleteTeam,
+        promoters, addStaff, updateStaff, deleteStaff, teams, createTeam, updateStaffTeam, deleteTeam,
         superSquads, createSuperSquad, deleteSuperSquad, assignTeamToSuperSquad,
-        orders, dbStatus, clearDatabase
+        orders, dbStatus, clearDatabase, fetchData
     } = useStore();
     
     const [activeTab, setActiveTab] = useState<'events' | 'archived' | 'staff' | 'system'>('events');
@@ -89,6 +89,16 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
     const [newSuperSquadHeadId, setNewSuperSquadHeadId] = useState('');
     const [squadAssignTeamId, setSquadAssignTeamId] = useState('');
     const [squadAssignSuperSquadId, setSquadAssignSuperSquadId] = useState('');
+
+    // --- STATE: Edit Staff ---
+    const [editingStaff, setEditingStaff] = useState<any | null>(null);
+    const [editForm, setEditForm] = useState({ name: '', code: '', role: '', password: '' });
+    const [isSavingStaff, setIsSavingStaff] = useState(false);
+
+    // --- STATE: Edit Super Squad ---
+    const [editingSuperSquad, setEditingSuperSquad] = useState<any | null>(null);
+    const [editSsName, setEditSsName] = useState('');
+    const [editSsHeadId, setEditSsHeadId] = useState('');
     
     // Staff Creation State
     const [staffName, setStaffName] = useState('');
@@ -828,8 +838,9 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                         <label className="text-[10px] text-zinc-500 uppercase font-bold">Rol</label>
                                         <select value={staffRole} onChange={(e:any) => setStaffRole(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white uppercase font-bold text-xs">
                                             <option value="PROMOTER">Promotor</option>
-                                            <option value="MANAGER">Manager</option>
-                                            <option value="HEAD_OF_SALES">Head of Sales</option>
+                                            <option value="MANAGER">Manager (Gerente)</option>
+                                            <option value="HEAD">Cabeza de Super Squad</option>
+                                            <option value="HEAD_OF_SALES">Head of Sales (Director Global)</option>
                                         </select>
                                     </div>
 
@@ -919,7 +930,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
 
                             {superSquads.length > 0 && (
                                 <div>
-                                    <h3 className="text-lg font-black mb-4" style={{ color: '#C9A84C' }}>Super Squads</h3>
+                                    <h3 className="text-lg font-black mb-4" style={{ color: '#C9A84C' }}>Super Squads Activos</h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         {superSquads.map(ss => {
                                             const head = promoters.find(p => p.user_id === ss.head_id);
@@ -929,14 +940,22 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                                     <div className="flex justify-between items-start">
                                                         <div>
                                                             <h4 className="font-bold text-white">{ss.name}</h4>
-                                                            <p className="text-xs text-zinc-500 mt-0.5">Cabeza: {head?.name || 'N/A'}</p>
+                                                            <p className="text-xs text-zinc-500 mt-0.5">Cabeza: {head?.name || 'Sin asignar'}</p>
                                                         </div>
-                                                        <button onClick={async () => { if (confirm('¿Eliminar Super Squad?')) await deleteSuperSquad(ss.id); }} className="text-zinc-700 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                                                        <div className="flex gap-2">
+                                                            <button onClick={() => { setEditingSuperSquad(ss); setEditSsName(ss.name); setEditSsHeadId(ss.head_id); }} className="text-zinc-500 hover:text-white transition-colors"><Pencil className="w-4 h-4" /></button>
+                                                            <button onClick={async () => { if (confirm('¿Eliminar Super Squad?')) await deleteSuperSquad(ss.id); }} className="text-zinc-700 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                                                        </div>
                                                     </div>
                                                     <div className="mt-3 pt-3 border-t border-white/5 flex flex-wrap gap-1">
                                                         {linkedTeams.length === 0
                                                             ? <span className="text-[10px] text-zinc-600">Sin squads asignados</span>
-                                                            : linkedTeams.map(t => <span key={t.id} className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: '#C9A84C20', color: '#C9A84C' }}>{t.name}</span>)
+                                                            : linkedTeams.map(t => (
+                                                                <span key={t.id} className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full" style={{ background: '#C9A84C20', color: '#C9A84C' }}>
+                                                                    {t.name}
+                                                                    <button onClick={async () => { await assignTeamToSuperSquad(t.id, null); toast.success(`${t.name} desvinculado`); }} className="opacity-50 hover:opacity-100 ml-0.5">×</button>
+                                                                </span>
+                                                            ))
                                                         }
                                                     </div>
                                                 </div>
@@ -959,7 +978,10 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                                     <span className="text-zinc-500 text-xs uppercase font-bold">{p.role}</span>
                                                 </div>
                                             </div>
-                                            <button onClick={() => deleteStaff(p.user_id)} className="text-zinc-700 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                                            <div className="flex gap-2">
+                                                <button onClick={() => { setEditingStaff(p); setEditForm({ name: p.name, code: p.code, role: p.role, password: '' }); }} className="text-zinc-500 hover:text-white transition-colors"><Pencil className="w-4 h-4" /></button>
+                                                <button onClick={() => { if (confirm(`¿Eliminar a ${p.name}?`)) deleteStaff(p.user_id); }} className="text-zinc-700 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -1069,6 +1091,102 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                     <Button onClick={() => handleDeleteTeam(teamToEdit.id)} fullWidth variant="danger" className="font-black text-xs h-12">
                                         <Trash2 className="mr-2 w-4 h-4"/> ELIMINAR SQUAD COMPLETO
                                     </Button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* ── MODAL: EDITAR STAFF ── */}
+            <AnimatePresence>
+                {editingStaff && (
+                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+                            className="bg-zinc-900 border border-white/10 p-6 rounded-[2rem] w-full max-w-md shadow-2xl relative">
+                            <button onClick={() => setEditingStaff(null)} className="absolute top-5 right-5 text-zinc-500 hover:text-white"><X size={20}/></button>
+                            <h2 className="text-xl font-black text-white mb-1">Editar Usuario</h2>
+                            <p className="text-[10px] text-zinc-600 mb-6 font-bold uppercase tracking-widest">{editingStaff.email} · no editable</p>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-[10px] text-zinc-500 uppercase font-bold">Nombre</label>
+                                    <input value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white font-bold mt-1" />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] text-zinc-500 uppercase font-bold">Código Identificador</label>
+                                    <input value={editForm.code} onChange={e => setEditForm({...editForm, code: e.target.value.toUpperCase()})} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white font-black tracking-wider uppercase mt-1" />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] text-zinc-500 uppercase font-bold">Rol</label>
+                                    <select value={editForm.role} onChange={e => setEditForm({...editForm, role: e.target.value})} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white uppercase font-bold text-xs mt-1">
+                                        <option value="PROMOTER">Promotor</option>
+                                        <option value="MANAGER">Manager (Gerente)</option>
+                                        <option value="HEAD">Cabeza de Super Squad</option>
+                                        <option value="HEAD_OF_SALES">Head of Sales (Director Global)</option>
+                                        <option value="BOUNCER">Bouncer</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] text-zinc-500 uppercase font-bold">Nueva Contraseña <span className="text-zinc-700">(dejar vacío para no cambiar)</span></label>
+                                    <input type="password" value={editForm.password} onChange={e => setEditForm({...editForm, password: e.target.value})} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white font-bold mt-1" placeholder="••••••••" />
+                                </div>
+                                <div className="flex gap-3 pt-2">
+                                    <Button onClick={async () => {
+                                        setIsSavingStaff(true);
+                                        try {
+                                            const payload: any = { name: editForm.name, code: editForm.code, role: editForm.role };
+                                            if (editForm.password) payload.password = editForm.password;
+                                            await updateStaff(editingStaff.user_id, payload);
+                                            toast.success('Usuario actualizado');
+                                            setEditingStaff(null);
+                                        } catch (e: any) { toast.error(e.message); }
+                                        finally { setIsSavingStaff(false); }
+                                    }} disabled={isSavingStaff} className="flex-1 bg-white text-black font-black h-12">
+                                        {isSavingStaff ? 'Guardando...' : 'GUARDAR'}
+                                    </Button>
+                                    <Button onClick={() => setEditingStaff(null)} variant="outline" className="h-12">Cancelar</Button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* ── MODAL: EDITAR SUPER SQUAD ── */}
+            <AnimatePresence>
+                {editingSuperSquad && (
+                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+                            className="bg-zinc-900 border border-[#C9A84C]/20 p-6 rounded-[2rem] w-full max-w-md shadow-2xl relative">
+                            <button onClick={() => setEditingSuperSquad(null)} className="absolute top-5 right-5 text-zinc-500 hover:text-white"><X size={20}/></button>
+                            <h2 className="text-xl font-black mb-6" style={{ color: '#C9A84C' }}>Editar Super Squad</h2>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-[10px] text-zinc-500 uppercase font-bold">Nombre</label>
+                                    <input value={editSsName} onChange={e => setEditSsName(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white font-bold mt-1" />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] text-zinc-500 uppercase font-bold">Cabeza</label>
+                                    <select value={editSsHeadId} onChange={e => setEditSsHeadId(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white mt-1">
+                                        <option value="">Sin asignar</option>
+                                        {promoters.filter(p => p.role === 'HEAD' || p.role === 'HEAD_OF_SALES' || p.role === 'MANAGER').map(p => (
+                                            <option key={p.user_id} value={p.user_id}>{p.name} ({p.role})</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="flex gap-3 pt-2">
+                                    <Button onClick={async () => {
+                                        try {
+                                            const { error } = await supabase.from('super_squads').update({ name: editSsName, head_id: editSsHeadId || null }).eq('id', editingSuperSquad.id);
+                                            if (error) throw error;
+                                            await fetchData();
+                                            toast.success('Super Squad actualizado');
+                                            setEditingSuperSquad(null);
+                                        } catch (e: any) { toast.error(e.message); }
+                                    }} className="flex-1 font-black h-12" style={{ background: '#C9A84C', color: '#000' }}>
+                                        GUARDAR
+                                    </Button>
+                                    <Button onClick={() => setEditingSuperSquad(null)} variant="outline" className="h-12">Cancelar</Button>
                                 </div>
                             </div>
                         </motion.div>

@@ -154,39 +154,27 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
                         </button>
                     )}
 
-                    {(currentUser?.role === UserRole.ADMIN || currentUser?.role === 'ADMIN') && (
+                    {currentUser && (currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.HEAD_OF_SALES || currentUser.role === UserRole.HEAD) && (
                         <div className="pt-2 mt-2 border-t border-white/5 space-y-0.5">
+                            {currentUser.role === UserRole.ADMIN && (<>
                             <button onClick={() => handleNavigateAction('admin-events')} className={`w-full text-left py-3 px-4 rounded-lg flex items-center justify-between group transition-all min-h-[44px] ${currentPage === 'admin-events' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
-                                <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-3">
-                                    Backoffice
-                                </span>
+                                <span className="font-medium text-[11px] uppercase tracking-[0.2em]">Backoffice</span>
                             </button>
                             <button onClick={() => handleNavigateAction('magic')} className={`w-full text-left py-3 px-4 rounded-lg flex items-center justify-between group transition-all min-h-[44px] ${currentPage === 'magic' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
-                                <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-3">
-                                    MÁGIC
-                                </span>
+                                <span className="font-medium text-[11px] uppercase tracking-[0.2em]">MÁGIC</span>
                             </button>
                             <button onClick={() => handleNavigateAction('projections')} className={`w-full text-left py-3 px-4 rounded-lg flex items-center justify-between group transition-all min-h-[44px] ${currentPage === 'projections' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
-                                <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-3">
-                                    Finanzas
-                                </span>
+                                <span className="font-medium text-[11px] uppercase tracking-[0.2em]">Finanzas</span>
                             </button>
                             <button onClick={() => handleNavigateAction('contabilidad')} className={`w-full text-left py-3 px-4 rounded-lg flex items-center justify-between group transition-all min-h-[44px] ${currentPage === 'contabilidad' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
-                                <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-3">
-                                    Contabilidad
-                                </span>
-                                <div className={`w-1 h-1 rounded-full bg-white transition-all ${currentPage === 'contabilidad' ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}`} />
-                            </button>
-                            <button onClick={() => handleNavigateAction('top-clients')} className={`w-full text-left py-3 px-4 rounded-lg flex items-center justify-between group transition-all min-h-[44px] ${currentPage === 'top-clients' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
-                                <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-3">
-                                    Top Clients
-                                </span>
+                                <span className="font-medium text-[11px] uppercase tracking-[0.2em]">Contabilidad</span>
                             </button>
                             <button onClick={() => handleNavigateAction('codes-discounts')} className={`w-full text-left py-3 px-4 rounded-lg flex items-center justify-between group transition-all min-h-[44px] ${currentPage === 'codes-discounts' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
-                                <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-3">
-                                    Códigos y Descuentos
-                                </span>
-                                <div className={`w-1 h-1 rounded-full bg-white transition-all ${currentPage === 'codes-discounts' ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}`} />
+                                <span className="font-medium text-[11px] uppercase tracking-[0.2em]">Códigos y Descuentos</span>
+                            </button>
+                            </>)}
+                            <button onClick={() => handleNavigateAction('top-clients')} className={`w-full text-left py-3 px-4 rounded-lg flex items-center justify-between group transition-all min-h-[44px] ${currentPage === 'top-clients' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
+                                <span className="font-medium text-[11px] uppercase tracking-[0.2em]">Top Clients</span>
                             </button>
                         </div>
                     )}

@@ -1,16 +1,40 @@
 import React, { useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
-import { UserRole, Order, Event, TicketTier } from '../types';
-import { Users, Trophy, Ticket, Calendar, BarChart3, Search } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { UserRole } from '../types';
+import { Trophy, Ticket, BarChart3, Search } from 'lucide-react';
 
 interface TopClientsProps {
   role: UserRole;
 }
 
 export const TopClients: React.FC<TopClientsProps> = ({ role }) => {
-  const { orders, events, tiers } = useStore();
+  const { orders, events, tiers, currentUser, promoters, teams, superSquads } = useStore();
   const [searchTerm, setSearchTerm] = React.useState('');
+
+  const isAdmin = currentUser?.role === UserRole.ADMIN;
+  const isGlobalHead = isAdmin || currentUser?.role === UserRole.HEAD_OF_SALES;
+  const isSuperSquadHead = currentUser?.role === UserRole.HEAD;
+  const isManager = currentUser?.role === UserRole.MANAGER;
+
+  const myHeadSuperSquad = isSuperSquadHead
+    ? superSquads.find(ss => ss.head_id === currentUser?.user_id)
+    : null;
+
+  // IDs de staff cuyos clientes este usuario puede ver
+  const scopeStaffIds: string[] | null = useMemo(() => {
+    if (isGlobalHead) return null; // null = sin filtro
+    if (isSuperSquadHead && myHeadSuperSquad) {
+      const myTeams = teams.filter(t => t.super_squad_id === myHeadSuperSquad.id);
+      return [...new Set(myTeams.flatMap(t => [t.manager_id, ...t.members_ids]))];
+    }
+    if (isManager) {
+      const myTeam = teams.find(t => t.manager_id === currentUser?.user_id);
+      return myTeam ? [myTeam.manager_id, ...myTeam.members_ids] : [currentUser?.user_id ?? ''];
+    }
+    return [currentUser?.user_id ?? ''];
+  }, [isGlobalHead, isSuperSquadHead, isManager, myHeadSuperSquad, teams, currentUser]);
+
+  const canAccess = isAdmin || isGlobalHead || isSuperSquadHead || isManager;
 
   const topClientsData = useMemo(() => {
     const clients: Record<string, {
@@ -26,6 +50,8 @@ export const TopClients: React.FC<TopClientsProps> = ({ role }) => {
 
     orders.forEach(order => {
       if (order.status !== 'completed') return;
+      // Scope filter: if not global, only include orders attributed to scoped staff
+      if (scopeStaffIds !== null && !scopeStaffIds.includes(order.staff_id || '')) return;
       
       const email = order.customer_email.toLowerCase().trim();
       if (!clients[email]) {
@@ -74,14 +100,14 @@ export const TopClients: React.FC<TopClientsProps> = ({ role }) => {
     return Object.values(clients)
       .sort((a, b) => b.totalTickets - a.totalTickets)
       .slice(0, 50);
-  }, [orders, events, tiers]);
+  }, [orders, events, tiers, scopeStaffIds]);
 
   const filteredClients = topClientsData.filter(c => 
     c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     c.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (role !== UserRole.ADMIN) {
+  if (!canAccess) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <p className="text-zinc-500 font-black uppercase tracking-widest">Acceso Restringido</p>
@@ -96,7 +122,10 @@ export const TopClients: React.FC<TopClientsProps> = ({ role }) => {
           <h1 className="text-4xl md:text-6xl font-black text-white uppercase tracking-tighter mb-2">
             MIDNIGHT <span className="text-neon-purple">TOP CLIENTS</span>
           </h1>
-          <p className="text-zinc-500 text-xs md:text-sm font-bold uppercase tracking-[0.3em]">Ranking de los 50 mayores compradores de la red</p>
+          <p className="text-zinc-500 text-xs md:text-sm font-bold uppercase tracking-[0.3em]">
+          {isGlobalHead ? 'Red completa' : isSuperSquadHead ? `Super Squad: ${myHeadSuperSquad?.name || ''}` : 'Tu squad'}
+          {' · '}Top 50 compradores
+        </p>
         </div>
 
         <div className="relative w-full md:w-72">
