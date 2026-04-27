@@ -1424,38 +1424,136 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                                       </tr>
                                   </thead>
                                   <tbody className="divide-y divide-white/5 text-xs md:text-sm">
-                                      {globalLiquidationData.allTeams.map(team => (
-                                          <tr key={team.id} className={`hover:bg-white/[0.02] transition-colors ${team.id === 'virtual_organic' ? 'bg-neon-purple/5 border-l-4 border-l-neon-purple' : team.isVirtual ? 'bg-zinc-800/20 border-l-4 border-l-amber-500' : ''}`}>
-                                              <td className="p-3 md:p-6">
-                                                  <div className={`font-black text-white ${team.id === 'virtual_organic' ? 'text-neon-purple text-base' : team.isVirtual ? 'text-amber-500 text-sm' : ''}`}>{team.name}</div>
-                                                  <div className="text-[9px] text-zinc-500 font-bold uppercase mt-1">Mgr: {team.manager_name || 'N/A'}</div>
-                                              </td>
+                                      {(() => {
+                                          const virtualTeams = globalLiquidationData.allTeams.filter(t => t.isVirtual);
+                                          const realTeams = globalLiquidationData.allTeams.filter(t => !t.isVirtual);
 
-                                              {/* Digital Column */}
-                                              <td className="p-3 md:p-6 text-right text-purple-400/80">
-                                                  <div className="font-bold">{team.digitalQty} und</div>
-                                                  <div className="text-[9px]">${team.digitalGross.toLocaleString()}</div>
-                                              </td>
+                                          const renderSquadRow = (team: typeof realTeams[0], indented = false) => (
+                                              <tr key={team.id} className="hover:bg-white/[0.02] transition-colors">
+                                                  <td className={`p-3 md:p-6 ${indented ? 'pl-6 md:pl-12' : ''}`}>
+                                                      <div className="font-black text-white text-xs md:text-sm">{team.name}</div>
+                                                      <div className="text-[9px] text-zinc-500 font-bold uppercase mt-1">Mgr: {team.manager_name || 'N/A'}</div>
+                                                  </td>
+                                                  <td className="p-3 md:p-6 text-right text-purple-400/80">
+                                                      <div className="font-bold">{team.digitalQty} und</div>
+                                                      <div className="text-[9px]">${team.digitalGross.toLocaleString()}</div>
+                                                  </td>
+                                                  <td className="p-3 md:p-6 text-right text-amber-400/80">
+                                                      <div className="font-bold">{team.cashQty} und</div>
+                                                      <div className="text-[9px]">${team.cashGross.toLocaleString()}</div>
+                                                  </td>
+                                                  <td className="p-3 md:p-6 text-right font-bold text-white border-l border-white/5">${team.cashGross.toLocaleString()}</td>
+                                                  <td className="p-3 md:p-6 text-right font-bold text-emerald-500">${team.commission.toLocaleString()}</td>
+                                                  <td className="p-3 md:p-6 text-right font-black text-neon-blue text-base border-l border-white/5 bg-white/[0.02]">${team.net.toLocaleString()}</td>
+                                                  <td className="p-3 md:p-6 text-center">
+                                                      <button onClick={() => { setViewingTeamId(team.id); setExpandedMemberId(null); }} className="p-2 bg-white/5 rounded-lg md:rounded-xl hover:bg-neon-purple/20 text-zinc-500 hover:text-neon-purple transition-all border border-transparent hover:border-neon-purple/20 flex items-center justify-center mx-auto">
+                                                          <Users size={14} className="md:w-4 md:h-4 md:mr-2"/>
+                                                          <span className="hidden md:inline">Miembros</span>
+                                                      </button>
+                                                  </td>
+                                              </tr>
+                                          );
 
-                                              {/* Cash Column */}
-                                              <td className="p-3 md:p-6 text-right text-amber-400/80">
-                                                  <div className="font-bold">{team.cashQty} und</div>
-                                                  <div className="text-[9px]">${team.cashGross.toLocaleString()}</div>
-                                              </td>
+                                          // Group real teams by super squad
+                                          const superSquadGroups = superSquads
+                                              .map(ss => {
+                                                  const ssTeams = realTeams.filter(t => {
+                                                      const dbTeam = teams.find(dt => dt.id === t.id);
+                                                      return dbTeam?.super_squad_id === ss.id;
+                                                  });
+                                                  if (ssTeams.length === 0) return null;
+                                                  const agg = ssTeams.reduce((acc, t) => ({
+                                                      digitalQty: acc.digitalQty + t.digitalQty,
+                                                      digitalGross: acc.digitalGross + t.digitalGross,
+                                                      cashQty: acc.cashQty + t.cashQty,
+                                                      cashGross: acc.cashGross + t.cashGross,
+                                                      commission: acc.commission + t.commission,
+                                                      net: acc.net + t.net,
+                                                  }), { digitalQty: 0, digitalGross: 0, cashQty: 0, cashGross: 0, commission: 0, net: 0 });
+                                                  return { ss, ssTeams, agg };
+                                              })
+                                              .filter((g): g is NonNullable<typeof g> => g !== null);
 
-                                              {/* Cash Held (Same as Cash Gross) */}
-                                              <td className="p-3 md:p-6 text-right font-bold text-white border-l border-white/5">${team.cashGross.toLocaleString()}</td>
+                                          const unassignedTeams = realTeams.filter(t => {
+                                              const dbTeam = teams.find(dt => dt.id === t.id);
+                                              return !dbTeam?.super_squad_id;
+                                          });
 
-                                              <td className="p-3 md:p-6 text-right font-bold text-emerald-500">${team.commission.toLocaleString()}</td>
-                                              <td className="p-3 md:p-6 text-right font-black text-neon-blue text-base border-l border-white/5 bg-white/[0.02]">${team.net.toLocaleString()}</td>
-                                              <td className="p-3 md:p-6 text-center">
-                                                  <button onClick={() => { setViewingTeamId(team.id); setExpandedMemberId(null); }} className="p-2 bg-white/5 rounded-lg md:rounded-xl hover:bg-neon-purple/20 text-zinc-500 hover:text-neon-purple transition-all border border-transparent hover:border-neon-purple/20 flex items-center justify-center mx-auto">
-                                                      <Users size={14} className="md:w-4 md:h-4 md:mr-2"/>
-                                                      <span className="hidden md:inline">Miembros</span>
-                                                  </button>
-                                              </td>
-                                          </tr>
-                                      ))}
+                                          const showGrouping = isGlobalHead && superSquadGroups.length > 0;
+
+                                          return (
+                                              <>
+                                                  {showGrouping ? (
+                                                      <>
+                                                          {superSquadGroups.map(({ ss, ssTeams, agg }) => (
+                                                              <React.Fragment key={ss.id}>
+                                                                  {/* Super Squad header row — gold */}
+                                                                  <tr className="bg-[#C9A84C]/10 border-l-4 border-l-[#C9A84C] border-t border-[#C9A84C]/20">
+                                                                      <td className="p-3 md:p-5">
+                                                                          <div className="font-black text-[#C9A84C] uppercase tracking-tight text-xs md:text-sm">{ss.name}</div>
+                                                                          <div className="text-[9px] text-zinc-500 font-bold uppercase mt-0.5">{ssTeams.length} {ssTeams.length === 1 ? 'squad' : 'squads'}</div>
+                                                                      </td>
+                                                                      <td className="p-3 md:p-5 text-right text-purple-400/60 text-[10px] md:text-xs">
+                                                                          <div className="font-bold">{agg.digitalQty} und</div>
+                                                                          <div className="text-[9px]">${agg.digitalGross.toLocaleString()}</div>
+                                                                      </td>
+                                                                      <td className="p-3 md:p-5 text-right text-amber-400/60 text-[10px] md:text-xs">
+                                                                          <div className="font-bold">{agg.cashQty} und</div>
+                                                                          <div className="text-[9px]">${agg.cashGross.toLocaleString()}</div>
+                                                                      </td>
+                                                                      <td className="p-3 md:p-5 text-right font-bold text-zinc-300 border-l border-white/5 text-[10px] md:text-xs">${agg.cashGross.toLocaleString()}</td>
+                                                                      <td className="p-3 md:p-5 text-right font-bold text-emerald-400/80 text-[10px] md:text-xs">${agg.commission.toLocaleString()}</td>
+                                                                      <td className="p-3 md:p-5 text-right font-black text-[#C9A84C] text-sm md:text-base border-l border-white/5">${agg.net.toLocaleString()}</td>
+                                                                      <td className="p-3 md:p-5"></td>
+                                                                  </tr>
+                                                                  {/* Squad rows indented under super squad */}
+                                                                  {ssTeams.map(team => renderSquadRow(team, true))}
+                                                              </React.Fragment>
+                                                          ))}
+                                                          {unassignedTeams.length > 0 && (
+                                                              <React.Fragment>
+                                                                  <tr className="bg-zinc-800/20 border-l-4 border-l-zinc-600 border-t border-zinc-700/30">
+                                                                      <td colSpan={7} className="p-3 md:p-5">
+                                                                          <div className="font-black text-zinc-400 uppercase tracking-tight text-[10px] md:text-xs">Sin Super Squad</div>
+                                                                          <div className="text-[9px] text-zinc-600 font-bold uppercase mt-0.5">{unassignedTeams.length} {unassignedTeams.length === 1 ? 'squad' : 'squads'}</div>
+                                                                      </td>
+                                                                  </tr>
+                                                                  {unassignedTeams.map(team => renderSquadRow(team, true))}
+                                                              </React.Fragment>
+                                                          )}
+                                                      </>
+                                                  ) : (
+                                                      realTeams.map(team => renderSquadRow(team, false))
+                                                  )}
+                                                  {/* Virtual groups always at bottom */}
+                                                  {virtualTeams.map(team => (
+                                                      <tr key={team.id} className={`hover:bg-white/[0.02] transition-colors ${team.id === 'virtual_organic' ? 'bg-neon-purple/5 border-l-4 border-l-neon-purple border-t border-neon-purple/10' : 'bg-zinc-800/20 border-l-4 border-l-amber-500 border-t border-amber-500/10'}`}>
+                                                          <td className="p-3 md:p-6">
+                                                              <div className={`font-black ${team.id === 'virtual_organic' ? 'text-neon-purple text-sm md:text-base' : 'text-amber-500 text-xs md:text-sm'}`}>{team.name}</div>
+                                                              <div className="text-[9px] text-zinc-500 font-bold uppercase mt-1">{team.manager_name || 'N/A'}</div>
+                                                          </td>
+                                                          <td className="p-3 md:p-6 text-right text-purple-400/80">
+                                                              <div className="font-bold">{team.digitalQty} und</div>
+                                                              <div className="text-[9px]">${team.digitalGross.toLocaleString()}</div>
+                                                          </td>
+                                                          <td className="p-3 md:p-6 text-right text-amber-400/80">
+                                                              <div className="font-bold">{team.cashQty} und</div>
+                                                              <div className="text-[9px]">${team.cashGross.toLocaleString()}</div>
+                                                          </td>
+                                                          <td className="p-3 md:p-6 text-right font-bold text-white border-l border-white/5">${team.cashGross.toLocaleString()}</td>
+                                                          <td className="p-3 md:p-6 text-right font-bold text-emerald-500">${team.commission.toLocaleString()}</td>
+                                                          <td className="p-3 md:p-6 text-right font-black text-neon-blue text-base border-l border-white/5 bg-white/[0.02]">${team.net.toLocaleString()}</td>
+                                                          <td className="p-3 md:p-6 text-center">
+                                                              <button onClick={() => { setViewingTeamId(team.id); setExpandedMemberId(null); }} className="p-2 bg-white/5 rounded-lg md:rounded-xl hover:bg-neon-purple/20 text-zinc-500 hover:text-neon-purple transition-all border border-transparent hover:border-neon-purple/20 flex items-center justify-center mx-auto">
+                                                                  <Users size={14} className="md:w-4 md:h-4 md:mr-2"/>
+                                                                  <span className="hidden md:inline">Miembros</span>
+                                                              </button>
+                                                          </td>
+                                                      </tr>
+                                                  ))}
+                                              </>
+                                          );
+                                      })()}
                                       {/* TOTALS ROW */}
                                       <tr className="bg-white/5 font-black border-t-2 border-white/10">
                                           <td className="p-3 md:p-6 text-white uppercase tracking-widest">TOTALES</td>
