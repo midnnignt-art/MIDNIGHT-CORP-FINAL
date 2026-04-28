@@ -698,7 +698,10 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
 
       const targetTeamId = selectedRecruitmentTeamId || null;
       const targetManagerId = targetTeamId ? (teams.find(t => t.id === targetTeamId)?.manager_id ?? null) : null;
-      const finalCode = newStaffCode.toUpperCase() || newStaffEmail.split('@')[0].toUpperCase();
+      const finalCode = (newStaffCode || newStaffEmail.split('@')[0]).replace(/\s/g, '').toUpperCase();
+
+      if (!finalCode) { toast.error("El código no puede estar vacío."); return; }
+      if (/\s/.test(finalCode)) { toast.error("El código no puede contener espacios."); return; }
 
       try {
           await addStaff({
@@ -2165,7 +2168,13 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                             </div>
                             <div>
                                 <label className="text-[10px] text-zinc-500 uppercase font-bold mb-1 block">Código de Acceso (Usuario)</label>
-                                <input value={newStaffCode} onChange={e => setNewStaffCode(e.target.value)} className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-black uppercase tracking-widest text-center focus:border-neon-purple outline-none" placeholder="EJ: ANA2024" />
+                                <input
+                                    value={newStaffCode}
+                                    onChange={e => setNewStaffCode(e.target.value.replace(/\s/g, '').toUpperCase())}
+                                    className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-black uppercase tracking-widest text-center focus:border-neon-purple outline-none"
+                                    placeholder="EJ: ANA2024"
+                                />
+                                <p className="text-[9px] text-zinc-600 mt-1 font-mono">Sin espacios · Solo letras y números</p>
                             </div>
                             <div>
                                 <label className="text-[10px] text-zinc-500 uppercase font-bold mb-1 block">Email (para inicio de sesión)</label>

@@ -1114,7 +1114,8 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                 </div>
                                 <div>
                                     <label className="text-[10px] text-zinc-500 uppercase font-bold">Código Identificador</label>
-                                    <input value={editForm.code} onChange={e => setEditForm({...editForm, code: e.target.value.toUpperCase()})} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white font-black tracking-wider uppercase mt-1" />
+                                    <input value={editForm.code} onChange={e => setEditForm({...editForm, code: e.target.value.replace(/\s/g, '').toUpperCase()})} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white font-black tracking-wider uppercase mt-1" />
+                                    <p className="text-[9px] text-zinc-600 mt-1 font-mono">Sin espacios · Solo letras y números</p>
                                 </div>
                                 <div>
                                     <label className="text-[10px] text-zinc-500 uppercase font-bold">Rol</label>
@@ -1132,9 +1133,11 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                 </div>
                                 <div className="flex gap-3 pt-2">
                                     <Button onClick={async () => {
+                                        if (/\s/.test(editForm.code)) { toast.error('El código no puede contener espacios.'); return; }
+                                        if (!editForm.code.trim()) { toast.error('El código no puede estar vacío.'); return; }
                                         setIsSavingStaff(true);
                                         try {
-                                            const payload: any = { name: editForm.name, code: editForm.code, role: editForm.role };
+                                            const payload: any = { name: editForm.name, code: editForm.code.replace(/\s/g, '').toUpperCase(), role: editForm.role };
                                             if (editForm.password) payload.password = editForm.password;
                                             await updateStaff(editingStaff.user_id, payload);
                                             toast.success('Usuario actualizado');
