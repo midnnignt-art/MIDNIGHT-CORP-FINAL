@@ -60,6 +60,8 @@ const App: React.FC = () => {
   }
   
   const [referralToast, setReferralToast] = useState<{show: boolean, name: string}>({show: false, name: ''});
+  // staffId resuelto del link ?ref=CODE — se pasa directamente al checkout (no depende de localStorage)
+  const [referralStaffId, setReferralStaffId] = useState<string | null>(null);
 
   // Capturar el código INMEDIATAMENTE al montar (antes de que se limpie la URL)
   const [pendingRef, setPendingRef] = useState<string | null>(() => {
@@ -74,33 +76,40 @@ const App: React.FC = () => {
   const glMatch        = window.location.pathname.match(/^\/gl\/([^/]+)$/);
   const discountMatch  = window.location.pathname.match(/^\/d\/([^/]+)$/);
 
-  // Lógica de Atribución de Referidos (Landing Page Personalizada)
+  // Atribución de referidos — query directa e inmediata, sin depender del estado promoters
   useEffect(() => {
-    if (!pendingRef || promoters.length === 0) return;
+    if (!pendingRef) return;
 
     const code = pendingRef.toUpperCase();
-    const promoter = promoters.find(p => p.code === code);
 
-    if (promoter) {
-      // 1. Guardar para la UI y atribución de ventas
-      localStorage.setItem('midnight_referral_code', code);
-      localStorage.setItem('midnight_referral_code_id', promoter.user_id);
+    async function resolveReferral() {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, full_name, code')
+        .ilike('code', code)
+        .maybeSingle();
 
-      // 2. Incrementar contador via RPC (bypasa RLS con SECURITY DEFINER)
-      supabase.rpc('increment_link_views', { p_code: code }).then(() => {});
+      if (data?.id) {
+        // Guardar en estado React (primera prioridad al checkout) Y en localStorage (fallback)
+        setReferralStaffId(data.id);
+        localStorage.setItem('midnight_referral_code', code);
+        localStorage.setItem('midnight_referral_code_id', data.id);
+        supabase.rpc('increment_link_views', { p_code: code }).then(() => {});
+        setReferralToast({ show: true, name: data.full_name || 'Vendedor' });
+        setTimeout(() => setReferralToast({ show: false, name: '' }), 5000);
+      } else {
+        // Código inválido — limpiar localStorage stale para evitar atribuciones erróneas
+        localStorage.removeItem('midnight_referral_code');
+        localStorage.removeItem('midnight_referral_code_id');
+      }
 
-      // 3. Mostrar toast de bienvenida
-      setReferralToast({ show: true, name: promoter.name });
-      setTimeout(() => setReferralToast({ show: false, name: '' }), 5000);
-
-      // 4. Limpiar la URL
       const cleanUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
       window.history.pushState({}, '', cleanUrl);
-
-      // 5. No volver a procesar
       setPendingRef(null);
     }
-  }, [promoters, pendingRef]);
+
+    resolveReferral();
+  }, [pendingRef]);
 
   useEffect(() => {
     if (!currentUser && (currentPage === 'dashboard' || currentPage === 'admin-events' || currentPage === 'projections' || currentPage === 'contabilidad' || currentPage === 'codes-discounts')) {
@@ -209,10 +218,11 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      <CheckoutModal 
-        event={selectedEvent} 
-        isOpen={isCheckoutOpen} 
-        onClose={handlePurchaseComplete} 
+      <CheckoutModal
+        event={selectedEvent}
+        isOpen={isCheckoutOpen}
+        onClose={handlePurchaseComplete}
+        referralStaffId={referralStaffId}
       />
 
       <MagicPanel

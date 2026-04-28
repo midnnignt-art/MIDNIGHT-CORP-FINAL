@@ -644,23 +644,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const finalEmail = (customerInfo?.email || 'anon@mail.com').toLowerCase().trim();
             const finalName = customerInfo?.name || 'Anon';
             
-            // FIX: STRICT UUID VALIDATION FOR STAFF ID
+            // Resolución de staff_id: (1) parámetro explícito, (2) localStorage, (3) null = orgánico
             let finalStaffId = null;
-            
-            // 1. Check Explicit Staff ID
+
             if (staffId && isValidUUID(staffId)) {
                 finalStaffId = staffId;
-            } 
-            // 2. Check LocalStorage for Referral ID (Assuming it stored the UUID)
-            else {
-                 const storedId = localStorage.getItem('midnight_referral_code_id');
-                 if (storedId && isValidUUID(storedId)) {
-                     finalStaffId = storedId;
-                 }
+            } else {
+                const storedId = localStorage.getItem('midnight_referral_code_id');
+                if (storedId && isValidUUID(storedId)) {
+                    finalStaffId = storedId;
+                }
             }
-            
-            // Note: If finalStaffId is still null, the DB will accept NULL (Organic Sale)
-            // This prevents "000-admin" or any other invalid string from crashing the insert.
+
+            console.log('[createOrder] staffId param:', staffId, '| finalStaffId:', finalStaffId);
 
             // Determines initial status based on payment method
             const initialStatus = method === 'bold' ? 'pending' : 'completed';
@@ -693,9 +689,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
                 let { data: order, error: orderError } = await supabase.from('orders').insert(orderPayload).select().single();
                 
-                // Retry logic if there's a foreign key constraint error (e.g. staff_id deleted/invalid)
+                // FK failure: el staff_id no existe en profiles — limpiar localStorage y reintentar como orgánico
                 if (orderError && (orderError.code === '23503' || orderError.message.includes('foreign key'))) {
-                    console.warn("Order creation failed due to invalid FK (Staff ID). Retrying as Organic Sale.");
+                    console.error('[createOrder] FK constraint falló para staff_id:', finalStaffId, '— limpiando localStorage y reintentando como orgánico');
+                    localStorage.removeItem('midnight_referral_code_id');
+                    localStorage.removeItem('midnight_referral_code');
                     const fallback = { ...orderPayload, staff_id: null, commission_amount: 0, net_amount: item.unit_price };
                     const retry = await supabase.from('orders').insert(fallback).select().single();
                     order = retry.data;

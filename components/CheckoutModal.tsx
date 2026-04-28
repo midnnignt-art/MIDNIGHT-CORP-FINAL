@@ -9,9 +9,10 @@ interface CheckoutModalProps {
   event: Event | null;
   isOpen: boolean;
   onClose: () => void;
+  referralStaffId?: string | null;
 }
 
-export const CheckoutModal: React.FC<CheckoutModalProps> = ({ event, isOpen, onClose }) => {
+export const CheckoutModal: React.FC<CheckoutModalProps> = ({ event, isOpen, onClose, referralStaffId }) => {
   const { getEventTiers, createOrder } = useStore();
 
   if (!isOpen || !event) return null;
@@ -19,10 +20,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ event, isOpen, onC
   const tiers = getEventTiers(event.id);
 
   const handleComplete = async (data: any) => {
-      // QuickCheckout ya devuelve los items con la estructura correcta:
-      // { tier_id, tier_name, quantity, unit_price, subtotal }
-      // createOrder espera exactamente eso.
-      return await createOrder(event.id, data.items, data.method || 'digital', undefined, data.customerInfo);
+      // Pasar referralStaffId explícitamente — evita depender de localStorage
+      return await createOrder(event.id, data.items, data.method || 'digital', referralStaffId || undefined, data.customerInfo);
   };
 
   return (
