@@ -60,13 +60,21 @@ const App: React.FC = () => {
   }
   
   const [referralToast, setReferralToast] = useState<{show: boolean, name: string}>({show: false, name: ''});
-  // staffId resuelto del link ?ref=CODE — se pasa directamente al checkout (no depende de localStorage)
+  // staffId resuelto — se pasa directamente al checkout
   const [referralStaffId, setReferralStaffId] = useState<string | null>(null);
 
-  // Capturar el código INMEDIATAMENTE al montar (antes de que se limpie la URL)
-  const [pendingRef, setPendingRef] = useState<string | null>(() => {
+  // Capturar el código INMEDIATAMENTE al montar — SÍNCRONO, sin queries
+  const [pendingRef] = useState<string | null>(() => {
     const params = new URLSearchParams(window.location.search);
-    return params.get('ref');
+    const ref = params.get('ref');
+    if (ref) {
+      // Guardar el código raw en sessionStorage AHORA, antes de cualquier render
+      sessionStorage.setItem('ms_ref_code', ref.toUpperCase());
+      // Limpiar URL inmediatamente
+      const cleanUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
+      window.history.replaceState({}, '', cleanUrl);
+    }
+    return ref ? ref.toUpperCase() : null;
   });
 
   // Check for special routes
@@ -76,40 +84,20 @@ const App: React.FC = () => {
   const glMatch        = window.location.pathname.match(/^\/gl\/([^/]+)$/);
   const discountMatch  = window.location.pathname.match(/^\/d\/([^/]+)$/);
 
-  // Atribución de referidos — query directa e inmediata, sin depender del estado promoters
+  // Una vez cargados los promotores, resolver el nombre para el toast y el staffId para el checkout
   useEffect(() => {
-    if (!pendingRef) return;
+    if (!pendingRef || promoters.length === 0) return;
 
-    const code = pendingRef.toUpperCase();
-
-    async function resolveReferral() {
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, full_name, code')
-        .ilike('code', code)
-        .maybeSingle();
-
-      if (data?.id) {
-        // Guardar en estado React (primera prioridad al checkout) Y en localStorage (fallback)
-        setReferralStaffId(data.id);
-        localStorage.setItem('midnight_referral_code', code);
-        localStorage.setItem('midnight_referral_code_id', data.id);
-        supabase.rpc('increment_link_views', { p_code: code }).then(() => {});
-        setReferralToast({ show: true, name: data.full_name || 'Vendedor' });
-        setTimeout(() => setReferralToast({ show: false, name: '' }), 5000);
-      } else {
-        // Código inválido — limpiar localStorage stale para evitar atribuciones erróneas
-        localStorage.removeItem('midnight_referral_code');
-        localStorage.removeItem('midnight_referral_code_id');
-      }
-
-      const cleanUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
-      window.history.pushState({}, '', cleanUrl);
-      setPendingRef(null);
+    const promoter = promoters.find(p => p.code?.toUpperCase() === pendingRef);
+    if (promoter) {
+      setReferralStaffId(promoter.user_id);
+      localStorage.setItem('midnight_referral_code', pendingRef);
+      localStorage.setItem('midnight_referral_code_id', promoter.user_id);
+      supabase.rpc('increment_link_views', { p_code: pendingRef }).then(() => {});
+      setReferralToast({ show: true, name: promoter.name });
+      setTimeout(() => setReferralToast({ show: false, name: '' }), 5000);
     }
-
-    resolveReferral();
-  }, [pendingRef]);
+  }, [promoters, pendingRef]);
 
   useEffect(() => {
     if (!currentUser && (currentPage === 'dashboard' || currentPage === 'admin-events' || currentPage === 'projections' || currentPage === 'contabilidad' || currentPage === 'codes-discounts')) {

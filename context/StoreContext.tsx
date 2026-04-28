@@ -644,19 +644,36 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const finalEmail = (customerInfo?.email || 'anon@mail.com').toLowerCase().trim();
             const finalName = customerInfo?.name || 'Anon';
             
-            // Resolución de staff_id: (1) parámetro explícito, (2) localStorage, (3) null = orgánico
-            let finalStaffId = null;
+            // Resolución de staff_id — 4 fuentes en orden de prioridad:
+            // 1. Parámetro explícito (ventas cash desde dashboard)
+            // 2. sessionStorage ref code → buscar en promoters ya cargados (compras web via link)
+            // 3. localStorage legacy fallback
+            // 4. null → venta orgánica
+            let finalStaffId: string | null = null;
 
             if (staffId && isValidUUID(staffId)) {
                 finalStaffId = staffId;
             } else {
-                const storedId = localStorage.getItem('midnight_referral_code_id');
-                if (storedId && isValidUUID(storedId)) {
-                    finalStaffId = storedId;
+                // 2. Leer código del link desde sessionStorage y buscar en promoters
+                const refCode = sessionStorage.getItem('ms_ref_code');
+                if (refCode) {
+                    const refPromoter = promoters.find(
+                        p => p.code && p.code.toUpperCase() === refCode.toUpperCase()
+                    );
+                    if (refPromoter?.user_id && isValidUUID(refPromoter.user_id)) {
+                        finalStaffId = refPromoter.user_id;
+                    }
+                }
+                // 3. Legacy localStorage fallback
+                if (!finalStaffId) {
+                    const storedId = localStorage.getItem('midnight_referral_code_id');
+                    if (storedId && isValidUUID(storedId)) {
+                        finalStaffId = storedId;
+                    }
                 }
             }
 
-            console.log('[createOrder] staffId param:', staffId, '| finalStaffId:', finalStaffId);
+            console.log('[createOrder] refCode:', sessionStorage.getItem('ms_ref_code'), '| finalStaffId:', finalStaffId);
 
             // Determines initial status based on payment method
             const initialStatus = method === 'bold' ? 'pending' : 'completed';
