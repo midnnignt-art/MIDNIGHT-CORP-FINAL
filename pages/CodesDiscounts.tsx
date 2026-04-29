@@ -177,21 +177,37 @@ export const CodesDiscounts: React.FC = () => {
   const tabBtn = (tab: Tab, label: string, icon: React.ReactNode) => (
     <button
       onClick={() => setActiveTab(tab)}
-      className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-[0.2em] transition-all duration-300 ${activeTab === tab ? 'bg-[#C9A84C]/10 text-[#C9A84C] border border-[#C9A84C]/20' : 'text-white/25 hover:text-white/60'}`}
+      className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-[0.25em] transition-all duration-200 border ${
+        activeTab === tab
+          ? 'bg-neon-purple text-white border-neon-purple shadow-[0_0_20px_rgba(73,15,124,0.4)]'
+          : 'bg-black text-white/30 border-white/10 hover:border-white/20 hover:text-white/60'
+      }`}
     >{icon}{label}</button>
   );
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-5 duration-700">
-      {/* Header */}
-      <div className="mb-10">
-        <p className="text-[10px] font-bold tracking-[0.4em] uppercase text-[#C9A84C]/60 mb-2">Admin</p>
-        <h1 className="text-3xl md:text-5xl font-black text-white uppercase tracking-tighter">Códigos & Descuentos</h1>
-        <p className="text-white/25 text-xs font-light tracking-[0.2em] uppercase mt-2">Gestión de campañas, guest list y beneficios</p>
+
+      {/* ── HEADER ── */}
+      <div className="mb-10 md:mb-12 relative">
+        {/* Subtle glow behind header */}
+        <div className="absolute -top-8 left-0 w-64 h-24 bg-neon-purple/5 blur-3xl rounded-full pointer-events-none" />
+        <div className="relative">
+          <div className="flex items-center gap-3 mb-3">
+            <span className="w-2 h-2 rounded-full bg-neon-purple animate-pulse shadow-[0_0_8px_rgba(73,15,124,0.8)]" />
+            <p className="text-[9px] font-black tracking-[0.5em] uppercase text-neon-purple/60">Admin · Campañas</p>
+          </div>
+          <h1 className="text-3xl md:text-5xl font-black text-white uppercase tracking-tighter mb-2">
+            Códigos & Descuentos
+          </h1>
+          <p className="text-white/20 text-[10px] font-bold tracking-[0.25em] uppercase">
+            Gestión de campañas, guest list y beneficios exclusivos
+          </p>
+        </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 mb-10 bg-white/[0.02] border border-white/5 rounded-xl p-1 w-fit">
+      {/* ── TABS ── */}
+      <div className="flex gap-2 mb-10">
         {tabBtn('campañas', 'Campañas', <Users size={13} />)}
         {tabBtn('ruleta',   'Ruleta',   <Tag   size={13} />)}
       </div>
@@ -204,7 +220,7 @@ export const CodesDiscounts: React.FC = () => {
           {!showForm && (
             <button
               onClick={() => setShowForm(true)}
-              className="flex items-center gap-2 px-5 py-3 rounded-xl bg-[#C9A84C] text-black font-black text-[10px] uppercase tracking-[0.25em] hover:opacity-90 transition-all"
+              className="flex items-center gap-2 px-6 py-3 rounded-full bg-[#C9A84C] text-black font-black text-[10px] uppercase tracking-[0.3em] hover:opacity-90 transition-all shadow-[0_0_24px_rgba(201,168,76,0.25)]"
             >
               <Plus size={14} strokeWidth={3} /> Nueva campaña
             </button>
@@ -212,7 +228,7 @@ export const CodesDiscounts: React.FC = () => {
 
           {/* Create form */}
           {showForm && (
-            <div className="bg-white/[0.02] border border-white/8 rounded-2xl p-6 space-y-5">
+            <div className="bg-zinc-900/60 border border-white/8 rounded-2xl p-6 space-y-5" style={{ borderLeft: '3px solid rgba(73,15,124,0.4)' }}>
               <div className="flex items-center justify-between">
                 <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/40" style={{ fontFamily: "'Space Mono',monospace" }}>Nueva campaña</p>
                 <button onClick={resetForm} className="text-white/20 hover:text-white/60 transition-colors"><X size={16} /></button>
@@ -341,14 +357,17 @@ export const CodesDiscounts: React.FC = () => {
 
           {/* Campaign list */}
           {loading ? (
-            <div className="flex items-center gap-3 py-12 justify-center text-white/20">
-              <Loader2 size={16} className="animate-spin" />
-              <span className="text-xs uppercase tracking-widest font-bold">Cargando...</span>
+            <div className="flex items-center gap-3 py-16 justify-center">
+              <div className="w-5 h-5 rounded-full border-2 border-white/10 border-t-[#C9A84C] animate-spin" />
+              <span className="text-[10px] text-white/20 uppercase tracking-widest font-black" style={{ fontFamily: "'Space Mono',monospace" }}>Cargando...</span>
             </div>
           ) : campaigns.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 border border-white/5 rounded-2xl bg-white/[0.01]">
-              <Tag size={28} className="text-white/10 mb-4" />
-              <p className="text-white/20 text-xs font-bold uppercase tracking-widest">No hay campañas todavía</p>
+            <div className="flex flex-col items-center justify-center py-24 border border-white/5 rounded-[2rem] bg-white/[0.01]">
+              <div className="w-12 h-12 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center justify-center mb-5">
+                <Tag size={20} className="text-white/15" />
+              </div>
+              <p className="text-white/20 text-[10px] font-black uppercase tracking-widest" style={{ fontFamily: "'Space Mono',monospace" }}>No hay campañas todavía</p>
+              <p className="text-white/10 text-[9px] uppercase tracking-widest mt-1" style={{ fontFamily: "'Space Mono',monospace" }}>Crea la primera usando el botón de arriba</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -357,20 +376,22 @@ export const CodesDiscounts: React.FC = () => {
                 const ev = events.find(e => e.id === c.event_id);
                 const url = `https://midnightcorp.click${meta.urlBase}${c.code}`;
                 return (
-                  <div key={c.id} className={`bg-white/[0.02] border rounded-2xl overflow-hidden transition-all ${c.active ? 'border-white/8' : 'border-white/3 opacity-50'}`}>
+                  <div key={c.id} className={`bg-zinc-900/40 rounded-2xl overflow-hidden transition-all border ${c.active ? 'border-white/8' : 'border-white/3 opacity-40'}`}
+                    style={{ borderLeft: `3px solid ${c.active ? meta.color : 'rgba(255,255,255,0.06)'}` }}>
                     {/* ─ Header row ─ */}
                     <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 sm:p-5">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${c.active ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)]' : 'bg-zinc-600'}`} />
+                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${c.active ? 'shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-zinc-600'}`}
+                          style={{ background: c.active ? meta.color : undefined }} />
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 mb-0.5">
                             <span className="text-white font-black text-sm truncate">{c.label}</span>
-                            <span className="flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full border flex-shrink-0" style={{ color: meta.color, borderColor: meta.color + '30', background: meta.color + '10', fontFamily: "'Space Mono',monospace" }}>{meta.icon}{meta.label}</span>
+                            <span className="flex items-center gap-1 text-[9px] font-bold px-2.5 py-0.5 rounded-full border flex-shrink-0" style={{ color: meta.color, borderColor: meta.color + '30', background: meta.color + '12', fontFamily: "'Space Mono',monospace" }}>{meta.icon}{meta.label}</span>
                           </div>
-                          <p className="text-white/30 text-[10px] truncate" style={{ fontFamily: "'Space Mono',monospace" }}>
+                          <p className="text-white/25 text-[10px] truncate" style={{ fontFamily: "'Space Mono',monospace" }}>
                             {ev?.title ?? '—'}
                             {c.type === 'discount' && c.discount_pct && (
-                              <span className="ml-2 text-[#4ADE80]">{c.discount_pct}% off{c.tier_name ? ` · ${c.tier_name}` : ''}</span>
+                              <span className="ml-2 text-emerald-400/70">{c.discount_pct}% off{c.tier_name ? ` · ${c.tier_name}` : ''}</span>
                             )}
                           </p>
                         </div>
