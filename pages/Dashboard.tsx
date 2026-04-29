@@ -1919,6 +1919,81 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
           </div>
       )}
 
+      {/* VISTAS DE LANDING POR VENDEDOR — solo admin/global head */}
+      {isGlobalHead && (() => {
+          const withViews = promoters
+              .filter(p => (p.link_views || 0) > 0)
+              .sort((a, b) => (b.link_views || 0) - (a.link_views || 0));
+
+          if (withViews.length === 0) return null;
+
+          return (
+              <div className="mt-12 bg-zinc-900 border border-white/5 rounded-[2.5rem] p-6 md:p-8">
+                  <div className="mb-8">
+                      <h2 className="text-xl md:text-2xl font-black text-white flex items-center gap-3">
+                          <Globe className="text-neon-purple w-6 h-6" /> Vistas de Landing Page
+                      </h2>
+                      <p className="text-xs text-zinc-500 mt-1 font-bold uppercase tracking-widest">
+                          Vendedores con visitas registradas en su link personal
+                      </p>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                      <table className="w-full text-left">
+                          <thead className="bg-black/40 text-[9px] md:text-[10px] text-zinc-500 uppercase font-black tracking-widest">
+                              <tr>
+                                  <th className="p-4 rounded-l-xl">#</th>
+                                  <th className="p-4">Vendedor</th>
+                                  <th className="p-4">Código</th>
+                                  <th className="p-4">Rol</th>
+                                  <th className="p-4 text-right text-neon-purple">Vistas</th>
+                                  <th className="p-4 text-right rounded-r-xl">Link</th>
+                              </tr>
+                          </thead>
+                          <tbody className="divide-y divide-white/5 text-xs md:text-sm">
+                              {withViews.map((p, idx) => (
+                                  <tr key={p.user_id} className="hover:bg-white/[0.02] transition-colors">
+                                      <td className="p-4 font-black text-zinc-500 text-base">{idx + 1}</td>
+                                      <td className="p-4">
+                                          <div className="font-bold text-white">{p.name}</div>
+                                          <div className="text-[10px] text-zinc-500">{p.email}</div>
+                                      </td>
+                                      <td className="p-4">
+                                          <span className="font-black text-white/60 tracking-widest text-[11px]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                              {p.code}
+                                          </span>
+                                      </td>
+                                      <td className="p-4">
+                                          <span className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md bg-white/5 text-zinc-400">
+                                              {p.role}
+                                          </span>
+                                      </td>
+                                      <td className="p-4 text-right">
+                                          <span className="text-xl font-black text-neon-purple tabular-nums">
+                                              {(p.link_views || 0).toLocaleString('es-CO')}
+                                          </span>
+                                      </td>
+                                      <td className="p-4 text-right">
+                                          <button
+                                              onClick={() => {
+                                                  navigator.clipboard.writeText(`https://midnightcorp.click/?ref=${p.code}`);
+                                                  toast.success(`Link de ${p.name} copiado`);
+                                              }}
+                                              className="p-2 bg-zinc-800 hover:bg-neon-purple/20 rounded-lg text-zinc-400 hover:text-neon-purple transition-all"
+                                              title="Copiar link"
+                                          >
+                                              <LinkIcon size={13} />
+                                          </button>
+                                      </td>
+                                  </tr>
+                              ))}
+                          </tbody>
+                      </table>
+                  </div>
+              </div>
+          );
+      })()}
+
       {/* TABLA MIS VENTAS (PROMOTORES Y MANAGERS) */}
       {(currentUser.role === UserRole.PROMOTER || currentUser.role === UserRole.MANAGER) && (
           <div className="mt-12 bg-zinc-900 border border-white/5 rounded-[2.5rem] p-6 md:p-8">
