@@ -58,8 +58,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   const [selectedEventFilter, setSelectedEventFilter] = useState<string>(''); 
   const [staffSearch, setStaffSearch] = useState('');
 
-  // Ranking Filters
-  const [rankingFilterEvent, setRankingFilterEvent] = useState<string>('all');
+  // Ranking Filters (event filter is unified via selectedEventFilter)
   const [rankingDateStart, setRankingDateStart] = useState('');
   const [rankingDateEnd, setRankingDateEnd] = useState('');
   const [orderFilterEvent, setOrderFilterEvent] = useState<string>('all');
@@ -449,9 +448,9 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   const generalRankingData = useMemo(() => {
       let filteredOrders = orders.filter(o => o.status === 'completed' && o.payment_method !== 'guest_list');
       
-      // 1. FILTER BY EVENT
-      if (rankingFilterEvent !== 'all') {
-          filteredOrders = filteredOrders.filter(o => o.event_id === rankingFilterEvent);
+      // 1. FILTER BY EVENT (uses global selectedEventFilter; '' = all historical)
+      if (selectedEventFilter !== '') {
+          filteredOrders = filteredOrders.filter(o => o.event_id === selectedEventFilter);
       }
       
       // 2. FILTER BY DATE
@@ -508,7 +507,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
 
           return stats;
       }
-  }, [orders, myScopePromoters, myScopeTeams, rankingFilterEvent, rankingDateStart, rankingDateEnd, rankingViewMode]);
+  }, [orders, myScopePromoters, myScopeTeams, selectedEventFilter, rankingDateStart, rankingDateEnd, rankingViewMode]);
 
 
   // --- CÁLCULO DE MÉTRICAS (KPIs) - SIEMPRE SINCRONIZADO CON TABLA ---
@@ -790,6 +789,47 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
             <Button onClick={() => setShowManualSale(true)} className="bg-neon-blue text-black font-black h-10 md:h-12 px-4 md:px-6 rounded-lg md:rounded-xl border-none text-xs md:text-sm flex-1 md:flex-none">
                 <Banknote className="mr-2 w-3 h-3 md:w-4 md:h-4" /> VENTA MANUAL
             </Button>
+        </div>
+      </div>
+
+      {/* ── FILTRO GLOBAL DE EVENTO ─────────────────────────────────────────── */}
+      <div className="mb-8 md:mb-10">
+        <div className="flex items-center gap-2 mb-3">
+          <Filter size={12} className="text-zinc-500" />
+          <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Filtrar por evento</span>
+          {selectedEventFilter && (
+            <button
+              onClick={() => setSelectedEventFilter('')}
+              className="ml-1 text-[9px] font-black text-neon-purple/70 hover:text-neon-purple uppercase tracking-wider transition-colors"
+            >
+              × limpiar
+            </button>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setSelectedEventFilter('')}
+            className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${
+              selectedEventFilter === ''
+                ? 'bg-neon-purple text-white border-neon-purple shadow-[0_0_16px_rgba(73,15,124,0.4)]'
+                : 'bg-black text-zinc-400 border-white/10 hover:border-white/20 hover:text-white'
+            }`}
+          >
+            TODO / GLOBAL
+          </button>
+          {events.map(ev => (
+            <button
+              key={ev.id}
+              onClick={() => setSelectedEventFilter(ev.id)}
+              className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${
+                selectedEventFilter === ev.id
+                  ? 'bg-neon-purple text-white border-neon-purple shadow-[0_0_16px_rgba(73,15,124,0.4)]'
+                  : 'bg-black text-zinc-400 border-white/10 hover:border-white/20 hover:text-white'
+              }`}
+            >
+              {ev.title}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -1379,25 +1419,20 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                       </h2>
                       <p className="text-xs text-zinc-500 mt-1 font-bold uppercase tracking-widest">Calculada sobre: Efectivo Recaudado - Comisiones Totales.</p>
                   </div>
-                  <div className="flex gap-2 md:gap-3 w-full md:w-auto">
-                      <div className="relative flex-1 md:w-64">
-                          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 w-3 h-3 md:w-4 md:h-4"/>
-                          <select 
-                            value={selectedEventFilter} 
-                            onChange={e => setSelectedEventFilter(e.target.value)}
-                            className="w-full bg-black border border-white/10 rounded-xl pl-8 md:pl-10 pr-4 h-10 md:h-12 text-[10px] md:text-xs font-black text-white uppercase appearance-none focus:border-neon-purple outline-none cursor-pointer"
-                          >
-                              <option value="">SELECCIONAR EVENTO (REQUERIDO)</option>
-                              {events.map(e => <option key={e.id} value={e.id}>{e.title}</option>)}
-                          </select>
-                      </div>
-                  </div>
+                  {selectedEventFilter && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-neon-purple/10 border border-neon-purple/20 rounded-xl">
+                      <Filter size={12} className="text-neon-purple" />
+                      <span className="text-[10px] font-black text-neon-purple uppercase tracking-wider">
+                        {events.find(e => e.id === selectedEventFilter)?.title}
+                      </span>
+                    </div>
+                  )}
               </div>
 
               {!selectedEventFilter ? (
                   <div className="text-center py-20 border-2 border-dashed border-white/5 rounded-[2rem]">
                       <AlertTriangle className="mx-auto text-zinc-600 mb-4" />
-                      <p className="text-zinc-500 font-bold uppercase text-sm">Debes seleccionar un evento para ver liquidaciones.</p>
+                      <p className="text-zinc-500 font-bold uppercase text-sm">Selecciona un evento en el filtro global de arriba para ver liquidaciones.</p>
                   </div>
               ) : globalLiquidationData && (
                   <div className="grid grid-cols-1 gap-6">
@@ -1855,15 +1890,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                           </button>
                       </div>
 
-                      <select 
-                          value={rankingFilterEvent} 
-                          onChange={e => setRankingFilterEvent(e.target.value)}
-                          className="bg-black border border-white/10 rounded-xl px-4 h-10 text-[10px] md:text-xs font-bold text-white uppercase focus:border-amber-500 outline-none"
-                      >
-                          <option value="all">TODO EL HISTÓRICO</option>
-                          {events.map(e => <option key={e.id} value={e.id}>{e.title}</option>)}
-                      </select>
-                      <input 
+                      <input
                           type="date"
                           value={rankingDateStart}
                           onChange={e => setRankingDateStart(e.target.value)}
