@@ -2025,19 +2025,19 @@ export const Accounting: React.FC = () => {
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <div>
                   <p className="text-[9px] text-white/30 uppercase font-bold mb-1">Ingresos</p>
-                  <p className="text-sm font-black text-emerald-400">{fmtShort(totalEvIncome)}</p>
+                  <p className="text-sm font-black text-emerald-400">{fmt(totalEvIncome)}</p>
                 </div>
                 <div>
                   <p className="text-[9px] text-white/30 uppercase font-bold mb-1">Comisiones</p>
-                  <p className="text-sm font-black text-amber-400">{fmtShort(evCommissions)}</p>
+                  <p className="text-sm font-black text-amber-400">{fmt(evCommissions)}</p>
                 </div>
                 <div>
                   <p className="text-[9px] text-white/30 uppercase font-bold mb-1">Costos/Gastos</p>
-                  <p className="text-sm font-black text-red-400">{fmtShort(evCosts)}</p>
+                  <p className="text-sm font-black text-red-400">{fmt(evCosts)}</p>
                 </div>
                 <div>
                   <p className="text-[9px] text-white/30 uppercase font-bold mb-1">Utilidad</p>
-                  <p className={`text-sm font-black ${netEv >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmtShort(netEv)}</p>
+                  <p className={`text-sm font-black ${netEv >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmt(netEv)}</p>
                 </div>
                 <div>
                   <p className="text-[9px] text-white/30 uppercase font-bold mb-1">Boletas</p>
@@ -2267,10 +2267,10 @@ export const Accounting: React.FC = () => {
 
                 {/* Summary KPIs */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <KpiCard label="Cobrado en Cash" value={fmtShort(totalCashNet + totalComisiones)} sub="Promotores cobraron físicamente" color="white" icon={<DollarSign size={14} />} />
-                  <KpiCard label="Debe enviar (neto)" value={fmtShort(totalDineroAEnviar)} sub={`Cash cobrado − comis. web (${fmtShort(totalWebComm)})`} color="purple" icon={<Send size={14} />} />
-                  <KpiCard label="Ya Enviado" value={fmtShort(totalYaEnviado)} color="green" icon={<CheckCircle2 size={14} />} />
-                  <KpiCard label="Deuda Pendiente" value={fmtShort(totalDeuda)} color={totalDeuda <= 0 ? 'green' : 'red'} icon={<AlertTriangle size={14} />} />
+                  <KpiCard label="Cobrado en Cash" value={fmt(totalCashNet + totalComisiones)} sub="Promotores cobraron físicamente" color="white" icon={<DollarSign size={14} />} />
+                  <KpiCard label="Debe enviar (neto)" value={fmt(totalDineroAEnviar)} sub={`Cash cobrado − comis. web (${fmt(totalWebComm)})`} color="purple" icon={<Send size={14} />} />
+                  <KpiCard label="Ya Enviado" value={fmt(totalYaEnviado)} color="green" icon={<CheckCircle2 size={14} />} />
+                  <KpiCard label="Deuda Pendiente" value={fmt(totalDeuda)} color={totalDeuda <= 0 ? 'green' : 'red'} icon={<AlertTriangle size={14} />} />
                 </div>
 
                 {/* Settlement Table */}
