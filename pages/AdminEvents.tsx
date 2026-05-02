@@ -262,7 +262,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
             description: eventForm.description,
             venue: eventForm.venue,
             city: eventForm.city,
-            event_date: `${eventForm.date}T${eventForm.time || '20:00'}:00`,
+            event_date: `${eventForm.date}T${eventForm.time || '20:00'}:00-05:00`,
             doors_open: eventForm.time || '20:00',
             cover_image: eventForm.cover_image
         };

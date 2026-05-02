@@ -825,14 +825,15 @@ export const Accounting: React.FC = () => {
       .map(ev => {
         const evOrders = completedOrders.filter(o => o.event_id === ev.id);
         const evOrderIncome = evOrders.reduce((s, o) => s + o.total, 0);
+        const evCommissions = evOrders.reduce((s, o) => s + (o.commission_amount || 0), 0);
         const evMovIncome = movIncomes.filter(m => m.event_id === ev.id).reduce((s, m) => s + m.amount, 0);
         const evMovExpense = movExpenses.filter(m => m.event_id === ev.id).reduce((s, m) => s + m.amount, 0);
         const evCosts = (ev.costs || []).filter(c => c.status === 'paid' || !c.status).reduce((s, c) => s + (c.actual_amount ?? c.amount), 0);
         const totalEvIncome = evOrderIncome + evMovIncome;
-        const totalEvExpense = evMovExpense + evCosts;
+        const totalEvExpense = evMovExpense + evCosts + evCommissions;
         const netEv = totalEvIncome - totalEvExpense;
         const marginEv = totalEvIncome > 0 ? (netEv / totalEvIncome) * 100 : 0;
-        return { ev, totalEvIncome, totalEvExpense, netEv, marginEv, tickets: evOrders.length };
+        return { ev, totalEvIncome, totalEvExpense, evCommissions, evCosts: evCosts + evMovExpense, netEv, marginEv, tickets: evOrders.length };
       })
       .sort((a, b) => b.netEv - a.netEv),
     [events, completedOrders, movIncomes, movExpenses]
@@ -2005,7 +2006,7 @@ export const Accounting: React.FC = () => {
               <Calendar size={32} className="text-white/10 mx-auto mb-3" />
               <p className="text-white/20 text-xs uppercase tracking-widest">Sin eventos</p>
             </div>
-          ) : eventAnalysis.map(({ ev, totalEvIncome, totalEvExpense, netEv, marginEv, tickets }, idx) => (
+          ) : eventAnalysis.map(({ ev, totalEvIncome, totalEvExpense, evCommissions, evCosts, netEv, marginEv, tickets }, idx) => (
             <div key={ev.id} className="bg-white/[0.02] border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-all">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
@@ -2021,14 +2022,18 @@ export const Accounting: React.FC = () => {
                   {marginEv.toFixed(1)}% margen
                 </div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <div>
                   <p className="text-[9px] text-white/30 uppercase font-bold mb-1">Ingresos</p>
                   <p className="text-sm font-black text-emerald-400">{fmtShort(totalEvIncome)}</p>
                 </div>
                 <div>
-                  <p className="text-[9px] text-white/30 uppercase font-bold mb-1">Gastos</p>
-                  <p className="text-sm font-black text-red-400">{fmtShort(totalEvExpense)}</p>
+                  <p className="text-[9px] text-white/30 uppercase font-bold mb-1">Comisiones</p>
+                  <p className="text-sm font-black text-amber-400">{fmtShort(evCommissions)}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] text-white/30 uppercase font-bold mb-1">Costos/Gastos</p>
+                  <p className="text-sm font-black text-red-400">{fmtShort(evCosts)}</p>
                 </div>
                 <div>
                   <p className="text-[9px] text-white/30 uppercase font-bold mb-1">Utilidad</p>
@@ -2137,6 +2142,12 @@ export const Accounting: React.FC = () => {
           code: string;
           tierSales: Record<string, number>; // tierId → qty
           comisionesTotales: number;
+          // Cruce de cuentas:
+          // cashNetAmount   = lo que el promotor cobró en efectivo y debe enviar a Midnight (descontando su comisión)
+          // webCommissions  = comisiones de ventas web que Midnight debe pagarle al promotor
+          // dineroAEnviar   = cashNetAmount - webCommissions (saldo neto: positivo = promotor debe, negativo = Midnight debe)
+          cashNetAmount: number;
+          webCommissions: number;
           dineroAEnviar: number;
           orders: typeof eventOrders;
         }>();
@@ -2151,6 +2162,8 @@ export const Accounting: React.FC = () => {
               code: p ? p.code : 'HOUSE',
               tierSales: {},
               comisionesTotales: 0,
+              cashNetAmount: 0,
+              webCommissions: 0,
               dineroAEnviar: 0,
               orders: [],
             });
@@ -2158,7 +2171,20 @@ export const Accounting: React.FC = () => {
           const entry = promoterMap.get(pid)!;
           entry.orders.push(o);
           entry.comisionesTotales += o.commission_amount || 0;
-          entry.dineroAEnviar += o.net_amount || 0;
+
+          const isWeb = o.payment_method === 'bold' || o.payment_method === 'card' || o.payment_method === 'online';
+          if (isWeb) {
+            // Venta web: Midnight ya recibió el dinero completo por Bold/tarjeta.
+            // Midnight le debe al promotor su comisión.
+            entry.webCommissions += o.commission_amount || 0;
+          } else {
+            // Venta cash: el promotor cobró el dinero físicamente.
+            // Debe enviar a Midnight el total menos su comisión (net_amount).
+            entry.cashNetAmount += o.net_amount || 0;
+          }
+
+          // Saldo neto: lo que debe enviar (cash cobrado) menos lo que Midnight le debe (comisiones web)
+          entry.dineroAEnviar = entry.cashNetAmount - entry.webCommissions;
 
           // Count per tier
           (o.items || []).forEach((item: any) => {
@@ -2167,8 +2193,10 @@ export const Accounting: React.FC = () => {
         });
 
         const rows = Array.from(promoterMap.values()).sort((a, b) => b.dineroAEnviar - a.dineroAEnviar);
-        const totalDineroAEnviar = rows.reduce((s, r) => s + r.dineroAEnviar, 0);
-        const totalComisiones = rows.reduce((s, r) => s + r.comisionesTotales, 0);
+        const totalCashNet      = rows.reduce((s, r) => s + r.cashNetAmount, 0);
+        const totalWebComm      = rows.reduce((s, r) => s + r.webCommissions, 0);
+        const totalDineroAEnviar = rows.reduce((s, r) => s + Math.max(0, r.dineroAEnviar), 0); // solo deudas positivas
+        const totalComisiones   = rows.reduce((s, r) => s + r.comisionesTotales, 0);
         const totalYaEnviado = rows.reduce((s, r) => {
           if (!r.promoterId) return s;
           const settList = settlements.filter(se => se.event_id === cierreEventId && se.promoter_id === r.promoterId);
@@ -2239,10 +2267,10 @@ export const Accounting: React.FC = () => {
 
                 {/* Summary KPIs */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <KpiCard label="Total Recaudado" value={fmtShort(totalDineroAEnviar + totalComisiones)} color="white" icon={<DollarSign size={14} />} />
-                  <KpiCard label="Dinero a Enviar" value={fmtShort(totalDineroAEnviar)} sub="Neto (sin comisiones)" color="purple" icon={<Send size={14} />} />
+                  <KpiCard label="Cobrado en Cash" value={fmtShort(totalCashNet + totalComisiones)} sub="Promotores cobraron físicamente" color="white" icon={<DollarSign size={14} />} />
+                  <KpiCard label="Debe enviar (neto)" value={fmtShort(totalDineroAEnviar)} sub={`Cash cobrado − comis. web (${fmtShort(totalWebComm)})`} color="purple" icon={<Send size={14} />} />
                   <KpiCard label="Ya Enviado" value={fmtShort(totalYaEnviado)} color="green" icon={<CheckCircle2 size={14} />} />
-                  <KpiCard label="Deuda Total" value={fmtShort(totalDeuda)} color={totalDeuda <= 0 ? 'green' : 'red'} icon={<AlertTriangle size={14} />} />
+                  <KpiCard label="Deuda Pendiente" value={fmtShort(totalDeuda)} color={totalDeuda <= 0 ? 'green' : 'red'} icon={<AlertTriangle size={14} />} />
                 </div>
 
                 {/* Settlement Table */}
@@ -2303,10 +2331,25 @@ export const Accounting: React.FC = () => {
                         ))}
 
                         {/* Comisiones */}
-                        <span className="text-[11px] font-bold text-emerald-400/70 text-right">{fmt(row.comisionesTotales)}</span>
+                        <div className="text-right">
+                          <span className="text-[11px] font-bold text-emerald-400/70">{fmt(row.comisionesTotales)}</span>
+                          {row.webCommissions > 0 && (
+                            <p className="text-[8px] text-blue-400/60">web: {fmt(row.webCommissions)}</p>
+                          )}
+                        </div>
 
-                        {/* Dinero a enviar */}
-                        <span className="text-[11px] font-bold text-white text-right">{fmt(row.dineroAEnviar)}</span>
+                        {/* Dinero a enviar (saldo neto: cash cobrado − comisiones web) */}
+                        <div className="text-right">
+                          <span className={`text-[11px] font-bold ${row.dineroAEnviar > 0 ? 'text-white' : row.dineroAEnviar < 0 ? 'text-blue-400' : 'text-white/30'}`}>
+                            {row.dineroAEnviar === 0 ? '—' : fmt(Math.abs(row.dineroAEnviar))}
+                          </span>
+                          {row.cashNetAmount > 0 && row.webCommissions > 0 && (
+                            <p className="text-[8px] text-white/30">{fmt(row.cashNetAmount)} − {fmt(row.webCommissions)}</p>
+                          )}
+                          {row.dineroAEnviar < 0 && (
+                            <p className="text-[8px] text-blue-400">Midnight debe</p>
+                          )}
+                        </div>
 
                         {/* Ya enviado */}
                         <span className={`text-[11px] font-bold text-right ${yaEnviado > 0 ? 'text-emerald-400' : 'text-white/20'}`}>
@@ -2319,7 +2362,7 @@ export const Accounting: React.FC = () => {
                           deuda > 0 ? 'text-amber-400' :
                           deuda < 0 ? 'text-blue-400' : 'text-emerald-400'
                         }`}>
-                          {isHouse ? '—' : deuda > 0 ? fmt(deuda) : deuda === 0 ? '✓ PAZ' : `+${fmt(Math.abs(deuda))}`}
+                          {isHouse ? '—' : deuda > 0 ? fmt(deuda) : deuda === 0 ? '✓ PAZ' : `Midnight: ${fmt(Math.abs(deuda))}`}
                         </span>
 
                         {/* Acción */}
