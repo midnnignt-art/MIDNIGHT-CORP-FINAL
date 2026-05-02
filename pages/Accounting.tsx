@@ -862,31 +862,52 @@ export const Accounting: React.FC = () => {
   // ── ACCOUNTS RECEIVABLE (Cuentas por Cobrar) ─────────────────────────────────
   // For each event+promoter, calculate: dineroAEnviar - sum(settlements.amount_sent)
   const cuentasPorCobrar = useMemo(() => {
-    // Group orders by event+promoter
-    const map = new Map<string, { event: any; promoter: any; dineroAEnviar: number; yaEnviado: number }>();
+    // Misma lógica de cruce que el tab Cierre:
+    // - Venta cash: el promotor cobró físico → debe enviar net_amount a Midnight
+    // - Venta web/Bold: Midnight ya cobró → le debe commission_amount al promotor
+    // - dineroAEnviar = cashNetAmount - webCommissions (saldo neto real)
+    const map = new Map<string, {
+      event: any;
+      promoter: any;
+      cashNetAmount: number;
+      webCommissions: number;
+      dineroAEnviar: number;
+      yaEnviado: number;
+    }>();
+
     completedOrders.forEach(o => {
-      if (!o.staff_id) return; // direct sales don't create receivables
+      if (!o.staff_id) return;
       const key = `${o.event_id}_${o.staff_id}`;
       if (!map.has(key)) {
         map.set(key, {
           event: events.find(e => e.id === o.event_id),
           promoter: promoters.find(p => p.user_id === o.staff_id),
+          cashNetAmount: 0,
+          webCommissions: 0,
           dineroAEnviar: 0,
           yaEnviado: 0,
         });
       }
       const entry = map.get(key)!;
-      entry.dineroAEnviar += (o.net_amount || 0);
+      const isWeb = o.payment_method === 'bold' || o.payment_method === 'card' || o.payment_method === 'online';
+      if (isWeb) {
+        entry.webCommissions += (o.commission_amount || 0);
+      } else {
+        entry.cashNetAmount += (o.net_amount || 0);
+      }
+      entry.dineroAEnviar = entry.cashNetAmount - entry.webCommissions;
     });
-    // Add settlements
+
+    // Restar lo ya enviado via settlements
     settlements.forEach(se => {
       const key = `${se.event_id}_${se.promoter_id}`;
       if (map.has(key)) {
         map.get(key)!.yaEnviado += se.amount_sent;
       }
     });
+
     return Array.from(map.values())
-      .filter(r => r.dineroAEnviar > r.yaEnviado)
+      .filter(r => r.dineroAEnviar - r.yaEnviado > 0)
       .map(r => ({ ...r, deuda: r.dineroAEnviar - r.yaEnviado }));
   }, [completedOrders, settlements, events, promoters]);
 
