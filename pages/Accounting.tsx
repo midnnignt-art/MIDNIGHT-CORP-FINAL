@@ -859,14 +859,13 @@ export const Accounting: React.FC = () => {
       .sort((a, b) => b.amount - a.amount);
   }, [movExpenses, events]);
 
-  // ── ACCOUNTS RECEIVABLE (Cuentas por Cobrar) ─────────────────────────────────
-  // For each event+promoter, calculate: dineroAEnviar - sum(settlements.amount_sent)
-  const cuentasPorCobrar = useMemo(() => {
-    // Misma lógica de cruce que el tab Cierre:
-    // - Venta cash: el promotor cobró físico → debe enviar net_amount a Midnight
-    // - Venta web/Bold: Midnight ya cobró → le debe commission_amount al promotor
-    // - dineroAEnviar = cashNetAmount - webCommissions (saldo neto real)
+  // ── MASTER PROMOTER DEBT TABLE ────────────────────────────────────────────────
+  // Single source of truth for all event+promoter financial balances.
+  // Both Balance General (cuentasPorCobrar) and Cierre tab read from this.
+  const promoterEventDebts = useMemo(() => {
     const map = new Map<string, {
+      eventId: string;
+      promoterId: string;
       event: any;
       promoter: any;
       cashNetAmount: number;
@@ -880,6 +879,8 @@ export const Accounting: React.FC = () => {
       const key = `${o.event_id}_${o.staff_id}`;
       if (!map.has(key)) {
         map.set(key, {
+          eventId: o.event_id,
+          promoterId: o.staff_id,
           event: events.find(e => e.id === o.event_id),
           promoter: promoters.find(p => p.user_id === o.staff_id),
           cashNetAmount: 0,
@@ -898,7 +899,6 @@ export const Accounting: React.FC = () => {
       entry.dineroAEnviar = entry.cashNetAmount - entry.webCommissions;
     });
 
-    // Restar lo ya enviado via settlements
     settlements.forEach(se => {
       const key = `${se.event_id}_${se.promoter_id}`;
       if (map.has(key)) {
@@ -906,10 +906,16 @@ export const Accounting: React.FC = () => {
       }
     });
 
-    return Array.from(map.values())
-      .filter(r => r.dineroAEnviar - r.yaEnviado > 0)
-      .map(r => ({ ...r, deuda: r.dineroAEnviar - r.yaEnviado }));
+    return Array.from(map.values());
   }, [completedOrders, settlements, events, promoters]);
+
+  // ── ACCOUNTS RECEIVABLE (Cuentas por Cobrar) ─────────────────────────────────
+  const cuentasPorCobrar = useMemo(() =>
+    promoterEventDebts
+      .filter(r => r.dineroAEnviar - r.yaEnviado > 0)
+      .map(r => ({ ...r, deuda: r.dineroAEnviar - r.yaEnviado })),
+    [promoterEventDebts]
+  );
 
   const totalCuentasPorCobrar = useMemo(() =>
     cuentasPorCobrar.reduce((s, r) => s + r.deuda, 0), [cuentasPorCobrar]);
@@ -2151,79 +2157,67 @@ export const Accounting: React.FC = () => {
         const cierreEvent = events.find(e => e.id === cierreEventId);
         const eventTiers = tiers.filter(t => t.event_id === cierreEventId);
 
-        // All promoters who sold in this event
         const eventOrders = cierreEventId
           ? completedOrders.filter(o => o.event_id === cierreEventId)
           : [];
 
-        // Group by promoter (including null = house/MIDNIGHT sales)
-        const promoterMap = new Map<string | null, {
+        // Display-only data per promoter (tierSales, orders, comisionesTotales, name, code)
+        const displayMap = new Map<string | null, {
           promoterId: string | null;
           name: string;
           code: string;
-          tierSales: Record<string, number>; // tierId → qty
+          tierSales: Record<string, number>;
           comisionesTotales: number;
-          // Cruce de cuentas:
-          // cashNetAmount   = lo que el promotor cobró en efectivo y debe enviar a Midnight (descontando su comisión)
-          // webCommissions  = comisiones de ventas web que Midnight debe pagarle al promotor
-          // dineroAEnviar   = cashNetAmount - webCommissions (saldo neto: positivo = promotor debe, negativo = Midnight debe)
-          cashNetAmount: number;
-          webCommissions: number;
-          dineroAEnviar: number;
           orders: typeof eventOrders;
         }>();
 
         eventOrders.forEach(o => {
           const pid = o.staff_id || null;
-          if (!promoterMap.has(pid)) {
+          if (!displayMap.has(pid)) {
             const p = pid ? promoters.find(pr => pr.user_id === pid) : null;
-            promoterMap.set(pid, {
+            displayMap.set(pid, {
               promoterId: pid,
               name: p ? p.name : 'MIDNIGHT (Directas)',
               code: p ? p.code : 'HOUSE',
               tierSales: {},
               comisionesTotales: 0,
-              cashNetAmount: 0,
-              webCommissions: 0,
-              dineroAEnviar: 0,
               orders: [],
             });
           }
-          const entry = promoterMap.get(pid)!;
+          const entry = displayMap.get(pid)!;
           entry.orders.push(o);
           entry.comisionesTotales += o.commission_amount || 0;
-
-          const isWeb = o.payment_method === 'bold' || o.payment_method === 'card' || o.payment_method === 'online';
-          if (isWeb) {
-            // Venta web: Midnight ya recibió el dinero completo por Bold/tarjeta.
-            // Midnight le debe al promotor su comisión.
-            entry.webCommissions += o.commission_amount || 0;
-          } else {
-            // Venta cash: el promotor cobró el dinero físicamente.
-            // Debe enviar a Midnight el total menos su comisión (net_amount).
-            entry.cashNetAmount += o.net_amount || 0;
-          }
-
-          // Saldo neto: lo que debe enviar (cash cobrado) menos lo que Midnight le debe (comisiones web)
-          entry.dineroAEnviar = entry.cashNetAmount - entry.webCommissions;
-
-          // Count per tier
           (o.items || []).forEach((item: any) => {
             entry.tierSales[item.tier_id] = (entry.tierSales[item.tier_id] || 0) + (item.quantity || 1);
           });
         });
 
-        const rows = Array.from(promoterMap.values()).sort((a, b) => b.dineroAEnviar - a.dineroAEnviar);
-        const totalCashNet      = rows.reduce((s, r) => s + r.cashNetAmount, 0);
-        const totalWebComm      = rows.reduce((s, r) => s + r.webCommissions, 0);
-        const totalDineroAEnviar = rows.reduce((s, r) => s + Math.max(0, r.dineroAEnviar), 0); // solo deudas positivas
-        const totalComisiones   = rows.reduce((s, r) => s + r.comisionesTotales, 0);
-        const totalYaEnviado = rows.reduce((s, r) => {
-          if (!r.promoterId) return s;
-          const settList = settlements.filter(se => se.event_id === cierreEventId && se.promoter_id === r.promoterId);
-          return s + settList.reduce((ss, se) => ss + se.amount_sent, 0);
-        }, 0);
-        const totalDeuda = totalDineroAEnviar - totalYaEnviado;
+        // Financial data comes from the master promoterEventDebts memo (same source as Balance General)
+        const eventFinancials = promoterEventDebts.filter(r => r.eventId === cierreEventId);
+
+        // Merge: display fields + financial fields
+        const rows = Array.from(displayMap.values()).map(disp => {
+          const fin = disp.promoterId
+            ? eventFinancials.find(r => r.promoterId === disp.promoterId)
+            : undefined;
+          return {
+            ...disp,
+            cashNetAmount: fin?.cashNetAmount ?? 0,
+            webCommissions: fin?.webCommissions ?? 0,
+            dineroAEnviar: fin?.dineroAEnviar ?? 0,
+            yaEnviado: fin?.yaEnviado ?? 0,
+            deuda: fin ? fin.dineroAEnviar - fin.yaEnviado : 0,
+          };
+        }).sort((a, b) => b.dineroAEnviar - a.dineroAEnviar);
+
+        const totalCashNet     = rows.reduce((s, r) => s + r.cashNetAmount, 0);
+        const totalWebComm     = rows.reduce((s, r) => s + r.webCommissions, 0);
+        const totalComisiones  = rows.reduce((s, r) => s + r.comisionesTotales, 0);
+        // Totals only for non-house promoters — matches cuentasPorCobrar logic exactly
+        const totalDineroAEnviar = rows.filter(r => r.promoterId).reduce((s, r) => s + Math.max(0, r.dineroAEnviar), 0);
+        const totalYaEnviado     = rows.filter(r => r.promoterId).reduce((s, r) => s + r.yaEnviado, 0);
+        // Correct formula: Σ max(0, deuda per promoter)  — identical to cuentasPorCobrar filtered by this event
+        const totalDeuda = rows.filter(r => r.promoterId).reduce((s, r) => s + Math.max(0, r.deuda), 0);
 
         return (
           <div className="space-y-5">
@@ -2316,13 +2310,15 @@ export const Accounting: React.FC = () => {
                       <p className="text-white/20 text-xs uppercase tracking-widest">Sin ventas registradas en este evento</p>
                     </div>
                   ) : rows.map(row => {
+                    // settList/lastSett for display only (payment count, comprobante link)
                     const settList = row.promoterId
                       ? settlements.filter(se => se.event_id === cierreEventId && se.promoter_id === row.promoterId)
                       : [];
-                    const yaEnviado = settList.reduce((s, se) => s + se.amount_sent, 0);
-                    const deuda = row.dineroAEnviar - yaEnviado;
-                    const isHouse = !row.promoterId;
                     const lastSett = settList[settList.length - 1];
+                    // Financial values come from the shared promoterEventDebts memo
+                    const yaEnviado = row.yaEnviado;
+                    const deuda = row.deuda;
+                    const isHouse = !row.promoterId;
 
                     return (
                       <div key={row.promoterId || 'house'}
