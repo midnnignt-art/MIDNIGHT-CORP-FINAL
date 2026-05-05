@@ -489,14 +489,14 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
                 <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em' }}>Confirma antes de pagar</p>
               </div>
               <div className="space-y-3 p-6" style={{ background: C.bgS, border: `1px solid ${C.gray}20` }}>
-                {[
+                {([
                   ['Semana', selWeek?.university],
                   ['Modalidad', MODES.find(m => m.id === mode)?.label],
                   ['Nombre', name],
                   ['Email', email],
                   mode === 'individual_days' ? ['Días', selDays.map(d => `Día ${d}`).join(', ')] : null,
-                ].filter(Boolean).map(([k, v]) => (
-                  <div key={k as string} className="flex justify-between text-xs uppercase" style={{ letterSpacing: '0.12em' }}>
+                ] as ([string, string | undefined] | null)[]).filter((x): x is [string, string | undefined] => Boolean(x)).map(([k, v]) => (
+                  <div key={k} className="flex justify-between text-xs uppercase" style={{ letterSpacing: '0.12em' }}>
                     <span style={{ color: C.gray }}>{k}</span>
                     <span style={{ color: C.cream }}>{v}</span>
                   </div>
