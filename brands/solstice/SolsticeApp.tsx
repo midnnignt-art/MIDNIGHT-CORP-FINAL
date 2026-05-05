@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import SolsticeNav, { SolsticePage } from './components/SolsticeNav';
 import SolsticeLanding from './pages/SolsticeLanding';
 import SolsticeReserva from './pages/SolsticeReserva';
+import SolsticeAdminConfig from './pages/SolsticeAdminConfig';
 import { UserRole } from '../../types';
 
 interface Props {
@@ -65,7 +66,7 @@ export default function SolsticeApp({ onExit, userRole }: Props) {
           onBack={() => setPage('landing')}
         />
       )}
-      {page === 'admin-config'  && <ComingSoon title="Configuración de Temporada" />}
+      {page === 'admin-config'  && <SolsticeAdminConfig />}
       {page === 'admin-sellers' && <ComingSoon title="Equipo de Ventas" />}
       {page === 'admin-finance' && <ComingSoon title="Finanzas Solstice" />}
       {page === 'seller'        && <ComingSoon title="Dashboard Vendedor" />}
