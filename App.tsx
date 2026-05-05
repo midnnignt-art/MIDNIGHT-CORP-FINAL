@@ -21,7 +21,7 @@ import { CheckCircle2 } from 'lucide-react';
 
 import TicketWallet from './components/TicketWallet';
 import { ToastContainer } from './components/ToastContainer';
-import SolsticeLanding from './brands/solstice/pages/SolsticeLanding';
+import SolsticeApp from './brands/solstice/SolsticeApp';
 import { Tag, X as XIcon } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -187,7 +187,7 @@ const App: React.FC = () => {
       <main>
         {currentPage === 'home' && <Showcase onBuy={handleBuyTicket} onNavigate={handleNavigate} />}
         {currentPage === 'solstice-preview' && currentUser?.role === UserRole.ADMIN && (
-          <SolsticeLanding onNavigate={handleNavigate} />
+          <SolsticeApp onExit={() => handleNavigate('home')} userRole={currentUser.role} />
         )}
         <div className={currentPage === 'home' ? '' : 'pt-20 md:pt-24 px-4 sm:px-6 md:px-12 max-w-7xl mx-auto pb-20'}>
           {currentPage === 'dashboard' && <Dashboard role={currentUser?.role || UserRole.GUEST} />}
