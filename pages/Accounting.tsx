@@ -1305,27 +1305,25 @@ export const Accounting: React.FC = () => {
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-5 gap-2 px-5 py-2.5 border-b border-white/5">
+                  <div className="grid grid-cols-4 gap-2 px-5 py-2.5 border-b border-white/5">
                     <span className="text-[9px] font-black text-white/30 uppercase tracking-widest col-span-1">Evento</span>
                     <span className="text-[9px] font-black text-white/30 uppercase tracking-widest col-span-1">Promotor</span>
-                    <span className="text-[9px] font-black text-white/30 uppercase tracking-widest text-right">Debe Enviar</span>
                     <span className="text-[9px] font-black text-white/30 uppercase tracking-widest text-right">Ya Enviado</span>
                     <span className="text-[9px] font-black text-amber-400/60 uppercase tracking-widest text-right">Deuda</span>
                   </div>
                   <div className="divide-y divide-white/[0.03]">
                     {cuentasPorCobrar.map((r, i) => (
-                      <div key={i} className="grid grid-cols-5 gap-2 px-5 py-3 hover:bg-white/[0.02] transition-all border-l-2 border-l-amber-500/40">
+                      <div key={i} className="grid grid-cols-4 gap-2 px-5 py-3 hover:bg-white/[0.02] transition-all border-l-2 border-l-amber-500/40">
                         <span className="text-[11px] text-white/60 truncate">{r.event?.title ?? '—'}</span>
                         <span className="text-[11px] text-white font-bold truncate">{r.promoter?.name ?? '—'}</span>
-                        <span className="text-[11px] text-white/60 text-right">{fmt(r.dineroAEnviar)}</span>
-                        <span className="text-[11px] text-emerald-400 text-right">{fmt(r.yaEnviado)}</span>
+                        <span className="text-[11px] text-emerald-400 text-right">{r.yaEnviado > 0 ? fmt(r.yaEnviado) : '—'}</span>
                         <span className="text-[11px] font-black text-amber-400 text-right">{fmt(r.deuda)}</span>
                       </div>
                     ))}
                   </div>
-                  <div className="grid grid-cols-5 gap-2 px-5 py-3 bg-white/5">
+                  <div className="grid grid-cols-4 gap-2 px-5 py-3 bg-white/5">
                     <span className="text-[10px] font-black text-white uppercase col-span-2">TOTAL</span>
-                    <span /><span />
+                    <span />
                     <span className="text-[10px] font-black text-amber-400 text-right">{fmt(totalCuentasPorCobrar)}</span>
                   </div>
                 </>
@@ -1767,25 +1765,23 @@ export const Accounting: React.FC = () => {
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-6 gap-2 px-5 py-2.5 border-b border-white/5 bg-white/[0.02]">
-                    {['Promotor', 'Evento', '', 'Debe Enviar', 'Ya Enviado', 'DEUDA'].map((h, i) => (
-                      <span key={i} className={`text-[9px] font-black uppercase tracking-widest ${i === 5 ? 'text-amber-400/70' : 'text-white/30'} ${i >= 3 ? 'text-right' : ''}`}>{h}</span>
+                  <div className="grid grid-cols-4 gap-2 px-5 py-2.5 border-b border-white/5 bg-white/[0.02]">
+                    {['Promotor', 'Evento', 'Ya Enviado', 'DEUDA'].map((h, i) => (
+                      <span key={i} className={`text-[9px] font-black uppercase tracking-widest ${i === 3 ? 'text-amber-400/70' : 'text-white/30'} ${i >= 2 ? 'text-right' : ''}`}>{h}</span>
                     ))}
                   </div>
                   <div className="divide-y divide-white/[0.03]">
                     {cuentasPorCobrar.map((r, i) => (
-                      <div key={i} className="grid grid-cols-6 gap-2 px-5 py-3 hover:bg-white/[0.02] border-l-2 border-l-amber-500/40">
+                      <div key={i} className="grid grid-cols-4 gap-2 px-5 py-3 hover:bg-white/[0.02] border-l-2 border-l-amber-500/40">
                         <span className="text-[11px] text-white font-bold truncate">{r.promoter?.name ?? '—'}</span>
-                        <span className="text-[11px] text-white/50 truncate col-span-2">{r.event?.title ?? '—'}</span>
-                        <span className="text-[11px] text-white/50 text-right">{fmt(r.dineroAEnviar)}</span>
-                        <span className="text-[11px] text-emerald-400 text-right">{fmt(r.yaEnviado)}</span>
+                        <span className="text-[11px] text-white/50 truncate">{r.event?.title ?? '—'}</span>
+                        <span className="text-[11px] text-emerald-400 text-right">{r.yaEnviado > 0 ? fmt(r.yaEnviado) : '—'}</span>
                         <span className="text-[11px] font-black text-amber-400 text-right">{fmt(r.deuda)}</span>
                       </div>
                     ))}
                   </div>
-                  <div className="grid grid-cols-6 gap-2 px-5 py-3 bg-white/5 border-t border-white/10">
-                    <span className="text-[10px] font-black text-white uppercase col-span-3">TOTAL</span>
-                    <span className="text-[10px] font-black text-white/60 text-right">{fmt(cuentasPorCobrar.reduce((s, r) => s + r.dineroAEnviar, 0))}</span>
+                  <div className="grid grid-cols-4 gap-2 px-5 py-3 bg-white/5 border-t border-white/10">
+                    <span className="text-[10px] font-black text-white uppercase col-span-2">TOTAL</span>
                     <span className="text-[10px] font-black text-emerald-400 text-right">{fmt(cuentasPorCobrar.reduce((s, r) => s + r.yaEnviado, 0))}</span>
                     <span className="text-[10px] font-black text-amber-400 text-right">{fmt(totalCuentasPorCobrar)}</span>
                   </div>
