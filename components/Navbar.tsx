@@ -137,6 +137,35 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
                     </button>
 
 
+                    {/* ── EXPERIENCIAS ──────────────────────── */}
+                    <div className="pt-2 mt-1 border-t border-white/5 space-y-0.5">
+                        <p className="px-4 pt-1 pb-1 text-[8px] uppercase tracking-[0.4em] text-white/15 font-bold">Experiencias</p>
+                        <button
+                            onClick={() => handleNavigateAction('solstice')}
+                            className={`w-full text-left py-3 px-4 rounded-lg flex items-center justify-between group transition-all min-h-[44px] ${currentPage === 'solstice' ? 'bg-[#E6392F]/10 text-[#E6392F]' : 'text-white/40 hover:text-white hover:bg-white/[0.02]'}`}
+                        >
+                            <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-2" style={{ fontFamily: "'Poiret One', sans-serif" }}>
+                                SOLSTICE
+                                <span className="text-[8px] bg-[#E6392F]/20 text-[#E6392F] px-1.5 py-0.5 rounded-sm font-bold tracking-widest" style={{ fontFamily: 'inherit' }}>2026</span>
+                            </span>
+                            <div className={`w-1 h-1 rounded-full bg-[#E6392F] transition-all ${currentPage === 'solstice' ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}`} />
+                        </button>
+                        <button
+                            onClick={() => handleNavigateAction('home')}
+                            className="w-full text-left py-3 px-4 rounded-lg flex items-center justify-between group transition-all min-h-[44px] text-white/20 hover:text-white/40 hover:bg-white/[0.02]"
+                        >
+                            <span className="font-medium text-[11px] uppercase tracking-[0.2em]">Midnight Club</span>
+                            <span className="text-[8px] text-white/15 uppercase tracking-widest">Próximamente</span>
+                        </button>
+                        <button
+                            onClick={() => handleNavigateAction('home')}
+                            className="w-full text-left py-3 px-4 rounded-lg flex items-center justify-between group transition-all min-h-[44px] text-white/20 hover:text-white/40 hover:bg-white/[0.02]"
+                        >
+                            <span className="font-medium text-[11px] uppercase tracking-[0.2em]">Noctura</span>
+                            <span className="text-[8px] text-white/15 uppercase tracking-widest">Próximamente</span>
+                        </button>
+                    </div>
+
                     {currentUser && (
                         <button onClick={() => handleNavigateAction('dashboard')} className={`w-full text-left py-3 px-4 rounded-lg flex items-center justify-between group transition-all min-h-[44px] ${currentPage === 'dashboard' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
                              <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-3">

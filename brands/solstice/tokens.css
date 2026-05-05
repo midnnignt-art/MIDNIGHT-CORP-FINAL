@@ -1,0 +1,17 @@
+/* SOLSTICE Brand Tokens — solo activos cuando data-brand="solstice" */
+/* Nunca afectan estilos globales de Midnight */
+
+:root[data-brand="solstice"] {
+  --sol-bg:             #000000;
+  --sol-bg-secondary:   #0d0d0d;
+  --sol-gray:           #606060;
+  --sol-red:            #E6392F;
+  --sol-orange:         #FF7A00;
+  --sol-cream:          #F9F2D7;
+  --sol-gradient:       linear-gradient(135deg, #E6392F, #FF7A00);
+  --sol-border:         1px solid #606060;
+  --sol-border-accent:  1px solid #E6392F;
+  --sol-radius:         2px;
+  --font-sol-heading:   'Poiret One', sans-serif;
+  --font-sol-body:      'Archivo', sans-serif;
+}

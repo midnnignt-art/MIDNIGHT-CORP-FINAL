@@ -20,6 +20,7 @@ import { useStore } from './context/StoreContext';
 import { CheckCircle2 } from 'lucide-react';
 
 import TicketWallet from './components/TicketWallet';
+import SolsticeLanding from './brands/solstice/pages/SolsticeLanding';
 import { ToastContainer } from './components/ToastContainer';
 import { Tag, X as XIcon } from 'lucide-react';
 
@@ -135,11 +136,13 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-void text-moonlight font-sans selection:bg-eclipse selection:text-white relative">
-      {/* GLOBAL DYNAMIC LOGO */}
-      <div className="logo-main flex flex-col items-center">
-        <span className="text-xl md:text-3xl font-black tracking-[-0.1em] text-white">MIDNIGHT</span>
-        <span className="text-[8px] font-light tracking-[0.8em] text-white/70 uppercase -mt-1 ml-1">Worldwide</span>
-      </div>
+      {/* GLOBAL DYNAMIC LOGO — oculto en páginas de sub-marcas */}
+      {currentPage !== 'solstice' && (
+        <div className="logo-main flex flex-col items-center">
+          <span className="text-xl md:text-3xl font-black tracking-[-0.1em] text-white">MIDNIGHT</span>
+          <span className="text-[8px] font-light tracking-[0.8em] text-white/70 uppercase -mt-1 ml-1">Worldwide</span>
+        </div>
+      )}
 
       <Navbar 
         onNavigate={handleNavigate}
@@ -185,7 +188,8 @@ const App: React.FC = () => {
 
       <main>
         {currentPage === 'home' && <Showcase onBuy={handleBuyTicket} onNavigate={handleNavigate} />}
-        <div className={currentPage === 'home' ? '' : 'pt-20 md:pt-24 px-4 sm:px-6 md:px-12 max-w-7xl mx-auto pb-20'}>
+        {currentPage === 'solstice' && <SolsticeLanding onNavigate={handleNavigate} />}
+        <div className={currentPage === 'home' || currentPage === 'solstice' ? '' : 'pt-20 md:pt-24 px-4 sm:px-6 md:px-12 max-w-7xl mx-auto pb-20'}>
           {currentPage === 'dashboard' && <Dashboard role={currentUser?.role || UserRole.GUEST} />}
           {currentPage === 'admin-events' && <AdminEvents role={currentUser?.role || UserRole.GUEST} />}
           {currentPage === 'projections' && <Projections role={currentUser?.role || UserRole.GUEST} />}

@@ -1,3 +1,4 @@
+@import "./brands/solstice/tokens.css";
 @import "tailwindcss";
 
 @theme {
