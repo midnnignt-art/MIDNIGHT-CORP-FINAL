@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export type SolsticePage =
   | 'landing'
+  | 'reserva'
   | 'admin-config'
   | 'admin-sellers'
   | 'admin-finance'

@@ -97,6 +97,7 @@ export default function SolsticeLanding({ onNavigate }: Props) {
           </p>
           <motion.button
             whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}
+            onClick={() => onNavigate('reserva')}
             className="px-12 py-4 text-sm font-black uppercase"
             style={{ background: C.red, color: C.cream, letterSpacing: '0.2em' }}
           >
@@ -184,7 +185,9 @@ export default function SolsticeLanding({ onNavigate }: Props) {
                 <p className="text-[9px] uppercase mb-8" style={{ color: C.gray, letterSpacing: '0.15em' }}>
                   {left} cupos libres · {pct.toFixed(0)}% vendido
                 </p>
-                <button className="w-full py-3 text-xs uppercase transition-colors"
+                <button
+                  onClick={() => onNavigate(`reserva:${week.university}`)}
+                  className="w-full py-3 text-xs uppercase transition-colors"
                   style={{ border: `1px solid ${C.gray}30`, color: C.gray, letterSpacing: '0.2em' }}
                   onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = C.red; (e.currentTarget as HTMLButtonElement).style.color = C.red; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = `${C.gray}30`; (e.currentTarget as HTMLButtonElement).style.color = C.gray; }}
@@ -302,6 +305,7 @@ export default function SolsticeLanding({ onNavigate }: Props) {
         </p>
         <motion.button
           whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+          onClick={() => onNavigate('reserva')}
           className="flex items-center gap-4 mx-auto px-16 py-5 text-base font-black uppercase"
           style={{ background: C.red, color: '#fff', letterSpacing: '0.25em' }}
         >

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import SolsticeNav, { SolsticePage } from './components/SolsticeNav';
 import SolsticeLanding from './pages/SolsticeLanding';
+import SolsticeReserva from './pages/SolsticeReserva';
 import { UserRole } from '../../types';
 
 interface Props {
@@ -8,7 +9,6 @@ interface Props {
   userRole: UserRole;
 }
 
-// Placeholder para páginas aún no construidas
 function ComingSoon({ title }: { title: string }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: '#000', color: '#606060' }}>
@@ -30,18 +30,41 @@ function solsticeRole(userRole: UserRole): 'admin' | 'seller' | 'manager' | 'buy
 
 export default function SolsticeApp({ onExit, userRole }: Props) {
   const [page, setPage] = useState<SolsticePage>('landing');
+  const [reservaWeek, setReservaWeek] = useState<string | undefined>(undefined);
   const role = solsticeRole(userRole);
+
+  const handleNavigate = (target: string) => {
+    if (target === 'home') { onExit(); return; }
+    // Support 'reserva:UNIVERSITY' shorthand from landing card clicks
+    if (target.startsWith('reserva:')) {
+      setReservaWeek(target.slice('reserva:'.length));
+      setPage('reserva');
+      return;
+    }
+    if (target === 'reserva') {
+      setReservaWeek(undefined);
+      setPage('reserva');
+      return;
+    }
+    setPage(target as SolsticePage);
+  };
 
   return (
     <div style={{ background: '#000', minHeight: '100vh' }}>
       <SolsticeNav
         currentPage={page}
-        onNavigate={setPage}
+        onNavigate={p => handleNavigate(p)}
         onExit={onExit}
         role={role}
       />
 
-      {page === 'landing'       && <SolsticeLanding onNavigate={p => setPage(p as SolsticePage)} />}
+      {page === 'landing'       && <SolsticeLanding onNavigate={handleNavigate} />}
+      {page === 'reserva'       && (
+        <SolsticeReserva
+          initialWeek={reservaWeek}
+          onBack={() => setPage('landing')}
+        />
+      )}
       {page === 'admin-config'  && <ComingSoon title="Configuración de Temporada" />}
       {page === 'admin-sellers' && <ComingSoon title="Equipo de Ventas" />}
       {page === 'admin-finance' && <ComingSoon title="Finanzas Solstice" />}
