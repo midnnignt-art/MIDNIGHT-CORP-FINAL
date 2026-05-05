@@ -161,6 +161,16 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
                             <button onClick={() => handleNavigateAction('admin-events')} className={`w-full text-left py-3 px-4 rounded-lg flex items-center justify-between group transition-all min-h-[44px] ${currentPage === 'admin-events' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
                                 <span className="font-medium text-[11px] uppercase tracking-[0.2em]">Backoffice</span>
                             </button>
+                            <button
+                                onClick={() => handleNavigateAction('solstice-preview')}
+                                className={`w-full text-left py-3 px-4 rounded-lg flex items-center justify-between group transition-all min-h-[44px] ${currentPage === 'solstice-preview' ? 'bg-[#E6392F]/15 text-[#E6392F]' : 'text-[#E6392F]/40 hover:text-[#E6392F] hover:bg-[#E6392F]/5'}`}
+                            >
+                                <span className="font-medium text-[11px] uppercase tracking-[0.2em] flex items-center gap-2">
+                                    Preview · Solstice
+                                    <span className="text-[8px] bg-[#E6392F]/20 px-1.5 py-0.5 rounded-sm font-bold tracking-widest">2026</span>
+                                </span>
+                                <div className={`w-1 h-1 rounded-full bg-[#E6392F] transition-all ${currentPage === 'solstice-preview' ? 'opacity-100' : 'opacity-0'}`} />
+                            </button>
                             <button onClick={() => handleNavigateAction('magic')} className={`w-full text-left py-3 px-4 rounded-lg flex items-center justify-between group transition-all min-h-[44px] ${currentPage === 'magic' ? 'bg-white/5 text-white' : 'text-white/30 hover:text-white hover:bg-white/[0.02]'}`}>
                                 <span className="font-medium text-[11px] uppercase tracking-[0.2em]">MÁGIC</span>
                             </button>
