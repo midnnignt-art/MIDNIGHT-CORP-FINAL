@@ -18,12 +18,14 @@ interface Season {
   status: 'draft' | 'open' | 'closed';
   tagline: string;
   entry_price: number;
-  // Combo completo (5 días)
+  // Combo completo
   combo_total: number;
   installments: number;
-  // Combo 1 (4 días sin Catamarán)
+  combo_days: number[];
+  // Combo 1
   combo1_total: number;
   combo1_installments: number;
+  combo1_days: number[];
   // Fases de precio
   phase1_limit: number | null;
   phase_increment: number | null;
@@ -179,6 +181,41 @@ function PriceSection({ title, subtitle, onSave, saving, children }: {
   );
 }
 
+function DaySelector({ selected, onChange, days }: {
+  selected: number[]; onChange: (days: number[]) => void; days: ProgramDay[];
+}) {
+  const toggle = (n: number) => {
+    if (selected.includes(n)) onChange(selected.filter(d => d !== n));
+    else onChange([...selected, n].sort((a, b) => a - b));
+  };
+  return (
+    <div className="space-y-1.5">
+      <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Días incluidos</label>
+      <div className="flex flex-wrap gap-2">
+        {days.map(day => {
+          const active = selected.includes(day.day_number);
+          return (
+            <button key={day.day_number} type="button" onClick={() => toggle(day.day_number)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider transition-all"
+              style={{
+                background: active ? `${C.red}20` : `${C.gray}10`,
+                border: `1px solid ${active ? C.red + '60' : C.gray + '20'}`,
+                color: active ? C.red : C.gray,
+              }}>
+              <span className="font-black text-[9px]">D{day.day_number}</span>
+              <span>{day.title}</span>
+              {day.highlight && <span style={{ color: C.red }}>★</span>}
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-[9px] uppercase" style={{ color: `${C.gray}60` }}>
+        {selected.length} día{selected.length !== 1 ? 's' : ''} seleccionado{selected.length !== 1 ? 's' : ''}
+      </p>
+    </div>
+  );
+}
+
 // ── Image upload helper (Supabase Storage) ─────────────────────────────────────
 
 async function uploadDayImage(file: File, dayNumber: number): Promise<string | null> {
@@ -235,7 +272,8 @@ export default function SolsticeAdminConfig() {
 
       if (s) {
         setSeason({
-          combo1_total: 300000, combo1_installments: 5,
+          combo1_total: 300000, combo1_installments: 5, combo1_days: [1,2,4,5],
+          combo_days: [1,2,3,4,5],
           phase_increment: null, phase_increment_type: 'fixed',
           ...s,
         } as Season);
@@ -245,8 +283,8 @@ export default function SolsticeAdminConfig() {
         setSeason({
           id: '', name: 'SOLSTICE 2026', status: 'open', tagline: 'SELECTED BEATS. PRIVATE SUNSET.',
           entry_price: 40000,
-          combo_total: 400000,   installments: 5,
-          combo1_total: 300000,  combo1_installments: 5,
+          combo_total: 400000,   installments: 5,      combo_days: [1,2,3,4,5],
+          combo1_total: 300000,  combo1_installments: 5, combo1_days: [1,2,4,5],
           phase1_limit: null,    phase_increment: null, phase_increment_type: 'fixed',
           phase1_price: null,    phase2_price: null,
           early_bird_price: null, early_bird_deadline: null,
@@ -401,11 +439,13 @@ export default function SolsticeAdminConfig() {
   const saveCombo1 = () => saveField({
     combo1_total:        toInt(season?.combo1_total),
     combo1_installments: toInt(season?.combo1_installments) || 1,
+    combo1_days:         season?.combo1_days || [1,2,4,5],
   }, 'Combo 1');
 
   const saveComboCom = () => saveField({
     combo_total:  toInt(season?.combo_total),
     installments: toInt(season?.installments) || 1,
+    combo_days:   season?.combo_days || [1,2,3,4,5],
   }, 'Combo completo');
 
   const savePhases = () => saveField({
@@ -686,60 +726,74 @@ export default function SolsticeAdminConfig() {
                   </div>
                 </PriceSection>
 
-                {/* ── 2. Combo 1 — 4 días sin Catamarán ── */}
+                {/* ── 2. Combo 1 ── */}
                 <PriceSection
-                  title="Combo 1 — 4 días sin Catamarán"
-                  subtitle="Llegada · Día libre · Playa privada · Cierre"
+                  title="Combo 1"
+                  subtitle={`${(season.combo1_days || []).length} días — personaliza cuáles incluir`}
                   onSave={saveCombo1}
                   saving={saving}>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <InputRow label="Precio total combo 1" value={season.combo1_total} onChange={v => upSeason('combo1_total', v)} type="number" prefix="$" />
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Cuotas mensuales</label>
-                      <div className="flex items-center gap-2 px-3 py-2.5"
-                        style={{ background: C.bgT, border: `1px solid ${C.gray}20` }}>
-                        <input type="number" value={season.combo1_installments}
-                          onChange={e => upSeason('combo1_installments', e.target.value)}
-                          className="w-16 bg-transparent outline-none text-xs" style={{ color: C.cream }} />
-                        <span className="text-[10px]" style={{ color: C.gray }}>
-                          × ${Math.round(season.combo1_total / (season.combo1_installments || 1) / 1000)}K/mes
-                        </span>
+                  <div className="space-y-4">
+                    <DaySelector
+                      selected={season.combo1_days || []}
+                      onChange={v => upSeason('combo1_days', v)}
+                      days={days}
+                    />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <InputRow label="Precio total" value={season.combo1_total} onChange={v => upSeason('combo1_total', v)} type="number" prefix="$" />
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Cuotas mensuales</label>
+                        <div className="flex items-center gap-2 px-3 py-2.5"
+                          style={{ background: C.bgT, border: `1px solid ${C.gray}20` }}>
+                          <input type="number" value={season.combo1_installments}
+                            onChange={e => upSeason('combo1_installments', e.target.value)}
+                            className="w-16 bg-transparent outline-none text-xs" style={{ color: C.cream }} />
+                          <span className="text-[10px]" style={{ color: C.gray }}>
+                            × ${Math.round(season.combo1_total / (season.combo1_installments || 1) / 1000)}K/mes
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex flex-col justify-end p-4 gap-1"
-                      style={{ background: `${C.gray}08`, border: `1px solid ${C.gray}12` }}>
-                      <p className="text-[8px] uppercase" style={{ color: C.gray }}>Reserva inicial</p>
-                      <p className="text-xl font-black" style={{ color: C.cream }}>${Math.round(season.entry_price / 1000)}K</p>
-                      <p className="text-[8px] uppercase" style={{ color: C.gray }}>+ {season.combo1_installments} cuotas de ${Math.round(season.combo1_total / (season.combo1_installments || 1) / 1000)}K</p>
+                      <div className="flex flex-col justify-end p-4 gap-1"
+                        style={{ background: `${C.gray}08`, border: `1px solid ${C.gray}12` }}>
+                        <p className="text-[8px] uppercase" style={{ color: C.gray }}>Reserva inicial</p>
+                        <p className="text-xl font-black" style={{ color: C.cream }}>${Math.round(season.entry_price / 1000)}K</p>
+                        <p className="text-[8px] uppercase" style={{ color: C.gray }}>+ {season.combo1_installments} cuotas de ${Math.round(season.combo1_total / (season.combo1_installments || 1) / 1000)}K</p>
+                      </div>
                     </div>
                   </div>
                 </PriceSection>
 
-                {/* ── 3. Combo completo — 5 días ── */}
+                {/* ── 3. Combo completo ── */}
                 <PriceSection
-                  title="Combo completo — 5 días"
-                  subtitle="Incluye Catamarán (Día 3)"
+                  title="Combo completo"
+                  subtitle={`${(season.combo_days || []).length} días — personaliza cuáles incluir`}
                   onSave={saveComboCom}
                   saving={saving}>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <InputRow label="Precio total combo completo" value={season.combo_total} onChange={v => upSeason('combo_total', v)} type="number" prefix="$" />
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Cuotas mensuales</label>
-                      <div className="flex items-center gap-2 px-3 py-2.5"
-                        style={{ background: C.bgT, border: `1px solid ${C.gray}20` }}>
-                        <input type="number" value={season.installments}
-                          onChange={e => upSeason('installments', e.target.value)}
-                          className="w-16 bg-transparent outline-none text-xs" style={{ color: C.cream }} />
-                        <span className="text-[10px]" style={{ color: C.gray }}>
-                          × ${Math.round(season.combo_total / (season.installments || 1) / 1000)}K/mes
-                        </span>
+                  <div className="space-y-4">
+                    <DaySelector
+                      selected={season.combo_days || []}
+                      onChange={v => upSeason('combo_days', v)}
+                      days={days}
+                    />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <InputRow label="Precio total" value={season.combo_total} onChange={v => upSeason('combo_total', v)} type="number" prefix="$" />
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Cuotas mensuales</label>
+                        <div className="flex items-center gap-2 px-3 py-2.5"
+                          style={{ background: C.bgT, border: `1px solid ${C.gray}20` }}>
+                          <input type="number" value={season.installments}
+                            onChange={e => upSeason('installments', e.target.value)}
+                            className="w-16 bg-transparent outline-none text-xs" style={{ color: C.cream }} />
+                          <span className="text-[10px]" style={{ color: C.gray }}>
+                            × ${Math.round(season.combo_total / (season.installments || 1) / 1000)}K/mes
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex flex-col justify-end p-4 gap-1"
-                      style={{ background: `${C.red}08`, border: `1px solid ${C.red}20` }}>
-                      <p className="text-[8px] uppercase" style={{ color: `${C.red}90` }}>Reserva inicial</p>
-                      <p className="text-xl font-black" style={{ color: C.red }}>${Math.round(season.entry_price / 1000)}K</p>
-                      <p className="text-[8px] uppercase" style={{ color: `${C.red}90` }}>+ {season.installments} cuotas de ${Math.round(season.combo_total / (season.installments || 1) / 1000)}K</p>
+                      <div className="flex flex-col justify-end p-4 gap-1"
+                        style={{ background: `${C.red}08`, border: `1px solid ${C.red}20` }}>
+                        <p className="text-[8px] uppercase" style={{ color: `${C.red}90` }}>Reserva inicial</p>
+                        <p className="text-xl font-black" style={{ color: C.red }}>${Math.round(season.entry_price / 1000)}K</p>
+                        <p className="text-[8px] uppercase" style={{ color: `${C.red}90` }}>+ {season.installments} cuotas de ${Math.round(season.combo_total / (season.installments || 1) / 1000)}K</p>
+                      </div>
                     </div>
                   </div>
                 </PriceSection>
