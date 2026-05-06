@@ -4,7 +4,7 @@ import {
   Copy, Share2, Check, TrendingUp, Users, DollarSign,
   ChevronDown, ChevronUp, AlertTriangle, Banknote, Download,
   Loader2, CheckCircle2, Clock, X, Globe, Smartphone, Link2,
-  BarChart2, UserCheck
+  BarChart2, UserCheck, Trophy, Medal
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useStore } from '../../../context/StoreContext';
@@ -543,6 +543,83 @@ export default function SolsticeVentasDashboard({ role }: Props) {
             </div>
           )}
         </div>
+
+        {/* ── Ranking de vendedores ── */}
+        {(isManager || isSeller) && teamSellers.length > 0 && (() => {
+          const ranked = teamSellers
+            .map(sl => {
+              const slRegs = registrations.filter(r => r.seller_id === sl.user_id);
+              const slPaid = slRegs.reduce((a, r) => a + r.amount_paid, 0);
+              const slCom  = slPaid * ((season?.commission_pct || 10) / 100);
+              return { ...sl, count: slRegs.length, paid: slPaid, com: slCom };
+            })
+            .sort((a, b) => b.count - a.count);
+
+          const MEDAL: Record<number, { color: string; icon: React.ReactNode }> = {
+            0: { color: '#FFD700', icon: <Trophy size={13} />       },
+            1: { color: '#C0C0C0', icon: <Medal  size={13} />       },
+            2: { color: '#CD7F32', icon: <Medal  size={13} />       },
+          };
+
+          return (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Trophy size={13} style={{ color: C.yellow }} />
+                <p className="text-[9px] uppercase tracking-[0.3em]" style={{ color: C.gray }}>
+                  Ranking · {mySeller?.university || 'Vendedores'}
+                </p>
+              </div>
+              <div style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
+                <div className="grid grid-cols-12 px-5 py-2 text-[9px] uppercase tracking-widest"
+                  style={{ color: C.gray, borderBottom: `1px solid ${C.gray}10` }}>
+                  <div className="col-span-1">#</div>
+                  <div className="col-span-5">Vendedor</div>
+                  <div className="col-span-2 text-right">Reservas</div>
+                  <div className="col-span-2 text-right">Ingresado</div>
+                  <div className="col-span-2 text-right">Comisión</div>
+                </div>
+                {ranked.map((sl, idx) => {
+                  const isMe = sl.user_id === currentUser?.user_id;
+                  const medal = MEDAL[idx];
+                  return (
+                    <div key={sl.id}
+                      className="grid grid-cols-12 px-5 py-3 items-center"
+                      style={{
+                        borderBottom: `1px solid ${C.gray}08`,
+                        background: isMe ? `${C.red}08` : 'transparent',
+                      }}>
+                      <div className="col-span-1 flex items-center">
+                        {medal
+                          ? <span style={{ color: medal.color }}>{medal.icon}</span>
+                          : <span className="text-xs font-black" style={{ color: C.gray }}>{idx + 1}</span>}
+                      </div>
+                      <div className="col-span-5">
+                        <p className="text-xs font-bold uppercase truncate"
+                          style={{ color: isMe ? C.red : (medal ? medal.color : C.cream) }}>
+                          {sl.name || sl.ref_code}
+                          {isMe && <span className="ml-2 text-[8px] tracking-widest" style={{ color: C.red }}>TÚ</span>}
+                        </p>
+                        {sl.team_name && (
+                          <p className="text-[9px]" style={{ color: C.gray }}>{sl.team_name}</p>
+                        )}
+                      </div>
+                      <div className="col-span-2 text-right text-sm font-black"
+                        style={{ color: medal ? medal.color : C.cream }}>
+                        {sl.count}
+                      </div>
+                      <div className="col-span-2 text-right text-xs" style={{ color: C.green }}>
+                        {fmtK(sl.paid)}
+                      </div>
+                      <div className="col-span-2 text-right text-xs" style={{ color: C.yellow }}>
+                        {fmtK(sl.com)}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── Canal de ventas (Digital vs Efectivo) ── */}
         <div className="grid grid-cols-2 gap-4">

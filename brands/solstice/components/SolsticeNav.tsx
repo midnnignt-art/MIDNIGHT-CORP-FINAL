@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Sun, LayoutDashboard, Users, Settings, DollarSign, LogOut, ChevronRight } from 'lucide-react';
+import { X, Sun, LayoutDashboard, Users, Settings, DollarSign, LogOut, ChevronRight, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export type SolsticePage =
@@ -8,6 +8,7 @@ export type SolsticePage =
   | 'admin-config'
   | 'admin-sellers'
   | 'admin-finance'
+  | 'admin-cobros'
   | 'seller'
   | 'manager'
   | 'buyer';
@@ -32,6 +33,7 @@ const NAV_ITEMS: { page: SolsticePage; label: string; icon: React.ReactNode; rol
   { page: 'admin-config',  label: 'Configuración',icon: <Settings size={15} />,      roles: ['admin'] },
   { page: 'admin-sellers', label: 'Equipo ventas',icon: <Users size={15} />,         roles: ['admin','manager'] },
   { page: 'admin-finance', label: 'Finanzas',     icon: <DollarSign size={15} />,    roles: ['admin'] },
+  { page: 'admin-cobros', label: 'Cobros',        icon: <AlertCircle size={15} />,   roles: ['admin'] },
   { page: 'seller',        label: 'Mi dashboard', icon: <LayoutDashboard size={15} />,roles: ['seller'] },
   { page: 'manager',       label: 'Mi equipo',    icon: <Users size={15} />,         roles: ['manager'] },
   { page: 'buyer',         label: 'Mi semana',    icon: <LayoutDashboard size={15} />,roles: ['buyer'] },
