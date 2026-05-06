@@ -74,7 +74,6 @@ a {
   transform: translate(-50%, -50%);
   z-index: 150;
   mix-blend-mode: difference;
-  filter: saturate(0.55) brightness(1.1);
   opacity: 0.92;
   pointer-events: none;
   text-align: center;
