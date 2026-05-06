@@ -6,6 +6,7 @@ import SolsticeAdminConfig from './pages/SolsticeAdminConfig';
 import SolsticeAdminFinance from './pages/SolsticeAdminFinance';
 import SolsticeAdminCobros from './pages/SolsticeAdminCobros';
 import SolsticeAdminCheckin from './pages/SolsticeAdminCheckin';
+import SolsticePrograma from './pages/SolsticePrograma';
 import SolsticeVentasDashboard from './pages/SolsticeVentasDashboard';
 import SolsticeMiSemana from './pages/SolsticeMiSemana';
 import { UserRole } from '../../types';
@@ -65,6 +66,7 @@ export default function SolsticeApp({ onExit, userRole }: Props) {
       />
 
       {page === 'landing'       && <SolsticeLanding onNavigate={handleNavigate} />}
+      {page === 'programa'      && <SolsticePrograma onNavigate={handleNavigate} />}
       {page === 'reserva'       && (
         <SolsticeReserva
           initialWeek={reservaWeek}

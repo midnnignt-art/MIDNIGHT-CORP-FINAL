@@ -233,9 +233,15 @@ export default function SolsticeLanding({ onNavigate }: Props) {
               ))}
             </div>
           </div>
-          <div className="mt-14 flex justify-center gap-8 flex-wrap">
+          <div className="mt-14 flex items-center justify-center gap-8 flex-wrap">
             <span className="text-[10px] uppercase" style={{ color: C.gray, letterSpacing: '0.2em' }}>Sueltos: $440K</span>
             <span className="text-[10px] uppercase" style={{ color: C.red, letterSpacing: '0.2em' }}>Combo: ${comboK}K · Ahorras $40K</span>
+            <button
+              onClick={() => onNavigate('programa')}
+              className="flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-widest transition-all hover:opacity-100 opacity-60"
+              style={{ color: C.cream, letterSpacing: '0.25em' }}>
+              Ver programa completo <ChevronRight size={11} />
+            </button>
           </div>
         </div>
       </section>

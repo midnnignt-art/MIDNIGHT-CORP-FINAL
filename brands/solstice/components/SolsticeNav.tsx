@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { X, Sun, LayoutDashboard, Users, Settings, DollarSign, LogOut, ChevronRight, AlertCircle, ScanLine } from 'lucide-react';
+import { X, Sun, LayoutDashboard, Users, Settings, DollarSign, LogOut, ChevronRight, AlertCircle, ScanLine, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export type SolsticePage =
   | 'landing'
+  | 'programa'
   | 'reserva'
   | 'admin-config'
   | 'admin-sellers'
@@ -31,6 +32,7 @@ const C = {
 
 const NAV_ITEMS: { page: SolsticePage; label: string; icon: React.ReactNode; roles: string[] }[] = [
   { page: 'landing',       label: 'Vitrina',      icon: <Sun size={15} />,           roles: ['admin','seller','manager','buyer'] },
+  { page: 'programa',      label: 'Programa',     icon: <BookOpen size={15} />,      roles: ['admin','seller','manager','buyer'] },
   { page: 'admin-config',  label: 'Configuración',icon: <Settings size={15} />,      roles: ['admin'] },
   { page: 'admin-sellers', label: 'Equipo ventas',icon: <Users size={15} />,         roles: ['admin','manager'] },
   { page: 'admin-finance', label: 'Finanzas',     icon: <DollarSign size={15} />,    roles: ['admin'] },

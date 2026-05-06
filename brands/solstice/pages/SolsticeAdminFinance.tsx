@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   BarChart2, DollarSign, Users, TrendingUp, AlertTriangle,
   Download, Loader2, X, CheckCircle2, Banknote, Globe,
-  Percent, Calendar, ArrowUpRight, ArrowDownRight, Send
+  Percent, Calendar, ArrowUpRight, ArrowDownRight, Send, MousePointerClick
 } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
@@ -39,8 +39,11 @@ interface Seller {
 interface CommissionPayout {
   id: string; seller_user_id: string; amount: number; method: string; paid_at: string;
 }
+interface ReferralClick {
+  ref_code: string; converted: boolean;
+}
 
-type Tab = 'resumen' | 'vendedores' | 'cashflow' | 'comisiones' | 'exportar';
+type Tab = 'resumen' | 'vendedores' | 'cashflow' | 'comisiones' | 'conversion' | 'exportar';
 
 const fmt  = (n: number) => `$${Math.round(n).toLocaleString('es-CO')}`;
 const fmtK = (n: number) => `$${Math.round(n / 1000)}K`;
@@ -79,6 +82,7 @@ export default function SolsticeAdminFinance() {
   const [weeks, setWeeks]           = useState<Week[]>([]);
   const [sellers, setSellers]       = useState<Seller[]>([]);
   const [payouts, setPayouts]       = useState<CommissionPayout[]>([]);
+  const [clicks, setClicks]         = useState<ReferralClick[]>([]);
   const [loading, setLoading]       = useState(true);
 
   // Commission modal
@@ -96,7 +100,7 @@ export default function SolsticeAdminFinance() {
     try {
       const [
         { data: s }, { data: r }, { data: sc }, { data: w },
-        { data: sl }, { data: po }
+        { data: sl }, { data: po }, { data: cl }
       ] = await Promise.all([
         supabase.from('solstice_seasons').select('*').eq('status', 'open').single(),
         supabase.from('solstice_registrations').select('*').order('created_at', { ascending: false }),
@@ -104,6 +108,7 @@ export default function SolsticeAdminFinance() {
         supabase.from('solstice_weeks').select('*'),
         supabase.from('solstice_sellers').select('*'),
         supabase.from('solstice_commission_payouts').select('*').order('paid_at', { ascending: false }),
+        supabase.from('solstice_referral_clicks').select('ref_code,converted'),
       ]);
 
       if (s) setSeason(s as Season);
@@ -111,6 +116,7 @@ export default function SolsticeAdminFinance() {
       setSchedules((sc || []) as Schedule[]);
       setWeeks((w || []) as Week[]);
       setPayouts((po || []) as CommissionPayout[]);
+      setClicks((cl || []) as ReferralClick[]);
 
       // Enrich sellers
       const enriched = (sl || []).map((sel: any) => {
@@ -187,6 +193,20 @@ export default function SolsticeAdminFinance() {
       .sort((a, b) => a.mes.localeCompare(b.mes))
       .map(d => ({ ...d, mes: new Date(d.mes + '-01').toLocaleDateString('es-CO', { month: 'short', year: '2-digit' }) }));
   }, [schedules, regs]);
+
+  // ── Conversion funnel per seller ──────────────────────────────────────────
+  const conversionData = useMemo(() => {
+    return sellers.map(sl => {
+      const slClicks  = clicks.filter(c => c.ref_code === sl.ref_code);
+      const totalClicks   = slClicks.length;
+      const conversions   = slClicks.filter(c => c.converted).length;
+      const rate          = totalClicks ? ((conversions / totalClicks) * 100) : 0;
+      const slRegs        = regs.filter(r => r.seller_id === sl.user_id);
+      const ingresado     = slRegs.reduce((a, r) => a + r.amount_paid, 0);
+      return { ...sl, totalClicks, conversions, rate, ingresado, regsCount: slRegs.length };
+    }).filter(s => s.totalClicks > 0 || s.regsCount > 0)
+      .sort((a, b) => b.conversions - a.conversions);
+  }, [sellers, clicks, regs]);
 
   // ── Commission per seller ──────────────────────────────────────────────────
   const sellerCommissions = useMemo(() => {
@@ -270,6 +290,7 @@ export default function SolsticeAdminFinance() {
     { id: 'vendedores', label: 'Vendedores',   icon: <Users size={13} /> },
     { id: 'cashflow',   label: 'Flujo de caja',icon: <TrendingUp size={13} /> },
     { id: 'comisiones', label: 'Comisiones',   icon: <Percent size={13} /> },
+    { id: 'conversion', label: 'Conversión',   icon: <MousePointerClick size={13} /> },
     { id: 'exportar',   label: 'Exportar',     icon: <Download size={13} /> },
   ];
 
@@ -567,6 +588,85 @@ export default function SolsticeAdminFinance() {
                         );
                       })}
                     </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── CONVERSIÓN ── */}
+            {tab === 'conversion' && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xs uppercase tracking-widest mb-1" style={{ color: C.gray }}>Funnel de conversión por vendedor</h2>
+                  <p className="text-[10px] uppercase" style={{ color: `${C.gray}70` }}>
+                    Clicks en link referido → Registros completados
+                  </p>
+                </div>
+
+                {/* Global KPIs */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-2xl">
+                  {(() => {
+                    const totalC = clicks.length;
+                    const totalConv = clicks.filter(c => c.converted).length;
+                    const globalRate = totalC ? ((totalConv / totalC) * 100).toFixed(1) : '0';
+                    return [
+                      { label: 'Clicks totales',   value: String(totalC),     color: C.cream },
+                      { label: 'Conversiones',      value: String(totalConv),  color: C.green },
+                      { label: 'Tasa global',       value: `${globalRate}%`,   color: C.yellow },
+                      { label: 'Sin tracking',      value: String(regs.filter(r => !r.ref_code).length), color: C.gray },
+                    ].map(({ label, value, color }) => (
+                      <div key={label} className="p-4" style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
+                        <p className="text-[8px] uppercase mb-1" style={{ color: C.gray }}>{label}</p>
+                        <p className="text-xl font-black" style={{ color }}>{value}</p>
+                      </div>
+                    ));
+                  })()}
+                </div>
+
+                {/* Per-seller table */}
+                {conversionData.length === 0 ? (
+                  <div className="py-16 text-center text-xs uppercase" style={{ color: C.gray }}>
+                    Sin datos de clicks aún — los links ?ref= aún no han sido visitados
+                  </div>
+                ) : (
+                  <div style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
+                    <div className="grid grid-cols-12 px-5 py-2 text-[9px] uppercase tracking-widest"
+                      style={{ color: C.gray, borderBottom: `1px solid ${C.gray}10` }}>
+                      <div className="col-span-3">Vendedor</div>
+                      <div className="col-span-2 text-right">Clicks</div>
+                      <div className="col-span-2 text-right">Registros</div>
+                      <div className="col-span-2 text-right">Tasa</div>
+                      <div className="col-span-3 text-right">Ingresado</div>
+                    </div>
+                    {conversionData.map(sl => (
+                      <div key={sl.id} className="grid grid-cols-12 px-5 py-4 items-center"
+                        style={{ borderBottom: `1px solid ${C.gray}08` }}>
+                        <div className="col-span-3">
+                          <p className="text-xs font-bold uppercase truncate">{sl.name || '—'}</p>
+                          <p className="text-[9px]" style={{ color: C.gray }}>{sl.ref_code}</p>
+                        </div>
+                        <div className="col-span-2 text-right">
+                          <p className="text-sm font-bold">{sl.totalClicks}</p>
+                        </div>
+                        <div className="col-span-2 text-right">
+                          <p className="text-sm font-bold" style={{ color: C.green }}>{sl.conversions}</p>
+                        </div>
+                        <div className="col-span-2 text-right">
+                          {/* Conversion rate bar */}
+                          <p className="text-xs font-black mb-1"
+                            style={{ color: sl.rate >= 20 ? C.green : sl.rate >= 10 ? C.yellow : C.red }}>
+                            {sl.rate.toFixed(1)}%
+                          </p>
+                          <div className="h-1 rounded-full overflow-hidden ml-auto" style={{ width: 48, background: `${C.gray}20` }}>
+                            <div className="h-full rounded-full"
+                              style={{ width: `${Math.min(sl.rate, 100)}%`, background: sl.rate >= 20 ? C.green : sl.rate >= 10 ? C.yellow : C.red }} />
+                          </div>
+                        </div>
+                        <div className="col-span-3 text-right text-xs" style={{ color: C.green }}>
+                          {fmtK(sl.ingresado)}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
