@@ -4,7 +4,8 @@ import React, { useEffect, useRef } from 'react';
 // A single soft orb that follows the cursor with spring lag and breathes gently.
 // Desktop-only (pointer: fine). Uses a single div — zero canvas overhead.
 
-export const MouseTrail: React.FC = () => {
+// rgb: comma-separated R,G,B values — e.g. "160,40,255" (midnight) or "230,57,47" (solstice)
+export const MouseTrail: React.FC<{ rgb?: string }> = ({ rgb = '160,40,255' }) => {
   const orbRef  = useRef<HTMLDivElement>(null);
   const posRef  = useRef({ x: -200, y: -200 });   // current rendered position
   const targetRef = useRef({ x: -200, y: -200 }); // where cursor actually is
@@ -73,7 +74,7 @@ export const MouseTrail: React.FC = () => {
         transform: 'translate(-50%, -50%) scale(1)',
         opacity: 0.85,
         transition: 'transform 0.6s cubic-bezier(0.34,1.56,0.64,1), opacity 0.5s ease',
-        background: 'radial-gradient(circle, rgba(160,40,255,0.32) 0%, rgba(110,15,190,0.18) 35%, rgba(73,15,124,0.06) 60%, transparent 75%)',
+        background: `radial-gradient(circle, rgba(${rgb},0.32) 0%, rgba(${rgb},0.18) 35%, rgba(${rgb},0.06) 60%, transparent 75%)`,
         mixBlendMode: 'screen',
         animation: 'orb-breathe 3.8s ease-in-out infinite',
       }}

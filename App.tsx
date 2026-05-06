@@ -134,21 +134,32 @@ const App: React.FC = () => {
   if (glMatch)         return <GuestListLanding codigo={glMatch[1]} />;
   if (discountMatch)   return <DiscountLanding  codigo={discountMatch[1]} />;
 
+  const isSolstice = currentPage === 'solstice-preview';
+
   return (
     <div className="min-h-screen bg-void text-moonlight font-sans selection:bg-eclipse selection:text-white relative">
-      {/* GLOBAL DYNAMIC LOGO */}
-      <div className="logo-main flex flex-col items-center">
-        <span className="text-xl md:text-3xl font-black tracking-[-0.1em] text-white">MIDNIGHT</span>
-        <span className="text-[8px] font-light tracking-[0.8em] text-white/70 uppercase -mt-1 ml-1">Worldwide</span>
+      {/* GLOBAL DYNAMIC LOGO — Solstice red when inside Solstice */}
+      <div
+        className="logo-main flex flex-col items-center"
+        style={isSolstice ? { mixBlendMode: 'normal', filter: 'none', opacity: 0.9 } : {}}
+      >
+        <span
+          className="text-xl md:text-3xl font-black tracking-[-0.1em]"
+          style={{ color: isSolstice ? '#E6392F' : 'white' }}
+        >MIDNIGHT</span>
+        <span
+          className="text-[8px] font-light tracking-[0.8em] uppercase -mt-1 ml-1"
+          style={{ color: isSolstice ? 'rgba(230,57,47,0.55)' : 'rgba(255,255,255,0.7)' }}
+        >Worldwide</span>
       </div>
 
-      <Navbar 
-        onNavigate={handleNavigate}
-        currentPage={currentPage}
-      />
+      {/* Midnight navbar — hidden while inside Solstice to avoid overlap */}
+      {!isSolstice && (
+        <Navbar onNavigate={handleNavigate} currentPage={currentPage} />
+      )}
 
-      {/* Discount banner — just below the Midnight logo */}
-      {discountBanner && (
+      {/* Discount banner — hidden in Solstice */}
+      {discountBanner && !isSolstice && (
         <div className="fixed top-[4.5rem] md:top-[3.8rem] left-1/2 -translate-x-1/2 z-[95] animate-in slide-in-from-top-2 duration-400 px-4 w-full max-w-xs">
           <div className="flex items-center gap-2.5 bg-[#0A0A0A]/95 border border-[#C9A84C]/30 rounded-full px-4 py-1.5 shadow-[0_0_20px_rgba(201,168,76,0.10)]">
             <span className="w-1.5 h-1.5 rounded-full bg-[#C9A84C] flex-shrink-0 shadow-[0_0_6px_#C9A84C]" />
@@ -170,7 +181,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {referralToast.show && (
+      {referralToast.show && !isSolstice && (
           <div className="fixed top-24 right-0 left-0 md:left-auto md:right-12 z-[90] flex justify-center md:justify-end animate-in slide-in-from-top-5 duration-500">
               <div className="bg-eclipse/20 border border-eclipse/30 backdrop-blur-xl text-moonlight px-5 md:px-8 py-4 md:py-5 rounded-2xl shadow-[0_0_50px_rgba(73,15,124,0.2)] flex items-center gap-4 md:gap-5 mx-4 md:mx-0">
                   <div className="bg-eclipse/40 p-2.5 rounded-full">

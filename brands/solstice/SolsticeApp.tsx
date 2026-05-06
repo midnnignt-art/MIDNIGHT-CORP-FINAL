@@ -12,6 +12,7 @@ import SolsticeMiSemana from './pages/SolsticeMiSemana';
 import SolsticeCommandSelector from './pages/SolsticeCommandSelector';
 import { DUAL_COMMAND_ENABLED } from './featureFlags';
 import { UserRole } from '../../types';
+import { MouseTrail } from '../../components/MouseTrail';
 
 interface Props {
   onExit: () => void;
@@ -83,6 +84,7 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
 
   return (
     <div style={{ background: '#000', minHeight: '100vh' }}>
+      <MouseTrail rgb="230,57,47" />
       <SolsticeNav
         currentPage={page}
         onNavigate={p => handleNavigate(p)}
