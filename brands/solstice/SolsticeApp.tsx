@@ -3,6 +3,7 @@ import SolsticeNav, { SolsticePage } from './components/SolsticeNav';
 import SolsticeLanding from './pages/SolsticeLanding';
 import SolsticeReserva from './pages/SolsticeReserva';
 import SolsticeAdminConfig from './pages/SolsticeAdminConfig';
+import SolsticeAdminFinance from './pages/SolsticeAdminFinance';
 import SolsticeVentasDashboard from './pages/SolsticeVentasDashboard';
 import SolsticeMiSemana from './pages/SolsticeMiSemana';
 import { UserRole } from '../../types';
@@ -70,7 +71,7 @@ export default function SolsticeApp({ onExit, userRole }: Props) {
       )}
       {page === 'admin-config'  && <SolsticeAdminConfig />}
       {page === 'admin-sellers' && <SolsticeVentasDashboard role="admin" />}
-      {page === 'admin-finance' && <ComingSoon title="Finanzas Solstice" />}
+      {page === 'admin-finance' && <SolsticeAdminFinance />}
       {page === 'seller'        && <SolsticeVentasDashboard role="seller" />}
       {page === 'manager'       && <SolsticeVentasDashboard role="manager" />}
       {page === 'buyer'         && <SolsticeMiSemana />}
