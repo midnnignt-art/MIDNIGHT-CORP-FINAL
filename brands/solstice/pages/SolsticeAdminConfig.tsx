@@ -289,14 +289,18 @@ export default function SolsticeAdminConfig() {
   const [expandedTeams, setExpandedTeams]     = useState<Set<string>>(new Set());
   const [activating, setActivating]           = useState<Set<string>>(new Set());
 
-  // Seller modal (quick add)
-  const [addSellerOpen, setAddSellerOpen] = useState(false);
-  const [searchQ, setSearchQ]             = useState('');
-  const [searchResults, setSearchResults] = useState<MidnightProfile[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [newSeller, setNewSeller]         = useState<Partial<Seller>>({
-    university: 'Javeriana', role: 'seller', ref_code: '',
-  });
+  // Recruitment modal (espejo de Midnight)
+  const [recruitOpen, setRecruitOpen]   = useState(false);
+  const [recruitMode, setRecruitMode]   = useState<'create' | 'link'>('create');
+  const [recruiting, setRecruiting]     = useState(false);
+  // create mode
+  const [rName,   setRName]   = useState('');
+  const [rCode,   setRCode]   = useState('');
+  const [rEmail,  setREmail]  = useState('');
+  const [rTeamId, setRTeamId] = useState('');
+  // link mode
+  const [rLinkId,     setRLinkId]     = useState('');
+  const [rLinkTeamId, setRLinkTeamId] = useState('');
 
   // Image upload refs
   const fileRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -611,75 +615,87 @@ export default function SolsticeAdminConfig() {
     toast.success('Link copiado');
   };
 
-  // ── Search profiles (Midnight staff) ──────────────────────────────────────────
-  const searchPromoters = async (q: string) => {
-    setSearchQ(q);
-    if (q.length < 2) { setSearchResults([]); return; }
-    setSearchLoading(true);
-    const { data: profs } = await supabase
-      .from('profiles')
-      .select('id, full_name, email, code, role, sales_team_id, super_squad_id')
-      .ilike('full_name', `%${q}%`)
-      .limit(8);
+  // ── Recruitment helpers ────────────────────────────────────────────────────────
+  const allTeamsFlat = [
+    ...squadGroups.flatMap(sq => sq.teams),
+    ...noSquadTeams,
+  ];
 
-    if (profs?.length) {
-      const teamIds  = [...new Set(profs.map((p: any) => p.sales_team_id).filter(Boolean))];
-      const squadIds = [...new Set(profs.map((p: any) => p.super_squad_id).filter(Boolean))];
-      const [{ data: teams }, { data: squads }] = await Promise.all([
-        teamIds.length  ? supabase.from('sales_teams').select('id, name').in('id', teamIds)   : Promise.resolve({ data: [] }),
-        squadIds.length ? supabase.from('super_squads').select('id, name').in('id', squadIds) : Promise.resolve({ data: [] }),
-      ]);
-      setSearchResults(profs.map((p: any) => ({
-        id:            p.id,
-        full_name:     p.full_name,
-        email:         p.email,
-        code:          p.code,
-        role:          p.role,
-        sales_team_id: p.sales_team_id,
-        super_squad_id:p.super_squad_id,
-        team_name:  (teams  || []).find((t:  any) => t.id === p.sales_team_id)?.name,
-        squad_name: (squads || []).find((sq: any) => sq.id === p.super_squad_id)?.name,
-      })));
-    } else {
-      setSearchResults([]);
-    }
-    setSearchLoading(false);
+  const resetRecruit = () => {
+    setRName(''); setRCode(''); setREmail(''); setRTeamId('');
+    setRLinkId(''); setRLinkTeamId('');
+    setRecruitMode('create');
   };
 
-  const selectPromoter = (p: MidnightProfile) => {
-    setNewSeller(prev => ({
-      ...prev,
-      user_id:        p.id,
-      name:           p.full_name,
-      email:          p.email,
-      sales_team_id:  p.sales_team_id,
-      super_squad_id: p.super_squad_id,
-      ref_code:       prev.ref_code || genRefCode(p.full_name),
-    }));
-    setSearchResults([]);
-    setSearchQ(p.full_name);
-  };
-
-  const addSeller = async () => {
-    if (!newSeller.user_id || !newSeller.ref_code) { toast.error('Selecciona un promotor y verifica el código'); return; }
-    setSaving(true);
-    const { error } = await supabase.from('solstice_sellers').insert({
-      user_id:        newSeller.user_id,
-      season_id:      season?.id,
-      university:     newSeller.university,
-      role:           newSeller.role,
-      ref_code:       newSeller.ref_code,
+  // Agrega al solstice_sellers si hay temporada activa
+  const activateInSolstice = async (profileId: string, teamId?: string) => {
+    if (!season?.id) return;
+    const { data: team } = teamId
+      ? await supabase.from('sales_teams').select('super_squad_id').eq('id', teamId).single()
+      : { data: null };
+    await supabase.from('solstice_sellers').insert({
+      user_id:        profileId,
+      season_id:      season.id,
+      ref_code:       genRefCode(rName || 'VEND'),
+      role:           'seller',
       status:         'active',
-      sales_team_id:  newSeller.sales_team_id || null,
-      super_squad_id: newSeller.super_squad_id || null,
+      university:     'General',
+      sales_team_id:  teamId  || null,
+      super_squad_id: (team as any)?.super_squad_id || null,
     });
-    setSaving(false);
-    if (error) { toast.error('Error: ' + error.message); return; }
-    toast.success('Vendedor agregado');
-    setAddSellerOpen(false);
-    setNewSeller({ university: 'Javeriana', role: 'seller', ref_code: '' });
-    setSearchQ('');
-    loadAll();
+  };
+
+  // Modo "Nuevo Ingreso": crea perfil en Midnight + activa en Solstice
+  const handleCreate = async () => {
+    if (!rName || !rEmail) { toast.error('Nombre y email son obligatorios'); return; }
+    if (!rEmail.includes('@')) { toast.error('Ingresa un email válido'); return; }
+    const finalCode = (rCode || rEmail.split('@')[0]).replace(/\s/g, '').toUpperCase();
+    if (!finalCode) { toast.error('El código no puede estar vacío'); return; }
+    setRecruiting(true);
+    try {
+      const profileId = crypto.randomUUID();
+      const teamRow = rTeamId ? allTeamsFlat.find(t => t.id === rTeamId) : null;
+      const { error } = await supabase.from('profiles').insert({
+        id:            profileId,
+        full_name:     rName.trim(),
+        code:          finalCode,
+        email:         rEmail.toLowerCase().trim(),
+        role:          'PROMOTER',
+        sales_team_id: rTeamId || null,
+        super_squad_id:(teamRow as any)?.super_squad_id || null,
+      });
+      if (error) throw error;
+      await activateInSolstice(profileId, rTeamId || undefined);
+      toast.success(`${rName} registrado${rTeamId ? ` en ${teamRow?.name}` : ''} · activado en Solstice`);
+      setRecruitOpen(false); resetRecruit(); loadAll();
+    } catch (e: any) {
+      toast.error('Error: ' + e.message);
+    } finally { setRecruiting(false); }
+  };
+
+  // Modo "Vincular Existente": asigna equipo en Midnight + activa en Solstice
+  const handleLink = async () => {
+    if (!rLinkId) { toast.error('Selecciona un promotor'); return; }
+    if (!rLinkTeamId) { toast.error('Selecciona un equipo de destino'); return; }
+    setRecruiting(true);
+    try {
+      const teamRow = allTeamsFlat.find(t => t.id === rLinkTeamId);
+      const { error } = await supabase.from('profiles').update({
+        sales_team_id:  rLinkTeamId,
+        super_squad_id: (teamRow as any)?.super_squad_id || null,
+      }).eq('id', rLinkId);
+      if (error) throw error;
+      // Also activate in Solstice if not already
+      const existing = unassigned.find(m => m.profile_id === rLinkId);
+      if (existing && !existing.solstice_seller_id) {
+        await activateInSolstice(rLinkId, rLinkTeamId);
+      }
+      const member = unassigned.find(m => m.profile_id === rLinkId);
+      toast.success(`${member?.full_name || 'Promotor'} vinculado a ${teamRow?.name} · activado en Solstice`);
+      setRecruitOpen(false); resetRecruit(); loadAll();
+    } catch (e: any) {
+      toast.error('Error: ' + e.message);
+    } finally { setRecruiting(false); }
   };
 
   // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -1146,6 +1162,13 @@ export default function SolsticeAdminConfig() {
                         {totalSolstice} activos en Solstice · {totalMidnight} en Midnight · toggle para activar/pausar
                       </p>
                     </div>
+                    <button onClick={() => { resetRecruit(); setRecruitOpen(true); }}
+                      className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase font-black tracking-widest transition-all"
+                      style={{ border: `1px solid ${C.red}40`, color: C.red }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = `${C.red}12`; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
+                      <Plus size={13} /> Reclutar
+                    </button>
                   </div>
 
                   {/* Squads */}
@@ -1220,104 +1243,169 @@ export default function SolsticeAdminConfig() {
         </AnimatePresence>
       </div>
 
-      {/* ── Modal agregar vendedor ── */}
+      {/* ── Modal reclutamiento (espejo Midnight) ── */}
       <AnimatePresence>
-        {addSellerOpen && (
+        {recruitOpen && (
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[300] bg-black/70 backdrop-blur-sm" onClick={() => setAddSellerOpen(false)} />
+              className="fixed inset-0 z-[300] bg-black/80 backdrop-blur-sm" onClick={() => setRecruitOpen(false)} />
             <motion.div
               initial={{ opacity: 0, scale: 0.96, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }}
-              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[310] w-full max-w-lg p-8 space-y-5"
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[310] w-full max-w-lg p-8 space-y-5 overflow-y-auto max-h-[90vh]"
               style={{ background: C.bgS, border: `1px solid ${C.gray}20` }}>
 
+              {/* Header */}
               <div className="flex items-center justify-between">
-                <h3 className="text-base uppercase font-black" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.12em' }}>Agregar vendedor</h3>
-                <button onClick={() => setAddSellerOpen(false)} style={{ color: C.gray }}><X size={18} /></button>
+                <div>
+                  <h3 className="text-base uppercase font-black" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.12em', color: C.cream }}>
+                    Reclutar Staff
+                  </h3>
+                  <p className="text-[9px] uppercase mt-0.5" style={{ color: C.gray, letterSpacing: '0.2em' }}>
+                    Registra en Midnight + activa en Solstice automáticamente
+                  </p>
+                </div>
+                <button onClick={() => setRecruitOpen(false)} style={{ color: C.gray }}>
+                  <X size={18} />
+                </button>
               </div>
 
-              {/* Search */}
-              <div className="space-y-2">
-                <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Buscar promotor de Midnight</label>
-                <div className="relative flex items-center" style={{ background: C.bgT, border: `1px solid ${C.gray}20` }}>
-                  <Search size={13} className="ml-3" style={{ color: C.gray }} />
-                  <input placeholder="Nombre del promotor..." value={searchQ} onChange={e => searchPromoters(e.target.value)}
-                    className="flex-1 px-3 py-2.5 text-xs outline-none bg-transparent" style={{ color: C.cream }} />
-                  {searchLoading && <Loader2 size={13} className="mr-3 animate-spin" style={{ color: C.gray }} />}
-                </div>
-                {searchResults.length > 0 && (
-                  <div style={{ border: `1px solid ${C.gray}20`, background: C.bgT }}>
-                    {searchResults.map(p => (
-                      <button key={p.id} onClick={() => selectPromoter(p)}
-                        className="w-full flex items-start justify-between px-4 py-3 text-left hover:bg-white/5 transition-colors">
-                        <div>
-                          <p className="text-xs font-bold uppercase" style={{ letterSpacing: '0.08em' }}>{p.full_name}</p>
-                          <p className="text-[9px]" style={{ color: C.gray }}>{p.email} · {p.role}</p>
-                        </div>
-                        <div className="text-right">
-                          {p.team_name  && <p className="text-[9px] uppercase" style={{ color: C.cream }}>{p.team_name}</p>}
-                          {p.squad_name && <p className="text-[9px]" style={{ color: C.gray }}>{p.squad_name}</p>}
-                          <span className="text-[8px] uppercase px-1.5 py-0.5 mt-1 inline-block"
-                            style={{ background: 'rgba(168,85,247,0.15)', color: '#a855f7', border: '1px solid rgba(168,85,247,0.3)' }}>
-                            🌙 Midnight
-                          </span>
-                        </div>
-                      </button>
-                    ))}
+              {/* Mode tabs */}
+              <div className="grid grid-cols-2 gap-1 p-1" style={{ background: `${C.gray}10`, border: `1px solid ${C.gray}15` }}>
+                {(['create', 'link'] as const).map(mode => (
+                  <button key={mode} onClick={() => setRecruitMode(mode)}
+                    className="py-2.5 text-[10px] uppercase font-black tracking-widest transition-all"
+                    style={{
+                      background: recruitMode === mode ? C.red : 'transparent',
+                      color: recruitMode === mode ? C.cream : C.gray,
+                    }}>
+                    {mode === 'create' ? 'Nuevo Ingreso' : 'Vincular Existente'}
+                  </button>
+                ))}
+              </div>
+
+              {/* ── NUEVO INGRESO ── */}
+              {recruitMode === 'create' && (
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Nombre completo</label>
+                    <input value={rName} onChange={e => setRName(e.target.value)}
+                      placeholder="Ej: Ana María López"
+                      className="px-3 py-2.5 text-xs outline-none"
+                      style={{ background: C.bgT, border: `1px solid ${C.gray}20`, color: C.cream }}
+                      onFocus={e => (e.currentTarget.style.borderColor = C.red)}
+                      onBlur={e => (e.currentTarget.style.borderColor = `${C.gray}20`)} />
                   </div>
-                )}
-                {/* Show inherited structure */}
-                {newSeller.name && (newSeller.sales_team_id || newSeller.super_squad_id) && (
-                  <div className="px-3 py-2 text-[10px] flex items-center gap-2" style={{ background: `${C.red}08`, border: `1px solid ${C.red}20` }}>
-                    <span style={{ color: C.gray }}>Hereda estructura de Midnight:</span>
-                    <span style={{ color: C.red }}>
-                      {searchResults.find(p => p.id === newSeller.user_id)?.team_name || 'Equipo asignado'}
-                      {searchResults.find(p => p.id === newSeller.user_id)?.squad_name && ` · ${searchResults.find(p => p.id === newSeller.user_id)?.squad_name}`}
-                    </span>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Código de acceso</label>
+                    <input value={rCode} onChange={e => setRCode(e.target.value.replace(/\s/g, '').toUpperCase())}
+                      placeholder="Ej: ANA2026"
+                      className="px-3 py-2.5 text-xs outline-none font-mono tracking-widest text-center"
+                      style={{ background: C.bgT, border: `1px solid ${C.gray}20`, color: C.cream }}
+                      onFocus={e => (e.currentTarget.style.borderColor = C.red)}
+                      onBlur={e => (e.currentTarget.style.borderColor = `${C.gray}20`)} />
+                    <p className="text-[9px]" style={{ color: `${C.gray}60` }}>Sin espacios · Si se deja vacío se genera del email</p>
                   </div>
-                )}
-              </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Universidad</label>
-                  <select value={newSeller.university} onChange={e => setNewSeller(p => ({ ...p, university: e.target.value }))}
-                    className="px-3 py-2.5 text-xs outline-none" style={{ background: C.bgT, border: `1px solid ${C.gray}20`, color: C.cream }}>
-                    <option>Javeriana</option><option>Los Andes</option><option>CESA</option>
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Rol en Solstice</label>
-                  <select value={newSeller.role} onChange={e => setNewSeller(p => ({ ...p, role: e.target.value as any }))}
-                    className="px-3 py-2.5 text-xs outline-none" style={{ background: C.bgT, border: `1px solid ${C.gray}20`, color: C.cream }}>
-                    <option value="seller">Vendedor</option><option value="manager">Gerente</option>
-                  </select>
-                </div>
-              </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Email (para inicio de sesión)</label>
+                    <input type="email" value={rEmail} onChange={e => setREmail(e.target.value)}
+                      placeholder="promotor@gmail.com"
+                      className="px-3 py-2.5 text-xs outline-none font-mono"
+                      style={{ background: C.bgT, border: `1px solid ${C.gray}20`, color: C.cream }}
+                      onFocus={e => (e.currentTarget.style.borderColor = C.red)}
+                      onBlur={e => (e.currentTarget.style.borderColor = `${C.gray}20`)} />
+                  </div>
 
-              <div className="flex flex-col gap-1">
-                <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Código referido</label>
-                <div className="flex gap-2">
-                  <input value={newSeller.ref_code || ''} onChange={e => setNewSeller(p => ({ ...p, ref_code: e.target.value.toUpperCase() }))}
-                    placeholder="SOL-NOMBRE-123" className="flex-1 px-3 py-2.5 text-xs outline-none font-mono"
-                    style={{ background: C.bgT, border: `1px solid ${C.gray}20`, color: C.cream }} />
-                  <button onClick={() => setNewSeller(p => ({ ...p, ref_code: genRefCode((p as any).name || searchQ || 'VEND') }))}
-                    className="px-3 text-[9px] uppercase" style={{ background: `${C.gray}15`, color: C.gray }}>Auto</button>
-                </div>
-              </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Asignar a equipo</label>
+                    <select value={rTeamId} onChange={e => setRTeamId(e.target.value)}
+                      className="px-3 py-2.5 text-xs outline-none"
+                      style={{ background: C.bgT, border: `1px solid ${C.gray}20`, color: C.cream }}>
+                      <option value="">— Independiente (sin equipo) —</option>
+                      {squadGroups.map(sq => (
+                        <optgroup key={sq.id} label={sq.name}>
+                          {sq.teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        </optgroup>
+                      ))}
+                      {noSquadTeams.length > 0 && (
+                        <optgroup label="Sin squad">
+                          {noSquadTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        </optgroup>
+                      )}
+                    </select>
+                  </div>
 
-              {newSeller.ref_code && (
-                <div className="p-3 text-[10px]" style={{ background: `${C.red}10`, border: `1px solid ${C.red}20` }}>
-                  <span style={{ color: C.gray }}>Link: </span>
-                  <span style={{ color: C.cream }}>midnightcorp.click/solstice?ref={newSeller.ref_code}</span>
+                  <div className="p-3 text-[10px]" style={{ background: `${C.red}08`, border: `1px solid ${C.red}20`, color: C.gray }}>
+                    <span style={{ color: C.red }}>Nota: </span>
+                    {rTeamId
+                      ? `Se registrará en Midnight y se activará en Solstice con ref_code automático.`
+                      : `Quedará independiente en Midnight, activado en Solstice sin equipo asignado.`}
+                  </div>
+
+                  <button onClick={handleCreate} disabled={recruiting || !rName || !rEmail}
+                    className="w-full py-3 text-xs uppercase font-black tracking-widest disabled:opacity-40 flex items-center justify-center gap-2"
+                    style={{ background: C.red, color: C.cream }}>
+                    {recruiting ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+                    Registrar promotor
+                  </button>
                 </div>
               )}
 
-              <button onClick={addSeller} disabled={saving || !newSeller.user_id || !newSeller.ref_code}
-                className="w-full py-3 text-xs uppercase font-black tracking-widest disabled:opacity-40"
-                style={{ background: C.red, color: C.cream }}>
-                {saving ? <Loader2 className="animate-spin mx-auto" size={14} /> : 'Agregar vendedor'}
-              </button>
+              {/* ── VINCULAR EXISTENTE ── */}
+              {recruitMode === 'link' && (
+                <div className="space-y-4">
+                  <div className="p-3 text-[10px]" style={{ background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.25)', color: '#a855f7' }}>
+                    Selecciona un promotor de Midnight sin equipo asignado para vincularlo a un squad.
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>
+                      Promotor disponible · {unassigned.length} sin equipo
+                    </label>
+                    <select value={rLinkId} onChange={e => setRLinkId(e.target.value)}
+                      className="px-3 py-2.5 text-xs outline-none"
+                      style={{ background: C.bgT, border: `1px solid ${C.gray}20`, color: C.cream }}>
+                      <option value="">— Seleccionar promotor —</option>
+                      {unassigned.map(m => (
+                        <option key={m.profile_id} value={m.profile_id}>
+                          {m.full_name} ({m.code}) {m.solstice_active ? '· ☀ Solstice' : ''}
+                        </option>
+                      ))}
+                    </select>
+                    {unassigned.length === 0 && (
+                      <p className="text-[9px]" style={{ color: C.red }}>Todos los promotores ya tienen equipo asignado.</p>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Equipo de destino</label>
+                    <select value={rLinkTeamId} onChange={e => setRLinkTeamId(e.target.value)}
+                      className="px-3 py-2.5 text-xs outline-none"
+                      style={{ background: C.bgT, border: `1px solid ${C.gray}20`, color: C.cream }}>
+                      <option value="">— Seleccionar equipo —</option>
+                      {squadGroups.map(sq => (
+                        <optgroup key={sq.id} label={sq.name}>
+                          {sq.teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        </optgroup>
+                      ))}
+                      {noSquadTeams.length > 0 && (
+                        <optgroup label="Sin squad">
+                          {noSquadTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        </optgroup>
+                      )}
+                    </select>
+                  </div>
+
+                  <button onClick={handleLink} disabled={recruiting || !rLinkId || !rLinkTeamId}
+                    className="w-full py-3 text-xs uppercase font-black tracking-widest disabled:opacity-40 flex items-center justify-center gap-2"
+                    style={{ background: 'rgba(168,85,247,0.8)', color: C.cream }}>
+                    {recruiting ? <Loader2 size={13} className="animate-spin" /> : <Users size={13} />}
+                    Vincular al equipo
+                  </button>
+                </div>
+              )}
+
             </motion.div>
           </>
         )}
