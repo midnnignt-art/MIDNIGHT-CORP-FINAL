@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   CheckCircle2, Clock, AlertTriangle, Shield, Download,
-  Loader2, CreditCard, User, Calendar, Phone, Mail
+  Loader2, CreditCard, User, Calendar, Phone, Mail, Sun
 } from 'lucide-react';
+import html2canvas from 'html2canvas';
 import { supabase } from '../../../lib/supabase';
 import { useStore } from '../../../context/StoreContext';
 import { toast } from '../../../lib/toast';
@@ -35,6 +36,136 @@ const MODE_LABEL: Record<string, string> = {
   individual_days:   'Días sueltos',
   full_combo:        'Todo de una',
 };
+
+function DigitalTicket({ reg }: { reg: Registration }) {
+  const ticketRef = useRef<HTMLDivElement>(null);
+  const [downloading, setDownloading] = useState(false);
+
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&bgcolor=0d0d0d&color=E6392F&data=${encodeURIComponent(reg.order_number)}`;
+
+  const downloadTicket = async () => {
+    if (!ticketRef.current) return;
+    setDownloading(true);
+    try {
+      const canvas = await html2canvas(ticketRef.current, {
+        backgroundColor: '#0d0d0d',
+        scale: 2,
+        useCORS: true,
+      });
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = `solstice-ticket-${reg.order_number}.png`;
+      a.click();
+      toast.success('Ticket descargado');
+    } catch {
+      toast.error('Error al generar imagen');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const weekStart = reg.week?.start_date
+    ? new Date(reg.week.start_date + 'T00:00:00').toLocaleDateString('es-CO', { month: 'short', day: 'numeric' })
+    : null;
+  const weekEnd = reg.week?.end_date
+    ? new Date(reg.week.end_date + 'T00:00:00').toLocaleDateString('es-CO', { month: 'short', day: 'numeric', year: 'numeric' })
+    : null;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-[9px] uppercase tracking-[0.3em]" style={{ color: C.gray }}>Tu ticket digital</p>
+        <button
+          onClick={downloadTicket}
+          disabled={downloading}
+          className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase font-black tracking-widest transition-all disabled:opacity-40"
+          style={{ border: `1px solid ${C.gray}30`, color: C.gray }}
+          onMouseEnter={e => (e.currentTarget.style.color = C.cream)}
+          onMouseLeave={e => (e.currentTarget.style.color = C.gray)}>
+          {downloading ? <Loader2 size={11} className="animate-spin" /> : <Download size={11} />}
+          Descargar
+        </button>
+      </div>
+
+      {/* Ticket card */}
+      <div ref={ticketRef} className="relative overflow-hidden"
+        style={{ background: C.bgS, border: `1px solid ${C.red}30`, maxWidth: 480 }}>
+
+        {/* Top band */}
+        <div className="px-7 pt-6 pb-4 flex items-center justify-between"
+          style={{ borderBottom: `1px solid ${C.red}20` }}>
+          <div className="flex items-center gap-2">
+            <Sun size={16} style={{ color: C.red }} />
+            <span className="text-[10px] font-black uppercase tracking-[0.35em]" style={{ color: C.red }}>
+              Solstice 2026
+            </span>
+          </div>
+          <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5"
+            style={{ background: `${C.red}20`, color: C.red, border: `1px solid ${C.red}40` }}>
+            {reg.status === 'completed' ? 'Pagado' : reg.status === 'active' ? 'Activo' : 'Reservado'}
+          </span>
+        </div>
+
+        {/* Main content */}
+        <div className="px-7 py-5 flex items-start justify-between gap-6">
+          <div className="flex-1 space-y-4">
+            <div>
+              <p className="text-[8px] uppercase mb-0.5" style={{ color: C.gray, letterSpacing: '0.25em' }}>Titular</p>
+              <p className="text-2xl uppercase font-black" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.08em' }}>
+                {reg.customer_name}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-[8px] uppercase mb-0.5" style={{ color: C.gray, letterSpacing: '0.25em' }}>Universidad</p>
+                <p className="text-xs font-bold uppercase">{reg.customer_university}</p>
+              </div>
+              {weekStart && weekEnd && (
+                <div>
+                  <p className="text-[8px] uppercase mb-0.5" style={{ color: C.gray, letterSpacing: '0.25em' }}>Semana</p>
+                  <p className="text-xs font-bold">{weekStart} → {weekEnd}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-[8px] uppercase mb-0.5" style={{ color: C.gray, letterSpacing: '0.25em' }}>Modalidad</p>
+                <p className="text-xs font-bold uppercase">{MODE_LABEL[reg.payment_mode] || reg.payment_mode}</p>
+              </div>
+              <div>
+                <p className="text-[8px] uppercase mb-0.5" style={{ color: C.gray, letterSpacing: '0.25em' }}>Orden</p>
+                <p className="text-xs font-mono">{reg.order_number}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* QR */}
+          <div className="shrink-0 flex flex-col items-center gap-2">
+            <img
+              src={qrUrl}
+              alt="QR ticket"
+              width={90} height={90}
+              style={{ imageRendering: 'pixelated' }}
+              crossOrigin="anonymous"
+            />
+            <p className="text-[7px] uppercase tracking-widest text-center" style={{ color: C.gray }}>
+              Scan para check-in
+            </p>
+          </div>
+        </div>
+
+        {/* Bottom dashed divider */}
+        <div className="mx-7" style={{ borderTop: `1px dashed ${C.gray}20` }} />
+        <div className="px-7 py-3 flex items-center justify-between">
+          <p className="text-[7px] uppercase tracking-widest" style={{ color: `${C.gray}60` }}>
+            midnightcorp.click/solstice
+          </p>
+          <p className="text-[7px] uppercase tracking-widest font-mono" style={{ color: `${C.gray}40` }}>
+            {reg.order_number}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function SolsticeMiSemana() {
   const { currentCustomer } = useStore();
@@ -130,6 +261,9 @@ export default function SolsticeMiSemana() {
       </div>
 
       <div className="px-8 py-8 max-w-4xl space-y-8">
+
+        {/* ── Digital ticket ── */}
+        <DigitalTicket reg={reg} />
 
         {/* ── Risk alert ── */}
         {hasRisk && (

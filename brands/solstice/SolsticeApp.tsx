@@ -5,6 +5,7 @@ import SolsticeReserva from './pages/SolsticeReserva';
 import SolsticeAdminConfig from './pages/SolsticeAdminConfig';
 import SolsticeAdminFinance from './pages/SolsticeAdminFinance';
 import SolsticeAdminCobros from './pages/SolsticeAdminCobros';
+import SolsticeAdminCheckin from './pages/SolsticeAdminCheckin';
 import SolsticeVentasDashboard from './pages/SolsticeVentasDashboard';
 import SolsticeMiSemana from './pages/SolsticeMiSemana';
 import { UserRole } from '../../types';
@@ -74,6 +75,7 @@ export default function SolsticeApp({ onExit, userRole }: Props) {
       {page === 'admin-sellers' && <SolsticeVentasDashboard role="admin" />}
       {page === 'admin-finance' && <SolsticeAdminFinance />}
       {page === 'admin-cobros'  && <SolsticeAdminCobros />}
+      {page === 'check-in'      && <SolsticeAdminCheckin />}
       {page === 'seller'        && <SolsticeVentasDashboard role="seller" />}
       {page === 'manager'       && <SolsticeVentasDashboard role="manager" />}
       {page === 'buyer'         && <SolsticeMiSemana />}
