@@ -138,18 +138,15 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-void text-moonlight font-sans selection:bg-eclipse selection:text-white relative">
-      {/* GLOBAL DYNAMIC LOGO — Solstice red when inside Solstice */}
-      <div
-        className="logo-main flex flex-col items-center"
-        style={isSolstice ? { mixBlendMode: 'normal', filter: 'none', opacity: 0.9 } : {}}
-      >
+      {/* GLOBAL DYNAMIC LOGO — Solstice red when inside Solstice, same blend/filter as Midnight */}
+      <div className="logo-main flex flex-col items-center">
         <span
           className="text-xl md:text-3xl font-black tracking-[-0.1em]"
           style={{ color: isSolstice ? '#E6392F' : 'white' }}
         >MIDNIGHT</span>
         <span
           className="text-[8px] font-light tracking-[0.8em] uppercase -mt-1 ml-1"
-          style={{ color: isSolstice ? 'rgba(230,57,47,0.55)' : 'rgba(255,255,255,0.7)' }}
+          style={{ color: isSolstice ? 'rgba(230,57,47,0.7)' : 'rgba(255,255,255,0.7)' }}
         >Worldwide</span>
       </div>
 
