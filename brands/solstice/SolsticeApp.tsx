@@ -9,11 +9,14 @@ import SolsticeAdminCheckin from './pages/SolsticeAdminCheckin';
 import SolsticePrograma from './pages/SolsticePrograma';
 import SolsticeVentasDashboard from './pages/SolsticeVentasDashboard';
 import SolsticeMiSemana from './pages/SolsticeMiSemana';
+import SolsticeCommandSelector from './pages/SolsticeCommandSelector';
+import { DUAL_COMMAND_ENABLED } from './featureFlags';
 import { UserRole } from '../../types';
 
 interface Props {
   onExit: () => void;
   userRole: UserRole;
+  userName?: string;
 }
 
 function ComingSoon({ title }: { title: string }) {
@@ -35,14 +38,25 @@ function solsticeRole(userRole: UserRole): 'admin' | 'seller' | 'manager' | 'buy
   return 'buyer';
 }
 
-export default function SolsticeApp({ onExit, userRole }: Props) {
+export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) {
   const [page, setPage] = useState<SolsticePage>('landing');
   const [reservaWeek, setReservaWeek] = useState<string | undefined>(undefined);
+
+  /**
+   * DUAL_COMMAND: commandPlatform tracks whether a dual-platform seller
+   * has chosen their session context. null = not yet chosen (shows selector).
+   * When DUAL_COMMAND_ENABLED = false this is always 'solstice' and the
+   * selector never renders.
+   */
+  const [commandPlatform, setCommandPlatform] = useState<'solstice' | 'midnight' | null>(
+    DUAL_COMMAND_ENABLED ? null : 'solstice'
+  );
+
   const role = solsticeRole(userRole);
+  const isSeller = role === 'seller';
 
   const handleNavigate = (target: string) => {
     if (target === 'home') { onExit(); return; }
-    // Support 'reserva:UNIVERSITY' shorthand from landing card clicks
     if (target.startsWith('reserva:')) {
       setReservaWeek(target.slice('reserva:'.length));
       setPage('reserva');
@@ -55,6 +69,17 @@ export default function SolsticeApp({ onExit, userRole }: Props) {
     }
     setPage(target as SolsticePage);
   };
+
+  // ── DUAL_COMMAND gate (no-op while DUAL_COMMAND_ENABLED = false) ───────────
+  if (DUAL_COMMAND_ENABLED && isSeller && commandPlatform === null) {
+    return (
+      <SolsticeCommandSelector
+        sellerName={userName}
+        onSelectSolstice={() => setCommandPlatform('solstice')}
+        onSelectMidnight={() => { setCommandPlatform('midnight'); onExit(); }}
+      />
+    );
+  }
 
   return (
     <div style={{ background: '#000', minHeight: '100vh' }}>

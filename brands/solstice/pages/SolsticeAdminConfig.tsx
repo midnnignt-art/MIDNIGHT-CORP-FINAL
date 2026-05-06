@@ -75,18 +75,24 @@ interface Seller {
   status: 'active' | 'inactive';
   sales_team_id?: string;
   super_squad_id?: string;
-  // enriched
+  // enriched from profiles
   name?: string;
   email?: string;
+  code?: string;
+  midnight_role?: string;
   team_name?: string;
   squad_name?: string;
+  // platform activity
+  midnight_active?: boolean;   // has orders in Midnight
+  solstice_sales?: number;     // registrations via ref_code in Solstice
 }
 
-interface MidnightPromoter {
-  user_id: string;
-  name: string;
+interface MidnightProfile {
+  id: string;
+  full_name: string;
   email: string;
   code: string;
+  role: string;
   sales_team_id?: string;
   super_squad_id?: string;
   team_name?: string;
@@ -248,7 +254,7 @@ export default function SolsticeAdminConfig() {
   // Seller modal
   const [addSellerOpen, setAddSellerOpen] = useState(false);
   const [searchQ, setSearchQ]             = useState('');
-  const [searchResults, setSearchResults] = useState<MidnightPromoter[]>([]);
+  const [searchResults, setSearchResults] = useState<MidnightProfile[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [newSeller, setNewSeller]         = useState<Partial<Seller>>({
     university: 'Javeriana', role: 'seller', ref_code: '',
@@ -316,18 +322,31 @@ export default function SolsticeAdminConfig() {
       });
       setDays(merged);
 
-      // Enrich sellers with team/squad info
+      // Enrich sellers: profiles + teams + squads + platform activity
       if (sl?.length) {
         const [{ data: teams }, { data: squads }] = await Promise.all([
           supabase.from('sales_teams').select('id, name'),
           supabase.from('super_squads').select('id, name'),
         ]);
         const enriched = await Promise.all((sl as any[]).map(async (seller) => {
-          const { data: p } = await supabase.from('promoters')
-            .select('name, email').eq('user_id', seller.user_id).maybeSingle();
-          const team  = (teams || []).find((t: any) => t.id === seller.sales_team_id);
+          const [{ data: prof }, { count: mnOrders }, { count: solSales }] = await Promise.all([
+            supabase.from('profiles').select('full_name, email, code, role').eq('id', seller.user_id).maybeSingle(),
+            supabase.from('orders').select('id', { count: 'exact', head: true }).eq('staff_id', seller.user_id),
+            supabase.from('solstice_registrations').select('id', { count: 'exact', head: true }).eq('ref_code', seller.ref_code),
+          ]);
+          const team  = (teams  || []).find((t:  any) => t.id === seller.sales_team_id);
           const squad = (squads || []).find((sq: any) => sq.id === seller.super_squad_id);
-          return { ...seller, name: p?.name, email: p?.email, team_name: team?.name, squad_name: squad?.name };
+          return {
+            ...seller,
+            name:           (prof as any)?.full_name,
+            email:          (prof as any)?.email,
+            code:           (prof as any)?.code,
+            midnight_role:  (prof as any)?.role,
+            team_name:      team?.name,
+            squad_name:     squad?.name,
+            midnight_active: (mnOrders || 0) > 0,
+            solstice_sales:  solSales || 0,
+          };
         }));
         setSellers(enriched as Seller[]);
       }
@@ -478,25 +497,33 @@ export default function SolsticeAdminConfig() {
     toast.success('Link copiado');
   };
 
-  // ── Search promoters ───────────────────────────────────────────────────────────
+  // ── Search profiles (Midnight staff) ──────────────────────────────────────────
   const searchPromoters = async (q: string) => {
     setSearchQ(q);
     if (q.length < 2) { setSearchResults([]); return; }
     setSearchLoading(true);
-    const { data: proms } = await supabase
-      .from('promoters').select('user_id, name, email, code, sales_team_id, super_squad_id')
-      .ilike('name', `%${q}%`).limit(8);
+    const { data: profs } = await supabase
+      .from('profiles')
+      .select('id, full_name, email, code, role, sales_team_id, super_squad_id')
+      .ilike('full_name', `%${q}%`)
+      .limit(8);
 
-    if (proms?.length) {
-      const teamIds   = [...new Set(proms.map((p: any) => p.sales_team_id).filter(Boolean))];
-      const squadIds  = [...new Set(proms.map((p: any) => p.super_squad_id).filter(Boolean))];
+    if (profs?.length) {
+      const teamIds  = [...new Set(profs.map((p: any) => p.sales_team_id).filter(Boolean))];
+      const squadIds = [...new Set(profs.map((p: any) => p.super_squad_id).filter(Boolean))];
       const [{ data: teams }, { data: squads }] = await Promise.all([
-        teamIds.length  ? supabase.from('sales_teams').select('id, name').in('id', teamIds)  : Promise.resolve({ data: [] }),
+        teamIds.length  ? supabase.from('sales_teams').select('id, name').in('id', teamIds)   : Promise.resolve({ data: [] }),
         squadIds.length ? supabase.from('super_squads').select('id, name').in('id', squadIds) : Promise.resolve({ data: [] }),
       ]);
-      setSearchResults(proms.map((p: any) => ({
-        ...p,
-        team_name:  (teams  || []).find((t: any) => t.id === p.sales_team_id)?.name,
+      setSearchResults(profs.map((p: any) => ({
+        id:            p.id,
+        full_name:     p.full_name,
+        email:         p.email,
+        code:          p.code,
+        role:          p.role,
+        sales_team_id: p.sales_team_id,
+        super_squad_id:p.super_squad_id,
+        team_name:  (teams  || []).find((t:  any) => t.id === p.sales_team_id)?.name,
         squad_name: (squads || []).find((sq: any) => sq.id === p.super_squad_id)?.name,
       })));
     } else {
@@ -505,18 +532,18 @@ export default function SolsticeAdminConfig() {
     setSearchLoading(false);
   };
 
-  const selectPromoter = (p: MidnightPromoter) => {
+  const selectPromoter = (p: MidnightProfile) => {
     setNewSeller(prev => ({
       ...prev,
-      user_id: p.user_id,
-      name: p.name,
-      email: p.email,
-      sales_team_id: p.sales_team_id,
+      user_id:        p.id,
+      name:           p.full_name,
+      email:          p.email,
+      sales_team_id:  p.sales_team_id,
       super_squad_id: p.super_squad_id,
-      ref_code: prev.ref_code || genRefCode(p.name),
+      ref_code:       prev.ref_code || genRefCode(p.full_name),
     }));
     setSearchResults([]);
-    setSearchQ(p.name);
+    setSearchQ(p.full_name);
   };
 
   const addSeller = async () => {
@@ -924,15 +951,36 @@ export default function SolsticeAdminConfig() {
             {/* ── VENDEDORES ── */}
             {tab === 'sellers' && (
               <div className="space-y-6">
+                {/* Header */}
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray }}>Equipo de ventas · {sellers.length} registrados</h2>
+                  <div>
+                    <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray }}>
+                      Equipo de ventas Solstice · {sellers.length} registrados
+                    </h2>
+                    <p className="text-[9px] uppercase mt-1" style={{ color: `${C.gray}60`, letterSpacing: '0.2em' }}>
+                      Registrar aquí o desde el backoffice de Midnight — el admin los ve en ambos lados
+                    </p>
+                  </div>
                   <button onClick={() => setAddSellerOpen(true)}
                     className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase font-black tracking-widest transition-all"
                     style={{ border: `1px solid ${C.red}40`, color: C.red }}
                     onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = `${C.red}12`; }}
                     onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
-                    <Plus size={13} /> Agregar vendedor
+                    <Plus size={13} /> Registrar en Solstice
                   </button>
+                </div>
+
+                {/* Legend */}
+                <div className="flex items-center gap-4 flex-wrap">
+                  {[
+                    { dot: C.red,   label: 'Solo Solstice' },
+                    { dot: '#a855f7', label: 'Midnight + Solstice' },
+                  ].map(({ dot, label }) => (
+                    <div key={label} className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: dot }} />
+                      <span className="text-[9px] uppercase tracking-widest" style={{ color: C.gray }}>{label}</span>
+                    </div>
+                  ))}
                 </div>
 
                 {sellers.length === 0 ? (
@@ -942,52 +990,103 @@ export default function SolsticeAdminConfig() {
                   </div>
                 ) : (
                   <div style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
-                    <div className="grid grid-cols-12 gap-2 px-5 py-3 text-[9px] uppercase tracking-widest" style={{ color: C.gray, borderBottom: `1px solid ${C.gray}10` }}>
+                    {/* Table header */}
+                    <div className="grid grid-cols-12 gap-2 px-5 py-3 text-[9px] uppercase tracking-widest"
+                      style={{ color: C.gray, borderBottom: `1px solid ${C.gray}10` }}>
                       <div className="col-span-3">Nombre</div>
                       <div className="col-span-2">Equipo / Squad</div>
-                      <div className="col-span-2">Uni · Rol</div>
-                      <div className="col-span-3">Código ref</div>
-                      <div className="col-span-2 text-right">Acc.</div>
+                      <div className="col-span-2">Uni · Rol Solstice</div>
+                      <div className="col-span-2">Plataforma</div>
+                      <div className="col-span-2">Código ref</div>
+                      <div className="col-span-1 text-right">Acc.</div>
                     </div>
-                    {sellers.map(seller => (
-                      <div key={seller.id} className="grid grid-cols-12 gap-2 px-5 py-4 items-center"
-                        style={{ borderBottom: `1px solid ${C.gray}08`, opacity: seller.status === 'inactive' ? 0.4 : 1 }}>
-                        <div className="col-span-3">
-                          <p className="text-xs font-bold uppercase truncate" style={{ letterSpacing: '0.08em' }}>{seller.name || '—'}</p>
-                          <p className="text-[9px] truncate" style={{ color: C.gray }}>{seller.email}</p>
+
+                    {sellers.map(seller => {
+                      const both = seller.midnight_active;
+                      const accentColor = both ? '#a855f7' : C.red;
+                      return (
+                        <div key={seller.id} className="grid grid-cols-12 gap-2 px-5 py-4 items-center"
+                          style={{ borderBottom: `1px solid ${C.gray}08`, opacity: seller.status === 'inactive' ? 0.35 : 1 }}>
+
+                          {/* Name */}
+                          <div className="col-span-3">
+                            <div className="flex items-center gap-2">
+                              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: accentColor }} />
+                              <div>
+                                <p className="text-xs font-bold uppercase truncate" style={{ letterSpacing: '0.08em', color: C.cream }}>
+                                  {seller.name || '—'}
+                                </p>
+                                <p className="text-[9px] truncate" style={{ color: C.gray }}>{seller.email}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Team / Squad */}
+                          <div className="col-span-2">
+                            {seller.team_name  && <p className="text-[9px] uppercase truncate" style={{ color: C.cream }}>{seller.team_name}</p>}
+                            {seller.squad_name && <p className="text-[9px] truncate" style={{ color: C.gray }}>{seller.squad_name}</p>}
+                            {!seller.team_name && !seller.squad_name && <span className="text-[9px]" style={{ color: `${C.gray}40` }}>—</span>}
+                          </div>
+
+                          {/* Uni + Solstice role */}
+                          <div className="col-span-2 space-y-1">
+                            <p className="text-[9px] uppercase truncate" style={{ color: C.gray }}>{seller.university}</p>
+                            <span className="text-[8px] uppercase px-1.5 py-0.5 font-bold"
+                              style={{ background: seller.role === 'manager' ? `${C.red}20` : `${C.gray}15`,
+                                       color: seller.role === 'manager' ? C.red : C.gray }}>
+                              {seller.role === 'manager' ? 'Gerente' : 'Vendedor'}
+                            </span>
+                          </div>
+
+                          {/* Platform badges */}
+                          <div className="col-span-2 flex flex-col gap-1">
+                            <span className="text-[8px] uppercase px-1.5 py-0.5 font-bold w-fit"
+                              style={{ background: `${C.red}18`, color: C.red, border: `1px solid ${C.red}30` }}>
+                              ☀ Solstice
+                            </span>
+                            {both && (
+                              <span className="text-[8px] uppercase px-1.5 py-0.5 font-bold w-fit"
+                                style={{ background: 'rgba(168,85,247,0.15)', color: '#a855f7', border: '1px solid rgba(168,85,247,0.3)' }}>
+                                🌙 Midnight
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Ref code + sales */}
+                          <div className="col-span-2">
+                            <code className="text-[10px] px-2 py-0.5 block mb-1" style={{ background: `${C.gray}15`, color: C.cream }}>
+                              {seller.ref_code}
+                            </code>
+                            {(seller.solstice_sales ?? 0) > 0 && (
+                              <p className="text-[8px] uppercase" style={{ color: C.red }}>
+                                {seller.solstice_sales} venta{seller.solstice_sales !== 1 ? 's' : ''}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Actions */}
+                          <div className="col-span-1 flex items-center gap-1 justify-end">
+                            <button onClick={() => copyLink(seller.ref_code)} title="Copiar link"
+                              className="p-1.5 transition-colors" style={{ color: C.gray }}
+                              onMouseEnter={e => (e.currentTarget.style.color = C.cream)}
+                              onMouseLeave={e => (e.currentTarget.style.color = C.gray)}>
+                              <Copy size={12} />
+                            </button>
+                            <button onClick={() => window.open(`https://midnightcorp.click/solstice?ref=${seller.ref_code}`, '_blank')}
+                              className="p-1.5 transition-colors" style={{ color: C.gray }}
+                              onMouseEnter={e => (e.currentTarget.style.color = C.cream)}
+                              onMouseLeave={e => (e.currentTarget.style.color = C.gray)}>
+                              <ExternalLink size={12} />
+                            </button>
+                            <button onClick={() => toggleSellerStatus(seller)}
+                              title={seller.status === 'active' ? 'Desactivar' : 'Activar'}
+                              style={{ color: seller.status === 'active' ? C.red : C.green }}>
+                              {seller.status === 'active' ? <ToggleRight size={13} /> : <ToggleLeft size={13} />}
+                            </button>
+                          </div>
                         </div>
-                        <div className="col-span-2">
-                          {seller.team_name  && <p className="text-[9px] uppercase truncate" style={{ color: C.cream }}>{seller.team_name}</p>}
-                          {seller.squad_name && <p className="text-[9px] truncate" style={{ color: C.gray }}>{seller.squad_name}</p>}
-                          {!seller.team_name && !seller.squad_name && <span className="text-[9px]" style={{ color: `${C.gray}50` }}>—</span>}
-                        </div>
-                        <div className="col-span-2 space-y-1">
-                          <p className="text-[9px] uppercase truncate" style={{ color: C.gray }}>{seller.university}</p>
-                          <span className="text-[8px] uppercase px-1.5 py-0.5 rounded-sm font-bold"
-                            style={{ background: seller.role === 'manager' ? `${C.red}20` : `${C.gray}15`, color: seller.role === 'manager' ? C.red : C.gray }}>
-                            {seller.role === 'manager' ? 'Gerente' : 'Vendedor'}
-                          </span>
-                        </div>
-                        <div className="col-span-3">
-                          <code className="text-[10px] px-2 py-0.5" style={{ background: `${C.gray}15`, color: C.cream }}>{seller.ref_code}</code>
-                        </div>
-                        <div className="col-span-2 flex items-center gap-2 justify-end">
-                          <button onClick={() => copyLink(seller.ref_code)} title="Copiar link" className="p-1.5 transition-colors" style={{ color: C.gray }}
-                            onMouseEnter={e => (e.currentTarget.style.color = C.cream)} onMouseLeave={e => (e.currentTarget.style.color = C.gray)}>
-                            <Copy size={13} />
-                          </button>
-                          <button onClick={() => window.open(`https://midnightcorp.click/solstice?ref=${seller.ref_code}`, '_blank')} title="Ver link"
-                            className="p-1.5 transition-colors" style={{ color: C.gray }}
-                            onMouseEnter={e => (e.currentTarget.style.color = C.cream)} onMouseLeave={e => (e.currentTarget.style.color = C.gray)}>
-                            <ExternalLink size={13} />
-                          </button>
-                          <button onClick={() => toggleSellerStatus(seller)} title={seller.status === 'active' ? 'Desactivar' : 'Activar'}
-                            style={{ color: seller.status === 'active' ? C.red : C.green }}>
-                            {seller.status === 'active' ? <ToggleRight size={13} /> : <ToggleLeft size={13} />}
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -1025,27 +1124,31 @@ export default function SolsticeAdminConfig() {
                 {searchResults.length > 0 && (
                   <div style={{ border: `1px solid ${C.gray}20`, background: C.bgT }}>
                     {searchResults.map(p => (
-                      <button key={p.user_id} onClick={() => selectPromoter(p)}
+                      <button key={p.id} onClick={() => selectPromoter(p)}
                         className="w-full flex items-start justify-between px-4 py-3 text-left hover:bg-white/5 transition-colors">
                         <div>
-                          <p className="text-xs font-bold uppercase" style={{ letterSpacing: '0.08em' }}>{p.name}</p>
-                          <p className="text-[9px]" style={{ color: C.gray }}>{p.email}</p>
+                          <p className="text-xs font-bold uppercase" style={{ letterSpacing: '0.08em' }}>{p.full_name}</p>
+                          <p className="text-[9px]" style={{ color: C.gray }}>{p.email} · {p.role}</p>
                         </div>
                         <div className="text-right">
                           {p.team_name  && <p className="text-[9px] uppercase" style={{ color: C.cream }}>{p.team_name}</p>}
                           {p.squad_name && <p className="text-[9px]" style={{ color: C.gray }}>{p.squad_name}</p>}
+                          <span className="text-[8px] uppercase px-1.5 py-0.5 mt-1 inline-block"
+                            style={{ background: 'rgba(168,85,247,0.15)', color: '#a855f7', border: '1px solid rgba(168,85,247,0.3)' }}>
+                            🌙 Midnight
+                          </span>
                         </div>
                       </button>
                     ))}
                   </div>
                 )}
-                {/* Show selected team/squad */}
+                {/* Show inherited structure */}
                 {newSeller.name && (newSeller.sales_team_id || newSeller.super_squad_id) && (
                   <div className="px-3 py-2 text-[10px] flex items-center gap-2" style={{ background: `${C.red}08`, border: `1px solid ${C.red}20` }}>
-                    <span style={{ color: C.gray }}>Hereda estructura:</span>
+                    <span style={{ color: C.gray }}>Hereda estructura de Midnight:</span>
                     <span style={{ color: C.red }}>
-                      {searchResults.find(p => p.user_id === newSeller.user_id)?.team_name || 'Equipo asignado'}
-                      {searchResults.find(p => p.user_id === newSeller.user_id)?.squad_name && ` · ${searchResults.find(p => p.user_id === newSeller.user_id)?.squad_name}`}
+                      {searchResults.find(p => p.id === newSeller.user_id)?.team_name || 'Equipo asignado'}
+                      {searchResults.find(p => p.id === newSeller.user_id)?.squad_name && ` · ${searchResults.find(p => p.id === newSeller.user_id)?.squad_name}`}
                     </span>
                   </div>
                 )}
