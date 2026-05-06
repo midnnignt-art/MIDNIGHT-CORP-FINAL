@@ -47,7 +47,10 @@ interface ProgramDay {
   day_number: number;
   title: string;
   subtitle: string;
-  price: number;
+  price: number;           // digital / base
+  price_cash: number;      // efectivo al vendedor
+  price_combo: number;     // aporte al combo
+  price_monthly: number;   // aporte mensual
   image_url: string;
   highlight: boolean;
 }
@@ -84,12 +87,24 @@ type Tab = 'general' | 'weeks' | 'prices' | 'commissions' | 'penalties' | 'selle
 // ── Default days ───────────────────────────────────────────────────────────────
 
 const DEFAULT_DAYS: Omit<ProgramDay, 'id' | 'season_id'>[] = [
-  { day_number: 1, title: 'Llegada',       subtitle: 'Apertura nocturna',         price: 70000,  image_url: '', highlight: false },
-  { day_number: 2, title: 'Día libre',     subtitle: 'Fiesta nocturna',           price: 70000,  image_url: '', highlight: false },
-  { day_number: 3, title: 'Catamarán',     subtitle: '50 p · DJ · AYCD · Bahía', price: 130000, image_url: '', highlight: true  },
-  { day_number: 4, title: 'Playa privada', subtitle: 'All you can drink',         price: 100000, image_url: '', highlight: false },
-  { day_number: 5, title: 'Cierre',        subtitle: 'Última noche',              price: 70000,  image_url: '', highlight: false },
+  { day_number: 1, title: 'Llegada',       subtitle: 'Apertura nocturna',         price: 70000,  price_cash: 70000,  price_combo: 70000,  price_monthly: 70000,  image_url: '', highlight: false },
+  { day_number: 2, title: 'Día libre',     subtitle: 'Fiesta nocturna',           price: 70000,  price_cash: 70000,  price_combo: 70000,  price_monthly: 70000,  image_url: '', highlight: false },
+  { day_number: 3, title: 'Catamarán',     subtitle: '50 p · DJ · AYCD · Bahía', price: 130000, price_cash: 135000, price_combo: 130000, price_monthly: 130000, image_url: '', highlight: true  },
+  { day_number: 4, title: 'Playa privada', subtitle: 'All you can drink',         price: 100000, price_cash: 105000, price_combo: 100000, price_monthly: 100000, image_url: '', highlight: false },
+  { day_number: 5, title: 'Cierre',        subtitle: 'Última noche',              price: 70000,  price_cash: 70000,  price_combo: 70000,  price_monthly: 70000,  image_url: '', highlight: false },
 ];
+
+// ── Sanitizers ─────────────────────────────────────────────────────────────────
+const toInt = (v: any): number => { const n = parseInt(String(v), 10); return isNaN(n) ? 0 : n; };
+const toIntOrNull = (v: any): number | null => {
+  if (v === null || v === undefined || String(v).trim() === '') return null;
+  const n = parseInt(String(v), 10);
+  return isNaN(n) ? null : n;
+};
+const toDateOrNull = (v: any): string | null =>
+  (!v || String(v).trim() === '') ? null : String(v);
+const toStrOrNull = (v: any): string | null =>
+  (!v || String(v).trim() === '') ? null : String(v);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -215,7 +230,16 @@ export default function SolsticeAdminConfig() {
       const dbDays = (d || []) as ProgramDay[];
       const merged = DEFAULT_DAYS.map(def => {
         const found = dbDays.find(x => x.day_number === def.day_number);
-        return found || { ...def, id: `new-${def.day_number}`, season_id: s?.id || '' };
+        if (found) {
+          return {
+            ...found,
+            price_cash:    found.price_cash    ?? def.price_cash,
+            price_combo:   found.price_combo   ?? def.price_combo,
+            price_monthly: found.price_monthly ?? def.price_monthly,
+            image_url:     found.image_url     ?? '',
+          };
+        }
+        return { ...def, id: `new-${def.day_number}`, season_id: s?.id || '' };
       });
       setDays(merged);
 
@@ -242,12 +266,22 @@ export default function SolsticeAdminConfig() {
   const saveSeason = async () => {
     if (!season) return;
     setSaving(true);
-    const payload = { ...season,
-      phase1_price: phasesOn ? season.phase1_price : null,
-      phase1_limit: phasesOn ? season.phase1_limit : null,
-      phase2_price: phasesOn ? season.phase2_price : null,
-      early_bird_price: earlyBirdOn ? season.early_bird_price : null,
-      early_bird_deadline: earlyBirdOn ? season.early_bird_deadline : null,
+    const payload = {
+      name:                 season.name,
+      status:               season.status,
+      tagline:              season.tagline,
+      entry_price:          toInt(season.entry_price),
+      combo_total:          toInt(season.combo_total),
+      installments:         toInt(season.installments) || 1,
+      commission_pct:       toInt(season.commission_pct),
+      manager_commission_pct: toInt(season.manager_commission_pct),
+      penalty_catamaran_at: toInt(season.penalty_catamaran_at),
+      warning_days_before:  toInt(season.warning_days_before),
+      phase1_price:         phasesOn ? toIntOrNull(season.phase1_price)       : null,
+      phase1_limit:         phasesOn ? toIntOrNull(season.phase1_limit)       : null,
+      phase2_price:         phasesOn ? toIntOrNull(season.phase2_price)       : null,
+      early_bird_price:     earlyBirdOn ? toIntOrNull(season.early_bird_price): null,
+      early_bird_deadline:  earlyBirdOn ? toDateOrNull(season.early_bird_deadline) : null,
     };
     const { error } = season.id
       ? await supabase.from('solstice_seasons').update(payload).eq('id', season.id)
@@ -262,10 +296,20 @@ export default function SolsticeAdminConfig() {
     setSaving(true);
     for (const week of weeks) {
       const isNew = !week.id || week.id.startsWith('new-') || week.id.length < 10;
+      const payload = {
+        season_id:  season?.id,
+        university: week.university,
+        start_date: toDateOrNull(week.start_date),
+        end_date:   toDateOrNull(week.end_date),
+        capacity:   toInt(week.capacity),
+      };
+      if (!payload.start_date || !payload.end_date) {
+        toast.error(`Fechas inválidas en semana ${week.university}`); setSaving(false); return;
+      }
       const { error } = isNew
-        ? await supabase.from('solstice_weeks').insert({ season_id: season?.id, university: week.university, start_date: week.start_date, end_date: week.end_date, capacity: week.capacity })
-        : await supabase.from('solstice_weeks').update({ university: week.university, start_date: week.start_date, end_date: week.end_date, capacity: week.capacity }).eq('id', week.id);
-      if (error) { toast.error(`Error semana ${week.university}`); setSaving(false); return; }
+        ? await supabase.from('solstice_weeks').insert(payload)
+        : await supabase.from('solstice_weeks').update(payload).eq('id', week.id);
+      if (error) { toast.error(`Error semana ${week.university}: ${error.message}`); setSaving(false); return; }
     }
     setSaving(false);
     toast.success('Semanas guardadas');
@@ -273,16 +317,29 @@ export default function SolsticeAdminConfig() {
 
   // ── Save program days ──────────────────────────────────────────────────────────
   const saveDays = async () => {
+    if (!season?.id) { toast.error('Guarda la temporada primero'); return; }
     setSaving(true);
     for (const day of days) {
       const isNew = !day.id || day.id.startsWith('new-');
-      const payload = { season_id: season?.id, day_number: day.day_number, title: day.title, subtitle: day.subtitle, price: day.price, image_url: day.image_url, highlight: day.highlight };
+      const payload = {
+        season_id:     season.id,
+        day_number:    day.day_number,
+        title:         day.title || `Día ${day.day_number}`,
+        subtitle:      toStrOrNull(day.subtitle),
+        price:         toInt(day.price),
+        price_cash:    toIntOrNull(day.price_cash),
+        price_combo:   toIntOrNull(day.price_combo),
+        price_monthly: toIntOrNull(day.price_monthly),
+        image_url:     toStrOrNull(day.image_url),
+        highlight:     day.highlight,
+      };
       const { error } = isNew
         ? await supabase.from('solstice_program_days').insert(payload)
         : await supabase.from('solstice_program_days').update(payload).eq('id', day.id);
-      if (error) { toast.error(`Error día ${day.day_number}`); setSaving(false); return; }
+      if (error) { toast.error(`Error día ${day.day_number}: ${error.message}`); setSaving(false); return; }
     }
     setSaving(false);
+    await loadAll();
     toast.success('Programa guardado');
   };
 
@@ -554,9 +611,14 @@ export default function SolsticeAdminConfig() {
                           <InputRow label="Nombre del día" value={day.title} onChange={v => upDay(idx, 'title', v)} placeholder="ej. Catamarán" />
                           <InputRow label="Subtítulo" value={day.subtitle} onChange={v => upDay(idx, 'subtitle', v)} placeholder="ej. 50 p · DJ · AYCD" />
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                          <InputRow label="Precio individual" value={day.price} onChange={v => upDay(idx, 'price', Number(v))} type="number" prefix="$" />
-                          <div className="md:col-span-2 flex flex-col gap-1">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                          <InputRow label="Digital (base)" value={day.price || ''} onChange={v => upDay(idx, 'price', v)} type="number" prefix="$" />
+                          <InputRow label="Efectivo / Cash" value={day.price_cash || ''} onChange={v => upDay(idx, 'price_cash', v)} type="number" prefix="$" />
+                          <InputRow label="Aporte combo" value={day.price_combo || ''} onChange={v => upDay(idx, 'price_combo', v)} type="number" prefix="$" />
+                          <InputRow label="Aporte mensual" value={day.price_monthly || ''} onChange={v => upDay(idx, 'price_monthly', v)} type="number" prefix="$" />
+                        </div>
+                        <div className="grid grid-cols-1 gap-3">
+                          <div className="flex flex-col gap-1">
                             <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Imagen</label>
                             <div className="flex gap-2">
                               <div className="flex items-center flex-1" style={{ background: C.bgT, border: `1px solid ${C.gray}20` }}>
