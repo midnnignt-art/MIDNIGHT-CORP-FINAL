@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Settings, Calendar, DollarSign, Percent, Bell, Users,
   Save, Plus, Loader2, Copy, ToggleLeft, ToggleRight,
-  X, Search, ExternalLink, Image, Star
+  X, Search, ExternalLink, Image, Star, ChevronRight
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { toast } from '../../../lib/toast';
@@ -100,6 +100,36 @@ interface MidnightProfile {
 }
 
 type Tab = 'general' | 'weeks' | 'prices' | 'commissions' | 'penalties' | 'sellers';
+
+// ── Team structure types ───────────────────────────────────────────────────────
+interface MemberRow {
+  profile_id: string;
+  full_name: string;
+  email: string;
+  code: string;
+  midnight_role: string;
+  sales_team_id?: string;
+  super_squad_id?: string;
+  solstice_seller_id?: string;
+  solstice_active: boolean;
+  solstice_status?: string;
+  solstice_ref_code?: string;
+  solstice_role?: string;
+}
+
+interface TeamGroup {
+  id: string;
+  name: string;
+  super_squad_id?: string;
+  members: MemberRow[];
+}
+
+interface SquadGroup {
+  id: string;
+  name: string;
+  teams: TeamGroup[];
+  loose: MemberRow[]; // members in squad but no team
+}
 
 // ── Default days ───────────────────────────────────────────────────────────────
 
@@ -251,7 +281,15 @@ export default function SolsticeAdminConfig() {
   const [phasesOn, setPhasesOn]       = useState(false);
   const [earlyBirdOn, setEarlyBirdOn] = useState(false);
 
-  // Seller modal
+  // Team structure (full Midnight org)
+  const [squadGroups, setSquadGroups]         = useState<SquadGroup[]>([]);
+  const [noSquadTeams, setNoSquadTeams]       = useState<TeamGroup[]>([]);
+  const [unassigned, setUnassigned]           = useState<MemberRow[]>([]);
+  const [expandedSquads, setExpandedSquads]   = useState<Set<string>>(new Set());
+  const [expandedTeams, setExpandedTeams]     = useState<Set<string>>(new Set());
+  const [activating, setActivating]           = useState<Set<string>>(new Set());
+
+  // Seller modal (quick add)
   const [addSellerOpen, setAddSellerOpen] = useState(false);
   const [searchQ, setSearchQ]             = useState('');
   const [searchResults, setSearchResults] = useState<MidnightProfile[]>([]);
@@ -322,36 +360,112 @@ export default function SolsticeAdminConfig() {
       });
       setDays(merged);
 
-      // Enrich sellers: profiles + teams + squads + platform activity
-      if (sl?.length) {
-        const [{ data: teams }, { data: squads }] = await Promise.all([
-          supabase.from('sales_teams').select('id, name'),
-          supabase.from('super_squads').select('id, name'),
-        ]);
-        const enriched = await Promise.all((sl as any[]).map(async (seller) => {
-          const [{ data: prof }, { count: mnOrders }, { count: solSales }] = await Promise.all([
-            supabase.from('profiles').select('full_name, email, code, role').eq('id', seller.user_id).maybeSingle(),
-            supabase.from('orders').select('id', { count: 'exact', head: true }).eq('staff_id', seller.user_id),
-            supabase.from('solstice_registrations').select('id', { count: 'exact', head: true }).eq('ref_code', seller.ref_code),
-          ]);
-          const team  = (teams  || []).find((t:  any) => t.id === seller.sales_team_id);
-          const squad = (squads || []).find((sq: any) => sq.id === seller.super_squad_id);
-          return {
-            ...seller,
-            name:           (prof as any)?.full_name,
-            email:          (prof as any)?.email,
-            code:           (prof as any)?.code,
-            midnight_role:  (prof as any)?.role,
-            team_name:      team?.name,
-            squad_name:     squad?.name,
-            midnight_active: (mnOrders || 0) > 0,
-            solstice_sales:  solSales || 0,
-          };
-        }));
-        setSellers(enriched as Seller[]);
+      // ── Build full Midnight org structure ────────────────────────────────────
+      const [{ data: allProfs }, { data: allTeams }, { data: allSquads }] = await Promise.all([
+        supabase.from('profiles').select('id, full_name, email, code, role, sales_team_id, super_squad_id'),
+        supabase.from('sales_teams').select('id, name, super_squad_id'),
+        supabase.from('super_squads').select('id, name'),
+      ]);
+
+      const solList = (sl || []) as any[];
+
+      // Map every Midnight profile to a MemberRow
+      const memberRows: MemberRow[] = (allProfs || []).map((p: any) => {
+        const ss = solList.find((x) => x.user_id === p.id);
+        return {
+          profile_id:         p.id,
+          full_name:          p.full_name || '(sin nombre)',
+          email:              p.email,
+          code:               p.code,
+          midnight_role:      p.role,
+          sales_team_id:      p.sales_team_id,
+          super_squad_id:     p.super_squad_id,
+          solstice_seller_id: ss?.id,
+          solstice_active:    !!ss && ss.status === 'active',
+          solstice_status:    ss?.status,
+          solstice_ref_code:  ss?.ref_code,
+          solstice_role:      ss?.role,
+        };
+      });
+
+      // Build squad → team → members tree
+      const squadMap = new Map<string, SquadGroup>();
+      for (const sq of (allSquads || [])) {
+        squadMap.set(sq.id, { id: sq.id, name: sq.name, teams: [], loose: [] });
       }
+
+      const teamMap = new Map<string, TeamGroup>();
+      for (const t of (allTeams || [])) {
+        const tg: TeamGroup = { id: t.id, name: t.name, super_squad_id: t.super_squad_id, members: [] };
+        teamMap.set(t.id, tg);
+      }
+
+      const noSquad: TeamGroup[] = [];
+      const unassignedList: MemberRow[] = [];
+
+      for (const m of memberRows) {
+        if (m.sales_team_id && teamMap.has(m.sales_team_id)) {
+          teamMap.get(m.sales_team_id)!.members.push(m);
+        } else if (m.super_squad_id && squadMap.has(m.super_squad_id)) {
+          squadMap.get(m.super_squad_id)!.loose.push(m);
+        } else {
+          unassignedList.push(m);
+        }
+      }
+
+      // Attach teams to squads (or to noSquad bucket)
+      for (const t of (allTeams || [])) {
+        const tg = teamMap.get(t.id)!;
+        if (t.super_squad_id && squadMap.has(t.super_squad_id)) {
+          squadMap.get(t.super_squad_id)!.teams.push(tg);
+        } else {
+          noSquad.push(tg);
+        }
+      }
+
+      setSquadGroups(Array.from(squadMap.values()));
+      setNoSquadTeams(noSquad);
+      setUnassigned(unassignedList);
+
+      // Keep flat sellers list for backward compat (other tabs)
+      setSellers(memberRows.filter(m => m.solstice_seller_id) as any);
+
     } catch { /* DB not migrated yet */ }
     finally { setLoading(false); }
+  };
+
+  // ── Toggle Solstice activation for a Midnight member ──────────────────────────
+  const toggleMemberSolstice = async (member: MemberRow) => {
+    if (!season?.id) { toast.error('Guarda la temporada primero'); return; }
+    setActivating(prev => new Set(prev).add(member.profile_id));
+    try {
+      if (member.solstice_seller_id) {
+        const next = member.solstice_active ? 'inactive' : 'active';
+        const { error } = await supabase.from('solstice_sellers')
+          .update({ status: next }).eq('id', member.solstice_seller_id);
+        if (error) throw error;
+        toast.success(next === 'active' ? `${member.full_name} reactivado` : `${member.full_name} pausado en Solstice`);
+      } else {
+        const ref_code = genRefCode(member.full_name);
+        const { error } = await supabase.from('solstice_sellers').insert({
+          user_id:        member.profile_id,
+          season_id:      season.id,
+          ref_code,
+          role:           'seller',
+          status:         'active',
+          university:     'General',
+          sales_team_id:  member.sales_team_id  || null,
+          super_squad_id: member.super_squad_id || null,
+        });
+        if (error) throw error;
+        toast.success(`${member.full_name} activado para Solstice · ref: ${ref_code}`);
+      }
+      await loadAll();
+    } catch (e: any) {
+      toast.error('Error: ' + e.message);
+    } finally {
+      setActivating(prev => { const s = new Set(prev); s.delete(member.profile_id); return s; });
+    }
   };
 
   // ── Save season ────────────────────────────────────────────────────────────────
@@ -949,148 +1063,158 @@ export default function SolsticeAdminConfig() {
             )}
 
             {/* ── VENDEDORES ── */}
-            {tab === 'sellers' && (
-              <div className="space-y-6">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray }}>
-                      Equipo de ventas Solstice · {sellers.length} registrados
-                    </h2>
-                    <p className="text-[9px] uppercase mt-1" style={{ color: `${C.gray}60`, letterSpacing: '0.2em' }}>
-                      Registrar aquí o desde el backoffice de Midnight — el admin los ve en ambos lados
-                    </p>
-                  </div>
-                  <button onClick={() => setAddSellerOpen(true)}
-                    className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase font-black tracking-widest transition-all"
-                    style={{ border: `1px solid ${C.red}40`, color: C.red }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = `${C.red}12`; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
-                    <Plus size={13} /> Registrar en Solstice
-                  </button>
-                </div>
+            {tab === 'sellers' && (() => {
+              const totalMidnight = squadGroups.reduce((a, sq) =>
+                a + sq.teams.reduce((b, t) => b + t.members.length, 0) + sq.loose.length, 0)
+                + noSquadTeams.reduce((a, t) => a + t.members.length, 0)
+                + unassigned.length;
+              const totalSolstice = sellers.length;
 
-                {/* Legend */}
-                <div className="flex items-center gap-4 flex-wrap">
-                  {[
-                    { dot: C.red,   label: 'Solo Solstice' },
-                    { dot: '#a855f7', label: 'Midnight + Solstice' },
-                  ].map(({ dot, label }) => (
-                    <div key={label} className="flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: dot }} />
-                      <span className="text-[9px] uppercase tracking-widest" style={{ color: C.gray }}>{label}</span>
+              const MemberRow = ({ m }: { m: MemberRow }) => {
+                const busy = activating.has(m.profile_id);
+                return (
+                  <div className="flex items-center gap-3 px-4 py-2.5 group"
+                    style={{ borderBottom: `1px solid ${C.gray}08`, opacity: m.solstice_status === 'inactive' ? 0.4 : 1 }}>
+                    {/* Status dot */}
+                    <span className="w-1.5 h-1.5 rounded-full shrink-0"
+                      style={{ background: m.solstice_active ? C.red : `${C.gray}40` }} />
+                    {/* Name */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold uppercase truncate" style={{ color: m.solstice_active ? C.cream : C.gray, letterSpacing: '0.08em' }}>
+                        {m.full_name}
+                      </p>
+                      <p className="text-[9px] truncate" style={{ color: `${C.gray}70` }}>{m.midnight_role} · {m.email}</p>
                     </div>
-                  ))}
-                </div>
-
-                {sellers.length === 0 ? (
-                  <div className="py-16 text-center" style={{ color: C.gray }}>
-                    <Users size={32} className="mx-auto mb-4 opacity-30" />
-                    <p className="text-xs uppercase tracking-widest">Sin vendedores asignados a SOLSTICE</p>
+                    {/* Ref code */}
+                    {m.solstice_active && m.solstice_ref_code && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <code className="text-[9px] px-1.5 py-0.5" style={{ background: `${C.gray}15`, color: C.cream }}>
+                          {m.solstice_ref_code}
+                        </code>
+                        <button onClick={() => copyLink(m.solstice_ref_code!)}
+                          className="p-1 transition-colors opacity-0 group-hover:opacity-100" style={{ color: C.gray }}
+                          onMouseEnter={e => (e.currentTarget.style.color = C.cream)}
+                          onMouseLeave={e => (e.currentTarget.style.color = C.gray)}>
+                          <Copy size={10} />
+                        </button>
+                      </div>
+                    )}
+                    {/* Toggle */}
+                    <button onClick={() => toggleMemberSolstice(m)} disabled={busy}
+                      className="shrink-0 transition-all disabled:opacity-40"
+                      title={m.solstice_active ? 'Pausar en Solstice' : m.solstice_seller_id ? 'Reactivar' : 'Activar para Solstice'}
+                      style={{ color: m.solstice_active ? C.red : `${C.gray}50` }}>
+                      {busy
+                        ? <Loader2 size={15} className="animate-spin" />
+                        : m.solstice_active
+                          ? <ToggleRight size={18} />
+                          : <ToggleLeft size={18} />}
+                    </button>
                   </div>
-                ) : (
-                  <div style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
-                    {/* Table header */}
-                    <div className="grid grid-cols-12 gap-2 px-5 py-3 text-[9px] uppercase tracking-widest"
-                      style={{ color: C.gray, borderBottom: `1px solid ${C.gray}10` }}>
-                      <div className="col-span-3">Nombre</div>
-                      <div className="col-span-2">Equipo / Squad</div>
-                      <div className="col-span-2">Uni · Rol Solstice</div>
-                      <div className="col-span-2">Plataforma</div>
-                      <div className="col-span-2">Código ref</div>
-                      <div className="col-span-1 text-right">Acc.</div>
+                );
+              };
+
+              const TeamBlock = ({ team }: { team: TeamGroup }) => {
+                const open = expandedTeams.has(team.id);
+                const active = team.members.filter(m => m.solstice_active).length;
+                return (
+                  <div style={{ borderLeft: `2px solid ${C.gray}20` }} className="ml-4">
+                    <button onClick={() => setExpandedTeams(prev => {
+                      const s = new Set(prev); s.has(team.id) ? s.delete(team.id) : s.add(team.id); return s;
+                    })} className="w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-white/3 transition-colors">
+                      <ChevronRight size={11} className="transition-transform shrink-0"
+                        style={{ color: C.gray, transform: open ? 'rotate(90deg)' : 'none' }} />
+                      <span className="text-[10px] uppercase tracking-widest flex-1" style={{ color: C.cream }}>{team.name}</span>
+                      <span className="text-[9px]" style={{ color: active > 0 ? C.red : `${C.gray}50` }}>
+                        {active}/{team.members.length} en Solstice
+                      </span>
+                    </button>
+                    {open && team.members.map(m => <MemberRow key={m.profile_id} m={m} />)}
+                  </div>
+                );
+              };
+
+              return (
+                <div className="space-y-6">
+                  {/* Header */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray }}>
+                        Estructura Midnight → Solstice
+                      </h2>
+                      <p className="text-[9px] uppercase mt-1" style={{ color: `${C.gray}60`, letterSpacing: '0.15em' }}>
+                        {totalSolstice} activos en Solstice · {totalMidnight} en Midnight · toggle para activar/pausar
+                      </p>
                     </div>
+                  </div>
 
-                    {sellers.map(seller => {
-                      const both = seller.midnight_active;
-                      const accentColor = both ? '#a855f7' : C.red;
-                      return (
-                        <div key={seller.id} className="grid grid-cols-12 gap-2 px-5 py-4 items-center"
-                          style={{ borderBottom: `1px solid ${C.gray}08`, opacity: seller.status === 'inactive' ? 0.35 : 1 }}>
-
-                          {/* Name */}
-                          <div className="col-span-3">
-                            <div className="flex items-center gap-2">
-                              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: accentColor }} />
-                              <div>
-                                <p className="text-xs font-bold uppercase truncate" style={{ letterSpacing: '0.08em', color: C.cream }}>
-                                  {seller.name || '—'}
+                  {/* Squads */}
+                  {squadGroups.length === 0 && noSquadTeams.length === 0 && unassigned.length === 0 ? (
+                    <div className="py-16 text-center" style={{ color: C.gray }}>
+                      <Users size={32} className="mx-auto mb-4 opacity-30" />
+                      <p className="text-xs uppercase tracking-widest">No hay staff registrado en Midnight</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {/* Named squads */}
+                      {squadGroups.map(sq => {
+                        const open = expandedSquads.has(sq.id);
+                        const allMembers = [...sq.teams.flatMap(t => t.members), ...sq.loose];
+                        const active = allMembers.filter(m => m.solstice_active).length;
+                        return (
+                          <div key={sq.id} style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
+                            <button onClick={() => setExpandedSquads(prev => {
+                              const s = new Set(prev); s.has(sq.id) ? s.delete(sq.id) : s.add(sq.id); return s;
+                            })} className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-white/2 transition-colors">
+                              <ChevronRight size={13} className="transition-transform shrink-0"
+                                style={{ color: C.gray, transform: open ? 'rotate(90deg)' : 'none' }} />
+                              <div className="flex-1">
+                                <p className="text-sm font-black uppercase" style={{ color: C.cream, letterSpacing: '0.12em' }}>{sq.name}</p>
+                                <p className="text-[9px] uppercase mt-0.5" style={{ color: C.gray }}>
+                                  {sq.teams.length} equipo{sq.teams.length !== 1 ? 's' : ''} · {allMembers.length} personas
                                 </p>
-                                <p className="text-[9px] truncate" style={{ color: C.gray }}>{seller.email}</p>
                               </div>
-                            </div>
-                          </div>
-
-                          {/* Team / Squad */}
-                          <div className="col-span-2">
-                            {seller.team_name  && <p className="text-[9px] uppercase truncate" style={{ color: C.cream }}>{seller.team_name}</p>}
-                            {seller.squad_name && <p className="text-[9px] truncate" style={{ color: C.gray }}>{seller.squad_name}</p>}
-                            {!seller.team_name && !seller.squad_name && <span className="text-[9px]" style={{ color: `${C.gray}40` }}>—</span>}
-                          </div>
-
-                          {/* Uni + Solstice role */}
-                          <div className="col-span-2 space-y-1">
-                            <p className="text-[9px] uppercase truncate" style={{ color: C.gray }}>{seller.university}</p>
-                            <span className="text-[8px] uppercase px-1.5 py-0.5 font-bold"
-                              style={{ background: seller.role === 'manager' ? `${C.red}20` : `${C.gray}15`,
-                                       color: seller.role === 'manager' ? C.red : C.gray }}>
-                              {seller.role === 'manager' ? 'Gerente' : 'Vendedor'}
-                            </span>
-                          </div>
-
-                          {/* Platform badges */}
-                          <div className="col-span-2 flex flex-col gap-1">
-                            <span className="text-[8px] uppercase px-1.5 py-0.5 font-bold w-fit"
-                              style={{ background: `${C.red}18`, color: C.red, border: `1px solid ${C.red}30` }}>
-                              ☀ Solstice
-                            </span>
-                            {both && (
-                              <span className="text-[8px] uppercase px-1.5 py-0.5 font-bold w-fit"
-                                style={{ background: 'rgba(168,85,247,0.15)', color: '#a855f7', border: '1px solid rgba(168,85,247,0.3)' }}>
-                                🌙 Midnight
+                              <span className="text-[10px] uppercase px-2 py-1"
+                                style={{ background: active > 0 ? `${C.red}15` : `${C.gray}10`,
+                                         color: active > 0 ? C.red : C.gray,
+                                         border: `1px solid ${active > 0 ? C.red + '30' : C.gray + '20'}` }}>
+                                {active} en Solstice
                               </span>
+                            </button>
+                            {open && (
+                              <div style={{ borderTop: `1px solid ${C.gray}10` }}>
+                                {sq.teams.map(t => <TeamBlock key={t.id} team={t} />)}
+                                {sq.loose.map(m => <MemberRow key={m.profile_id} m={m} />)}
+                              </div>
                             )}
                           </div>
+                        );
+                      })}
 
-                          {/* Ref code + sales */}
-                          <div className="col-span-2">
-                            <code className="text-[10px] px-2 py-0.5 block mb-1" style={{ background: `${C.gray}15`, color: C.cream }}>
-                              {seller.ref_code}
-                            </code>
-                            {(seller.solstice_sales ?? 0) > 0 && (
-                              <p className="text-[8px] uppercase" style={{ color: C.red }}>
-                                {seller.solstice_sales} venta{seller.solstice_sales !== 1 ? 's' : ''}
-                              </p>
-                            )}
+                      {/* Teams without squad */}
+                      {noSquadTeams.length > 0 && (
+                        <div style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
+                          <div className="px-5 py-3 text-[9px] uppercase tracking-widest" style={{ color: C.gray, borderBottom: `1px solid ${C.gray}10` }}>
+                            Equipos sin squad
                           </div>
-
-                          {/* Actions */}
-                          <div className="col-span-1 flex items-center gap-1 justify-end">
-                            <button onClick={() => copyLink(seller.ref_code)} title="Copiar link"
-                              className="p-1.5 transition-colors" style={{ color: C.gray }}
-                              onMouseEnter={e => (e.currentTarget.style.color = C.cream)}
-                              onMouseLeave={e => (e.currentTarget.style.color = C.gray)}>
-                              <Copy size={12} />
-                            </button>
-                            <button onClick={() => window.open(`https://midnightcorp.click/solstice?ref=${seller.ref_code}`, '_blank')}
-                              className="p-1.5 transition-colors" style={{ color: C.gray }}
-                              onMouseEnter={e => (e.currentTarget.style.color = C.cream)}
-                              onMouseLeave={e => (e.currentTarget.style.color = C.gray)}>
-                              <ExternalLink size={12} />
-                            </button>
-                            <button onClick={() => toggleSellerStatus(seller)}
-                              title={seller.status === 'active' ? 'Desactivar' : 'Activar'}
-                              style={{ color: seller.status === 'active' ? C.red : C.green }}>
-                              {seller.status === 'active' ? <ToggleRight size={13} /> : <ToggleLeft size={13} />}
-                            </button>
-                          </div>
+                          {noSquadTeams.map(t => <TeamBlock key={t.id} team={t} />)}
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
+                      )}
+
+                      {/* Unassigned */}
+                      {unassigned.length > 0 && (
+                        <div style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
+                          <div className="px-5 py-3 text-[9px] uppercase tracking-widest" style={{ color: C.gray, borderBottom: `1px solid ${C.gray}10` }}>
+                            Sin equipo asignado · {unassigned.length}
+                          </div>
+                          {unassigned.map(m => <MemberRow key={m.profile_id} m={m} />)}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
           </motion.div>
         </AnimatePresence>
