@@ -247,11 +247,45 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
   const stepLabel = ['Semana', 'Modalidad', 'Tus datos', '', 'Pago', '✓'][Math.min(Math.floor(step), 5)];
   const stepNum   = Math.min(Math.floor(step), 5);
 
+  // Shared style helpers
+  const inputStyle: React.CSSProperties = {
+    borderRadius: '16px',
+    background: 'rgba(255,255,255,0.04)',
+    border: '0.5px solid rgba(255,255,255,0.10)',
+    color: C.cream,
+    padding: '16px 18px',
+    letterSpacing: '0.15em',
+    width: '100%',
+    outline: 'none',
+    fontSize: '12px',
+    textTransform: 'uppercase' as const,
+    transition: 'border-color 0.2s ease',
+  };
+
+  const primaryBtnStyle: React.CSSProperties = {
+    borderRadius: '999px',
+    background: 'rgba(230,57,47,0.22)',
+    border: '0.5px solid rgba(230,57,47,0.45)',
+    color: C.cream,
+    letterSpacing: '0.2em',
+    width: '100%',
+    padding: '16px',
+    fontSize: '14px',
+    textTransform: 'uppercase' as const,
+    fontWeight: 500,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '12px',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+  };
+
   return (
     <div style={{ background: C.bg, minHeight: '100vh', color: C.cream, fontFamily: "'Archivo', sans-serif" }}>
 
       {/* Progress header */}
-      <div className="sticky top-0 z-10 px-6 py-4 flex items-center gap-4" style={{ background: C.bg, borderBottom: `1px solid ${C.gray}15` }}>
+      <div className="sticky top-0 z-10 px-6 py-4 flex items-center gap-4" style={{ background: C.bg, borderBottom: '0.5px solid rgba(255,255,255,0.08)' }}>
         {step > 0 && step < 5 && (
           <button onClick={goBack} className="p-2 rounded-full transition-colors" style={{ color: C.gray }}
             onMouseEnter={e => (e.currentTarget.style.color = C.cream)} onMouseLeave={e => (e.currentTarget.style.color = C.gray)}>
@@ -259,10 +293,10 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
           </button>
         )}
         <div className="flex-1">
-          <p className="text-[9px] uppercase font-bold" style={{ color: C.red, letterSpacing: '0.4em' }}>
+          <p className="text-[9px] uppercase" style={{ color: C.red, letterSpacing: '0.4em', fontWeight: 500 }}>
             Reserva SOLSTICE 2026
           </p>
-          <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em' }}>{stepLabel}</p>
+          <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>{stepLabel}</p>
         </div>
         <div className="flex gap-1.5">
           {[0,1,2,3,4].map(i => (
@@ -279,8 +313,8 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
           {step === 0 && (
             <motion.div key="s0" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
               <div>
-                <h2 className="text-3xl uppercase mb-2" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.08em' }}>¿Cuál semana?</h2>
-                <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em' }}>Selecciona tu universidad</p>
+                <h2 className="text-3xl uppercase mb-2" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.08em', fontWeight: 300 }}>¿Cuál semana?</h2>
+                <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>Selecciona tu universidad</p>
               </div>
               <div className="space-y-4">
                 {weeks.map(week => {
@@ -288,22 +322,36 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
                   const left = week.capacity - week.reserved;
                   return (
                     <button key={week.id} onClick={() => { setSelWeek(week); setStep(1); }}
-                      className="w-full p-6 text-left transition-all"
-                      style={{ background: C.bgS, border: `1px solid ${C.gray}25` }}
-                      onMouseEnter={e => (e.currentTarget.style.borderColor = C.red)}
-                      onMouseLeave={e => (e.currentTarget.style.borderColor = `${C.gray}25`)}
+                      className="w-full p-6 text-left"
+                      style={{
+                        borderRadius: '24px',
+                        background: 'rgba(255,255,255,0.04)',
+                        backdropFilter: 'blur(32px) saturate(180%)',
+                        border: '0.5px solid rgba(255,255,255,0.10)',
+                        boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
+                        transition: 'all 0.35s cubic-bezier(0.25,0.46,0.45,0.94)',
+                      }}
+                      onMouseEnter={e => {
+                        (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-3px)';
+                        (e.currentTarget as HTMLButtonElement).style.border = '0.5px solid rgba(230,57,47,0.30)';
+                      }}
+                      onMouseLeave={e => {
+                        (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
+                        (e.currentTarget as HTMLButtonElement).style.border = '0.5px solid rgba(255,255,255,0.10)';
+                      }}
                     >
                       <div className="flex justify-between items-start mb-3">
-                        <h3 className="text-xl uppercase" style={{ fontFamily: "'Poiret One', sans-serif" }}>{week.university}</h3>
-                        <span className="text-[9px] uppercase" style={{ color: C.gray, letterSpacing: '0.15em' }}>{week.reserved}/{week.capacity}</span>
+                        <h3 className="text-xl uppercase" style={{ fontFamily: "'Poiret One', sans-serif", fontWeight: 300 }}>{week.university}</h3>
+                        <span className="text-[9px] uppercase" style={{ color: C.gray, letterSpacing: '0.15em', fontWeight: 500 }}>{week.reserved}/{week.capacity}</span>
                       </div>
-                      <p className="text-xs uppercase mb-4" style={{ color: C.gray, letterSpacing: '0.15em' }}>
+                      <p className="text-xs uppercase mb-4" style={{ color: C.gray, letterSpacing: '0.15em', fontWeight: 500 }}>
                         {new Date(week.start_date).toLocaleDateString('es-CO', { month: 'short', day: 'numeric' })} — {new Date(week.end_date).toLocaleDateString('es-CO', { month: 'short', day: 'numeric' })}
                       </p>
-                      <div className="h-[2px] w-full mb-1" style={{ background: `${C.gray}20` }}>
-                        <div className="h-full" style={{ width: `${pct}%`, background: C.red, transition: 'width 0.8s' }} />
+                      {/* Urgency / progress bar */}
+                      <div className="w-full mb-1" style={{ height: '2px', background: `${C.gray}20`, borderRadius: '999px' }}>
+                        <div style={{ width: `${pct}%`, height: '100%', background: C.red, borderRadius: '999px', transition: 'width 0.8s' }} />
                       </div>
-                      <p className="text-[9px] uppercase" style={{ color: left <= 20 ? C.red : C.gray, letterSpacing: '0.1em' }}>
+                      <p className="text-[9px] uppercase" style={{ color: left <= 20 ? C.red : C.gray, letterSpacing: '0.1em', fontWeight: 500 }}>
                         {left <= 20 ? `¡Solo ${left} cupos!` : `${left} cupos disponibles`}
                       </p>
                     </button>
@@ -317,8 +365,8 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
           {step === 1 && (
             <motion.div key="s1" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
               <div>
-                <h2 className="text-3xl uppercase mb-1" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.08em' }}>¿Cómo pagas?</h2>
-                <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em' }}>Semana {selWeek?.university}</p>
+                <h2 className="text-3xl uppercase mb-1" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.08em', fontWeight: 300 }}>¿Cómo pagas?</h2>
+                <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>Semana {selWeek?.university}</p>
               </div>
               <div className="space-y-3">
                 {MODES.map(m => (
@@ -326,14 +374,27 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
                     setMode(m.id);
                     setStep(m.id === 'individual_days' ? (1.5 as any) : 2);
                   }}
-                    className="w-full p-5 text-left flex items-center gap-4 transition-all relative"
-                    style={{ background: C.bgS, border: `1px solid ${mode === m.id ? C.red : C.gray + '25'}` }}
-                    onMouseEnter={e => (e.currentTarget.style.borderColor = C.red)}
-                    onMouseLeave={e => (e.currentTarget.style.borderColor = mode === m.id ? C.red : `${C.gray}25`)}
+                    className="w-full p-5 text-left flex items-center gap-4 relative"
+                    style={{
+                      borderRadius: '20px',
+                      background: mode === m.id ? 'rgba(230,57,47,0.08)' : 'rgba(255,255,255,0.04)',
+                      backdropFilter: 'blur(32px) saturate(180%)',
+                      border: mode === m.id ? '0.5px solid rgba(230,57,47,0.50)' : '0.5px solid rgba(255,255,255,0.10)',
+                      boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
+                      transition: 'all 0.3s ease',
+                    }}
+                    onMouseEnter={e => {
+                      (e.currentTarget as HTMLButtonElement).style.border = '0.5px solid rgba(230,57,47,0.25)';
+                    }}
+                    onMouseLeave={e => {
+                      (e.currentTarget as HTMLButtonElement).style.border = mode === m.id
+                        ? '0.5px solid rgba(230,57,47,0.50)'
+                        : '0.5px solid rgba(255,255,255,0.10)';
+                    }}
                   >
                     {m.badge && (
-                      <div className="absolute top-3 right-3 px-2 py-0.5 text-[8px] uppercase font-black rounded-sm"
-                        style={{ background: C.red, color: C.cream, letterSpacing: '0.15em' }}>
+                      <div className="absolute top-3 right-3 px-2 py-0.5 text-[8px] uppercase"
+                        style={{ background: C.red, color: C.cream, letterSpacing: '0.15em', borderRadius: '999px', fontWeight: 500 }}>
                         {m.badge}
                       </div>
                     )}
@@ -342,7 +403,7 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
                       {m.icon}
                     </div>
                     <div>
-                      <p className="text-sm uppercase font-bold" style={{ letterSpacing: '0.1em' }}>{m.label}</p>
+                      <p className="text-sm uppercase" style={{ letterSpacing: '0.1em', fontWeight: 500 }}>{m.label}</p>
                       <p className="text-[10px] mt-0.5" style={{ color: C.gray }}>{m.sub}</p>
                     </div>
                   </button>
@@ -355,8 +416,8 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
           {step === (1.5 as any) && (
             <motion.div key="s1.5" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
               <div>
-                <h2 className="text-3xl uppercase mb-1" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.08em' }}>¿Qué días?</h2>
-                <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em' }}>Selecciona uno o más</p>
+                <h2 className="text-3xl uppercase mb-1" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.08em', fontWeight: 300 }}>¿Qué días?</h2>
+                <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>Selecciona uno o más</p>
               </div>
               <div className="space-y-3">
                 {SOLSTICE_DAYS.map(day => {
@@ -364,8 +425,15 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
                   return (
                     <button key={day.day}
                       onClick={() => setSelDays(prev => selected ? prev.filter(d => d !== day.day) : [...prev, day.day])}
-                      className="w-full p-5 flex items-center gap-4 transition-all"
-                      style={{ background: C.bgS, border: `1px solid ${selected ? C.red : C.gray + '25'}` }}
+                      className="w-full p-5 flex items-center gap-4"
+                      style={{
+                        borderRadius: '20px',
+                        background: selected ? 'rgba(230,57,47,0.08)' : 'rgba(255,255,255,0.04)',
+                        backdropFilter: 'blur(32px) saturate(180%)',
+                        border: selected ? '0.5px solid rgba(230,57,47,0.50)' : '0.5px solid rgba(255,255,255,0.10)',
+                        boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
+                        transition: 'all 0.3s ease',
+                      }}
                     >
                       <div className="w-10 h-10 rounded-full flex items-center justify-center border-2 flex-shrink-0"
                         style={selected ? { background: C.red, borderColor: C.red } : { borderColor: `${C.gray}50` }}>
@@ -374,10 +442,10 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
                           : <span className="text-xs" style={{ color: selected ? C.cream : C.gray }}>{day.day}</span>}
                       </div>
                       <div className="flex-1 text-left">
-                        <p className="text-sm uppercase font-bold" style={{ color: day.highlight ? C.red : C.cream, letterSpacing: '0.1em' }}>{day.title}</p>
+                        <p className="text-sm uppercase" style={{ color: day.highlight ? C.red : C.cream, letterSpacing: '0.1em', fontWeight: 500 }}>{day.title}</p>
                         <p className="text-[10px]" style={{ color: C.gray }}>{day.subtitle}</p>
                       </div>
-                      <p className="text-sm font-black" style={{ color: selected ? C.red : C.gray }}>
+                      <p className="text-sm" style={{ color: selected ? C.red : C.gray, fontWeight: 500 }}>
                         ${Math.round(day.price / 1000)}K
                       </p>
                     </button>
@@ -385,11 +453,17 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
                 })}
               </div>
               {selDays.length > 0 && (
-                <div className="p-5" style={{ background: C.bgS, border: `1px solid ${C.red}30` }}>
-                  <div className="flex justify-between text-xs uppercase mb-1" style={{ color: C.gray, letterSpacing: '0.15em' }}>
+                <div className="p-5" style={{
+                  borderRadius: '28px',
+                  background: 'rgba(255,255,255,0.03)',
+                  backdropFilter: 'blur(24px)',
+                  border: '0.5px solid rgba(230,57,47,0.50)',
+                  boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
+                }}>
+                  <div className="flex justify-between text-xs uppercase mb-1" style={{ color: C.gray, letterSpacing: '0.15em', fontWeight: 500 }}>
                     <span>Tu selección ({selDays.length} días)</span><span>${Math.round(dayTotal/1000)}K</span>
                   </div>
-                  <div className="flex justify-between text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.15em' }}>
+                  <div className="flex justify-between text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.15em', fontWeight: 500 }}>
                     <span>Combo completo</span><span>${Math.round(s.combo_total/1000)}K</span>
                   </div>
                   {dayTotal > s.combo_total && (
@@ -402,8 +476,20 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
               <button
                 onClick={() => setStep(2)}
                 disabled={selDays.length === 0}
-                className="w-full py-4 uppercase font-black text-sm transition-all disabled:opacity-30"
-                style={{ background: C.red, color: C.cream, letterSpacing: '0.2em' }}
+                style={{
+                  ...primaryBtnStyle,
+                  opacity: selDays.length === 0 ? 0.35 : 1,
+                }}
+                onMouseEnter={e => {
+                  if (selDays.length > 0) {
+                    (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
+                    (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 8px 24px rgba(230,57,47,0.20)';
+                  }
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
+                  (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none';
+                }}
               >
                 Continuar
               </button>
@@ -414,8 +500,8 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
           {step === 2 && (
             <motion.div key="s2" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
               <div>
-                <h2 className="text-3xl uppercase mb-1" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.08em' }}>Tus datos</h2>
-                <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em' }}>Para el registro y confirmación</p>
+                <h2 className="text-3xl uppercase mb-1" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.08em', fontWeight: 300 }}>Tus datos</h2>
+                <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>Para el registro y confirmación</p>
               </div>
               <div className="space-y-3">
                 {[
@@ -426,22 +512,34 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
                 ].map(f => (
                   <input key={f.placeholder} type={f.type} placeholder={f.placeholder} value={f.value}
                     onChange={e => f.set(f.type === 'email' ? e.target.value.toLowerCase() : e.target.value)}
-                    className="w-full px-4 py-4 text-xs uppercase outline-none transition-colors"
-                    style={{ background: C.bgS, border: `1px solid ${C.gray}30`, color: C.cream, letterSpacing: '0.15em' }}
-                    onFocus={e => (e.currentTarget.style.borderColor = C.red)}
-                    onBlur={e => (e.currentTarget.style.borderColor = `${C.gray}30`)}
+                    style={inputStyle}
+                    onFocus={e => (e.currentTarget.style.borderColor = 'rgba(230,57,47,0.60)')}
+                    onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.10)')}
                   />
                 ))}
                 {authError && (
-                  <p className="text-xs uppercase font-bold text-center py-2" style={{ color: C.red, letterSpacing: '0.15em' }}>
+                  <p className="text-xs uppercase text-center py-2" style={{ color: C.red, letterSpacing: '0.15em', fontWeight: 500 }}>
                     {authError}
                   </p>
                 )}
               </div>
               <button onClick={handleRequestOtp} disabled={!email || !name || authLoading}
-                className="w-full py-4 uppercase font-black text-sm transition-all disabled:opacity-30"
-                style={{ background: C.red, color: C.cream, letterSpacing: '0.2em' }}>
-                {authLoading ? <Loader2 className="animate-spin mx-auto" /> : 'Continuar →'}
+                style={{
+                  ...primaryBtnStyle,
+                  opacity: (!email || !name || authLoading) ? 0.35 : 1,
+                }}
+                onMouseEnter={e => {
+                  if (email && name && !authLoading) {
+                    (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
+                    (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 8px 24px rgba(230,57,47,0.20)';
+                  }
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
+                  (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none';
+                }}
+              >
+                {authLoading ? <Loader2 className="animate-spin" /> : 'Continuar →'}
               </button>
             </motion.div>
           )}
@@ -450,21 +548,41 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
           {step === (2.5 as any) && (
             <motion.div key="s2.5" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-8 text-center">
               <div>
-                <h2 className="text-3xl uppercase mb-2" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.08em' }}>Verifica tu email</h2>
-                <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em' }}>Código enviado a {email}</p>
+                <h2 className="text-3xl uppercase mb-2" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.08em', fontWeight: 300 }}>Verifica tu email</h2>
+                <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>Código enviado a {email}</p>
               </div>
               <input autoFocus placeholder="000000" value={otp} maxLength={6}
                 onChange={e => { setOtp(e.target.value.replace(/\D/g, '')); setAuthError(''); }}
-                className="w-full py-6 text-center text-4xl font-black outline-none tracking-[0.5em]"
-                style={{ background: C.bgS, border: `1px solid ${C.gray}30`, color: C.cream }}
-                onFocus={e => (e.currentTarget.style.borderColor = C.red)}
-                onBlur={e => (e.currentTarget.style.borderColor = `${C.gray}30`)}
+                style={{
+                  ...inputStyle,
+                  padding: '24px 18px',
+                  textAlign: 'center',
+                  fontSize: '36px',
+                  fontWeight: 500,
+                  letterSpacing: '0.5em',
+                  textTransform: 'none' as const,
+                }}
+                onFocus={e => (e.currentTarget.style.borderColor = 'rgba(230,57,47,0.60)')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.10)')}
               />
-              {authError && <p className="text-xs uppercase font-bold" style={{ color: C.red }}>{authError}</p>}
+              {authError && <p className="text-xs uppercase" style={{ color: C.red, fontWeight: 500 }}>{authError}</p>}
               <button onClick={handleVerifyOtp} disabled={otp.length < 6 || authLoading}
-                className="w-full py-4 uppercase font-black text-sm transition-all disabled:opacity-30"
-                style={{ background: C.red, color: C.cream, letterSpacing: '0.2em' }}>
-                {authLoading ? <Loader2 className="animate-spin mx-auto" /> : 'Verificar'}
+                style={{
+                  ...primaryBtnStyle,
+                  opacity: (otp.length < 6 || authLoading) ? 0.35 : 1,
+                }}
+                onMouseEnter={e => {
+                  if (otp.length >= 6 && !authLoading) {
+                    (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
+                    (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 8px 24px rgba(230,57,47,0.20)';
+                  }
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
+                  (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none';
+                }}
+              >
+                {authLoading ? <Loader2 className="animate-spin" /> : 'Verificar'}
               </button>
             </motion.div>
           )}
@@ -473,10 +591,16 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
           {step === 3 && (
             <motion.div key="s3" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
               <div>
-                <h2 className="text-3xl uppercase mb-1" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.08em' }}>Resumen</h2>
-                <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em' }}>Confirma antes de pagar</p>
+                <h2 className="text-3xl uppercase mb-1" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.08em', fontWeight: 300 }}>Resumen</h2>
+                <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>Confirma antes de pagar</p>
               </div>
-              <div className="space-y-3 p-6" style={{ background: C.bgS, border: `1px solid ${C.gray}20` }}>
+              <div className="space-y-3 p-6" style={{
+                borderRadius: '28px',
+                background: 'rgba(255,255,255,0.03)',
+                backdropFilter: 'blur(24px)',
+                border: '0.5px solid rgba(255,255,255,0.10)',
+                boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
+              }}>
                 {([
                   ['Semana',    selWeek?.university],
                   ['Modalidad', MODES.find(m => m.id === mode)?.label],
@@ -486,24 +610,38 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
                 ] as ([string, string | undefined] | null)[])
                   .filter((x): x is [string, string | undefined] => Boolean(x))
                   .map(([k, v]) => (
-                    <div key={k} className="flex justify-between text-xs uppercase" style={{ letterSpacing: '0.12em' }}>
+                    <div key={k} className="flex justify-between text-xs uppercase" style={{ letterSpacing: '0.12em', fontWeight: 500 }}>
                       <span style={{ color: C.gray }}>{k}</span>
                       <span style={{ color: C.cream }}>{v}</span>
                     </div>
                   ))}
-                <div className="pt-4 mt-2 flex justify-between items-center" style={{ borderTop: `1px solid ${C.gray}20` }}>
-                  <span className="text-sm uppercase font-bold" style={{ color: C.gray }}>Pago hoy</span>
-                  <span className="text-3xl font-black" style={{ color: C.red }}>${chargeK}K</span>
+                <div className="pt-4 mt-2 flex justify-between items-center" style={{ borderTop: '0.5px solid rgba(255,255,255,0.10)' }}>
+                  <span className="text-sm uppercase" style={{ color: C.gray, fontWeight: 500 }}>Pago hoy</span>
+                  <span className="text-3xl" style={{ color: C.red, fontWeight: 300 }}>${chargeK}K</span>
                 </div>
                 {mode !== 'full_combo' && mode !== 'individual_days' && (
-                  <p className="text-[9px] uppercase text-center" style={{ color: C.gray }}>
+                  <p className="text-[9px] uppercase text-center" style={{ color: C.gray, fontWeight: 500 }}>
                     + {s.installments} cuotas de ${Math.round(s.combo_total / s.installments / 1000)}K/mes
                   </p>
                 )}
               </div>
               <button onClick={handleCreateRegistration} disabled={processing}
-                className="w-full py-5 uppercase font-black text-sm flex items-center justify-center gap-3 transition-all disabled:opacity-50"
-                style={{ background: C.red, color: C.cream, letterSpacing: '0.2em' }}>
+                style={{
+                  ...primaryBtnStyle,
+                  padding: '20px 16px',
+                  opacity: processing ? 0.35 : 1,
+                }}
+                onMouseEnter={e => {
+                  if (!processing) {
+                    (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
+                    (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 8px 24px rgba(230,57,47,0.20)';
+                  }
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
+                  (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none';
+                }}
+              >
                 {processing ? <Loader2 className="animate-spin" /> : <><Shield size={16} /> Ir a pagar ${chargeK}K</>}
               </button>
             </motion.div>
@@ -513,22 +651,25 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
           {step === 4 && (
             <motion.div key="s4" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-8 text-center">
               <div className="p-8 space-y-8" style={{
-                background: C.bgS,
-                border: `1px solid ${payStatus === 'paid' ? '#10b981' : C.gray + '20'}`,
+                borderRadius: '28px',
+                background: 'rgba(255,255,255,0.04)',
+                backdropFilter: 'blur(32px) saturate(180%)',
+                border: payStatus === 'paid' ? '0.5px solid rgba(16,185,129,0.50)' : '0.5px solid rgba(255,255,255,0.10)',
+                boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
               }}>
                 {/* Test mode badge */}
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full"
-                  style={{ background: '#FF7A0018', border: '1px solid #FF7A0040' }}>
+                <div className="inline-flex items-center gap-2 px-3 py-1"
+                  style={{ background: '#FF7A0018', border: '0.5px solid #FF7A0040', borderRadius: '999px' }}>
                   <Zap size={10} style={{ color: '#FF7A00' }} />
-                  <span className="text-[9px] uppercase font-black" style={{ color: '#FF7A00', letterSpacing: '0.3em' }}>
+                  <span className="text-[9px] uppercase" style={{ color: '#FF7A00', letterSpacing: '0.3em', fontWeight: 500 }}>
                     Modo prueba
                   </span>
                 </div>
 
                 <div>
-                  <p className="text-[10px] uppercase mb-2" style={{ color: C.gray, letterSpacing: '0.3em' }}>Total a pagar</p>
-                  <p className="text-5xl font-black" style={{ color: C.cream }}>${chargeK}K</p>
-                  <p className="text-[10px] uppercase mt-2" style={{ color: C.gray, letterSpacing: '0.15em' }}>
+                  <p className="text-[10px] uppercase mb-2" style={{ color: C.gray, letterSpacing: '0.3em', fontWeight: 500 }}>Total a pagar</p>
+                  <p className="text-5xl" style={{ color: C.cream, fontWeight: 300 }}>${chargeK}K</p>
+                  <p className="text-[10px] uppercase mt-2" style={{ color: C.gray, letterSpacing: '0.15em', fontWeight: 500 }}>
                     {MODES.find(m => m.id === mode)?.label}
                   </p>
                   {pendingOrderNum && (
@@ -539,7 +680,7 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
                 {payStatus === 'paid' ? (
                   <div className="space-y-3">
                     <CheckCircle2 size={36} className="mx-auto" style={{ color: '#10b981' }} />
-                    <p className="text-[10px] uppercase font-black animate-pulse" style={{ color: '#10b981', letterSpacing: '0.2em' }}>
+                    <p className="text-[10px] uppercase animate-pulse" style={{ color: '#10b981', letterSpacing: '0.2em', fontWeight: 500 }}>
                       ¡Pago registrado! Preparando confirmación...
                     </p>
                   </div>
@@ -547,8 +688,21 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
                   <button
                     onClick={handleTestPayment}
                     disabled={simulating}
-                    className="w-full py-5 uppercase font-black text-sm flex items-center justify-center gap-3 transition-all disabled:opacity-50"
-                    style={{ background: C.red, color: C.cream, letterSpacing: '0.2em' }}
+                    style={{
+                      ...primaryBtnStyle,
+                      padding: '20px 16px',
+                      opacity: simulating ? 0.35 : 1,
+                    }}
+                    onMouseEnter={e => {
+                      if (!simulating) {
+                        (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
+                        (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 8px 24px rgba(230,57,47,0.20)';
+                      }
+                    }}
+                    onMouseLeave={e => {
+                      (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
+                      (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none';
+                    }}
                   >
                     {simulating
                       ? <Loader2 className="animate-spin" size={18} />
@@ -557,7 +711,7 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
                 )}
               </div>
 
-              <p className="text-[9px] uppercase" style={{ color: `${C.gray}50`, letterSpacing: '0.2em' }}>
+              <p className="text-[9px] uppercase" style={{ color: `${C.gray}50`, letterSpacing: '0.2em', fontWeight: 500 }}>
                 Cualquier método cuenta como pago exitoso en modo prueba
               </p>
             </motion.div>
@@ -567,11 +721,11 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
           {step === 5 && (
             <motion.div key="s5" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-8 text-center py-12">
               <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto"
-                style={{ background: `${C.red}20`, border: `2px solid ${C.red}40` }}>
+                style={{ background: `${C.red}20`, border: `0.5px solid rgba(230,57,47,0.40)` }}>
                 <CheckCircle2 size={36} style={{ color: C.red }} />
               </div>
               <div>
-                <h2 className="text-4xl uppercase mb-3" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.08em' }}>
+                <h2 className="text-4xl uppercase mb-3" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.08em', fontWeight: 300 }}>
                   ¡Tu semana está reservada!
                 </h2>
                 <p className="text-sm mb-1" style={{ color: C.gray }}>Semana <strong style={{ color: C.cream }}>{selWeek?.university}</strong></p>
@@ -579,26 +733,51 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
                   Confirmación enviada a <strong style={{ color: C.cream }}>{email}</strong>
                 </p>
               </div>
-              <div className="p-6 space-y-3 text-xs uppercase" style={{ background: C.bgS, border: `1px solid ${C.gray}20` }}>
-                <div className="flex justify-between" style={{ letterSpacing: '0.12em' }}>
+              <div className="p-6 space-y-3 text-xs uppercase" style={{
+                borderRadius: '28px',
+                background: 'rgba(255,255,255,0.03)',
+                backdropFilter: 'blur(24px)',
+                border: '0.5px solid rgba(255,255,255,0.10)',
+                boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
+              }}>
+                <div className="flex justify-between" style={{ letterSpacing: '0.12em', fontWeight: 500 }}>
                   <span style={{ color: C.gray }}>Modalidad</span>
                   <span>{MODES.find(m => m.id === mode)?.label}</span>
                 </div>
                 {mode !== 'full_combo' && mode !== 'individual_days' && (
-                  <div className="flex justify-between" style={{ letterSpacing: '0.12em' }}>
+                  <div className="flex justify-between" style={{ letterSpacing: '0.12em', fontWeight: 500 }}>
                     <span style={{ color: C.gray }}>Próxima cuota</span>
                     <span style={{ color: C.red }}>${Math.round(s.combo_total / s.installments / 1000)}K / mes</span>
                   </div>
                 )}
-                <div className="flex justify-between pt-3" style={{ borderTop: `1px solid ${C.gray}15`, letterSpacing: '0.12em' }}>
+                <div className="flex justify-between pt-3" style={{ borderTop: '0.5px solid rgba(255,255,255,0.08)', letterSpacing: '0.12em', fontWeight: 500 }}>
                   <span style={{ color: C.gray }}>Orden</span>
                   <span className="font-mono">{pendingOrderNum}</span>
                 </div>
               </div>
-              <button onClick={onBack} className="w-full py-4 uppercase font-black text-sm transition-all"
-                style={{ border: `1px solid ${C.gray}30`, color: C.gray, letterSpacing: '0.2em' }}
-                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = C.cream; (e.currentTarget as HTMLButtonElement).style.color = C.cream; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = `${C.gray}30`; (e.currentTarget as HTMLButtonElement).style.color = C.gray; }}>
+              <button onClick={onBack}
+                style={{
+                  borderRadius: '999px',
+                  background: 'transparent',
+                  border: '0.5px solid rgba(255,255,255,0.10)',
+                  color: C.gray,
+                  letterSpacing: '0.2em',
+                  width: '100%',
+                  padding: '16px',
+                  fontSize: '14px',
+                  textTransform: 'uppercase' as const,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = C.cream;
+                  (e.currentTarget as HTMLButtonElement).style.color = C.cream;
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.10)';
+                  (e.currentTarget as HTMLButtonElement).style.color = C.gray;
+                }}>
                 Volver al inicio
               </button>
             </motion.div>

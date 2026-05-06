@@ -180,12 +180,14 @@ export default function SolsticeAdminCobros() {
     <div style={{ background: C.bg, minHeight: '100vh', color: C.cream, fontFamily: "'Archivo', sans-serif" }}>
 
       {/* Header */}
-      <div className="px-8 pt-10 pb-6" style={{ borderBottom: `1px solid ${C.gray}15` }}>
-        <p className="text-[9px] uppercase font-bold mb-1" style={{ color: C.red, letterSpacing: '0.4em' }}>Admin</p>
-        <h1 className="text-3xl uppercase" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.1em' }}>
+      <div className="px-8 pt-10 pb-6" style={{ borderBottom: '0.5px solid rgba(255,255,255,0.10)' }}>
+        <p className="text-[9px] uppercase mb-1"
+          style={{ color: C.red, letterSpacing: '0.08em', fontWeight: 500 }}>Admin</p>
+        <h1 className="text-3xl uppercase"
+          style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '-0.02em', fontWeight: 300 }}>
           Cobros y Mora
         </h1>
-        <p className="text-xs uppercase mt-1" style={{ color: C.gray, letterSpacing: '0.2em' }}>
+        <p className="text-xs uppercase mt-1" style={{ color: C.gray, letterSpacing: '0.08em', fontWeight: 500 }}>
           Gestión de clientes con pagos vencidos · actualización automática al cargar
         </p>
       </div>
@@ -197,9 +199,17 @@ export default function SolsticeAdminCobros() {
           { label: 'Total vencido',   value: fmtK(stats.total),         color: C.yellow },
           { label: 'Cuotas vencidas', value: String(stats.cuotas),      color: C.cream },
         ].map(({ label, value, color }) => (
-          <div key={label} className="p-4" style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
-            <p className="text-[9px] uppercase mb-1.5" style={{ color: C.gray }}>{label}</p>
-            <p className="text-2xl font-black" style={{ color }}>{value}</p>
+          <div key={label} className="p-4"
+            style={{
+              background: 'rgba(255,255,255,0.04)',
+              backdropFilter: 'blur(32px) saturate(180%)',
+              border: '0.5px solid rgba(255,255,255,0.10)',
+              borderRadius: '24px',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
+            }}>
+            <p className="text-[9px] uppercase mb-1.5"
+              style={{ color: C.gray, letterSpacing: '0.08em', fontWeight: 500 }}>{label}</p>
+            <p className="text-2xl" style={{ color, fontWeight: 600 }}>{value}</p>
           </div>
         ))}
       </div>
@@ -207,7 +217,12 @@ export default function SolsticeAdminCobros() {
       {/* Filters */}
       <div className="px-8 pt-6 flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2 flex-1 min-w-52 px-3 py-2"
-          style={{ background: C.bgS, border: `1px solid ${C.gray}20` }}>
+          style={{
+            background: 'rgba(255,255,255,0.04)',
+            backdropFilter: 'blur(32px) saturate(180%)',
+            border: '0.5px solid rgba(255,255,255,0.10)',
+            borderRadius: '16px',
+          }}>
           <Search size={13} style={{ color: C.gray }} />
           <input
             value={search} onChange={e => setSearch(e.target.value)}
@@ -219,14 +234,20 @@ export default function SolsticeAdminCobros() {
         <select
           value={uniFilter} onChange={e => setUniFilter(e.target.value)}
           className="px-3 py-2 text-xs outline-none"
-          style={{ background: C.bgS, border: `1px solid ${C.gray}20`, color: C.cream }}>
+          style={{
+            background: 'rgba(255,255,255,0.04)',
+            backdropFilter: 'blur(32px) saturate(180%)',
+            border: '0.5px solid rgba(255,255,255,0.10)',
+            borderRadius: '16px',
+            color: C.cream,
+          }}>
           <option value="all">Todas las universidades</option>
           {universities.map(u => <option key={u} value={u}>{u}</option>)}
         </select>
         <button
           onClick={load}
           className="p-2 transition-all"
-          style={{ color: C.gray }}
+          style={{ color: C.gray, borderRadius: '999px', transition: 'all 0.3s ease' }}
           onMouseEnter={e => (e.currentTarget.style.color = C.cream)}
           onMouseLeave={e => (e.currentTarget.style.color = C.gray)}>
           <RefreshCw size={14} />
@@ -237,19 +258,30 @@ export default function SolsticeAdminCobros() {
       <div className="px-8 pt-5 pb-20 max-w-5xl">
         {morosos.length === 0 ? (
           <div className="py-24 text-center space-y-3">
-            <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto"
-              style={{ background: `${C.green}15`, border: `1px solid ${C.green}30` }}>
+            <div className="w-12 h-12 flex items-center justify-center mx-auto"
+              style={{
+                background: 'rgba(16,185,129,0.15)',
+                border: '0.5px solid rgba(16,185,129,0.30)',
+                borderRadius: '999px',
+              }}>
               <Check size={20} style={{ color: C.green }} />
             </div>
-            <p className="text-xs uppercase tracking-widest" style={{ color: C.gray }}>
+            <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.08em', fontWeight: 500 }}>
               {search || uniFilter !== 'all' ? 'Sin resultados' : 'Sin clientes en mora'}
             </p>
           </div>
         ) : (
-          <div style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
+          <div style={{
+            background: 'rgba(255,255,255,0.04)',
+            backdropFilter: 'blur(32px) saturate(180%)',
+            border: '0.5px solid rgba(255,255,255,0.10)',
+            borderRadius: '24px',
+            overflow: 'hidden',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
+          }}>
             {/* Table header */}
-            <div className="grid grid-cols-12 px-5 py-2 text-[9px] uppercase tracking-widest"
-              style={{ color: C.gray, borderBottom: `1px solid ${C.gray}10` }}>
+            <div className="grid grid-cols-12 px-5 py-2 text-[9px] uppercase"
+              style={{ color: C.gray, borderBottom: '0.5px solid rgba(255,255,255,0.10)', letterSpacing: '0.08em', fontWeight: 500 }}>
               <div className="col-span-3">Cliente</div>
               <div className="col-span-2">Universidad</div>
               <div className="col-span-2 text-right">Cuotas</div>
@@ -262,29 +294,37 @@ export default function SolsticeAdminCobros() {
               <div key={reg.id}>
                 {/* Main row */}
                 <div
-                  className="grid grid-cols-12 px-5 py-4 items-center cursor-pointer transition-colors"
+                  className="grid grid-cols-12 px-5 py-4 items-center cursor-pointer"
                   style={{
-                    borderBottom: expanded === reg.id ? 'none' : `1px solid ${C.gray}08`,
-                    background: expanded === reg.id ? C.bgT : 'transparent',
+                    borderBottom: expanded === reg.id ? 'none' : '0.5px solid rgba(255,255,255,0.08)',
+                    background: expanded === reg.id ? 'rgba(255,255,255,0.06)' : 'transparent',
+                    transition: 'all 0.3s ease',
                   }}
-                  onMouseEnter={e => { if (expanded !== reg.id) (e.currentTarget as HTMLDivElement).style.background = `${C.gray}05`; }}
+                  onMouseEnter={e => { if (expanded !== reg.id) (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.04)'; }}
                   onMouseLeave={e => { if (expanded !== reg.id) (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
                   onClick={() => setExpanded(expanded === reg.id ? null : reg.id)}>
 
                   <div className="col-span-3">
-                    <p className="text-xs font-bold uppercase truncate">{reg.customer_name}</p>
+                    <p className="text-xs font-medium uppercase truncate">{reg.customer_name}</p>
                     <p className="text-[9px] font-mono" style={{ color: C.gray }}>{reg.order_number}</p>
                   </div>
                   <div className="col-span-2">
                     <p className="text-[10px] uppercase truncate" style={{ color: C.gray }}>{reg.customer_university}</p>
                   </div>
                   <div className="col-span-2 flex justify-end">
-                    <span className="text-[10px] font-black px-2 py-0.5"
-                      style={{ background: `${C.red}20`, color: C.red, letterSpacing: '0.1em' }}>
+                    <span className="text-[10px] px-2 py-0.5"
+                      style={{
+                        background: 'rgba(230,57,47,0.20)',
+                        color: C.red,
+                        border: '0.5px solid rgba(230,57,47,0.40)',
+                        borderRadius: '999px',
+                        fontWeight: 500,
+                        letterSpacing: '0.08em',
+                      }}>
                       {reg.overdueSchedules.length}
                     </span>
                   </div>
-                  <div className="col-span-2 text-right text-xs font-black" style={{ color: C.yellow }}>
+                  <div className="col-span-2 text-right text-xs font-medium" style={{ color: C.yellow }}>
                     {fmt(reg.totalOverdue)}
                   </div>
                   <div className="col-span-2 text-right text-[9px]" style={{ color: C.gray }}>
@@ -294,9 +334,9 @@ export default function SolsticeAdminCobros() {
                     onClick={e => e.stopPropagation()}>
                     <button
                       onClick={() => sendWhatsApp(reg)}
-                      className="p-1.5 rounded transition-all"
+                      className="p-1.5 transition-all"
                       title="Recordatorio WhatsApp"
-                      style={{ color: '#25D366' }}
+                      style={{ color: '#25D366', borderRadius: '999px', transition: 'all 0.3s ease' }}
                       onMouseEnter={e => (e.currentTarget.style.background = '#25D36618')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                       <MessageCircle size={14} />
@@ -316,8 +356,12 @@ export default function SolsticeAdminCobros() {
                       animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
                       className="overflow-hidden"
-                      style={{ borderBottom: `1px solid ${C.gray}08` }}>
-                      <div className="px-8 py-5 space-y-4" style={{ background: C.bgT }}>
+                      style={{ borderBottom: '0.5px solid rgba(255,255,255,0.08)' }}>
+                      <div className="px-8 py-5 space-y-4"
+                        style={{
+                          background: 'rgba(8,0,0,0.88)',
+                          backdropFilter: 'blur(40px)',
+                        }}>
 
                         {/* Contact row */}
                         <div className="flex flex-wrap items-center gap-6">
@@ -331,42 +375,72 @@ export default function SolsticeAdminCobros() {
                           </div>
                           <button
                             onClick={() => sendWhatsApp(reg)}
-                            className="flex items-center gap-2 px-4 py-1.5 text-[10px] uppercase font-black tracking-widest transition-all ml-auto"
-                            style={{ border: '1px solid #25D36640', color: '#25D366' }}
-                            onMouseEnter={e => (e.currentTarget.style.background = '#25D36612')}
-                            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                            className="flex items-center gap-2 px-6 py-3 text-[10px] uppercase tracking-widest transition-all ml-auto"
+                            style={{
+                              border: '0.5px solid rgba(37,211,102,0.40)',
+                              color: '#25D366',
+                              borderRadius: '999px',
+                              fontWeight: 500,
+                              transition: 'all 0.3s ease',
+                            }}
+                            onMouseEnter={e => {
+                              (e.currentTarget as HTMLButtonElement).style.background = '#25D36612';
+                              (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
+                            }}
+                            onMouseLeave={e => {
+                              (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+                              (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
+                            }}>
                             <MessageCircle size={11} /> Enviar recordatorio
                           </button>
                         </div>
 
                         {/* Overdue installments */}
                         <div className="space-y-2">
-                          <p className="text-[9px] uppercase tracking-widest" style={{ color: C.gray }}>
+                          <p className="text-[9px] uppercase"
+                            style={{ color: C.gray, letterSpacing: '0.08em', fontWeight: 500 }}>
                             Cuotas vencidas
                           </p>
                           {reg.overdueSchedules.map(sch => (
                             <div
                               key={sch.id}
                               className="flex items-center justify-between px-4 py-3"
-                              style={{ background: `${C.red}08`, border: `1px solid ${C.red}18` }}>
+                              style={{
+                                background: 'rgba(230,57,47,0.08)',
+                                border: '0.5px solid rgba(230,57,47,0.40)',
+                                borderRadius: '16px',
+                              }}>
                               <div className="flex items-center gap-3">
                                 <AlertTriangle size={13} style={{ color: C.red }} />
                                 <div>
-                                  <p className="text-[11px] font-bold uppercase">Cuota {sch.installment_number}</p>
+                                  <p className="text-[11px] font-medium uppercase">Cuota {sch.installment_number}</p>
                                   <p className="text-[9px]" style={{ color: C.red }}>
                                     Venció {new Date(sch.due_date + 'T00:00:00').toLocaleDateString('es-CO', { dateStyle: 'medium' })}
                                   </p>
                                 </div>
                               </div>
                               <div className="flex items-center gap-4">
-                                <span className="text-sm font-black">{fmt(sch.amount)}</span>
+                                <span className="text-sm font-medium">{fmt(sch.amount)}</span>
                                 <button
                                   onClick={() => markPaid(sch, reg)}
                                   disabled={payingId === sch.id}
-                                  className="flex items-center gap-1.5 px-4 py-2 text-[9px] uppercase font-black tracking-widest transition-all disabled:opacity-40"
-                                  style={{ border: `1px solid ${C.green}40`, color: C.green }}
-                                  onMouseEnter={e => { if (payingId !== sch.id) (e.currentTarget as HTMLButtonElement).style.background = `${C.green}12`; }}
-                                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
+                                  className="flex items-center gap-1.5 px-4 py-2 text-[9px] uppercase tracking-widest disabled:opacity-40"
+                                  style={{
+                                    background: 'rgba(16,185,129,0.20)',
+                                    border: '0.5px solid rgba(16,185,129,0.40)',
+                                    color: C.green,
+                                    borderRadius: '999px',
+                                    fontWeight: 500,
+                                    transition: 'all 0.3s ease',
+                                  }}
+                                  onMouseEnter={e => {
+                                    if (payingId !== sch.id) {
+                                      (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
+                                    }
+                                  }}
+                                  onMouseLeave={e => {
+                                    (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
+                                  }}>
                                   {payingId === sch.id
                                     ? <Loader2 size={10} className="animate-spin" />
                                     : <><Check size={10} /> Cobrado</>}
@@ -382,7 +456,12 @@ export default function SolsticeAdminCobros() {
                             {reg.schedules.filter(s => s.status === 'paid').map(sch => (
                               <span key={sch.id}
                                 className="text-[9px] px-2 py-1 font-mono"
-                                style={{ background: `${C.green}12`, color: C.green, border: `1px solid ${C.green}20` }}>
+                                style={{
+                                  background: 'rgba(16,185,129,0.12)',
+                                  color: C.green,
+                                  border: '0.5px solid rgba(16,185,129,0.30)',
+                                  borderRadius: '999px',
+                                }}>
                                 C{sch.installment_number} ✓
                               </span>
                             ))}

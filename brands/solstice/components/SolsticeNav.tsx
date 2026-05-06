@@ -52,11 +52,25 @@ export default function SolsticeNav({ currentPage, onNavigate, onExit, role }: P
       {/* Trigger button — always visible */}
       <button
         onClick={() => setOpen(true)}
-        className="fixed top-5 right-5 z-[180] flex items-center gap-2.5 px-4 py-2.5 rounded-full shadow-lg transition-all hover:scale-105"
-        style={{ background: C.red, color: C.cream }}
+        className="fixed top-5 right-5 z-[180] flex items-center gap-2.5 py-3 px-6 rounded-full shadow-lg"
+        style={{
+          background: 'rgba(230,57,47,0.20)',
+          border: '0.5px solid rgba(230,57,47,0.40)',
+          color: C.cream,
+          transition: 'all 0.3s ease',
+          borderRadius: '999px',
+        }}
+        onMouseEnter={e => {
+          (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
+          (e.currentTarget as HTMLButtonElement).style.opacity = '0.9';
+        }}
+        onMouseLeave={e => {
+          (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
+          (e.currentTarget as HTMLButtonElement).style.opacity = '1';
+        }}
       >
         <Sun size={14} />
-        <span className="text-[10px] font-black uppercase tracking-[0.25em]">Solstice</span>
+        <span className="text-[10px] uppercase" style={{ fontWeight: 500, letterSpacing: '0.08em' }}>Solstice</span>
         <ChevronRight size={11} className="opacity-60" />
       </button>
 
@@ -75,22 +89,48 @@ export default function SolsticeNav({ currentPage, onNavigate, onExit, role }: P
               exit={{ x: 320, opacity: 0 }}
               transition={{ type: 'spring', damping: 28, stiffness: 300 }}
               className="fixed top-0 right-0 bottom-0 z-[200] flex flex-col w-72"
-              style={{ background: C.bg, borderLeft: `1px solid ${C.red}25` }}
+              style={{
+                background: 'rgba(10,0,0,0.85)',
+                backdropFilter: 'blur(40px) saturate(160%)',
+                borderLeft: '0.5px solid rgba(255,255,255,0.10)',
+                borderRadius: '32px 0 0 32px',
+                boxShadow: '0 24px 48px rgba(0,0,0,0.30)',
+              }}
             >
               {/* Header */}
-              <div className="flex items-center justify-between px-6 py-5" style={{ borderBottom: `1px solid ${C.red}15` }}>
+              <div
+                className="flex items-center justify-between px-6 py-5"
+                style={{ borderBottom: '0.5px solid rgba(255,255,255,0.10)' }}
+              >
                 <div>
-                  <p className="text-base font-black uppercase" style={{ fontFamily: "'Poiret One', sans-serif", color: C.cream, letterSpacing: '0.15em' }}>
+                  <p
+                    className="text-base uppercase"
+                    style={{
+                      fontFamily: "'Poiret One', sans-serif",
+                      color: C.cream,
+                      letterSpacing: '0.15em',
+                      fontWeight: 300,
+                    }}
+                  >
                     SOLSTICE
                   </p>
-                  <p className="text-[9px] uppercase font-bold mt-0.5" style={{ color: C.red, letterSpacing: '0.4em' }}>
+                  <p
+                    className="text-[9px] uppercase mt-0.5"
+                    style={{ color: C.red, letterSpacing: '0.08em', fontWeight: 500 }}
+                  >
                     2026 · {role.toUpperCase()}
                   </p>
                 </div>
                 <button
                   onClick={() => setOpen(false)}
-                  className="p-2 rounded-full transition-colors"
-                  style={{ color: `${C.gray}` }}
+                  className="p-2 flex items-center justify-center"
+                  style={{
+                    color: C.gray,
+                    borderRadius: '14px',
+                    border: '0.5px solid rgba(255,255,255,0.10)',
+                    background: 'rgba(255,255,255,0.04)',
+                    transition: 'all 0.3s ease',
+                  }}
                   onMouseEnter={e => (e.currentTarget.style.color = C.cream)}
                   onMouseLeave={e => (e.currentTarget.style.color = C.gray)}
                 >
@@ -106,35 +146,46 @@ export default function SolsticeNav({ currentPage, onNavigate, onExit, role }: P
                     <button
                       key={item.page}
                       onClick={() => { onNavigate(item.page); setOpen(false); }}
-                      className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all min-h-[44px] relative"
+                      className="w-full flex items-center gap-3 px-4 py-3 text-left min-h-[44px] relative"
                       style={{
-                        background: active ? `${C.red}18` : 'transparent',
+                        background: active ? 'rgba(230,57,47,0.18)' : 'transparent',
                         color: active ? C.red : `${C.cream}50`,
+                        border: active ? '0.5px solid rgba(230,57,47,0.35)' : '0.5px solid transparent',
+                        borderRadius: '999px',
+                        transition: 'all 0.3s ease',
                       }}
                       onMouseEnter={e => { if (!active) (e.currentTarget as HTMLButtonElement).style.color = C.cream; }}
                       onMouseLeave={e => { if (!active) (e.currentTarget as HTMLButtonElement).style.color = `${C.cream}50`; }}
                     >
                       {active && (
-                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-full" style={{ background: C.red }} />
+                        <div
+                          className="absolute left-3 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-full"
+                          style={{ background: C.red }}
+                        />
                       )}
                       {item.icon}
-                      <span className="text-[11px] font-medium uppercase tracking-[0.18em]">{item.label}</span>
+                      <span className="text-[11px] uppercase" style={{ fontWeight: 500, letterSpacing: '0.08em' }}>{item.label}</span>
                     </button>
                   );
                 })}
               </nav>
 
               {/* Footer — salir */}
-              <div className="px-4 py-5" style={{ borderTop: `1px solid ${C.red}10` }}>
+              <div className="px-4 py-5" style={{ borderTop: '0.5px solid rgba(255,255,255,0.10)' }}>
                 <button
                   onClick={() => { setOpen(false); onExit(); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all"
-                  style={{ color: `${C.gray}` }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left"
+                  style={{
+                    color: C.gray,
+                    borderRadius: '999px',
+                    border: '0.5px solid transparent',
+                    transition: 'all 0.3s ease',
+                  }}
                   onMouseEnter={e => (e.currentTarget.style.color = C.cream)}
                   onMouseLeave={e => (e.currentTarget.style.color = C.gray)}
                 >
                   <LogOut size={15} />
-                  <span className="text-[11px] uppercase tracking-[0.18em]">Volver a Midnight</span>
+                  <span className="text-[11px] uppercase" style={{ fontWeight: 500, letterSpacing: '0.08em' }}>Volver a Midnight</span>
                 </button>
               </div>
             </motion.div>

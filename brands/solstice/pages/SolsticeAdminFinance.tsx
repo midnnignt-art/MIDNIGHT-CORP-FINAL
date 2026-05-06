@@ -59,14 +59,29 @@ const MODE_SHORT: Record<string, string> = {
 function KpiCard({ label, value, sub, color = C.cream, icon }: {
   label: string; value: string; sub?: string; color?: string; icon?: React.ReactNode;
 }) {
+  const [hovered, setHovered] = React.useState(false);
   return (
-    <div className="p-5 space-y-2" style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
+    <div
+      className="p-6 space-y-2"
+      style={{
+        background: 'rgba(255,255,255,0.04)',
+        backdropFilter: 'blur(32px) saturate(180%)',
+        border: '0.5px solid rgba(255,255,255,0.08)',
+        borderRadius: '24px',
+        boxShadow: hovered ? '0 28px 56px rgba(0,0,0,0.35)' : '0 20px 40px rgba(0,0,0,0.20)',
+        transform: hovered ? 'translateY(-1px)' : 'translateY(0)',
+        transition: '0.4s cubic-bezier(0.25,0.46,0.45,0.94)',
+        cursor: 'default',
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
       <div className="flex items-center justify-between">
-        <p className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>{label}</p>
+        <p className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>{label}</p>
         {icon && <span style={{ color: `${color}60` }}>{icon}</span>}
       </div>
-      <p className="text-2xl font-black" style={{ color, fontStretch: '125%', fontFamily: "'Archivo', sans-serif" }}>{value}</p>
-      {sub && <p className="text-[9px] uppercase" style={{ color: C.gray }}>{sub}</p>}
+      <p className="text-2xl" style={{ color, fontWeight: 500, fontFamily: "'Archivo', sans-serif" }}>{value}</p>
+      {sub && <p className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>{sub}</p>}
     </div>
   );
 }
@@ -304,18 +319,18 @@ export default function SolsticeAdminFinance() {
     <div style={{ background: C.bg, minHeight: '100vh', color: C.cream, fontFamily: "'Archivo', sans-serif" }}>
 
       {/* Header */}
-      <div className="px-8 pt-10 pb-6" style={{ borderBottom: `1px solid ${C.gray}15` }}>
-        <p className="text-[9px] uppercase font-bold mb-1" style={{ color: C.red, letterSpacing: '0.4em' }}>Admin</p>
-        <h1 className="text-3xl uppercase" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.1em' }}>
+      <div className="px-8 pt-10 pb-6" style={{ borderBottom: '0.5px solid rgba(255,255,255,0.08)' }}>
+        <p className="text-[9px] uppercase mb-1" style={{ color: C.red, fontWeight: 500, letterSpacing: '0.4em' }}>Admin</p>
+        <h1 className="text-3xl uppercase" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.1em', fontWeight: 300 }}>
           Finanzas Solstice
         </h1>
-        <p className="text-xs uppercase mt-1" style={{ color: C.gray, letterSpacing: '0.2em' }}>
+        <p className="text-xs uppercase mt-1" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>
           {season?.name || 'SOLSTICE 2026'} · Aislado de Midnight
         </p>
       </div>
 
       {/* KPI Cards */}
-      <div className="px-8 pt-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="px-8 pt-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <KpiCard label="Ingresos recibidos" value={fmtM(kpis.totalReceived)} color={C.green} icon={<ArrowUpRight size={16}/>} />
         <KpiCard label="Ingresos proyectados" value={fmtM(kpis.totalPending)} color={C.gray} icon={<Calendar size={16}/>} sub="cuotas futuras" />
         <KpiCard label="Reservas totales" value={String(kpis.totalRegs)} sub={`${kpis.cuposVendidos}/${kpis.cuposTotal} cupos`} />
@@ -325,11 +340,18 @@ export default function SolsticeAdminFinance() {
       </div>
 
       {/* Tab bar */}
-      <div className="flex overflow-x-auto px-8 pt-6 gap-1" style={{ borderBottom: `1px solid ${C.gray}15` }}>
+      <div className="flex overflow-x-auto px-8 pt-6 gap-1" style={{ borderBottom: '0.5px solid rgba(255,255,255,0.08)', background: 'transparent' }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className="flex items-center gap-2 px-5 py-3 text-[10px] uppercase tracking-widest whitespace-nowrap transition-all"
-            style={{ color: tab === t.id ? C.cream : C.gray, borderBottom: tab === t.id ? `2px solid ${C.red}` : '2px solid transparent' }}>
+            className="flex items-center gap-2 px-5 py-3 text-[10px] uppercase whitespace-nowrap"
+            style={{
+              color: tab === t.id ? C.cream : C.gray,
+              borderBottom: tab === t.id ? `2px solid ${C.red}` : '2px solid transparent',
+              borderRadius: '999px',
+              fontWeight: 500,
+              letterSpacing: '0.08em',
+              transition: 'all 0.3s ease',
+            }}>
             {t.icon}{t.label}
           </button>
         ))}
@@ -345,10 +367,16 @@ export default function SolsticeAdminFinance() {
 
                 {/* Por universidad */}
                 <div className="space-y-3">
-                  <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray }}>Por universidad</h2>
-                  <div style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
-                    <div className="grid grid-cols-12 px-5 py-2 text-[9px] uppercase tracking-widest"
-                      style={{ color: C.gray, borderBottom: `1px solid ${C.gray}10` }}>
+                  <h2 className="text-xs uppercase" style={{ color: C.gray, fontWeight: 300, letterSpacing: '-0.02em' }}>Por universidad</h2>
+                  <div style={{
+                    background: 'rgba(255,255,255,0.03)',
+                    backdropFilter: 'blur(24px)',
+                    border: '0.5px solid rgba(255,255,255,0.08)',
+                    borderRadius: '24px',
+                    overflow: 'hidden',
+                  }}>
+                    <div className="grid grid-cols-12 px-5 py-2 text-[9px] uppercase"
+                      style={{ color: C.gray, borderBottom: '0.5px solid rgba(255,255,255,0.05)', fontWeight: 500, letterSpacing: '0.06em' }}>
                       <div className="col-span-2">Universidad</div>
                       <div className="col-span-2 text-right">Reservas</div>
                       <div className="col-span-2 text-right">% vendido</div>
@@ -358,18 +386,18 @@ export default function SolsticeAdminFinance() {
                     </div>
                     {byUniversity.map(({ week, regs: cnt, pct, paid, pend, mora, topSeller }) => (
                       <div key={week.id} className="grid grid-cols-12 px-5 py-4 items-center"
-                        style={{ borderBottom: `1px solid ${C.gray}08` }}>
+                        style={{ borderBottom: '0.5px solid rgba(255,255,255,0.05)' }}>
                         <div className="col-span-2">
-                          <p className="text-xs font-bold uppercase">{week.university}</p>
-                          <div className="mt-1 h-0.5 w-full overflow-hidden rounded-full" style={{ background: `${C.gray}20` }}>
-                            <div className="h-full rounded-full" style={{ width: `${pct}%`, background: C.red }} />
+                          <p className="text-xs uppercase" style={{ fontWeight: 500 }}>{week.university}</p>
+                          <div className="mt-1 h-0.5 w-full overflow-hidden" style={{ background: 'rgba(96,96,96,0.2)', borderRadius: '999px' }}>
+                            <div className="h-full" style={{ width: `${pct}%`, background: C.red, borderRadius: '999px' }} />
                           </div>
                         </div>
                         <div className="col-span-2 text-right">
-                          <p className="text-sm font-bold">{cnt}</p>
+                          <p className="text-sm" style={{ fontWeight: 500 }}>{cnt}</p>
                           {mora > 0 && <p className="text-[9px]" style={{ color: C.red }}>⚠ {mora} mora</p>}
                         </div>
-                        <div className="col-span-2 text-right text-sm font-bold" style={{ color: pct >= 80 ? C.red : C.cream }}>
+                        <div className="col-span-2 text-right text-sm" style={{ color: pct >= 80 ? C.red : C.cream, fontWeight: 500 }}>
                           {pct.toFixed(0)}%
                         </div>
                         <div className="col-span-2 text-right text-xs" style={{ color: C.green }}>{fmtK(paid)}</div>
@@ -384,10 +412,16 @@ export default function SolsticeAdminFinance() {
 
                 {/* Por modalidad */}
                 <div className="space-y-3">
-                  <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray }}>Por modalidad de pago</h2>
-                  <div style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
-                    <div className="grid grid-cols-12 px-5 py-2 text-[9px] uppercase tracking-widest"
-                      style={{ color: C.gray, borderBottom: `1px solid ${C.gray}10` }}>
+                  <h2 className="text-xs uppercase" style={{ color: C.gray, fontWeight: 300, letterSpacing: '-0.02em' }}>Por modalidad de pago</h2>
+                  <div style={{
+                    background: 'rgba(255,255,255,0.03)',
+                    backdropFilter: 'blur(24px)',
+                    border: '0.5px solid rgba(255,255,255,0.08)',
+                    borderRadius: '24px',
+                    overflow: 'hidden',
+                  }}>
+                    <div className="grid grid-cols-12 px-5 py-2 text-[9px] uppercase"
+                      style={{ color: C.gray, borderBottom: '0.5px solid rgba(255,255,255,0.05)', fontWeight: 500, letterSpacing: '0.06em' }}>
                       <div className="col-span-4">Modalidad</div>
                       <div className="col-span-2 text-right">Compradores</div>
                       <div className="col-span-3 text-right">Ingresado</div>
@@ -395,14 +429,14 @@ export default function SolsticeAdminFinance() {
                     </div>
                     {byMode.map(m => (
                       <div key={m.mode} className="grid grid-cols-12 px-5 py-3 items-center"
-                        style={{ borderBottom: `1px solid ${C.gray}08` }}>
+                        style={{ borderBottom: '0.5px solid rgba(255,255,255,0.05)' }}>
                         <div className="col-span-4 flex items-center gap-2">
                           {m.mode === 'cash_to_seller'
                             ? <Banknote size={13} style={{ color: C.yellow }} />
                             : <Globe size={13} style={{ color: C.green }} />}
                           <span className="text-xs uppercase" style={{ letterSpacing: '0.1em' }}>{m.label}</span>
                         </div>
-                        <div className="col-span-2 text-right text-sm font-bold">{m.count}</div>
+                        <div className="col-span-2 text-right text-sm" style={{ fontWeight: 500 }}>{m.count}</div>
                         <div className="col-span-3 text-right text-xs" style={{ color: C.green }}>{fmtK(m.paid)}</div>
                         <div className="col-span-3 text-right text-xs" style={{ color: m.mora > 0 ? C.red : C.gray }}>
                           {m.mora > 0 ? `⚠ ${m.mora}` : '—'}
@@ -418,13 +452,19 @@ export default function SolsticeAdminFinance() {
             {tab === 'vendedores' && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray }}>
+                  <h2 className="text-xs uppercase" style={{ color: C.gray, fontWeight: 300, letterSpacing: '-0.02em' }}>
                     Tabla maestra de vendedores
                   </h2>
                 </div>
-                <div style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
-                  <div className="grid grid-cols-12 px-5 py-2 text-[9px] uppercase tracking-widest"
-                    style={{ color: C.gray, borderBottom: `1px solid ${C.gray}10` }}>
+                <div style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  backdropFilter: 'blur(24px)',
+                  border: '0.5px solid rgba(255,255,255,0.08)',
+                  borderRadius: '24px',
+                  overflow: 'hidden',
+                }}>
+                  <div className="grid grid-cols-12 px-5 py-2 text-[9px] uppercase"
+                    style={{ color: C.gray, borderBottom: '0.5px solid rgba(255,255,255,0.05)', fontWeight: 500, letterSpacing: '0.06em' }}>
                     <div className="col-span-3">Vendedor</div>
                     <div className="col-span-2">Uni · Equipo</div>
                     <div className="col-span-1 text-right">Reservas</div>
@@ -448,16 +488,16 @@ export default function SolsticeAdminFinance() {
                     const bal       = comEarned - comPaid2;
                     return (
                       <div key={sl.id} className="grid grid-cols-12 px-5 py-3 items-center"
-                        style={{ borderBottom: `1px solid ${C.gray}08` }}>
+                        style={{ borderBottom: '0.5px solid rgba(255,255,255,0.05)' }}>
                         <div className="col-span-3">
-                          <p className="text-xs font-bold uppercase truncate">{sl.name}</p>
+                          <p className="text-xs uppercase truncate" style={{ fontWeight: 500 }}>{sl.name}</p>
                           <p className="text-[9px]" style={{ color: C.gray }}>{sl.ref_code}</p>
                         </div>
                         <div className="col-span-2">
                           <p className="text-[9px] uppercase" style={{ color: C.gray }}>{sl.university}</p>
                           {sl.team_name && <p className="text-[9px]" style={{ color: `${C.gray}80` }}>{sl.team_name}</p>}
                         </div>
-                        <div className="col-span-1 text-right text-sm font-bold">{slRegs.length}</div>
+                        <div className="col-span-1 text-right text-sm" style={{ fontWeight: 500 }}>{slRegs.length}</div>
                         <div className="col-span-1 text-right text-xs" style={{ color: C.green }}>{digital}</div>
                         <div className="col-span-1 text-right text-xs" style={{ color: C.yellow }}>{efectivo}</div>
                         <div className="col-span-2 text-right text-xs">{fmtK(paid)}</div>
@@ -476,8 +516,8 @@ export default function SolsticeAdminFinance() {
             {tab === 'cashflow' && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-xs uppercase tracking-widest mb-1" style={{ color: C.gray }}>Flujo de caja proyectado</h2>
-                  <p className="text-[10px] uppercase" style={{ color: `${C.gray}70` }}>
+                  <h2 className="text-xs uppercase mb-1" style={{ color: C.gray, fontWeight: 300, letterSpacing: '-0.02em' }}>Flujo de caja proyectado</h2>
+                  <p className="text-[10px] uppercase" style={{ color: `${C.gray}70`, fontWeight: 500, letterSpacing: '0.08em' }}>
                     Rojo = recibido · Gris = proyectado según calendarios activos
                   </p>
                 </div>
@@ -493,7 +533,7 @@ export default function SolsticeAdminFinance() {
                         <XAxis dataKey="mes" tick={{ fill: C.gray, fontSize: 10 }} axisLine={false} tickLine={false} />
                         <YAxis tickFormatter={v => fmtK(v)} tick={{ fill: C.gray, fontSize: 10 }} axisLine={false} tickLine={false} />
                         <Tooltip
-                          contentStyle={{ background: C.bgS, border: `1px solid ${C.gray}30`, borderRadius: 4 }}
+                          contentStyle={{ background: 'rgba(8,0,0,0.90)', backdropFilter: 'blur(40px) saturate(160%)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '16px' }}
                           labelStyle={{ color: C.cream, fontSize: 10, textTransform: 'uppercase' }}
                           formatter={(v: any, name: string) => [fmtK(v), name === 'recibido' ? 'Recibido' : 'Proyectado']}
                         />
@@ -505,18 +545,36 @@ export default function SolsticeAdminFinance() {
                   </div>
                 )}
                 {/* Monthly summary */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="p-4" style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
-                    <p className="text-[9px] uppercase mb-1" style={{ color: C.gray }}>Total recibido</p>
-                    <p className="text-xl font-black" style={{ color: C.green }}>{fmtM(kpis.totalReceived)}</p>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="p-6" style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    backdropFilter: 'blur(32px) saturate(180%)',
+                    border: '0.5px solid rgba(16,185,129,0.25)',
+                    borderRadius: '24px',
+                    boxShadow: '0 20px 40px rgba(0,0,0,0.20)',
+                  }}>
+                    <p className="text-[9px] uppercase mb-1" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>Total recibido</p>
+                    <p className="text-xl" style={{ color: C.green, fontWeight: 500 }}>{fmtM(kpis.totalReceived)}</p>
                   </div>
-                  <div className="p-4" style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
-                    <p className="text-[9px] uppercase mb-1" style={{ color: C.gray }}>Total proyectado</p>
-                    <p className="text-xl font-black" style={{ color: C.gray }}>{fmtM(kpis.totalPending)}</p>
+                  <div className="p-6" style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    backdropFilter: 'blur(32px) saturate(180%)',
+                    border: '0.5px solid rgba(255,255,255,0.08)',
+                    borderRadius: '24px',
+                    boxShadow: '0 20px 40px rgba(0,0,0,0.20)',
+                  }}>
+                    <p className="text-[9px] uppercase mb-1" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>Total proyectado</p>
+                    <p className="text-xl" style={{ color: C.gray, fontWeight: 500 }}>{fmtM(kpis.totalPending)}</p>
                   </div>
-                  <div className="p-4" style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
-                    <p className="text-[9px] uppercase mb-1" style={{ color: C.gray }}>Total SOLSTICE 2026</p>
-                    <p className="text-xl font-black" style={{ color: C.red }}>{fmtM(kpis.totalReceived + kpis.totalPending)}</p>
+                  <div className="p-6" style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    backdropFilter: 'blur(32px) saturate(180%)',
+                    border: '0.5px solid rgba(230,57,47,0.35)',
+                    borderRadius: '24px',
+                    boxShadow: '0 20px 40px rgba(0,0,0,0.20)',
+                  }}>
+                    <p className="text-[9px] uppercase mb-1" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>Total SOLSTICE 2026</p>
+                    <p className="text-xl" style={{ color: C.red, fontWeight: 500 }}>{fmtM(kpis.totalReceived + kpis.totalPending)}</p>
                   </div>
                 </div>
               </div>
@@ -525,10 +583,16 @@ export default function SolsticeAdminFinance() {
             {/* ── COMISIONES ── */}
             {tab === 'comisiones' && (
               <div className="space-y-6">
-                <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray }}>Gestión de comisiones</h2>
-                <div style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
-                  <div className="grid grid-cols-12 px-5 py-2 text-[9px] uppercase tracking-widest"
-                    style={{ color: C.gray, borderBottom: `1px solid ${C.gray}10` }}>
+                <h2 className="text-xs uppercase" style={{ color: C.gray, fontWeight: 300, letterSpacing: '-0.02em' }}>Gestión de comisiones</h2>
+                <div style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  backdropFilter: 'blur(24px)',
+                  border: '0.5px solid rgba(255,255,255,0.08)',
+                  borderRadius: '24px',
+                  overflow: 'hidden',
+                }}>
+                  <div className="grid grid-cols-12 px-5 py-2 text-[9px] uppercase"
+                    style={{ color: C.gray, borderBottom: '0.5px solid rgba(255,255,255,0.05)', fontWeight: 500, letterSpacing: '0.06em' }}>
                     <div className="col-span-3">Vendedor</div>
                     <div className="col-span-2 text-right">Ganada</div>
                     <div className="col-span-2 text-right">Pagada</div>
@@ -542,24 +606,36 @@ export default function SolsticeAdminFinance() {
                   )}
                   {sellerCommissions.map(sl => (
                     <div key={sl.id} className="grid grid-cols-12 px-5 py-4 items-center"
-                      style={{ borderBottom: `1px solid ${C.gray}08` }}>
+                      style={{ borderBottom: '0.5px solid rgba(255,255,255,0.05)' }}>
                       <div className="col-span-3">
-                        <p className="text-xs font-bold uppercase truncate">{sl.name}</p>
+                        <p className="text-xs uppercase truncate" style={{ fontWeight: 500 }}>{sl.name}</p>
                         <p className="text-[9px]" style={{ color: C.gray }}>{sl.university} · {sl.regsCount} reservas</p>
                       </div>
-                      <div className="col-span-2 text-right text-xs font-bold" style={{ color: C.green }}>{fmtK(sl.earned)}</div>
+                      <div className="col-span-2 text-right text-xs" style={{ color: C.green, fontWeight: 500 }}>{fmtK(sl.earned)}</div>
                       <div className="col-span-2 text-right text-xs" style={{ color: C.gray }}>{fmtK(sl.paid)}</div>
-                      <div className="col-span-2 text-right text-xs font-black"
-                        style={{ color: sl.balance > 0 ? C.red : C.green }}>
+                      <div className="col-span-2 text-right text-xs"
+                        style={{ color: sl.balance > 0 ? C.red : C.green, fontWeight: 500 }}>
                         {sl.balance > 0 ? `-${fmtK(sl.balance)}` : '✓'}
                       </div>
                       <div className="col-span-3 flex justify-end">
                         {sl.balance > 0 && (
                           <button onClick={() => { setComModal(sl as any); setComAmount(String(Math.round(sl.balance))); }}
-                            className="flex items-center gap-1.5 px-4 py-1.5 text-[9px] uppercase font-black tracking-widest transition-all"
-                            style={{ border: `1px solid ${C.green}40`, color: C.green }}
-                            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = `${C.green}15`; }}
-                            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
+                            className="flex items-center gap-1.5 px-4 py-1.5 text-[9px] uppercase tracking-widest"
+                            style={{
+                              border: '0.5px solid rgba(16,185,129,0.25)',
+                              color: C.green,
+                              borderRadius: '999px',
+                              fontWeight: 500,
+                              transition: 'all 0.3s ease',
+                            }}
+                            onMouseEnter={e => {
+                              (e.currentTarget as HTMLButtonElement).style.background = `${C.green}15`;
+                              (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
+                            }}
+                            onMouseLeave={e => {
+                              (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+                              (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
+                            }}>
                             <Send size={10} /> Pagar
                           </button>
                         )}
@@ -570,20 +646,26 @@ export default function SolsticeAdminFinance() {
                 {/* Historial de pagos de comisión */}
                 {payouts.length > 0 && (
                   <div className="space-y-3">
-                    <h3 className="text-[10px] uppercase tracking-widest" style={{ color: C.gray }}>Historial de pagos</h3>
-                    <div style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
+                    <h3 className="text-[10px] uppercase" style={{ color: C.gray, fontWeight: 300, letterSpacing: '-0.02em' }}>Historial de pagos</h3>
+                    <div style={{
+                      background: 'rgba(255,255,255,0.03)',
+                      backdropFilter: 'blur(24px)',
+                      border: '0.5px solid rgba(255,255,255,0.08)',
+                      borderRadius: '24px',
+                      overflow: 'hidden',
+                    }}>
                       {payouts.slice(0, 10).map(p => {
                         const sl = sellers.find(s => s.user_id === p.seller_user_id);
                         return (
                           <div key={p.id} className="flex items-center justify-between px-5 py-3"
-                            style={{ borderBottom: `1px solid ${C.gray}08` }}>
+                            style={{ borderBottom: '0.5px solid rgba(255,255,255,0.05)' }}>
                             <div>
-                              <p className="text-xs font-bold uppercase">{sl?.name || '—'}</p>
+                              <p className="text-xs uppercase" style={{ fontWeight: 500 }}>{sl?.name || '—'}</p>
                               <p className="text-[9px]" style={{ color: C.gray }}>
                                 {new Date(p.paid_at).toLocaleDateString('es-CO', { dateStyle: 'medium' })} · {p.method}
                               </p>
                             </div>
-                            <p className="text-sm font-black" style={{ color: C.green }}>{fmt(p.amount)}</p>
+                            <p className="text-sm" style={{ color: C.green, fontWeight: 500 }}>{fmt(p.amount)}</p>
                           </div>
                         );
                       })}
@@ -597,14 +679,14 @@ export default function SolsticeAdminFinance() {
             {tab === 'conversion' && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-xs uppercase tracking-widest mb-1" style={{ color: C.gray }}>Funnel de conversión por vendedor</h2>
-                  <p className="text-[10px] uppercase" style={{ color: `${C.gray}70` }}>
+                  <h2 className="text-xs uppercase mb-1" style={{ color: C.gray, fontWeight: 300, letterSpacing: '-0.02em' }}>Funnel de conversión por vendedor</h2>
+                  <p className="text-[10px] uppercase" style={{ color: `${C.gray}70`, fontWeight: 500, letterSpacing: '0.08em' }}>
                     Clicks en link referido → Registros completados
                   </p>
                 </div>
 
                 {/* Global KPIs */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-2xl">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl">
                   {(() => {
                     const totalC = clicks.length;
                     const totalConv = clicks.filter(c => c.converted).length;
@@ -615,9 +697,15 @@ export default function SolsticeAdminFinance() {
                       { label: 'Tasa global',       value: `${globalRate}%`,   color: C.yellow },
                       { label: 'Sin tracking',      value: String(regs.filter(r => !r.ref_code).length), color: C.gray },
                     ].map(({ label, value, color }) => (
-                      <div key={label} className="p-4" style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
-                        <p className="text-[8px] uppercase mb-1" style={{ color: C.gray }}>{label}</p>
-                        <p className="text-xl font-black" style={{ color }}>{value}</p>
+                      <div key={label} className="p-6" style={{
+                        background: 'rgba(255,255,255,0.04)',
+                        backdropFilter: 'blur(32px) saturate(180%)',
+                        border: '0.5px solid rgba(255,255,255,0.08)',
+                        borderRadius: '24px',
+                        boxShadow: '0 20px 40px rgba(0,0,0,0.20)',
+                      }}>
+                        <p className="text-[8px] uppercase mb-1" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>{label}</p>
+                        <p className="text-xl" style={{ color, fontWeight: 500 }}>{value}</p>
                       </div>
                     ));
                   })()}
@@ -629,9 +717,15 @@ export default function SolsticeAdminFinance() {
                     Sin datos de clicks aún — los links ?ref= aún no han sido visitados
                   </div>
                 ) : (
-                  <div style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
-                    <div className="grid grid-cols-12 px-5 py-2 text-[9px] uppercase tracking-widest"
-                      style={{ color: C.gray, borderBottom: `1px solid ${C.gray}10` }}>
+                  <div style={{
+                    background: 'rgba(255,255,255,0.03)',
+                    backdropFilter: 'blur(24px)',
+                    border: '0.5px solid rgba(255,255,255,0.08)',
+                    borderRadius: '24px',
+                    overflow: 'hidden',
+                  }}>
+                    <div className="grid grid-cols-12 px-5 py-2 text-[9px] uppercase"
+                      style={{ color: C.gray, borderBottom: '0.5px solid rgba(255,255,255,0.05)', fontWeight: 500, letterSpacing: '0.06em' }}>
                       <div className="col-span-3">Vendedor</div>
                       <div className="col-span-2 text-right">Clicks</div>
                       <div className="col-span-2 text-right">Registros</div>
@@ -640,26 +734,26 @@ export default function SolsticeAdminFinance() {
                     </div>
                     {conversionData.map(sl => (
                       <div key={sl.id} className="grid grid-cols-12 px-5 py-4 items-center"
-                        style={{ borderBottom: `1px solid ${C.gray}08` }}>
+                        style={{ borderBottom: '0.5px solid rgba(255,255,255,0.05)' }}>
                         <div className="col-span-3">
-                          <p className="text-xs font-bold uppercase truncate">{sl.name || '—'}</p>
+                          <p className="text-xs uppercase truncate" style={{ fontWeight: 500 }}>{sl.name || '—'}</p>
                           <p className="text-[9px]" style={{ color: C.gray }}>{sl.ref_code}</p>
                         </div>
                         <div className="col-span-2 text-right">
-                          <p className="text-sm font-bold">{sl.totalClicks}</p>
+                          <p className="text-sm" style={{ fontWeight: 500 }}>{sl.totalClicks}</p>
                         </div>
                         <div className="col-span-2 text-right">
-                          <p className="text-sm font-bold" style={{ color: C.green }}>{sl.conversions}</p>
+                          <p className="text-sm" style={{ color: C.green, fontWeight: 500 }}>{sl.conversions}</p>
                         </div>
                         <div className="col-span-2 text-right">
                           {/* Conversion rate bar */}
-                          <p className="text-xs font-black mb-1"
-                            style={{ color: sl.rate >= 20 ? C.green : sl.rate >= 10 ? C.yellow : C.red }}>
+                          <p className="text-xs mb-1"
+                            style={{ color: sl.rate >= 20 ? C.green : sl.rate >= 10 ? C.yellow : C.red, fontWeight: 500 }}>
                             {sl.rate.toFixed(1)}%
                           </p>
-                          <div className="h-1 rounded-full overflow-hidden ml-auto" style={{ width: 48, background: `${C.gray}20` }}>
-                            <div className="h-full rounded-full"
-                              style={{ width: `${Math.min(sl.rate, 100)}%`, background: sl.rate >= 20 ? C.green : sl.rate >= 10 ? C.yellow : C.red }} />
+                          <div className="h-1 overflow-hidden ml-auto" style={{ width: 48, background: `${C.gray}20`, borderRadius: '999px' }}>
+                            <div className="h-full"
+                              style={{ width: `${Math.min(sl.rate, 100)}%`, background: sl.rate >= 20 ? C.green : sl.rate >= 10 ? C.yellow : C.red, borderRadius: '999px' }} />
                           </div>
                         </div>
                         <div className="col-span-3 text-right text-xs" style={{ color: C.green }}>
@@ -675,8 +769,8 @@ export default function SolsticeAdminFinance() {
             {/* ── EXPORTAR ── */}
             {tab === 'exportar' && (
               <div className="space-y-4">
-                <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray }}>Exportaciones</h2>
-                <p className="text-[10px] uppercase" style={{ color: `${C.gray}60` }}>
+                <h2 className="text-xs uppercase" style={{ color: C.gray, fontWeight: 300, letterSpacing: '-0.02em' }}>Exportaciones</h2>
+                <p className="text-[10px] uppercase" style={{ color: `${C.gray}60`, fontWeight: 500, letterSpacing: '0.08em' }}>
                   Todos los archivos son exclusivos de SOLSTICE — no incluyen datos de Midnight.
                 </p>
                 <div className="space-y-3 max-w-md">
@@ -687,13 +781,24 @@ export default function SolsticeAdminFinance() {
                     { label: 'Cuotas pendientes',        sub: 'Calendario completo de cobros futuros', fn: exportSchedules },
                   ].map(({ label, sub, fn }) => (
                     <button key={label} onClick={fn}
-                      className="w-full flex items-center justify-between px-6 py-4 text-left transition-all group"
-                      style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}
-                      onMouseEnter={e => (e.currentTarget.style.borderColor = C.red)}
-                      onMouseLeave={e => (e.currentTarget.style.borderColor = `${C.gray}15`)}>
+                      className="w-full flex items-center justify-between px-6 py-4 text-left group"
+                      style={{
+                        background: 'rgba(255,255,255,0.06)',
+                        border: '0.5px solid rgba(255,255,255,0.12)',
+                        borderRadius: '999px',
+                        transition: 'all 0.3s ease',
+                      }}
+                      onMouseEnter={e => {
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = C.red;
+                        (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
+                      }}
+                      onMouseLeave={e => {
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.12)';
+                        (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
+                      }}>
                       <div>
-                        <p className="text-xs uppercase font-bold" style={{ letterSpacing: '0.1em' }}>{label}</p>
-                        <p className="text-[9px] mt-0.5 uppercase" style={{ color: C.gray }}>{sub}</p>
+                        <p className="text-xs uppercase" style={{ letterSpacing: '0.1em', fontWeight: 500 }}>{label}</p>
+                        <p className="text-[9px] mt-0.5 uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>{sub}</p>
                       </div>
                       <Download size={14} style={{ color: C.red }} />
                     </button>
@@ -716,44 +821,56 @@ export default function SolsticeAdminFinance() {
             <motion.div
               initial={{ opacity: 0, scale: 0.96, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }}
               className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[310] w-full max-w-md p-8 space-y-5"
-              style={{ background: C.bgS, border: `1px solid ${C.gray}20` }}>
+              style={{
+                background: 'rgba(8,0,0,0.90)',
+                backdropFilter: 'blur(40px) saturate(160%)',
+                border: '0.5px solid rgba(255,255,255,0.08)',
+                borderRadius: '32px',
+                boxShadow: '0 40px 80px rgba(0,0,0,0.60)',
+              }}>
               <div className="flex items-center justify-between">
-                <h3 className="text-base uppercase font-black" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.1em' }}>
+                <h3 className="text-base uppercase" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.1em', fontWeight: 300 }}>
                   Registrar pago de comisión
                 </h3>
                 <button onClick={() => setComModal(null)} style={{ color: C.gray }}><X size={18} /></button>
               </div>
-              <p className="text-xs uppercase font-bold" style={{ color: C.red }}>{comModal.name}</p>
+              <p className="text-xs uppercase" style={{ color: C.red, fontWeight: 500 }}>{comModal.name}</p>
 
               <div className="space-y-3">
                 <div className="flex flex-col gap-1">
-                  <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Monto (COP)</label>
+                  <label className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>Monto (COP)</label>
                   <input type="number" value={comAmount} onChange={e => setComAmount(e.target.value)}
                     className="px-3 py-2.5 text-xs outline-none"
-                    style={{ background: C.bgT, border: `1px solid ${C.gray}20`, color: C.cream }} />
+                    style={{ background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '14px', color: C.cream }} />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Método</label>
+                  <label className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>Método</label>
                   <select value={comMethod} onChange={e => setComMethod(e.target.value)}
                     className="px-3 py-2.5 text-xs outline-none"
-                    style={{ background: C.bgT, border: `1px solid ${C.gray}20`, color: C.cream }}>
+                    style={{ background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '14px', color: C.cream }}>
                     <option value="transfer">Transferencia</option>
                     <option value="cash">Efectivo</option>
                     <option value="mixed">Mixto</option>
                   </select>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Notas (opcional)</label>
+                  <label className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>Notas (opcional)</label>
                   <input type="text" value={comNotes} onChange={e => setComNotes(e.target.value)}
                     placeholder="ej. Transferencia Nequi"
                     className="px-3 py-2.5 text-xs outline-none"
-                    style={{ background: C.bgT, border: `1px solid ${C.gray}20`, color: C.cream }} />
+                    style={{ background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '14px', color: C.cream }} />
                 </div>
               </div>
 
               <button onClick={payCommission} disabled={comLoading || !comAmount}
-                className="w-full py-3 text-xs uppercase font-black tracking-widest flex items-center justify-center gap-2 disabled:opacity-40"
-                style={{ background: C.green, color: '#000' }}>
+                className="w-full py-3 text-xs uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-40"
+                style={{
+                  background: C.green,
+                  color: '#000',
+                  borderRadius: '999px',
+                  fontWeight: 500,
+                  transition: 'all 0.3s ease',
+                }}>
                 {comLoading ? <Loader2 size={14} className="animate-spin" /> : <><CheckCircle2 size={14} /> Registrar pago</>}
               </button>
             </motion.div>

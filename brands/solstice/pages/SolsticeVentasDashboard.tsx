@@ -90,8 +90,14 @@ function StatusBadge({ status }: { status: string }) {
   };
   const s = map[status] || { color: C.gray, label: status };
   return (
-    <span className="text-[8px] uppercase font-black px-2 py-0.5 rounded-sm"
-      style={{ background: `${s.color}20`, color: s.color, letterSpacing: '0.15em' }}>
+    <span className="text-[8px] uppercase px-2 py-0.5"
+      style={{
+        background: `${s.color}20`,
+        color: s.color,
+        letterSpacing: '0.15em',
+        fontWeight: 500,
+        borderRadius: '999px',
+      }}>
       {s.label}
     </span>
   );
@@ -100,11 +106,26 @@ function StatusBadge({ status }: { status: string }) {
 function KpiCard({ label, value, sub, color = C.cream, small }: {
   label: string; value: string; sub?: string; color?: string; small?: boolean;
 }) {
+  const [hovered, setHovered] = React.useState(false);
   return (
-    <div className="p-5" style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
-      <p className="text-[9px] uppercase tracking-[0.25em] mb-2" style={{ color: C.gray }}>{label}</p>
-      <p className={`font-black ${small ? 'text-xl' : 'text-2xl'}`} style={{ color }}>{value}</p>
-      {sub && <p className="text-[9px] mt-1 uppercase" style={{ color: C.gray }}>{sub}</p>}
+    <div
+      className="p-6"
+      style={{
+        background: 'rgba(255,255,255,0.04)',
+        backdropFilter: 'blur(32px) saturate(180%)',
+        border: '0.5px solid rgba(255,255,255,0.08)',
+        borderRadius: '24px',
+        boxShadow: hovered ? '0 28px 56px rgba(0,0,0,0.35)' : '0 20px 40px rgba(0,0,0,0.20)',
+        transform: hovered ? 'translateY(-1px)' : 'translateY(0)',
+        transition: '0.4s cubic-bezier(0.25,0.46,0.45,0.94)',
+        cursor: 'default',
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <p className="text-[9px] uppercase mb-2" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>{label}</p>
+      <p className={small ? 'text-xl' : 'text-2xl'} style={{ color, fontWeight: 500 }}>{value}</p>
+      {sub && <p className="text-[9px] mt-1 uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>{sub}</p>}
     </div>
   );
 }
@@ -115,11 +136,15 @@ function DateBar({ value, onChange }: { value: DateFilter; onChange: (v: DateFil
       <Calendar size={11} style={{ color: C.gray }} />
       {DATE_FILTERS.map(df => (
         <button key={df.id} onClick={() => onChange(df.id)}
-          className="px-3 py-1 text-[9px] uppercase font-black tracking-widest transition-all"
+          className="px-3 py-1 text-[9px] uppercase tracking-widest"
           style={{
-            background: value === df.id ? C.red : 'transparent',
+            background: value === df.id ? 'rgba(230,57,47,0.20)' : 'transparent',
             color:      value === df.id ? C.cream : C.gray,
-            border:     `1px solid ${value === df.id ? C.red : C.gray + '30'}`,
+            border:     value === df.id ? `0.5px solid rgba(230,57,47,0.35)` : '0.5px solid rgba(96,96,96,0.30)',
+            borderRadius: '999px',
+            fontWeight: 500,
+            padding: '4px 14px',
+            transition: 'all 0.3s ease',
           }}>
           {df.label}
         </button>
@@ -140,7 +165,7 @@ function BuyerRow({
   const hasOverdue = reg.schedules?.some(s => s.status === 'overdue');
 
   return (
-    <div style={{ borderBottom: `1px solid ${C.gray}08` }}>
+    <div style={{ borderBottom: '0.5px solid rgba(255,255,255,0.05)' }}>
       <div
         className="grid px-5 py-4 items-center cursor-pointer hover:bg-white/3 transition-colors"
         style={{ gridTemplateColumns: showSeller ? '3fr 2fr 1fr 2fr 2fr 2fr 0.5fr' : '3fr 2fr 2fr 2fr 2fr 0.5fr' }}
@@ -148,9 +173,9 @@ function BuyerRow({
       >
         <div>
           <div className="flex items-center gap-2">
-            {hasOverdue && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: C.red }} />}
+            {hasOverdue && <span className="w-1.5 h-1.5 shrink-0" style={{ background: C.red, borderRadius: '999px' }} />}
             <div>
-              <p className="text-xs font-bold uppercase truncate">{reg.customer_name}</p>
+              <p className="text-xs uppercase truncate" style={{ fontWeight: 500 }}>{reg.customer_name}</p>
               <p className="text-[9px] truncate" style={{ color: C.gray }}>{reg.customer_university}</p>
             </div>
           </div>
@@ -161,23 +186,24 @@ function BuyerRow({
           </div>
         )}
         <div>
-          <span className="text-[8px] uppercase px-1.5 py-0.5 rounded-sm"
+          <span className="text-[8px] uppercase px-1.5 py-0.5"
             style={{
               background: reg.payment_mode === 'cash_to_seller' ? `${C.yellow}18` : `${C.green}18`,
               color:      reg.payment_mode === 'cash_to_seller' ? C.yellow : C.green,
+              borderRadius: '999px',
             }}>
             {reg.payment_mode === 'cash_to_seller' ? 'Ef' : 'Dig'}
           </span>
         </div>
         <div><StatusBadge status={reg.status} /></div>
         <div>
-          <p className="text-xs font-bold">{fmtK(reg.amount_paid)}</p>
+          <p className="text-xs" style={{ fontWeight: 500 }}>{fmtK(reg.amount_paid)}</p>
           <p className="text-[9px]" style={{ color: C.gray }}>de {fmtK(reg.total_amount)}</p>
         </div>
         <div>
           {next ? (
             <div>
-              <p className="text-xs font-bold" style={{ color: hasOverdue ? C.red : C.cream }}>{fmtK(next.amount)}</p>
+              <p className="text-xs" style={{ color: hasOverdue ? C.red : C.cream, fontWeight: 500 }}>{fmtK(next.amount)}</p>
               <p className="text-[9px]" style={{ color: hasOverdue ? C.red : C.gray }}>
                 {hasOverdue ? '⚠ Vencida' : new Date(next.due_date).toLocaleDateString('es-CO', { month: 'short', day: 'numeric' })}
               </p>
@@ -193,11 +219,12 @@ function BuyerRow({
         {expanded && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-            <div className="px-5 pb-5 pt-2 space-y-4" style={{ borderTop: `1px solid ${C.gray}10`, background: C.bgT }}>
+            <div className="px-5 pb-5 pt-2 space-y-4"
+              style={{ borderTop: '0.5px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.02)', borderRadius: '0 0 20px 20px' }}>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                 {[['Email', reg.customer_email], ['Teléfono', reg.customer_phone || '—'], ['Orden', reg.order_number], ['Ref', reg.ref_code || '—']].map(([k, v]) => (
                   <div key={k}>
-                    <p className="text-[9px] uppercase mb-0.5" style={{ color: C.gray, letterSpacing: '0.2em' }}>{k}</p>
+                    <p className="text-[9px] uppercase mb-0.5" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>{k}</p>
                     <p className="font-mono text-[10px]">{v}</p>
                   </div>
                 ))}
@@ -205,10 +232,11 @@ function BuyerRow({
               {reg.schedules && reg.schedules.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {reg.schedules.map(sc => (
-                    <div key={sc.id} className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-[10px]"
+                    <div key={sc.id} className="flex items-center gap-1.5 px-3 py-1.5 text-[10px]"
                       style={{
                         background: sc.status === 'paid' ? `${C.green}15` : sc.status === 'overdue' ? `${C.red}15` : `${C.gray}10`,
-                        border: `1px solid ${sc.status === 'paid' ? C.green + '30' : sc.status === 'overdue' ? C.red + '30' : C.gray + '20'}`,
+                        border: `0.5px solid ${sc.status === 'paid' ? 'rgba(16,185,129,0.25)' : sc.status === 'overdue' ? 'rgba(230,57,47,0.35)' : 'rgba(96,96,96,0.20)'}`,
+                        borderRadius: '999px',
                       }}>
                       {sc.status === 'paid' ? <CheckCircle2 size={10} style={{ color: C.green }} />
                         : sc.status === 'overdue' ? <AlertTriangle size={10} style={{ color: C.red }} />
@@ -222,8 +250,15 @@ function BuyerRow({
               )}
               {reg.payment_mode === 'cash_to_seller' && next && (
                 <button onClick={() => onCash(reg)}
-                  className="flex items-center gap-2 px-5 py-2.5 text-xs uppercase font-black tracking-widest transition-all"
-                  style={{ background: C.bgS, border: `1px solid ${C.yellow}40`, color: C.yellow }}>
+                  className="flex items-center gap-2 px-5 py-2.5 text-xs uppercase tracking-widest"
+                  style={{
+                    background: 'rgba(245,158,11,0.22)',
+                    border: '0.5px solid rgba(245,158,11,0.45)',
+                    color: C.yellow,
+                    borderRadius: '999px',
+                    fontWeight: 500,
+                    transition: 'all 0.3s ease',
+                  }}>
                   <Banknote size={13} /> Marcar cuota {next.installment_number} como recibida · {fmtK(next.amount)}
                 </button>
               )}
@@ -451,6 +486,58 @@ export default function SolsticeVentasDashboard({ role }: Props) {
     </div>
   );
 
+  // ── Cash Modal (shared) ────────────────────────────────────────────────────
+  const CashModal = () => (
+    <AnimatePresence>
+      {cashModal && cashSchedule && (
+        <>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[300] bg-black/70 backdrop-blur-sm" onClick={() => setCashModal(null)} />
+          <motion.div initial={{ opacity: 0, scale: 0.96, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96 }}
+            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[310] w-full max-w-md p-8 space-y-5"
+            style={{
+              background: 'rgba(8,0,0,0.90)',
+              backdropFilter: 'blur(40px) saturate(160%)',
+              border: '0.5px solid rgba(255,255,255,0.08)',
+              borderRadius: '32px',
+              boxShadow: '0 40px 80px rgba(0,0,0,0.60)',
+            }}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-base uppercase" style={{ fontFamily: "'Poiret One',sans-serif", letterSpacing: '0.1em', fontWeight: 300 }}>
+                Confirmar pago efectivo
+              </h3>
+              <button onClick={() => setCashModal(null)} style={{ color: C.gray }}><X size={18} /></button>
+            </div>
+            <div className="space-y-2 p-4" style={{
+              background: 'rgba(255,255,255,0.02)',
+              border: '0.5px solid rgba(255,255,255,0.08)',
+              borderRadius: '20px',
+            }}>
+              {[['Comprador', cashModal.customer_name], ['Cuota', String(cashSchedule.installment_number)], ['Monto', fmt(cashSchedule.amount)]].map(([k, v]) => (
+                <div key={k} className="flex justify-between text-xs uppercase" style={{ letterSpacing: '0.1em' }}>
+                  <span style={{ color: C.gray }}>{k}</span><span>{v}</span>
+                </div>
+              ))}
+            </div>
+            <button onClick={confirmCashPayment} disabled={cashLoading}
+              className="w-full py-4 text-sm uppercase tracking-widest disabled:opacity-40 flex items-center justify-center gap-2"
+              style={{
+                background: 'rgba(245,158,11,0.22)',
+                border: '0.5px solid rgba(245,158,11,0.45)',
+                color: C.yellow,
+                borderRadius: '999px',
+                fontWeight: 500,
+                transition: 'all 0.3s ease',
+              }}>
+              {cashLoading ? <Loader2 size={14} className="animate-spin" /> : <><Banknote size={14} /> Confirmar recibo</>}
+            </button>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // ADMIN — Command Center
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -466,18 +553,21 @@ export default function SolsticeVentasDashboard({ role }: Props) {
       <div style={{ background: C.bg, minHeight: '100vh', color: C.cream, fontFamily: "'Archivo', sans-serif" }}>
 
         {/* Header + Tabs */}
-        <div className="px-6 md:px-8 pt-8 pb-0" style={{ borderBottom: `1px solid ${C.gray}15` }}>
-          <p className="text-[9px] uppercase font-bold mb-1" style={{ color: C.red, letterSpacing: '0.4em' }}>Solstice 2026</p>
-          <h1 className="text-3xl uppercase mb-5" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.1em' }}>
+        <div className="px-6 md:px-8 pt-8 pb-0" style={{ borderBottom: '0.5px solid rgba(255,255,255,0.08)' }}>
+          <p className="text-[9px] uppercase mb-1" style={{ color: C.red, fontWeight: 500, letterSpacing: '0.4em' }}>Solstice 2026</p>
+          <h1 className="text-3xl uppercase mb-5" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.1em', fontWeight: 300 }}>
             Command Center
           </h1>
           <div className="flex gap-0 -mb-px">
             {TABS.map(tab => (
               <button key={tab.id} onClick={() => setAdminTab(tab.id)}
-                className="flex items-center gap-2 px-5 py-3 text-[10px] uppercase font-black tracking-widest transition-all"
+                className="flex items-center gap-2 px-5 py-3 text-[10px] uppercase tracking-widest"
                 style={{
                   borderBottom: adminTab === tab.id ? `2px solid ${C.red}` : '2px solid transparent',
                   color: adminTab === tab.id ? C.red : C.gray,
+                  borderRadius: '999px',
+                  fontWeight: 500,
+                  transition: 'all 0.3s ease',
                 }}>
                 {tab.icon}{tab.label}
               </button>
@@ -491,10 +581,22 @@ export default function SolsticeVentasDashboard({ role }: Props) {
           <div className="flex items-center gap-4 flex-wrap">
             <DateBar value={dateFilter} onChange={setDateFilter} />
             <button onClick={() => exportCsv(dateRegs)}
-              className="ml-auto flex items-center gap-2 px-3 py-1 text-[9px] uppercase tracking-widest transition-all"
-              style={{ border: `1px solid ${C.gray}20`, color: C.gray }}
-              onMouseEnter={e => (e.currentTarget.style.color = C.cream)}
-              onMouseLeave={e => (e.currentTarget.style.color = C.gray)}>
+              className="ml-auto flex items-center gap-2 px-3 py-1 text-[9px] uppercase tracking-widest"
+              style={{
+                background: 'rgba(255,255,255,0.06)',
+                border: '0.5px solid rgba(255,255,255,0.12)',
+                color: C.gray,
+                borderRadius: '999px',
+                transition: 'all 0.3s ease',
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLButtonElement).style.color = C.cream;
+                (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLButtonElement).style.color = C.gray;
+                (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
+              }}>
               <Download size={11} /> CSV
             </button>
           </div>
@@ -520,8 +622,14 @@ export default function SolsticeVentasDashboard({ role }: Props) {
 
               {/* Acquisition channel bars */}
               {globalStats.count > 0 && (
-                <div className="p-5 space-y-4" style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
-                  <p className="text-[9px] uppercase tracking-widest" style={{ color: C.gray }}>Canal de adquisición</p>
+                <div className="p-6 space-y-4" style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  backdropFilter: 'blur(32px) saturate(180%)',
+                  border: '0.5px solid rgba(255,255,255,0.08)',
+                  borderRadius: '24px',
+                  boxShadow: '0 20px 40px rgba(0,0,0,0.20)',
+                }}>
+                  <p className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>Canal de adquisición</p>
                   {[
                     { label: 'Orgánico',  n: globalStats.organic,    color: C.blue,   total: globalStats.count },
                     { label: 'Comisión',  n: globalStats.commission,  color: C.green,  total: globalStats.count },
@@ -529,13 +637,13 @@ export default function SolsticeVentasDashboard({ role }: Props) {
                     { label: 'Efectivo',  n: globalStats.cash,        color: C.yellow, total: globalStats.count },
                   ].map(row => (
                     <div key={row.label} className="space-y-1">
-                      <div className="flex justify-between text-[9px] uppercase" style={{ color: C.gray, letterSpacing: '0.15em' }}>
+                      <div className="flex justify-between text-[9px] uppercase" style={{ color: C.gray, letterSpacing: '0.15em', fontWeight: 500 }}>
                         <span>{row.label}</span>
                         <span><span style={{ color: C.cream }}>{row.n}</span> / {row.total}</span>
                       </div>
-                      <div className="h-1 rounded-full" style={{ background: `${C.gray}20` }}>
-                        <div className="h-full rounded-full transition-all"
-                          style={{ width: row.total ? `${(row.n / row.total) * 100}%` : '0%', background: row.color }} />
+                      <div className="h-1" style={{ background: `${C.gray}20`, borderRadius: '999px' }}>
+                        <div className="h-full transition-all"
+                          style={{ width: row.total ? `${(row.n / row.total) * 100}%` : '0%', background: row.color, borderRadius: '999px' }} />
                       </div>
                     </div>
                   ))}
@@ -553,23 +661,29 @@ export default function SolsticeVentasDashboard({ role }: Props) {
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       <Trophy size={12} style={{ color: C.yellow }} />
-                      <p className="text-[9px] uppercase tracking-widest" style={{ color: C.gray }}>Top vendedores</p>
+                      <p className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>Top vendedores</p>
                     </div>
-                    <div style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
+                    <div style={{
+                      background: 'rgba(255,255,255,0.03)',
+                      backdropFilter: 'blur(24px)',
+                      border: '0.5px solid rgba(255,255,255,0.08)',
+                      borderRadius: '24px',
+                      overflow: 'hidden',
+                    }}>
                       {top5.map((sl, i) => (
                         <div key={sl.user_id} className="flex items-center gap-4 px-5 py-3"
-                          style={{ borderBottom: i < top5.length - 1 ? `1px solid ${C.gray}08` : 'none' }}>
-                          <span className="text-xs font-black w-5"
-                            style={{ color: i===0?'#FFD700':i===1?'#C0C0C0':i===2?'#CD7F32':C.gray }}>
+                          style={{ borderBottom: i < top5.length - 1 ? '0.5px solid rgba(255,255,255,0.05)' : 'none' }}>
+                          <span className="text-xs w-5"
+                            style={{ color: i===0?'#FFD700':i===1?'#C0C0C0':i===2?'#CD7F32':C.gray, fontWeight: 500 }}>
                             {i + 1}
                           </span>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold uppercase truncate">{sl.name}</p>
+                            <p className="text-xs uppercase truncate" style={{ fontWeight: 500 }}>{sl.name}</p>
                             <p className="text-[9px]" style={{ color: C.gray }}>
                               {[sl.squad_name, sl.team_name].filter(Boolean).join(' · ') || 'Sin equipo'}
                             </p>
                           </div>
-                          <span className="text-sm font-black" style={{ color: C.red }}>{sl.count}</span>
+                          <span className="text-sm" style={{ color: C.red, fontWeight: 500 }}>{sl.count}</span>
                           <span className="text-xs" style={{ color: C.green }}>{fmtK(sl.paid)}</span>
                         </div>
                       ))}
@@ -586,10 +700,14 @@ export default function SolsticeVentasDashboard({ role }: Props) {
               {/* Organic block */}
               {orgTree.organicRegs.length > 0 && (
                 <div className="flex items-center justify-between px-5 py-4"
-                  style={{ background: C.bgS, border: `1px solid ${C.blue}30` }}>
+                  style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    border: `0.5px solid rgba(59,130,246,0.30)`,
+                    borderRadius: '24px',
+                  }}>
                   <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full" style={{ background: C.blue }} />
-                    <p className="text-xs uppercase font-black tracking-wider" style={{ color: C.blue }}>
+                    <div className="w-2 h-2" style={{ background: C.blue, borderRadius: '999px' }} />
+                    <p className="text-xs uppercase" style={{ color: C.blue, fontWeight: 500 }}>
                       Orgánico — sin vendedor
                     </p>
                   </div>
@@ -601,24 +719,24 @@ export default function SolsticeVentasDashboard({ role }: Props) {
               )}
 
               {orgTree.squadNodes.map(sq => (
-                <div key={sq.id} style={{ border: `1px solid ${C.gray}20` }}>
+                <div key={sq.id} style={{ border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '20px', overflow: 'hidden' }}>
                   {/* Squad header */}
                   <button className="w-full flex items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-white/3"
                     onClick={() => setExpandedSquad(v => v === sq.id ? null : sq.id)}>
                     <Layers size={14} style={{ color: C.gray }} />
                     <div className="flex-1">
-                      <p className="text-sm uppercase font-black" style={{ letterSpacing: '0.12em' }}>{sq.name}</p>
-                      <p className="text-[9px] uppercase mt-0.5" style={{ color: C.gray }}>
+                      <p className="text-sm uppercase" style={{ letterSpacing: '0.12em', fontWeight: 500 }}>{sq.name}</p>
+                      <p className="text-[9px] uppercase mt-0.5" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>
                         {sq.teams.length} equipo{sq.teams.length !== 1 ? 's' : ''} · {sq.teams.reduce((a,t)=>a+t.sellers.length,0)} vendedores en Solstice
                       </p>
                     </div>
                     <div className="flex items-center gap-5">
                       <div className="text-right">
-                        <p className="text-sm font-black" style={{ color: C.red }}>{sq.count}</p>
+                        <p className="text-sm" style={{ color: C.red, fontWeight: 500 }}>{sq.count}</p>
                         <p className="text-[9px]" style={{ color: C.gray }}>reservas</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-black" style={{ color: C.green }}>{fmtK(sq.paid)}</p>
+                        <p className="text-sm" style={{ color: C.green, fontWeight: 500 }}>{fmtK(sq.paid)}</p>
                         <p className="text-[9px]" style={{ color: C.gray }}>pagado</p>
                       </div>
                       {expandedSquad === sq.id
@@ -631,19 +749,19 @@ export default function SolsticeVentasDashboard({ role }: Props) {
                     {expandedSquad === sq.id && (
                       <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                        <div style={{ borderTop: `1px solid ${C.gray}12` }}>
+                        <div style={{ borderTop: '0.5px solid rgba(255,255,255,0.05)' }}>
                           {sq.teams.map(team => (
-                            <div key={team.id} style={{ borderBottom: `1px solid ${C.gray}08` }}>
+                            <div key={team.id} style={{ borderBottom: '0.5px solid rgba(255,255,255,0.05)' }}>
                               {/* Team row */}
                               <button className="w-full flex items-center gap-3 pl-10 pr-5 py-3 text-left transition-colors hover:bg-white/3"
                                 onClick={() => setExpandedTeam(v => v === team.id ? null : team.id)}>
                                 <Building2 size={12} style={{ color: C.gray }} />
                                 <div className="flex-1">
-                                  <p className="text-xs uppercase font-bold">{team.name}</p>
+                                  <p className="text-xs uppercase" style={{ fontWeight: 500 }}>{team.name}</p>
                                   <p className="text-[9px]" style={{ color: C.gray }}>{team.sellers.length} vendedores</p>
                                 </div>
                                 <div className="flex items-center gap-5">
-                                  <span className="text-xs font-black" style={{ color: C.red }}>{team.count}</span>
+                                  <span className="text-xs" style={{ color: C.red, fontWeight: 500 }}>{team.count}</span>
                                   <span className="text-xs" style={{ color: C.green }}>{fmtK(team.paid)}</span>
                                   {expandedTeam === team.id
                                     ? <ChevronUp size={12} style={{ color: C.red }} />
@@ -658,12 +776,12 @@ export default function SolsticeVentasDashboard({ role }: Props) {
                                     {team.sellers.length === 0 ? (
                                       <p className="pl-16 py-3 text-[9px] uppercase" style={{ color: C.gray }}>Sin vendedores en Solstice</p>
                                     ) : team.sellers.map(sl => (
-                                      <div key={sl.user_id} style={{ borderTop: `1px solid ${C.gray}08`, background: C.bgT }}>
+                                      <div key={sl.user_id} style={{ borderTop: '0.5px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.02)' }}>
                                         <button className="w-full flex items-center gap-3 pl-16 pr-5 py-2.5 text-left transition-colors hover:bg-white/3"
                                           onClick={() => setExpandedSeller(v => v === sl.user_id ? null : sl.user_id)}>
                                           <User size={11} style={{ color: C.gray }} />
                                           <div className="flex-1 min-w-0">
-                                            <p className="text-xs font-bold uppercase truncate">{sl.name}</p>
+                                            <p className="text-xs uppercase truncate" style={{ fontWeight: 500 }}>{sl.name}</p>
                                             <p className="text-[9px] font-mono" style={{ color: C.gray }}>{sl.ref_code}</p>
                                           </div>
                                           <div className="flex items-center gap-4 text-xs">
@@ -678,14 +796,22 @@ export default function SolsticeVentasDashboard({ role }: Props) {
                                               ? <p className="text-[9px] uppercase" style={{ color: C.gray }}>Sin compras en este período</p>
                                               : sl.regs.map(r => (
                                                 <div key={r.id} className="flex items-center gap-3 px-3 py-2"
-                                                  style={{ background: C.bgS, border: `1px solid ${C.gray}10` }}>
+                                                  style={{
+                                                    background: 'rgba(255,255,255,0.04)',
+                                                    border: '0.5px solid rgba(255,255,255,0.08)',
+                                                    borderRadius: '14px',
+                                                  }}>
                                                   <div className="flex-1 min-w-0">
-                                                    <p className="text-[10px] font-bold uppercase truncate">{r.customer_name}</p>
+                                                    <p className="text-[10px] uppercase truncate" style={{ fontWeight: 500 }}>{r.customer_name}</p>
                                                     <p className="text-[9px]" style={{ color: C.gray }}>{r.customer_university}</p>
                                                   </div>
                                                   <StatusBadge status={r.status} />
-                                                  <span className="text-[9px] px-1.5 py-0.5 rounded-sm uppercase"
-                                                    style={{ background: r.payment_mode==='cash_to_seller'?`${C.yellow}18`:`${C.green}18`, color: r.payment_mode==='cash_to_seller'?C.yellow:C.green }}>
+                                                  <span className="text-[9px] px-1.5 py-0.5 uppercase"
+                                                    style={{
+                                                      background: r.payment_mode==='cash_to_seller'?`${C.yellow}18`:`${C.green}18`,
+                                                      color: r.payment_mode==='cash_to_seller'?C.yellow:C.green,
+                                                      borderRadius: '999px',
+                                                    }}>
                                                     {r.payment_mode==='cash_to_seller'?'Ef':'Dig'}
                                                   </span>
                                                   <span className="text-[10px]" style={{ color: C.green }}>{fmtK(r.amount_paid)}</span>
@@ -708,9 +834,9 @@ export default function SolsticeVentasDashboard({ role }: Props) {
               ))}
 
               {orgTree.noSquadTeams.length > 0 && (
-                <div style={{ border: `1px solid ${C.gray}15` }}>
+                <div style={{ border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '20px', overflow: 'hidden' }}>
                   <div className="px-5 py-3 flex items-center justify-between">
-                    <p className="text-[9px] uppercase tracking-widest" style={{ color: C.gray }}>Equipos sin squad</p>
+                    <p className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>Equipos sin squad</p>
                     <div className="flex gap-5 text-xs">
                       <span style={{ color: C.red }}>{orgTree.noSquadTeams.reduce((a,t)=>a+t.count,0)}</span>
                       <span style={{ color: C.green }}>{fmtK(orgTree.noSquadTeams.reduce((a,t)=>a+t.paid,0))}</span>
@@ -718,7 +844,7 @@ export default function SolsticeVentasDashboard({ role }: Props) {
                   </div>
                   {orgTree.noSquadTeams.map(t => (
                     <div key={t.id} className="flex items-center gap-3 px-5 py-2"
-                      style={{ borderTop: `1px solid ${C.gray}08` }}>
+                      style={{ borderTop: '0.5px solid rgba(255,255,255,0.05)' }}>
                       <Building2 size={11} style={{ color: C.gray }} />
                       <p className="text-xs flex-1 uppercase">{t.name}</p>
                       <span className="text-xs" style={{ color: C.red }}>{t.count}</span>
@@ -732,9 +858,15 @@ export default function SolsticeVentasDashboard({ role }: Props) {
 
           {/* ═══ SELLERS ═══════════════════════════════════════════════════════ */}
           {adminTab === 'sellers' && (
-            <div style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
-              <div className="grid grid-cols-12 px-5 py-2 text-[9px] uppercase tracking-widest"
-                style={{ color: C.gray, borderBottom: `1px solid ${C.gray}10` }}>
+            <div style={{
+              background: 'rgba(255,255,255,0.03)',
+              backdropFilter: 'blur(24px)',
+              border: '0.5px solid rgba(255,255,255,0.08)',
+              borderRadius: '24px',
+              overflow: 'hidden',
+            }}>
+              <div className="grid grid-cols-12 px-5 py-2 text-[9px] uppercase"
+                style={{ color: C.gray, borderBottom: '0.5px solid rgba(255,255,255,0.05)', fontWeight: 500, letterSpacing: '0.06em' }}>
                 <div className="col-span-3">Vendedor</div>
                 <div className="col-span-2">Squad · Equipo</div>
                 <div className="col-span-1 text-right">Total</div>
@@ -758,13 +890,13 @@ export default function SolsticeVentasDashboard({ role }: Props) {
                   <div key={sl.user_id}>
                     <button
                       className="w-full grid grid-cols-12 px-5 py-3 items-center text-left transition-colors hover:bg-white/3"
-                      style={{ borderBottom: `1px solid ${C.gray}08`, background: expandedSeller===sl.user_id?`${C.red}06`:'transparent' }}
+                      style={{ borderBottom: '0.5px solid rgba(255,255,255,0.05)', background: expandedSeller===sl.user_id?`rgba(230,57,47,0.06)`:'transparent' }}
                       onClick={() => setExpandedSeller(v => v===sl.user_id ? null : sl.user_id)}>
                       <div className="col-span-3 flex items-center gap-2">
                         {idx < 3 && <span style={{ color: ['#FFD700','#C0C0C0','#CD7F32'][idx], fontSize: 11 }}>★</span>}
                         <div className="min-w-0">
-                          <p className="text-xs font-bold uppercase truncate"
-                            style={{ color: expandedSeller===sl.user_id ? C.red : C.cream }}>{sl.name}</p>
+                          <p className="text-xs uppercase truncate"
+                            style={{ color: expandedSeller===sl.user_id ? C.red : C.cream, fontWeight: 500 }}>{sl.name}</p>
                           <p className="text-[9px] font-mono" style={{ color: C.gray }}>{sl.ref_code}</p>
                         </div>
                       </div>
@@ -772,7 +904,7 @@ export default function SolsticeVentasDashboard({ role }: Props) {
                         {sl.squad_name && <p className="truncate">{sl.squad_name}</p>}
                         {sl.team_name  && <p className="truncate">{sl.team_name}</p>}
                       </div>
-                      <div className="col-span-1 text-right text-sm font-black" style={{ color: C.red }}>{sl.count}</div>
+                      <div className="col-span-1 text-right text-sm" style={{ color: C.red, fontWeight: 500 }}>{sl.count}</div>
                       <div className="col-span-1 text-right text-xs" style={{ color: C.green }}>{sl.dig}</div>
                       <div className="col-span-1 text-right text-xs" style={{ color: C.yellow }}>{sl.cash}</div>
                       <div className="col-span-2 text-right text-xs">{fmtK(sl.paid)}</div>
@@ -782,19 +914,27 @@ export default function SolsticeVentasDashboard({ role }: Props) {
                       {expandedSeller === sl.user_id && (
                         <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
                           exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                          <div className="px-5 pb-3 pt-1 space-y-1.5" style={{ background: C.bgT }}>
+                          <div className="px-5 pb-3 pt-1 space-y-1.5" style={{ background: 'rgba(255,255,255,0.02)' }}>
                             {sl.regs.length === 0
                               ? <p className="text-[9px] uppercase py-2" style={{ color: C.gray }}>Sin compras en este período</p>
                               : sl.regs.map(r => (
                                 <div key={r.id} className="flex items-center gap-3 px-4 py-2.5"
-                                  style={{ background: C.bgS, border: `1px solid ${C.gray}10` }}>
+                                  style={{
+                                    background: 'rgba(255,255,255,0.04)',
+                                    border: '0.5px solid rgba(255,255,255,0.08)',
+                                    borderRadius: '14px',
+                                  }}>
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-[10px] font-bold uppercase truncate">{r.customer_name}</p>
+                                    <p className="text-[10px] uppercase truncate" style={{ fontWeight: 500 }}>{r.customer_name}</p>
                                     <p className="text-[9px]" style={{ color: C.gray }}>{r.customer_university} · {r.order_number}</p>
                                   </div>
                                   <StatusBadge status={r.status} />
-                                  <span className="text-[9px] uppercase px-1.5 py-0.5 rounded-sm"
-                                    style={{ background: r.payment_mode==='cash_to_seller'?`${C.yellow}15`:`${C.green}15`, color: r.payment_mode==='cash_to_seller'?C.yellow:C.green }}>
+                                  <span className="text-[9px] uppercase px-1.5 py-0.5"
+                                    style={{
+                                      background: r.payment_mode==='cash_to_seller'?`${C.yellow}15`:`${C.green}15`,
+                                      color: r.payment_mode==='cash_to_seller'?C.yellow:C.green,
+                                      borderRadius: '999px',
+                                    }}>
                                     {r.payment_mode==='cash_to_seller'?'Ef':'Dig'}
                                   </span>
                                   <span className="text-[10px]" style={{ color: C.green }}>{fmtK(r.amount_paid)}</span>
@@ -811,7 +951,7 @@ export default function SolsticeVentasDashboard({ role }: Props) {
                 ))}
               {sellers.length === 0 && (
                 <div className="py-14 text-center">
-                  <p className="text-[9px] uppercase tracking-widest" style={{ color: C.gray }}>Sin vendedores registrados en Solstice</p>
+                  <p className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>Sin vendedores registrados en Solstice</p>
                 </div>
               )}
             </div>
@@ -827,11 +967,15 @@ export default function SolsticeVentasDashboard({ role }: Props) {
                   { id: '__organic__',label: 'Orgánico', color: C.blue },
                 ].concat(sellers.slice(0, 10).map(sl => ({ id: sl.user_id, label: sl.name.split(' ')[0], color: C.red }))).map(f => (
                   <button key={f.id} onClick={() => setSellerFilter(f.id)}
-                    className="px-3 py-1 text-[9px] uppercase font-black tracking-widest transition-all"
+                    className="text-[9px] uppercase tracking-widest"
                     style={{
-                      background: sellerFilter===f.id ? f.color : 'transparent',
+                      background: sellerFilter===f.id ? 'rgba(230,57,47,0.20)' : 'transparent',
                       color:      sellerFilter===f.id ? C.cream : C.gray,
-                      border:     `1px solid ${sellerFilter===f.id ? f.color : C.gray + '30'}`,
+                      border:     sellerFilter===f.id ? `0.5px solid rgba(230,57,47,0.35)` : '0.5px solid rgba(96,96,96,0.30)',
+                      borderRadius: '999px',
+                      fontWeight: 500,
+                      padding: '4px 14px',
+                      transition: 'all 0.3s ease',
                     }}>
                     {f.label}
                   </button>
@@ -841,10 +985,16 @@ export default function SolsticeVentasDashboard({ role }: Props) {
               {filteredRegs.length === 0 ? (
                 <div className="py-16 text-center" style={{ color: C.gray }}>
                   <UserCheck size={32} className="mx-auto mb-4 opacity-30" />
-                  <p className="text-xs uppercase tracking-widest">Sin compradores en este período</p>
+                  <p className="text-xs uppercase" style={{ fontWeight: 500, letterSpacing: '0.08em' }}>Sin compradores en este período</p>
                 </div>
               ) : (
-                <div style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
+                <div style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  backdropFilter: 'blur(24px)',
+                  border: '0.5px solid rgba(255,255,255,0.08)',
+                  borderRadius: '24px',
+                  overflow: 'hidden',
+                }}>
                   {filteredRegs.map(reg => (
                     <BuyerRow key={reg.id} reg={reg} showSeller
                       expanded={expandedReg === reg.id}
@@ -858,38 +1008,7 @@ export default function SolsticeVentasDashboard({ role }: Props) {
           )}
         </div>
 
-        {/* Cash modal */}
-        <AnimatePresence>
-          {cashModal && cashSchedule && (
-            <>
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="fixed inset-0 z-[300] bg-black/70 backdrop-blur-sm" onClick={() => setCashModal(null)} />
-              <motion.div initial={{ opacity: 0, scale: 0.96, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.96 }}
-                className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[310] w-full max-w-md p-8 space-y-5"
-                style={{ background: C.bgS, border: `1px solid ${C.gray}20` }}>
-                <div className="flex items-center justify-between">
-                  <h3 className="text-base uppercase font-black" style={{ fontFamily: "'Poiret One',sans-serif", letterSpacing: '0.1em' }}>
-                    Confirmar pago efectivo
-                  </h3>
-                  <button onClick={() => setCashModal(null)} style={{ color: C.gray }}><X size={18} /></button>
-                </div>
-                <div className="space-y-2 p-4" style={{ background: C.bgT, border: `1px solid ${C.gray}15` }}>
-                  {[['Comprador', cashModal.customer_name], ['Cuota', String(cashSchedule.installment_number)], ['Monto', fmt(cashSchedule.amount)]].map(([k, v]) => (
-                    <div key={k} className="flex justify-between text-xs uppercase" style={{ letterSpacing: '0.1em' }}>
-                      <span style={{ color: C.gray }}>{k}</span><span>{v}</span>
-                    </div>
-                  ))}
-                </div>
-                <button onClick={confirmCashPayment} disabled={cashLoading}
-                  className="w-full py-4 text-sm uppercase font-black tracking-widest disabled:opacity-40 flex items-center justify-center gap-2"
-                  style={{ background: C.yellow, color: '#000' }}>
-                  {cashLoading ? <Loader2 size={14} className="animate-spin" /> : <><Banknote size={14} /> Confirmar recibo</>}
-                </button>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
+        <CashModal />
       </div>
     );
   }
@@ -906,15 +1025,15 @@ export default function SolsticeVentasDashboard({ role }: Props) {
 
   return (
     <div style={{ background: C.bg, minHeight: '100vh', color: C.cream, fontFamily: "'Archivo', sans-serif" }}>
-      <div className="px-8 pt-10 pb-6" style={{ borderBottom: `1px solid ${C.gray}15` }}>
-        <p className="text-[9px] uppercase font-bold mb-1" style={{ color: C.red, letterSpacing: '0.4em' }}>
+      <div className="px-8 pt-10 pb-6" style={{ borderBottom: '0.5px solid rgba(255,255,255,0.08)' }}>
+        <p className="text-[9px] uppercase mb-1" style={{ color: C.red, fontWeight: 500, letterSpacing: '0.4em' }}>
           {isSeller ? 'Mi Dashboard' : 'Dashboard · Gerente'}
         </p>
-        <h1 className="text-3xl uppercase" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.1em' }}>
+        <h1 className="text-3xl uppercase" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.1em', fontWeight: 300 }}>
           {isSeller ? 'Mis Ventas' : 'Vista Equipo'}
         </h1>
         {mySeller && (
-          <p className="text-xs uppercase mt-1" style={{ color: C.gray, letterSpacing: '0.2em' }}>
+          <p className="text-xs uppercase mt-1" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>
             {season?.name || 'SOLSTICE 2026'}
             {mySeller.team_name  && ` · ${mySeller.team_name}`}
             {mySeller.squad_name && ` · ${mySeller.squad_name}`}
@@ -934,9 +1053,14 @@ export default function SolsticeVentasDashboard({ role }: Props) {
           <KpiCard label="Pendiente"  value={fmtK(myStats.comPending)}   sub="cuotas futuras" />
         </div>
         {myStats.inMora > 0 && (
-          <div className="flex items-center gap-3 px-5 py-3" style={{ background: `${C.red}12`, border: `1px solid ${C.red}30` }}>
+          <div className="flex items-center gap-3 px-5 py-3"
+            style={{
+              background: 'rgba(230,57,47,0.12)',
+              border: '0.5px solid rgba(230,57,47,0.35)',
+              borderRadius: '20px',
+            }}>
             <AlertTriangle size={16} style={{ color: C.red }} />
-            <p className="text-xs uppercase font-bold" style={{ color: C.red, letterSpacing: '0.15em' }}>
+            <p className="text-xs uppercase" style={{ color: C.red, letterSpacing: '0.15em', fontWeight: 500 }}>
               {myStats.inMora} comprador{myStats.inMora > 1 ? 'es' : ''} con cuota vencida
             </p>
           </div>
@@ -945,21 +1069,39 @@ export default function SolsticeVentasDashboard({ role }: Props) {
         {/* Referral link */}
         {mySeller?.ref_code && (
           <div className="space-y-3">
-            <p className="text-[9px] uppercase tracking-[0.3em]" style={{ color: C.gray }}>Tu link de referidos</p>
+            <p className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>Tu link de referidos</p>
             <div className="flex flex-col md:flex-row gap-3">
-              <div className="flex-1 flex items-center gap-3 px-4 py-3" style={{ background: C.bgS, border: `1px solid ${C.gray}20` }}>
+              <div className="flex-1 flex items-center gap-3 px-4 py-3"
+                style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '0.5px solid rgba(255,255,255,0.08)',
+                  borderRadius: '999px',
+                }}>
                 <Globe size={14} style={{ color: C.red }} />
                 <span className="text-xs flex-1 truncate font-mono">{referralLink}</span>
               </div>
               <div className="flex gap-2">
                 <button onClick={copyLink}
-                  className="flex items-center gap-2 px-5 py-3 text-xs uppercase font-black tracking-widest"
-                  style={{ background: linkCopied ? C.green : C.red, color: C.cream }}>
+                  className="flex items-center gap-2 px-5 py-3 text-xs uppercase tracking-widest"
+                  style={{
+                    background: linkCopied ? C.green : C.red,
+                    color: C.cream,
+                    borderRadius: '999px',
+                    fontWeight: 500,
+                    transition: 'all 0.3s ease',
+                  }}>
                   {linkCopied ? <Check size={13} /> : <Copy size={13} />} {linkCopied ? 'Copiado' : 'Copiar'}
                 </button>
                 <button onClick={shareWhatsApp}
-                  className="flex items-center gap-2 px-5 py-3 text-xs uppercase font-black tracking-widest"
-                  style={{ background: C.bgS, border: `1px solid ${C.gray}20`, color: C.cream }}>
+                  className="flex items-center gap-2 px-5 py-3 text-xs uppercase tracking-widest"
+                  style={{
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '0.5px solid rgba(255,255,255,0.12)',
+                    color: C.cream,
+                    borderRadius: '999px',
+                    fontWeight: 500,
+                    transition: 'all 0.3s ease',
+                  }}>
                   <Share2 size={13} /> WA
                 </button>
               </div>
@@ -971,16 +1113,28 @@ export default function SolsticeVentasDashboard({ role }: Props) {
         {isManager && teamSellers.length > 0 && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <p className="text-xs uppercase tracking-widest" style={{ color: C.gray }}>Mi equipo</p>
+              <p className="text-xs uppercase" style={{ color: C.gray, fontWeight: 300, letterSpacing: '-0.02em' }}>Mi equipo</p>
               <button onClick={() => exportCsv(allRegs)}
                 className="flex items-center gap-2 text-[10px] uppercase tracking-widest px-4 py-2"
-                style={{ border: `1px solid ${C.gray}20`, color: C.gray }}>
+                style={{
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '0.5px solid rgba(255,255,255,0.12)',
+                  color: C.gray,
+                  borderRadius: '999px',
+                  transition: 'all 0.3s ease',
+                }}>
                 <Download size={12} /> CSV
               </button>
             </div>
-            <div style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
-              <div className="grid grid-cols-12 px-5 py-2 text-[9px] uppercase tracking-widest"
-                style={{ color: C.gray, borderBottom: `1px solid ${C.gray}10` }}>
+            <div style={{
+              background: 'rgba(255,255,255,0.03)',
+              backdropFilter: 'blur(24px)',
+              border: '0.5px solid rgba(255,255,255,0.08)',
+              borderRadius: '24px',
+              overflow: 'hidden',
+            }}>
+              <div className="grid grid-cols-12 px-5 py-2 text-[9px] uppercase"
+                style={{ color: C.gray, borderBottom: '0.5px solid rgba(255,255,255,0.05)', fontWeight: 500, letterSpacing: '0.06em' }}>
                 <div className="col-span-4">Vendedor</div>
                 <div className="col-span-2 text-right">Reservas</div>
                 <div className="col-span-2 text-right">Dig · Ef</div>
@@ -993,12 +1147,12 @@ export default function SolsticeVentasDashboard({ role }: Props) {
                 return (
                   <button key={sl.user_id} onClick={() => setSellerFilter(v => v===sl.user_id?'all':sl.user_id)}
                     className="w-full grid grid-cols-12 px-5 py-3 items-center text-left hover:bg-white/3 transition-colors"
-                    style={{ borderBottom: `1px solid ${C.gray}08`, background: sellerFilter===sl.user_id?`${C.red}08`:'transparent' }}>
+                    style={{ borderBottom: '0.5px solid rgba(255,255,255,0.05)', background: sellerFilter===sl.user_id?'rgba(230,57,47,0.08)':'transparent' }}>
                     <div className="col-span-4">
-                      <p className="text-xs font-bold uppercase truncate" style={{ color: sellerFilter===sl.user_id?C.red:C.cream }}>{sl.name}</p>
+                      <p className="text-xs uppercase truncate" style={{ color: sellerFilter===sl.user_id?C.red:C.cream, fontWeight: 500 }}>{sl.name}</p>
                       <p className="text-[9px] font-mono" style={{ color: C.gray }}>{sl.ref_code}</p>
                     </div>
-                    <div className="col-span-2 text-right text-xs font-black">{slRegs.length}</div>
+                    <div className="col-span-2 text-right text-xs" style={{ fontWeight: 500 }}>{slRegs.length}</div>
                     <div className="col-span-2 text-right text-xs" style={{ color: C.gray }}>
                       {slRegs.filter(r=>r.ref_code&&r.payment_mode!=='cash_to_seller').length} · {slRegs.filter(r=>r.payment_mode==='cash_to_seller').length}
                     </div>
@@ -1014,14 +1168,20 @@ export default function SolsticeVentasDashboard({ role }: Props) {
         {/* Buyer table */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-xs uppercase tracking-widest" style={{ color: C.gray }}>
+            <p className="text-xs uppercase" style={{ color: C.gray, fontWeight: 300, letterSpacing: '-0.02em' }}>
               {sellerFilter==='all' ? 'Mis compradores' : `Compradores de ${teamSellers.find(s=>s.user_id===sellerFilter)?.name||'vendedor'}`}
               <span className="ml-2" style={{ color: C.red }}>({buyerRegs.length})</span>
             </p>
             {isSeller && (
               <button onClick={() => exportCsv(allRegs)}
                 className="flex items-center gap-2 text-[10px] uppercase tracking-widest px-4 py-2"
-                style={{ border: `1px solid ${C.gray}20`, color: C.gray }}>
+                style={{
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '0.5px solid rgba(255,255,255,0.12)',
+                  color: C.gray,
+                  borderRadius: '999px',
+                  transition: 'all 0.3s ease',
+                }}>
                 <Download size={12} /> CSV
               </button>
             )}
@@ -1029,10 +1189,16 @@ export default function SolsticeVentasDashboard({ role }: Props) {
           {buyerRegs.length === 0 ? (
             <div className="py-16 text-center" style={{ color: C.gray }}>
               <UserCheck size={32} className="mx-auto mb-4 opacity-30" />
-              <p className="text-xs uppercase tracking-widest">Sin compradores aún</p>
+              <p className="text-xs uppercase" style={{ fontWeight: 500, letterSpacing: '0.08em' }}>Sin compradores aún</p>
             </div>
           ) : (
-            <div style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
+            <div style={{
+              background: 'rgba(255,255,255,0.03)',
+              backdropFilter: 'blur(24px)',
+              border: '0.5px solid rgba(255,255,255,0.08)',
+              borderRadius: '24px',
+              overflow: 'hidden',
+            }}>
               {buyerRegs.map(reg => (
                 <BuyerRow key={reg.id} reg={reg}
                   expanded={expandedReg === reg.id}
@@ -1046,57 +1212,38 @@ export default function SolsticeVentasDashboard({ role }: Props) {
 
         {/* Channel split */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="p-5 space-y-3" style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
+          <div className="p-6 space-y-3" style={{
+            background: 'rgba(255,255,255,0.04)',
+            backdropFilter: 'blur(32px) saturate(180%)',
+            border: '0.5px solid rgba(16,185,129,0.25)',
+            borderRadius: '24px',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.20)',
+          }}>
             <div className="flex items-center gap-2"><Globe size={14} style={{ color: C.green }} />
-              <p className="text-[9px] uppercase tracking-widest" style={{ color: C.gray }}>Digital</p></div>
-            <p className="text-3xl font-black" style={{ color: C.green }}>{myStats.digital}</p>
-            <div className="h-1 rounded-full" style={{ background: `${C.gray}20` }}>
-              <div className="h-full rounded-full" style={{ width: myStats.count ? `${(myStats.digital/myStats.count)*100}%` : '0%', background: C.green }} />
+              <p className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>Digital</p></div>
+            <p className="text-3xl" style={{ color: C.green, fontWeight: 500 }}>{myStats.digital}</p>
+            <div className="h-1" style={{ background: `${C.gray}20`, borderRadius: '999px' }}>
+              <div className="h-full" style={{ width: myStats.count ? `${(myStats.digital/myStats.count)*100}%` : '0%', background: C.green, borderRadius: '999px' }} />
             </div>
           </div>
-          <div className="p-5 space-y-3" style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
+          <div className="p-6 space-y-3" style={{
+            background: 'rgba(255,255,255,0.04)',
+            backdropFilter: 'blur(32px) saturate(180%)',
+            border: '0.5px solid rgba(245,158,11,0.25)',
+            borderRadius: '24px',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.20)',
+          }}>
             <div className="flex items-center gap-2"><Banknote size={14} style={{ color: C.yellow }} />
-              <p className="text-[9px] uppercase tracking-widest" style={{ color: C.gray }}>Efectivo</p></div>
-            <p className="text-3xl font-black" style={{ color: C.yellow }}>{myStats.cash}</p>
-            <div className="h-1 rounded-full" style={{ background: `${C.gray}20` }}>
-              <div className="h-full rounded-full" style={{ width: myStats.count ? `${(myStats.cash/myStats.count)*100}%` : '0%', background: C.yellow }} />
+              <p className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>Efectivo</p></div>
+            <p className="text-3xl" style={{ color: C.yellow, fontWeight: 500 }}>{myStats.cash}</p>
+            <div className="h-1" style={{ background: `${C.gray}20`, borderRadius: '999px' }}>
+              <div className="h-full" style={{ width: myStats.count ? `${(myStats.cash/myStats.count)*100}%` : '0%', background: C.yellow, borderRadius: '999px' }} />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Cash modal */}
-      <AnimatePresence>
-        {cashModal && cashSchedule && (
-          <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[300] bg-black/70 backdrop-blur-sm" onClick={() => setCashModal(null)} />
-            <motion.div initial={{ opacity: 0, scale: 0.96, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96 }}
-              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[310] w-full max-w-md p-8 space-y-5"
-              style={{ background: C.bgS, border: `1px solid ${C.gray}20` }}>
-              <div className="flex items-center justify-between">
-                <h3 className="text-base uppercase font-black" style={{ fontFamily: "'Poiret One',sans-serif", letterSpacing: '0.1em' }}>
-                  Confirmar pago efectivo
-                </h3>
-                <button onClick={() => setCashModal(null)} style={{ color: C.gray }}><X size={18} /></button>
-              </div>
-              <div className="space-y-2 p-4" style={{ background: C.bgT, border: `1px solid ${C.gray}15` }}>
-                {[['Comprador', cashModal.customer_name], ['Cuota', String(cashSchedule.installment_number)], ['Monto', fmt(cashSchedule.amount)]].map(([k, v]) => (
-                  <div key={k} className="flex justify-between text-xs uppercase" style={{ letterSpacing: '0.1em' }}>
-                    <span style={{ color: C.gray }}>{k}</span><span>{v}</span>
-                  </div>
-                ))}
-              </div>
-              <button onClick={confirmCashPayment} disabled={cashLoading}
-                className="w-full py-4 text-sm uppercase font-black tracking-widest disabled:opacity-40 flex items-center justify-center gap-2"
-                style={{ background: C.yellow, color: '#000' }}>
-                {cashLoading ? <Loader2 size={14} className="animate-spin" /> : <><Banknote size={14} /> Confirmar recibo</>}
-              </button>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      <CashModal />
     </div>
   );
 }

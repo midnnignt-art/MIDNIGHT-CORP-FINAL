@@ -59,26 +59,44 @@ function useCountdown(targetDate: string) {
 function WeekCard({ week, onSelect, idx }: { week: Week; onSelect: () => void; idx: number }) {
   const { days, hours, mins, secs, pct } = useCountdown(week.start_date);
   const urgent = days < 30;
+  const [hovered, setHovered] = useState(false);
+  const [btnHovered, setBtnHovered] = useState(false);
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }} transition={{ delay: idx * 0.1 }}
       className="relative p-8 flex flex-col"
-      style={{ background: C.bgS, border: `1px solid ${urgent ? C.red + '55' : C.gray + '25'}` }}
+      style={{
+        background: 'rgba(255,255,255,0.05)',
+        backdropFilter: 'blur(32px) saturate(180%)',
+        border: urgent ? '0.5px solid rgba(230,57,47,0.35)' : '0.5px solid rgba(255,255,255,0.10)',
+        borderRadius: '28px',
+        boxShadow: hovered ? '0 32px 64px rgba(0,0,0,0.40)' : '0 24px 48px rgba(0,0,0,0.25)',
+        transform: hovered ? 'translateY(-4px) scale(1.005)' : 'translateY(0) scale(1)',
+        transition: '0.4s cubic-bezier(0.25,0.46,0.45,0.94)',
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
       {urgent && (
-        <div className="absolute -top-3 left-6 px-3 py-1 text-[9px] uppercase font-black"
-          style={{ background: C.red, letterSpacing: '0.15em' }}>
+        <div
+          className="absolute -top-3 left-6 px-3 py-1 text-[9px] uppercase font-medium"
+          style={{
+            background: C.red,
+            letterSpacing: '0.08em',
+            borderRadius: '999px',
+            fontWeight: 500,
+          }}>
           ¡Últimos días!
         </div>
       )}
 
       <h3 className="text-2xl mb-1 uppercase"
-        style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.1em' }}>
+        style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.1em', fontWeight: 300 }}>
         {week.university}
       </h3>
-      <p className="text-xs mb-6 uppercase" style={{ letterSpacing: '0.2em', color: C.gray }}>
+      <p className="text-xs mb-6 uppercase" style={{ letterSpacing: '0.2em', color: C.gray, fontWeight: 500 }}>
         {new Date(week.start_date + 'T12:00:00').toLocaleDateString('es-CO', { month: 'short', day: 'numeric' })}
         {' — '}
         {new Date(week.end_date + 'T12:00:00').toLocaleDateString('es-CO', { month: 'short', day: 'numeric' })}
@@ -88,32 +106,46 @@ function WeekCard({ week, onSelect, idx }: { week: Week; onSelect: () => void; i
       <div className="grid grid-cols-4 gap-2 mb-5">
         {[['días', days], ['hrs', hours], ['min', mins], ['seg', secs]].map(([label, val]) => (
           <div key={String(label)} className="flex flex-col items-center py-2"
-            style={{ background: `${C.gray}08`, border: `1px solid ${C.gray}15` }}>
-            <span className="text-xl font-black leading-none" style={{ color: urgent ? C.red : C.cream }}>
+            style={{
+              background: 'rgba(255,255,255,0.05)',
+              border: '0.5px solid rgba(255,255,255,0.10)',
+              borderRadius: '14px',
+            }}>
+            <span className="text-xl font-semibold leading-none" style={{ color: urgent ? C.red : C.cream }}>
               {String(val).padStart(2, '0')}
             </span>
-            <span className="text-[8px] uppercase mt-1" style={{ color: C.gray, letterSpacing: '0.15em' }}>{label}</span>
+            <span className="text-[8px] uppercase mt-1" style={{ color: C.gray, letterSpacing: '0.08em', fontWeight: 500 }}>{label}</span>
           </div>
         ))}
       </div>
 
       {/* Urgency bar */}
-      <div className="w-full h-[2px] mb-1" style={{ background: `${C.gray}20` }}>
+      <div className="w-full h-[2px] mb-1" style={{ background: `${C.gray}20`, borderRadius: '999px' }}>
         <motion.div className="h-full"
           initial={{ width: 0 }} whileInView={{ width: `${pct}%` }}
           transition={{ duration: 1.2, ease: 'easeOut' }}
-          style={{ background: urgent ? C.red : `${C.red}80` }} />
+          style={{ background: urgent ? C.red : `${C.red}80`, borderRadius: '999px' }} />
       </div>
-      <p className="text-[9px] uppercase mb-8" style={{ color: urgent ? `${C.red}90` : C.gray, letterSpacing: '0.15em' }}>
+      <p className="text-[9px] uppercase mb-8" style={{ color: urgent ? `${C.red}90` : C.gray, letterSpacing: '0.08em', fontWeight: 500 }}>
         {days > 0 ? `Faltan ${days} días` : 'Comenzando'}
       </p>
 
       <button
         onClick={onSelect}
         className="w-full py-3 text-xs uppercase transition-all mt-auto"
-        style={{ border: `1px solid ${C.gray}30`, color: C.gray, letterSpacing: '0.2em' }}
-        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = C.red; (e.currentTarget as HTMLButtonElement).style.color = C.red; }}
-        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = `${C.gray}30`; (e.currentTarget as HTMLButtonElement).style.color = C.gray; }}
+        style={{
+          border: btnHovered ? '0.5px solid rgba(230,57,47,0.45)' : '0.5px solid rgba(255,255,255,0.10)',
+          color: btnHovered ? C.red : C.gray,
+          letterSpacing: '0.08em',
+          borderRadius: '999px',
+          background: btnHovered ? 'rgba(230,57,47,0.22)' : 'transparent',
+          transform: btnHovered ? 'translateY(-1px)' : 'none',
+          boxShadow: btnHovered ? '0 8px 24px rgba(230,57,47,0.25)' : 'none',
+          transition: 'all 0.3s ease',
+          fontWeight: 500,
+        }}
+        onMouseEnter={() => setBtnHovered(true)}
+        onMouseLeave={() => setBtnHovered(false)}
       >
         Seleccionar semana
       </button>
@@ -127,6 +159,8 @@ export default function SolsticeLanding({ onNavigate }: Props) {
   const [weeks,  setWeeks]  = useState<Week[]>([]);
   const [days,   setDays]   = useState<Day[]>([]);
   const [loading, setLoading] = useState(true);
+  const [ctaHovered, setCtaHovered] = useState(false);
+  const [finalCtaHovered, setFinalCtaHovered] = useState(false);
 
   useEffect(() => {
     document.title = 'SOLSTICE 2026';
@@ -204,23 +238,44 @@ export default function SolsticeLanding({ onNavigate }: Props) {
           className="relative z-20 text-center px-6"
         >
           <h1 className="uppercase flex items-center justify-center gap-3 leading-none mb-6"
-            style={{ fontFamily: "'Poiret One', sans-serif", fontSize: 'clamp(4rem, 14vw, 10rem)', letterSpacing: '0.05em' }}>
+            style={{
+              fontFamily: "'Poiret One', sans-serif",
+              fontSize: 'clamp(4rem, 14vw, 10rem)',
+              letterSpacing: '-0.02em',
+              fontWeight: 300,
+            }}>
             S
-            <span className="inline-block rounded-full border-4"
-              style={{ width: 'clamp(2.2rem,5vw,5rem)', height: 'clamp(2.2rem,5vw,5rem)', borderColor: C.red }} />
+            <span className="inline-block rounded-full"
+              style={{
+                width: 'clamp(2.2rem,5vw,5rem)',
+                height: 'clamp(2.2rem,5vw,5rem)',
+                border: '0.5px solid rgba(230,57,47,0.45)',
+                borderRadius: '999px',
+              }} />
             LSTICE
           </h1>
-          <p className="text-lg md:text-2xl font-light mb-3" style={{ letterSpacing: '0.22em', color: C.red }}>
+          <p className="text-lg md:text-2xl mb-3" style={{ letterSpacing: '0.22em', color: C.red, fontWeight: 300 }}>
             {s.tagline}
           </p>
-          <p className="text-sm mb-14 uppercase" style={{ letterSpacing: '0.3em', color: C.gray }}>
+          <p className="text-sm mb-14 uppercase" style={{ letterSpacing: '0.08em', color: C.gray, fontWeight: 500 }}>
             Santa Marta · Sep–Oct 2026 · Una vez al año.
           </p>
           <motion.button
-            whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}
+            whileTap={{ scale: 0.97 }}
             onClick={() => onNavigate('reserva')}
-            className="px-12 py-4 text-sm font-black uppercase"
-            style={{ background: C.red, color: C.cream, letterSpacing: '0.2em' }}
+            className="px-12 py-4 text-sm font-medium uppercase"
+            style={{
+              background: ctaHovered ? 'rgba(230,57,47,0.35)' : 'rgba(230,57,47,0.22)',
+              color: C.cream,
+              letterSpacing: '0.08em',
+              borderRadius: '999px',
+              border: '0.5px solid rgba(230,57,47,0.45)',
+              transform: ctaHovered ? 'translateY(-1px)' : 'none',
+              boxShadow: ctaHovered ? '0 8px 24px rgba(230,57,47,0.25)' : 'none',
+              transition: 'all 0.3s ease',
+            }}
+            onMouseEnter={() => setCtaHovered(true)}
+            onMouseLeave={() => setCtaHovered(false)}
           >
             RESERVA TU SEMANA
           </motion.button>
@@ -229,9 +284,13 @@ export default function SolsticeLanding({ onNavigate }: Props) {
         {/* Hero badge */}
         <div className="absolute bottom-10 left-0 right-0 z-20 flex justify-center gap-3 flex-wrap px-4">
           <div className="flex items-center gap-3 px-5 py-2.5 rounded-full backdrop-blur-md"
-            style={{ background: 'rgba(0,0,0,0.5)', border: `1px solid ${C.gray}40` }}>
+            style={{
+              background: 'rgba(0,0,0,0.5)',
+              border: '0.5px solid rgba(255,255,255,0.10)',
+              borderRadius: '999px',
+            }}>
             <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: C.red }} />
-            <span className="text-[11px] uppercase" style={{ letterSpacing: '0.18em' }}>
+            <span className="text-[11px] uppercase" style={{ letterSpacing: '0.08em', fontWeight: 500 }}>
               {s.phase1_limit
                 ? `Fase 1 activa — primeras ${s.phase1_limit} reservas desde `
                 : 'Reserva desde '}
@@ -244,10 +303,10 @@ export default function SolsticeLanding({ onNavigate }: Props) {
       {/* ── SEMANAS ── */}
       <section className="py-24 px-4 max-w-7xl mx-auto">
         <h2 className="text-3xl text-center mb-3 uppercase"
-          style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.1em' }}>
+          style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '-0.02em', fontWeight: 300 }}>
           Semanas Disponibles
         </h2>
-        <p className="text-center text-xs uppercase mb-16" style={{ letterSpacing: '0.3em', color: C.gray }}>
+        <p className="text-center text-xs uppercase mb-16" style={{ letterSpacing: '0.08em', color: C.gray, fontWeight: 500 }}>
           {displayWeeks.length} universidades · Santa Marta 2026
         </p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -263,13 +322,13 @@ export default function SolsticeLanding({ onNavigate }: Props) {
       </section>
 
       {/* ── PROGRAMA ── */}
-      <section className="py-24 overflow-hidden" style={{ background: C.bgS }}>
+      <section className="py-24 overflow-hidden" style={{ background: 'rgba(255,255,255,0.02)' }}>
         <div className="max-w-7xl mx-auto px-4">
           <h2 className="text-3xl text-center mb-3 uppercase"
-            style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.1em' }}>
+            style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '-0.02em', fontWeight: 300 }}>
             Programa — {displayDays.length} Días
           </h2>
-          <p className="text-center text-xs uppercase mb-20" style={{ letterSpacing: '0.3em', color: C.gray }}>
+          <p className="text-center text-xs uppercase mb-20" style={{ letterSpacing: '0.08em', color: C.gray, fontWeight: 500 }}>
             Todo incluido · Atardecer cada noche
           </p>
           <div className="relative">
@@ -277,18 +336,23 @@ export default function SolsticeLanding({ onNavigate }: Props) {
             <div className="flex flex-col md:flex-row justify-between gap-12 relative z-10">
               {displayDays.map(day => (
                 <div key={day.day_number} className="flex-1 flex flex-col items-center text-center">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center mb-6 border-2"
+                  <div className="w-10 h-10 flex items-center justify-center mb-6"
                     style={day.highlight
-                      ? { background: C.red, borderColor: C.red, color: C.cream }
-                      : { borderColor: `${C.gray}50`, color: C.gray }}>
+                      ? { background: C.red, borderRadius: '999px', color: C.cream, border: '0.5px solid rgba(230,57,47,0.45)' }
+                      : { borderRadius: '999px', color: C.gray, border: '0.5px solid rgba(255,255,255,0.10)' }}>
                     {day.highlight ? <Ship size={18} /> : <span className="text-sm">{day.day_number}</span>}
                   </div>
                   <h4 className="text-base mb-1 uppercase"
-                    style={{ color: day.highlight ? C.red : C.cream, fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.1em' }}>
+                    style={{
+                      color: day.highlight ? C.red : C.cream,
+                      fontFamily: "'Poiret One', sans-serif",
+                      letterSpacing: '0.1em',
+                      fontWeight: 300,
+                    }}>
                     {day.title}
                   </h4>
-                  <p className="text-[10px] uppercase mb-2" style={{ color: C.gray, letterSpacing: '0.1em' }}>{day.subtitle}</p>
-                  <p className="text-[9px] uppercase" style={{ color: `${C.gray}80`, letterSpacing: '0.1em' }}>
+                  <p className="text-[10px] uppercase mb-2" style={{ color: C.gray, letterSpacing: '0.08em', fontWeight: 500 }}>{day.subtitle}</p>
+                  <p className="text-[9px] uppercase" style={{ color: `${C.gray}80`, letterSpacing: '0.08em', fontWeight: 500 }}>
                     ${Math.round(day.price / 1000)}K individual
                   </p>
                 </div>
@@ -296,19 +360,19 @@ export default function SolsticeLanding({ onNavigate }: Props) {
             </div>
           </div>
           <div className="mt-14 flex items-center justify-center gap-8 flex-wrap">
-            <span className="text-[10px] uppercase" style={{ color: C.gray, letterSpacing: '0.2em' }}>
+            <span className="text-[10px] uppercase" style={{ color: C.gray, letterSpacing: '0.08em', fontWeight: 500 }}>
               Sueltos: ${Math.round(displayDays.reduce((a, d) => a + d.price, 0) / 1000)}K
             </span>
-            <span className="text-[10px] uppercase" style={{ color: C.red, letterSpacing: '0.2em' }}>
+            <span className="text-[10px] uppercase" style={{ color: C.red, letterSpacing: '0.08em', fontWeight: 500 }}>
               Combo completo: ${comboK}K
             </span>
-            <span className="text-[10px] uppercase" style={{ color: `${C.gray}80`, letterSpacing: '0.2em' }}>
+            <span className="text-[10px] uppercase" style={{ color: `${C.gray}80`, letterSpacing: '0.08em', fontWeight: 500 }}>
               Combo 1 (sin Catamarán): ${combo1K}K
             </span>
             <button
               onClick={() => onNavigate('programa')}
-              className="flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-widest transition-all hover:opacity-100 opacity-60"
-              style={{ color: C.cream, letterSpacing: '0.25em' }}>
+              className="flex items-center gap-1.5 text-[10px] uppercase font-medium tracking-widest transition-all hover:opacity-100 opacity-60"
+              style={{ color: C.cream, letterSpacing: '0.08em' }}>
               Ver programa completo <ChevronRight size={11} />
             </button>
           </div>
@@ -318,27 +382,40 @@ export default function SolsticeLanding({ onNavigate }: Props) {
       {/* ── LA VACA ── */}
       <section className="py-24 px-4 max-w-4xl mx-auto text-center">
         <h2 className="text-4xl mb-4 uppercase"
-          style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.1em' }}>
+          style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '-0.02em', fontWeight: 300 }}>
           La Vaca — Cómo funciona
         </h2>
         <p className="text-sm mb-2" style={{ color: C.gray }}>
           Reserva con <strong style={{ color: C.cream }}>${entryK}K</strong> hoy.
           El resto en cuotas mensuales sin interés.
         </p>
-        <p className="text-xs uppercase mb-14" style={{ color: `${C.gray}80`, letterSpacing: '0.2em' }}>
+        <p className="text-xs uppercase mb-14" style={{ color: `${C.gray}80`, letterSpacing: '0.08em', fontWeight: 500 }}>
           Sin interés · Sin multa si cancelas antes del primer mes
         </p>
 
         {/* Plans */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-14 text-left">
           {/* Combo 1 */}
-          <div className="p-8 relative" style={{ background: C.bgS, border: `1px solid ${C.gray}30` }}>
-            <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 text-[10px] uppercase font-black whitespace-nowrap"
-              style={{ background: C.gray, letterSpacing: '0.2em', color: C.bg }}>
+          <div className="p-8 relative"
+            style={{
+              background: 'rgba(255,255,255,0.05)',
+              backdropFilter: 'blur(32px) saturate(180%)',
+              border: '0.5px solid rgba(255,255,255,0.10)',
+              borderRadius: '24px',
+              boxShadow: '0 24px 48px rgba(0,0,0,0.25)',
+            }}>
+            <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 text-[10px] uppercase font-medium whitespace-nowrap"
+              style={{
+                background: C.gray,
+                letterSpacing: '0.08em',
+                color: C.bg,
+                borderRadius: '999px',
+                fontWeight: 500,
+              }}>
               Combo 1
             </div>
-            <div className="text-5xl font-black mb-1" style={{ color: C.cream }}>${combo1K}K</div>
-            <p className="text-xs uppercase mb-4" style={{ color: C.gray, letterSpacing: '0.15em' }}>
+            <div className="text-5xl font-semibold mb-1" style={{ color: C.cream }}>${combo1K}K</div>
+            <p className="text-xs uppercase mb-4" style={{ color: C.gray, letterSpacing: '0.08em', fontWeight: 500 }}>
               {s.combo1_installments} cuotas de ${cuota1K}K/mes
             </p>
             <div className="space-y-1.5 text-xs" style={{ color: C.gray }}>
@@ -346,7 +423,7 @@ export default function SolsticeLanding({ onNavigate }: Props) {
                 <span>Reserva inicial</span>
                 <span style={{ color: C.cream }}>${entryK}K</span>
               </div>
-              <div className="flex justify-between pt-2" style={{ borderTop: `1px solid ${C.gray}20` }}>
+              <div className="flex justify-between pt-2" style={{ borderTop: '0.5px solid rgba(255,255,255,0.10)' }}>
                 <span>Total</span>
                 <span style={{ color: C.cream }}>${combo1K}K</span>
               </div>
@@ -354,13 +431,25 @@ export default function SolsticeLanding({ onNavigate }: Props) {
           </div>
 
           {/* Combo completo */}
-          <div className="p-8 relative" style={{ background: C.bgS, border: `1px solid ${C.red}40` }}>
-            <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 text-[10px] uppercase font-black whitespace-nowrap"
-              style={{ background: C.red, letterSpacing: '0.2em' }}>
+          <div className="p-8 relative"
+            style={{
+              background: 'rgba(255,255,255,0.05)',
+              backdropFilter: 'blur(32px) saturate(180%)',
+              border: '0.5px solid rgba(230,57,47,0.35)',
+              borderRadius: '24px',
+              boxShadow: '0 24px 48px rgba(0,0,0,0.25)',
+            }}>
+            <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 text-[10px] uppercase font-medium whitespace-nowrap"
+              style={{
+                background: C.red,
+                letterSpacing: '0.08em',
+                borderRadius: '999px',
+                fontWeight: 500,
+              }}>
               Combo Completo
             </div>
-            <div className="text-5xl font-black mb-1" style={{ color: C.red }}>${comboK}K</div>
-            <p className="text-xs uppercase mb-4" style={{ color: `${C.red}80`, letterSpacing: '0.15em' }}>
+            <div className="text-5xl font-semibold mb-1" style={{ color: C.red }}>${comboK}K</div>
+            <p className="text-xs uppercase mb-4" style={{ color: `${C.red}80`, letterSpacing: '0.08em', fontWeight: 500 }}>
               {s.installments} cuotas de ${cuotaK}K/mes
             </p>
             <div className="space-y-1.5 text-xs" style={{ color: `${C.gray}` }}>
@@ -368,7 +457,7 @@ export default function SolsticeLanding({ onNavigate }: Props) {
                 <span>Reserva inicial</span>
                 <span style={{ color: C.cream }}>${entryK}K</span>
               </div>
-              <div className="flex justify-between pt-2" style={{ borderTop: `1px solid ${C.gray}20` }}>
+              <div className="flex justify-between pt-2" style={{ borderTop: '0.5px solid rgba(255,255,255,0.10)' }}>
                 <span>Total</span>
                 <span style={{ color: C.red }}>${comboK}K</span>
               </div>
@@ -385,11 +474,15 @@ export default function SolsticeLanding({ onNavigate }: Props) {
             'Cuotas mensuales vía link WhatsApp',
           ].map((step, i) => (
             <div key={i} className="flex items-center gap-4">
-              <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs flex-shrink-0"
-                style={{ border: `1px solid ${C.gray}`, color: C.gray }}>
+              <div className="w-8 h-8 flex items-center justify-center text-xs flex-shrink-0"
+                style={{
+                  border: '0.5px solid rgba(255,255,255,0.10)',
+                  color: C.gray,
+                  borderRadius: '999px',
+                }}>
                 {i + 1}
               </div>
-              <p className="text-sm uppercase" style={{ letterSpacing: '0.1em' }}>{step}</p>
+              <p className="text-sm uppercase" style={{ letterSpacing: '0.08em', fontWeight: 500 }}>{step}</p>
             </div>
           ))}
         </div>
@@ -399,17 +492,28 @@ export default function SolsticeLanding({ onNavigate }: Props) {
       <section className="py-32 text-center px-4"
         style={{ background: `linear-gradient(to top, ${C.red}22, transparent)` }}>
         <h2 className="text-5xl md:text-7xl mb-8 uppercase"
-          style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.05em' }}>
+          style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '-0.02em', fontWeight: 300 }}>
           Tu semana empieza aquí.
         </h2>
-        <p className="text-lg mb-12 max-w-xl mx-auto" style={{ color: `${C.cream}cc` }}>
+        <p className="text-lg mb-12 max-w-xl mx-auto" style={{ color: `${C.cream}cc`, fontWeight: 300 }}>
           ¿Listo para el atardecer perfecto? Asegura tu cupo con ${entryK},000 hoy.
         </p>
         <motion.button
-          whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+          whileTap={{ scale: 0.97 }}
           onClick={() => onNavigate('reserva')}
-          className="flex items-center gap-4 mx-auto px-16 py-5 text-base font-black uppercase"
-          style={{ background: C.red, color: '#fff', letterSpacing: '0.25em' }}
+          className="flex items-center gap-4 mx-auto px-16 py-5 text-base font-medium uppercase"
+          style={{
+            background: finalCtaHovered ? 'rgba(230,57,47,0.35)' : 'rgba(230,57,47,0.22)',
+            color: '#fff',
+            letterSpacing: '0.08em',
+            borderRadius: '999px',
+            border: '0.5px solid rgba(230,57,47,0.45)',
+            transform: finalCtaHovered ? 'translateY(-1px)' : 'none',
+            boxShadow: finalCtaHovered ? '0 8px 24px rgba(230,57,47,0.25)' : 'none',
+            transition: 'all 0.3s ease',
+          }}
+          onMouseEnter={() => setFinalCtaHovered(true)}
+          onMouseLeave={() => setFinalCtaHovered(false)}
         >
           RESERVAR AHORA <ChevronRight size={18} />
         </motion.button>

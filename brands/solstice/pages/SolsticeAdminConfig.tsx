@@ -166,16 +166,27 @@ function InputRow({ label, value, onChange, type = 'text', prefix, placeholder }
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>{label}</label>
-      <div className="flex items-center" style={{ background: C.bgT, border: `1px solid ${C.gray}20` }}>
-        {prefix && <span className="px-3 text-xs shrink-0" style={{ color: C.gray, borderRight: `1px solid ${C.gray}20` }}>{prefix}</span>}
+      <label className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>{label}</label>
+      <div className="flex items-center" style={{
+        background: 'rgba(255,255,255,0.05)',
+        border: '0.5px solid rgba(255,255,255,0.10)',
+        borderRadius: '16px',
+        transition: 'all 0.3s ease',
+      }}>
+        {prefix && <span className="px-3 text-xs shrink-0" style={{ color: C.gray, borderRight: '0.5px solid rgba(255,255,255,0.08)' }}>{prefix}</span>}
         <input
           type={type} value={value} placeholder={placeholder || ''}
           onChange={e => onChange(e.target.value)}
           className="flex-1 px-3 py-2.5 text-xs outline-none bg-transparent"
-          style={{ color: C.cream }}
-          onFocus={e => (e.currentTarget.parentElement!.style.borderColor = C.red)}
-          onBlur={e => (e.currentTarget.parentElement!.style.borderColor = `${C.gray}20`)}
+          style={{ color: C.cream, borderRadius: '16px' }}
+          onFocus={e => {
+            const parent = e.currentTarget.parentElement!;
+            parent.style.borderColor = 'rgba(230,57,47,0.55)';
+          }}
+          onBlur={e => {
+            const parent = e.currentTarget.parentElement!;
+            parent.style.borderColor = 'rgba(255,255,255,0.10)';
+          }}
         />
       </div>
     </div>
@@ -184,8 +195,8 @@ function InputRow({ label, value, onChange, type = 'text', prefix, placeholder }
 
 function Toggle({ label, active, onToggle }: { label: string; active: boolean; onToggle: () => void }) {
   return (
-    <button onClick={onToggle} className="flex items-center gap-3 py-2">
-      {active ? <ToggleRight size={22} style={{ color: C.red }} /> : <ToggleLeft size={22} style={{ color: C.gray }} />}
+    <button onClick={onToggle} className="flex items-center gap-3 py-2" style={{ transition: 'all 0.3s ease' }}>
+      {active ? <ToggleRight size={22} style={{ color: C.green }} /> : <ToggleLeft size={22} style={{ color: C.gray }} />}
       <span className="text-xs uppercase tracking-widest" style={{ color: active ? C.cream : C.gray }}>{label}</span>
     </button>
   );
@@ -194,8 +205,18 @@ function Toggle({ label, active, onToggle }: { label: string; active: boolean; o
 function SaveBtn({ loading, onClick }: { loading: boolean; onClick: () => void }) {
   return (
     <button onClick={onClick} disabled={loading}
-      className="flex items-center gap-2 px-6 py-2.5 text-xs uppercase font-black tracking-widest transition-all disabled:opacity-40"
-      style={{ background: C.red, color: C.cream }}>
+      className="flex items-center gap-2 text-xs uppercase tracking-widest disabled:opacity-40"
+      style={{
+        background: 'rgba(230,57,47,0.20)',
+        border: '0.5px solid rgba(230,57,47,0.45)',
+        borderRadius: '999px',
+        color: C.cream,
+        padding: '10px 20px',
+        fontWeight: 500,
+        transition: 'all 0.3s ease',
+      }}
+      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)'; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)'; }}>
       {loading ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
       Guardar
     </button>
@@ -206,9 +227,9 @@ function PriceSection({ title, subtitle, onSave, saving, children }: {
   title: string; subtitle: string; onSave: () => void; saving: boolean; children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-4 pb-8" style={{ borderBottom: `1px solid ${C.gray}12` }}>
+    <div className="space-y-4 pb-8" style={{ borderBottom: '0.5px solid rgba(255,255,255,0.08)' }}>
       <div>
-        <h2 className="text-sm uppercase font-black tracking-widest" style={{ color: C.cream, letterSpacing: '0.15em' }}>{title}</h2>
+        <h2 className="text-sm uppercase tracking-widest" style={{ color: C.cream, fontWeight: 300, letterSpacing: '-0.02em' }}>{title}</h2>
         <p className="text-[10px] uppercase mt-0.5" style={{ color: C.gray, letterSpacing: '0.18em' }}>{subtitle}</p>
       </div>
       <div>{children}</div>
@@ -226,26 +247,28 @@ function DaySelector({ selected, onChange, days }: {
   };
   return (
     <div className="space-y-1.5">
-      <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Días incluidos</label>
+      <label className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>Días incluidos</label>
       <div className="flex flex-wrap gap-2">
         {days.map(day => {
           const active = selected.includes(day.day_number);
           return (
             <button key={day.day_number} type="button" onClick={() => toggle(day.day_number)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider"
               style={{
-                background: active ? `${C.red}20` : `${C.gray}10`,
-                border: `1px solid ${active ? C.red + '60' : C.gray + '20'}`,
+                background: active ? 'rgba(230,57,47,0.20)' : 'rgba(255,255,255,0.04)',
+                border: `0.5px solid ${active ? 'rgba(230,57,47,0.60)' : 'rgba(255,255,255,0.08)'}`,
+                borderRadius: '999px',
                 color: active ? C.red : C.gray,
+                transition: 'all 0.3s ease',
               }}>
-              <span className="font-black text-[9px]">D{day.day_number}</span>
+              <span className="font-medium text-[9px]">D{day.day_number}</span>
               <span>{day.title}</span>
               {day.highlight && <span style={{ color: C.red }}>★</span>}
             </button>
           );
         })}
       </div>
-      <p className="text-[9px] uppercase" style={{ color: `${C.gray}60` }}>
+      <p className="text-[9px] uppercase" style={{ color: 'rgba(96,96,96,0.6)' }}>
         {selected.length} día{selected.length !== 1 ? 's' : ''} seleccionado{selected.length !== 1 ? 's' : ''}
       </p>
     </div>
@@ -722,9 +745,9 @@ export default function SolsticeAdminConfig() {
     <div style={{ background: C.bg, minHeight: '100vh', color: C.cream, fontFamily: "'Archivo', sans-serif" }}>
 
       {/* Header */}
-      <div className="px-8 pt-10 pb-6" style={{ borderBottom: `1px solid ${C.gray}15` }}>
-        <p className="text-[9px] uppercase font-bold mb-1" style={{ color: C.red, letterSpacing: '0.4em' }}>Administración</p>
-        <h1 className="text-3xl uppercase" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.1em' }}>
+      <div className="px-8 pt-10 pb-6" style={{ borderBottom: '0.5px solid rgba(255,255,255,0.08)' }}>
+        <p className="text-[9px] uppercase font-medium mb-1" style={{ color: C.red, letterSpacing: '0.4em' }}>Administración</p>
+        <h1 className="text-3xl uppercase" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.1em', fontWeight: 300 }}>
           Configuración de Temporada
         </h1>
         <p className="text-xs uppercase mt-1" style={{ color: C.gray, letterSpacing: '0.2em' }}>
@@ -733,11 +756,18 @@ export default function SolsticeAdminConfig() {
       </div>
 
       {/* Tab bar */}
-      <div className="flex overflow-x-auto px-8 pt-4 gap-1" style={{ borderBottom: `1px solid ${C.gray}15` }}>
+      <div className="flex overflow-x-auto px-8 pt-4 gap-1" style={{ borderBottom: '0.5px solid rgba(255,255,255,0.08)' }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className="flex items-center gap-2 px-4 py-3 text-[10px] uppercase tracking-widest whitespace-nowrap transition-all"
-            style={{ color: tab === t.id ? C.cream : C.gray, borderBottom: tab === t.id ? `2px solid ${C.red}` : '2px solid transparent' }}>
+            className="flex items-center gap-2 px-4 py-2.5 text-[10px] uppercase tracking-widest whitespace-nowrap"
+            style={{
+              color: tab === t.id ? C.cream : C.gray,
+              background: tab === t.id ? 'rgba(230,57,47,0.15)' : 'transparent',
+              border: tab === t.id ? '0.5px solid rgba(230,57,47,0.40)' : '0.5px solid transparent',
+              borderRadius: '999px',
+              transition: 'all 0.3s ease',
+              marginBottom: '8px',
+            }}>
             {t.icon}{t.label}
           </button>
         ))}
@@ -749,15 +779,26 @@ export default function SolsticeAdminConfig() {
 
             {/* ── GENERAL ── */}
             {tab === 'general' && season && (
-              <div className="space-y-6">
-                <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray }}>Información de la temporada</h2>
+              <div className="space-y-6 p-5" style={{
+                background: 'rgba(255,255,255,0.03)',
+                backdropFilter: 'blur(24px)',
+                border: '0.5px solid rgba(255,255,255,0.08)',
+                borderRadius: '24px',
+              }}>
+                <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.06em' }}>Información de la temporada</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <InputRow label="Nombre" value={season.name} onChange={v => upSeason('name', v)} />
                   <div className="flex flex-col gap-1">
-                    <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Estado</label>
+                    <label className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>Estado</label>
                     <select value={season.status} onChange={e => upSeason('status', e.target.value)}
                       className="px-3 py-2.5 text-xs outline-none"
-                      style={{ background: C.bgT, border: `1px solid ${C.gray}20`, color: C.cream }}>
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '0.5px solid rgba(255,255,255,0.10)',
+                        borderRadius: '16px',
+                        color: C.cream,
+                        transition: 'all 0.3s ease',
+                      }}>
                       <option value="draft">Borrador</option>
                       <option value="open">Abierta</option>
                       <option value="closed">Cerrada</option>
@@ -772,11 +813,17 @@ export default function SolsticeAdminConfig() {
             {/* ── SEMANAS ── */}
             {tab === 'weeks' && (
               <div className="space-y-6">
-                <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray }}>Semanas universitarias</h2>
+                <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.06em' }}>Semanas universitarias</h2>
                 <div className="space-y-4">
                   {weeks.map((week, idx) => (
-                    <div key={week.id} className="p-5" style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
-                      <p className="text-xs uppercase font-bold mb-4" style={{ color: C.red, letterSpacing: '0.2em' }}>
+                    <div key={week.id} className="p-5" style={{
+                      background: 'rgba(255,255,255,0.04)',
+                      backdropFilter: 'blur(32px) saturate(180%)',
+                      border: '0.5px solid rgba(255,255,255,0.08)',
+                      borderRadius: '24px',
+                      boxShadow: '0 20px 40px rgba(0,0,0,0.20)',
+                    }}>
+                      <p className="text-xs uppercase font-medium mb-4" style={{ color: C.red, letterSpacing: '0.2em' }}>
                         {week.university}
                         {week.reserved !== undefined && <span className="ml-3 text-[9px]" style={{ color: C.gray }}>{week.reserved}/{week.capacity} vendidos</span>}
                       </p>
@@ -790,8 +837,23 @@ export default function SolsticeAdminConfig() {
                   ))}
                 </div>
                 <button onClick={() => setWeeks(prev => [...prev, { id: `new-${Date.now()}`, season_id: season?.id || '', university: 'Nueva', start_date: '2026-10-12', end_date: '2026-10-18', capacity: 100 }])}
-                  className="flex items-center gap-2 text-xs uppercase tracking-widest transition-all" style={{ color: C.gray }}
-                  onMouseEnter={e => (e.currentTarget.style.color = C.cream)} onMouseLeave={e => (e.currentTarget.style.color = C.gray)}>
+                  className="flex items-center gap-2 text-xs uppercase tracking-widest"
+                  style={{
+                    color: C.gray,
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '0.5px solid rgba(255,255,255,0.12)',
+                    borderRadius: '999px',
+                    padding: '10px 20px',
+                    transition: 'all 0.3s ease',
+                  }}
+                  onMouseEnter={e => {
+                    (e.currentTarget as HTMLButtonElement).style.color = C.cream;
+                    (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLButtonElement).style.color = C.gray;
+                    (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
+                  }}>
                   <Plus size={14} /> Agregar semana
                 </button>
                 <div className="pt-2"><SaveBtn loading={saving} onClick={saveWeeks} /></div>
@@ -811,7 +873,7 @@ export default function SolsticeAdminConfig() {
                   <div className="space-y-3">
                     {/* Header */}
                     <div className="grid grid-cols-12 px-3 py-1.5 text-[8px] uppercase tracking-widest"
-                      style={{ color: C.gray, borderBottom: `1px solid ${C.gray}10` }}>
+                      style={{ color: C.gray, borderBottom: '0.5px solid rgba(255,255,255,0.08)', fontWeight: 500, letterSpacing: '0.06em' }}>
                       <div className="col-span-3">Día</div>
                       <div className="col-span-2 text-center">Digital</div>
                       <div className="col-span-2 text-center">Efectivo</div>
@@ -822,13 +884,17 @@ export default function SolsticeAdminConfig() {
                     {days.map((day, idx) => (
                       <div key={day.day_number}
                         className="grid grid-cols-12 items-center gap-1 px-3 py-2"
-                        style={{ background: day.highlight ? `${C.red}08` : `${C.gray}05`, border: `1px solid ${day.highlight ? C.red + '25' : C.gray + '12'}` }}>
+                        style={{
+                          background: day.highlight ? 'rgba(230,57,47,0.08)' : 'rgba(255,255,255,0.04)',
+                          border: `0.5px solid ${day.highlight ? 'rgba(230,57,47,0.25)' : 'rgba(255,255,255,0.08)'}`,
+                          borderRadius: '16px',
+                        }}>
                         {/* Name + subtitle */}
                         <div className="col-span-3">
                           <input value={day.title} onChange={e => upDay(idx, 'title', e.target.value)}
-                            className="w-full bg-transparent text-xs font-bold uppercase outline-none mb-0.5"
+                            className="w-full bg-transparent text-xs font-medium uppercase outline-none mb-0.5"
                             style={{ color: day.highlight ? C.red : C.cream }}
-                            onFocus={e => (e.currentTarget.style.borderBottom = `1px solid ${C.red}`)}
+                            onFocus={e => (e.currentTarget.style.borderBottom = `0.5px solid ${C.red}`)}
                             onBlur={e => (e.currentTarget.style.borderBottom = 'none')} />
                           <input value={day.subtitle} onChange={e => upDay(idx, 'subtitle', e.target.value)}
                             className="w-full bg-transparent text-[9px] outline-none"
@@ -838,7 +904,12 @@ export default function SolsticeAdminConfig() {
                         {(['price', 'price_cash', 'price_combo', 'price_monthly'] as const).map(field => (
                           <div key={field} className="col-span-2">
                             <div className="flex items-center gap-1 px-2 py-1.5"
-                              style={{ background: C.bgT, border: `1px solid ${C.gray}15` }}>
+                              style={{
+                                background: 'rgba(255,255,255,0.04)',
+                                border: '0.5px solid rgba(255,255,255,0.08)',
+                                borderRadius: '14px',
+                                transition: 'all 0.3s ease',
+                              }}>
                               <span className="text-[9px] shrink-0" style={{ color: C.gray }}>$</span>
                               <input
                                 type="number"
@@ -846,8 +917,8 @@ export default function SolsticeAdminConfig() {
                                 onChange={e => upDay(idx, field, e.target.value)}
                                 className="w-full bg-transparent text-xs outline-none text-right"
                                 style={{ color: C.cream }}
-                                onFocus={e => (e.currentTarget.parentElement!.style.borderColor = C.red)}
-                                onBlur={e => (e.currentTarget.parentElement!.style.borderColor = `${C.gray}15`)}
+                                onFocus={e => { (e.currentTarget.parentElement as HTMLElement).style.borderColor = 'rgba(230,57,47,0.55)'; }}
+                                onBlur={e => { (e.currentTarget.parentElement as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)'; }}
                               />
                             </div>
                           </div>
@@ -855,8 +926,9 @@ export default function SolsticeAdminConfig() {
                         {/* Highlight toggle */}
                         <div className="col-span-1 flex justify-end">
                           <button onClick={() => upDay(idx, 'highlight', !day.highlight)}
-                            title={day.highlight ? 'Quitar destacado' : 'Destacar'}>
-                            <Star size={14} fill={day.highlight ? C.red : 'none'} style={{ color: day.highlight ? C.red : `${C.gray}50` }} />
+                            title={day.highlight ? 'Quitar destacado' : 'Destacar'}
+                            style={{ transition: 'all 0.3s ease' }}>
+                            <Star size={14} fill={day.highlight ? C.red : 'none'} style={{ color: day.highlight ? C.red : 'rgba(96,96,96,0.5)' }} />
                           </button>
                         </div>
                         {/* Image URL */}
@@ -873,8 +945,14 @@ export default function SolsticeAdminConfig() {
                           <input ref={el => { fileRefs.current[idx] = el; }} type="file" accept="image/*" className="hidden"
                             onChange={e => { const f = e.target.files?.[0]; if (f) handleImageFile(idx, f); }} />
                           <button onClick={() => fileRefs.current[idx]?.click()}
-                            className="text-[9px] uppercase px-2 py-1 transition-all"
-                            style={{ background: `${C.gray}12`, color: C.gray, border: `1px solid ${C.gray}15` }}>
+                            className="text-[9px] uppercase px-2 py-1"
+                            style={{
+                              background: 'rgba(255,255,255,0.06)',
+                              color: C.gray,
+                              border: '0.5px solid rgba(255,255,255,0.12)',
+                              borderRadius: '999px',
+                              transition: 'all 0.3s ease',
+                            }}>
                             Subir
                           </button>
                         </div>
@@ -898,9 +976,13 @@ export default function SolsticeAdminConfig() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <InputRow label="Precio total" value={season.combo1_total} onChange={v => upSeason('combo1_total', v)} type="number" prefix="$" />
                       <div className="flex flex-col gap-1">
-                        <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Cuotas mensuales</label>
+                        <label className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>Cuotas mensuales</label>
                         <div className="flex items-center gap-2 px-3 py-2.5"
-                          style={{ background: C.bgT, border: `1px solid ${C.gray}20` }}>
+                          style={{
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '0.5px solid rgba(255,255,255,0.10)',
+                            borderRadius: '16px',
+                          }}>
                           <input type="number" value={season.combo1_installments}
                             onChange={e => upSeason('combo1_installments', e.target.value)}
                             className="w-16 bg-transparent outline-none text-xs" style={{ color: C.cream }} />
@@ -910,9 +992,13 @@ export default function SolsticeAdminConfig() {
                         </div>
                       </div>
                       <div className="flex flex-col justify-end p-4 gap-1"
-                        style={{ background: `${C.gray}08`, border: `1px solid ${C.gray}12` }}>
+                        style={{
+                          background: 'rgba(255,255,255,0.04)',
+                          border: '0.5px solid rgba(255,255,255,0.08)',
+                          borderRadius: '16px',
+                        }}>
                         <p className="text-[8px] uppercase" style={{ color: C.gray }}>Reserva inicial</p>
-                        <p className="text-xl font-black" style={{ color: C.cream }}>${Math.round(season.entry_price / 1000)}K</p>
+                        <p className="text-xl font-medium" style={{ color: C.cream }}>${Math.round(season.entry_price / 1000)}K</p>
                         <p className="text-[8px] uppercase" style={{ color: C.gray }}>+ {season.combo1_installments} cuotas de ${Math.round(season.combo1_total / (season.combo1_installments || 1) / 1000)}K</p>
                       </div>
                     </div>
@@ -934,9 +1020,13 @@ export default function SolsticeAdminConfig() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <InputRow label="Precio total" value={season.combo_total} onChange={v => upSeason('combo_total', v)} type="number" prefix="$" />
                       <div className="flex flex-col gap-1">
-                        <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Cuotas mensuales</label>
+                        <label className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>Cuotas mensuales</label>
                         <div className="flex items-center gap-2 px-3 py-2.5"
-                          style={{ background: C.bgT, border: `1px solid ${C.gray}20` }}>
+                          style={{
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '0.5px solid rgba(255,255,255,0.10)',
+                            borderRadius: '16px',
+                          }}>
                           <input type="number" value={season.installments}
                             onChange={e => upSeason('installments', e.target.value)}
                             className="w-16 bg-transparent outline-none text-xs" style={{ color: C.cream }} />
@@ -946,10 +1036,14 @@ export default function SolsticeAdminConfig() {
                         </div>
                       </div>
                       <div className="flex flex-col justify-end p-4 gap-1"
-                        style={{ background: `${C.red}08`, border: `1px solid ${C.red}20` }}>
-                        <p className="text-[8px] uppercase" style={{ color: `${C.red}90` }}>Reserva inicial</p>
-                        <p className="text-xl font-black" style={{ color: C.red }}>${Math.round(season.entry_price / 1000)}K</p>
-                        <p className="text-[8px] uppercase" style={{ color: `${C.red}90` }}>+ {season.installments} cuotas de ${Math.round(season.combo_total / (season.installments || 1) / 1000)}K</p>
+                        style={{
+                          background: 'rgba(230,57,47,0.08)',
+                          border: '0.5px solid rgba(230,57,47,0.20)',
+                          borderRadius: '16px',
+                        }}>
+                        <p className="text-[8px] uppercase" style={{ color: 'rgba(230,57,47,0.9)' }}>Reserva inicial</p>
+                        <p className="text-xl font-medium" style={{ color: C.red }}>${Math.round(season.entry_price / 1000)}K</p>
+                        <p className="text-[8px] uppercase" style={{ color: 'rgba(230,57,47,0.9)' }}>+ {season.installments} cuotas de ${Math.round(season.combo_total / (season.installments || 1) / 1000)}K</p>
                       </div>
                     </div>
                   </div>
@@ -981,11 +1075,17 @@ export default function SolsticeAdminConfig() {
                           placeholder="ej. 20000"
                         />
                         <div className="flex flex-col gap-1">
-                          <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Tipo de incremento</label>
+                          <label className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>Tipo de incremento</label>
                           <select value={season.phase_increment_type}
                             onChange={e => upSeason('phase_increment_type', e.target.value)}
                             className="px-3 py-2.5 text-xs outline-none"
-                            style={{ background: C.bgT, border: `1px solid ${C.gray}20`, color: C.cream }}>
+                            style={{
+                              background: 'rgba(255,255,255,0.05)',
+                              border: '0.5px solid rgba(255,255,255,0.10)',
+                              borderRadius: '16px',
+                              color: C.cream,
+                              transition: 'all 0.3s ease',
+                            }}>
                             <option value="fixed">Valor fijo ($)</option>
                             <option value="percent">Porcentaje (%)</option>
                           </select>
@@ -993,7 +1093,13 @@ export default function SolsticeAdminConfig() {
                       </div>
                       {season.phase1_limit && season.phase_increment && (
                         <div className="p-4 text-[10px] leading-relaxed uppercase"
-                          style={{ background: `${C.red}08`, border: `1px solid ${C.red}20`, color: C.gray, letterSpacing: '0.12em' }}>
+                          style={{
+                            background: 'rgba(230,57,47,0.08)',
+                            border: '0.5px solid rgba(230,57,47,0.20)',
+                            borderRadius: '16px',
+                            color: C.gray,
+                            letterSpacing: '0.12em',
+                          }}>
                           <span style={{ color: C.cream }}>Fase 1:</span> precio actual hasta {season.phase1_limit} reservas ·{' '}
                           <span style={{ color: C.red }}>
                             Fase 2: sube {season.phase_increment_type === 'percent'
@@ -1013,25 +1119,46 @@ export default function SolsticeAdminConfig() {
             {/* ── COMISIONES ── */}
             {tab === 'commissions' && season && (
               <div className="space-y-8">
-                <div className="space-y-4">
-                  <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray }}>Porcentajes de comisión</h2>
+                <div className="space-y-4 p-5" style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  backdropFilter: 'blur(24px)',
+                  border: '0.5px solid rgba(255,255,255,0.08)',
+                  borderRadius: '24px',
+                }}>
+                  <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.06em' }}>Porcentajes de comisión</h2>
                   <div className="grid grid-cols-2 gap-4">
                     <InputRow label="Comisión vendedor (%)" value={season.commission_pct} onChange={v => upSeason('commission_pct', Number(v))} type="number" prefix="%" />
                     <InputRow label="Comisión gerente (%)" value={season.manager_commission_pct} onChange={v => upSeason('manager_commission_pct', Number(v))} type="number" prefix="%" />
                   </div>
-                  <div className="p-4 text-xs space-y-1" style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
+                  <div className="p-4 text-xs space-y-1" style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '0.5px solid rgba(255,255,255,0.08)',
+                    borderRadius: '16px',
+                  }}>
                     <p style={{ color: C.gray }}>Por combo completo (${Math.round(season.combo_total / 1000)}K):</p>
                     <p>Comisión vendedor: <strong style={{ color: C.red }}>${Math.round(season.combo_total * season.commission_pct / 100 / 1000)}K</strong></p>
                     <p>Comisión gerente: <strong style={{ color: C.red }}>${Math.round(season.combo_total * season.manager_commission_pct / 100 / 1000)}K</strong></p>
                   </div>
                 </div>
-                <div className="space-y-4" style={{ borderTop: `1px solid ${C.gray}10`, paddingTop: '1.5rem' }}>
-                  <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray }}>Criterio de devengo</h2>
+                <div className="space-y-4 p-5" style={{
+                  borderTop: '0.5px solid rgba(255,255,255,0.08)',
+                  paddingTop: '1.5rem',
+                  background: 'rgba(255,255,255,0.03)',
+                  backdropFilter: 'blur(24px)',
+                  border: '0.5px solid rgba(255,255,255,0.08)',
+                  borderRadius: '24px',
+                }}>
+                  <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.06em' }}>Criterio de devengo</h2>
                   <div className="grid grid-cols-2 gap-3">
                     {[['Por cuota recibida', 'Comisión acumulada con cada pago'], ['Combo completado', 'Se paga al cerrar todas las cuotas']].map(([lbl, sub], i) => (
-                      <button key={i} className="p-4 text-left transition-all"
-                        style={{ background: i === 0 ? `${C.red}12` : C.bgS, border: `1px solid ${i === 0 ? C.red + '50' : C.gray + '20'}` }}>
-                        <p className="text-xs uppercase font-bold mb-1" style={{ letterSpacing: '0.12em', color: i === 0 ? C.red : C.cream }}>{lbl}</p>
+                      <button key={i} className="p-4 text-left"
+                        style={{
+                          background: i === 0 ? 'rgba(230,57,47,0.12)' : 'rgba(255,255,255,0.04)',
+                          border: `0.5px solid ${i === 0 ? 'rgba(230,57,47,0.40)' : 'rgba(255,255,255,0.08)'}`,
+                          borderRadius: '16px',
+                          transition: 'all 0.3s ease',
+                        }}>
+                        <p className="text-xs uppercase font-medium mb-1" style={{ letterSpacing: '0.12em', color: i === 0 ? C.red : C.cream }}>{lbl}</p>
                         <p className="text-[10px]" style={{ color: C.gray }}>{sub}</p>
                       </button>
                     ))}
@@ -1044,33 +1171,57 @@ export default function SolsticeAdminConfig() {
             {/* ── PENALIDADES ── */}
             {tab === 'penalties' && season && (
               <div className="space-y-8">
-                <div className="space-y-4">
-                  <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray }}>Recordatorios automáticos</h2>
+                <div className="space-y-4 p-5" style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  backdropFilter: 'blur(24px)',
+                  border: '0.5px solid rgba(255,255,255,0.08)',
+                  borderRadius: '24px',
+                }}>
+                  <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.06em' }}>Recordatorios automáticos</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <InputRow label="Días antes del vencimiento (primer aviso)" value={season.warning_days_before} onChange={v => upSeason('warning_days_before', Number(v))} type="number" />
                     <InputRow label="Días después sin pago para alertar vendedor" value={7} onChange={() => {}} type="number" />
                   </div>
                 </div>
-                <div className="space-y-4" style={{ borderTop: `1px solid ${C.gray}10`, paddingTop: '1.5rem' }}>
-                  <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray }}>Penalidades por mora</h2>
+                <div className="space-y-4 p-5" style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  backdropFilter: 'blur(24px)',
+                  border: '0.5px solid rgba(255,255,255,0.08)',
+                  borderRadius: '24px',
+                }}>
+                  <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.06em' }}>Penalidades por mora</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1">
-                      <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Cuotas en mora para perder Catamarán (Día 3)</label>
-                      <div className="flex items-center gap-3 px-3 py-2.5" style={{ background: C.bgT, border: `1px solid ${C.gray}20` }}>
+                      <label className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>Cuotas en mora para perder Catamarán (Día 3)</label>
+                      <div className="flex items-center gap-3 px-3 py-2.5" style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '0.5px solid rgba(255,255,255,0.10)',
+                        borderRadius: '16px',
+                      }}>
                         <input type="number" value={season.penalty_catamaran_at} onChange={e => upSeason('penalty_catamaran_at', Number(e.target.value))}
                           className="w-16 bg-transparent outline-none text-xs" style={{ color: C.cream }} />
                         <span className="text-[10px]" style={{ color: C.gray }}>cuota(s)</span>
                       </div>
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Cuotas en mora para perder 2 eventos</label>
-                      <div className="flex items-center gap-3 px-3 py-2.5" style={{ background: C.bgT, border: `1px solid ${C.gray}20` }}>
+                      <label className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>Cuotas en mora para perder 2 eventos</label>
+                      <div className="flex items-center gap-3 px-3 py-2.5" style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '0.5px solid rgba(255,255,255,0.10)',
+                        borderRadius: '16px',
+                      }}>
                         <input type="number" defaultValue={2} className="w-16 bg-transparent outline-none text-xs" style={{ color: C.cream }} />
                         <span className="text-[10px]" style={{ color: C.gray }}>cuotas(s)</span>
                       </div>
                     </div>
                   </div>
-                  <div className="p-4 text-[10px] leading-relaxed uppercase" style={{ background: C.bgS, border: `1px solid ${C.red}20`, color: C.gray, letterSpacing: '0.12em' }}>
+                  <div className="p-4 text-[10px] leading-relaxed uppercase" style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '0.5px solid rgba(230,57,47,0.20)',
+                    borderRadius: '16px',
+                    color: C.gray,
+                    letterSpacing: '0.12em',
+                  }}>
                     Con {season.penalty_catamaran_at} cuota(s) en mora al llegar el evento, el comprador pierde acceso al Catamarán. El sistema envía aviso {season.warning_days_before} días antes.
                   </div>
                 </div>
@@ -1086,29 +1237,38 @@ export default function SolsticeAdminConfig() {
                 + unassigned.length;
               const totalSolstice = sellers.length;
 
-              const MemberRow = ({ m }: { m: MemberRow }) => {
+              const MemberRowItem = ({ m }: { m: MemberRow }) => {
                 const busy = activating.has(m.profile_id);
                 return (
                   <div className="flex items-center gap-3 px-4 py-2.5 group"
-                    style={{ borderBottom: `1px solid ${C.gray}08`, opacity: m.solstice_status === 'inactive' ? 0.4 : 1 }}>
+                    style={{
+                      borderBottom: '0.5px solid rgba(255,255,255,0.05)',
+                      opacity: m.solstice_status === 'inactive' ? 0.4 : 1,
+                      transition: 'all 0.3s ease',
+                      borderRadius: '16px',
+                    }}>
                     {/* Status dot */}
                     <span className="w-1.5 h-1.5 rounded-full shrink-0"
-                      style={{ background: m.solstice_active ? C.red : `${C.gray}40` }} />
+                      style={{ background: m.solstice_active ? C.green : 'rgba(96,96,96,0.4)' }} />
                     {/* Name */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold uppercase truncate" style={{ color: m.solstice_active ? C.cream : C.gray, letterSpacing: '0.08em' }}>
+                      <p className="text-xs font-medium uppercase truncate" style={{ color: m.solstice_active ? C.cream : C.gray, letterSpacing: '0.08em' }}>
                         {m.full_name}
                       </p>
-                      <p className="text-[9px] truncate" style={{ color: `${C.gray}70` }}>{m.midnight_role} · {m.email}</p>
+                      <p className="text-[9px] truncate" style={{ color: 'rgba(96,96,96,0.7)' }}>{m.midnight_role} · {m.email}</p>
                     </div>
                     {/* Ref code */}
                     {m.solstice_active && m.solstice_ref_code && (
                       <div className="flex items-center gap-1 shrink-0">
-                        <code className="text-[9px] px-1.5 py-0.5" style={{ background: `${C.gray}15`, color: C.cream }}>
+                        <code className="text-[9px] px-1.5 py-0.5" style={{
+                          background: 'rgba(255,255,255,0.08)',
+                          color: C.cream,
+                          borderRadius: '999px',
+                        }}>
                           {m.solstice_ref_code}
                         </code>
                         <button onClick={() => copyLink(m.solstice_ref_code!)}
-                          className="p-1 transition-colors opacity-0 group-hover:opacity-100" style={{ color: C.gray }}
+                          className="p-1 opacity-0 group-hover:opacity-100" style={{ color: C.gray, transition: 'all 0.3s ease' }}
                           onMouseEnter={e => (e.currentTarget.style.color = C.cream)}
                           onMouseLeave={e => (e.currentTarget.style.color = C.gray)}>
                           <Copy size={10} />
@@ -1117,9 +1277,9 @@ export default function SolsticeAdminConfig() {
                     )}
                     {/* Toggle */}
                     <button onClick={() => toggleMemberSolstice(m)} disabled={busy}
-                      className="shrink-0 transition-all disabled:opacity-40"
+                      className="shrink-0 disabled:opacity-40"
                       title={m.solstice_active ? 'Pausar en Solstice' : m.solstice_seller_id ? 'Reactivar' : 'Activar para Solstice'}
-                      style={{ color: m.solstice_active ? C.red : `${C.gray}50` }}>
+                      style={{ color: m.solstice_active ? C.green : 'rgba(96,96,96,0.5)', transition: 'all 0.3s ease' }}>
                       {busy
                         ? <Loader2 size={15} className="animate-spin" />
                         : m.solstice_active
@@ -1134,18 +1294,21 @@ export default function SolsticeAdminConfig() {
                 const open = expandedTeams.has(team.id);
                 const active = team.members.filter(m => m.solstice_active).length;
                 return (
-                  <div style={{ borderLeft: `2px solid ${C.gray}20` }} className="ml-4">
+                  <div style={{ borderLeft: '0.5px solid rgba(255,255,255,0.08)' }} className="ml-4">
                     <button onClick={() => setExpandedTeams(prev => {
                       const s = new Set(prev); s.has(team.id) ? s.delete(team.id) : s.add(team.id); return s;
-                    })} className="w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-white/3 transition-colors">
+                    })} className="w-full flex items-center gap-3 px-4 py-2 text-left transition-colors"
+                      style={{ borderRadius: '16px', transition: 'all 0.3s ease' }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.03)'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
                       <ChevronRight size={11} className="transition-transform shrink-0"
                         style={{ color: C.gray, transform: open ? 'rotate(90deg)' : 'none' }} />
                       <span className="text-[10px] uppercase tracking-widest flex-1" style={{ color: C.cream }}>{team.name}</span>
-                      <span className="text-[9px]" style={{ color: active > 0 ? C.red : `${C.gray}50` }}>
+                      <span className="text-[9px]" style={{ color: active > 0 ? C.green : 'rgba(96,96,96,0.5)' }}>
                         {active}/{team.members.length} en Solstice
                       </span>
                     </button>
-                    {open && team.members.map(m => <MemberRow key={m.profile_id} m={m} />)}
+                    {open && team.members.map(m => <MemberRowItem key={m.profile_id} m={m} />)}
                   </div>
                 );
               };
@@ -1155,18 +1318,31 @@ export default function SolsticeAdminConfig() {
                   {/* Header */}
                   <div className="flex items-center justify-between">
                     <div>
-                      <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray }}>
+                      <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.06em' }}>
                         Estructura Midnight → Solstice
                       </h2>
-                      <p className="text-[9px] uppercase mt-1" style={{ color: `${C.gray}60`, letterSpacing: '0.15em' }}>
+                      <p className="text-[9px] uppercase mt-1" style={{ color: 'rgba(96,96,96,0.6)', letterSpacing: '0.15em' }}>
                         {totalSolstice} activos en Solstice · {totalMidnight} en Midnight · toggle para activar/pausar
                       </p>
                     </div>
                     <button onClick={() => { resetRecruit(); setRecruitOpen(true); }}
-                      className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase font-black tracking-widest transition-all"
-                      style={{ border: `1px solid ${C.red}40`, color: C.red }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = `${C.red}12`; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
+                      className="flex items-center gap-2 text-[10px] uppercase font-medium tracking-widest"
+                      style={{
+                        border: '0.5px solid rgba(230,57,47,0.40)',
+                        color: C.red,
+                        background: 'transparent',
+                        borderRadius: '999px',
+                        padding: '10px 20px',
+                        transition: 'all 0.3s ease',
+                      }}
+                      onMouseEnter={e => {
+                        (e.currentTarget as HTMLButtonElement).style.background = 'rgba(230,57,47,0.12)';
+                        (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
+                      }}
+                      onMouseLeave={e => {
+                        (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+                        (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
+                      }}>
                       <Plus size={13} /> Reclutar
                     </button>
                   </div>
@@ -1185,29 +1361,41 @@ export default function SolsticeAdminConfig() {
                         const allMembers = [...sq.teams.flatMap(t => t.members), ...sq.loose];
                         const active = allMembers.filter(m => m.solstice_active).length;
                         return (
-                          <div key={sq.id} style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
+                          <div key={sq.id} style={{
+                            background: 'rgba(255,255,255,0.04)',
+                            backdropFilter: 'blur(32px) saturate(180%)',
+                            border: '0.5px solid rgba(255,255,255,0.08)',
+                            borderRadius: '24px',
+                            boxShadow: '0 20px 40px rgba(0,0,0,0.20)',
+                          }}>
                             <button onClick={() => setExpandedSquads(prev => {
                               const s = new Set(prev); s.has(sq.id) ? s.delete(sq.id) : s.add(sq.id); return s;
-                            })} className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-white/2 transition-colors">
+                            })} className="w-full flex items-center gap-3 px-5 py-4 text-left"
+                              style={{ borderRadius: '24px', transition: 'all 0.3s ease' }}
+                              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.02)'; }}
+                              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
                               <ChevronRight size={13} className="transition-transform shrink-0"
                                 style={{ color: C.gray, transform: open ? 'rotate(90deg)' : 'none' }} />
                               <div className="flex-1">
-                                <p className="text-sm font-black uppercase" style={{ color: C.cream, letterSpacing: '0.12em' }}>{sq.name}</p>
+                                <p className="text-sm font-medium uppercase" style={{ color: C.cream, letterSpacing: '0.12em' }}>{sq.name}</p>
                                 <p className="text-[9px] uppercase mt-0.5" style={{ color: C.gray }}>
                                   {sq.teams.length} equipo{sq.teams.length !== 1 ? 's' : ''} · {allMembers.length} personas
                                 </p>
                               </div>
                               <span className="text-[10px] uppercase px-2 py-1"
-                                style={{ background: active > 0 ? `${C.red}15` : `${C.gray}10`,
-                                         color: active > 0 ? C.red : C.gray,
-                                         border: `1px solid ${active > 0 ? C.red + '30' : C.gray + '20'}` }}>
+                                style={{
+                                  background: active > 0 ? 'rgba(16,185,129,0.20)' : 'rgba(255,255,255,0.04)',
+                                  color: active > 0 ? C.green : C.gray,
+                                  border: `0.5px solid ${active > 0 ? 'rgba(16,185,129,0.40)' : 'rgba(255,255,255,0.08)'}`,
+                                  borderRadius: '999px',
+                                }}>
                                 {active} en Solstice
                               </span>
                             </button>
                             {open && (
-                              <div style={{ borderTop: `1px solid ${C.gray}10` }}>
+                              <div style={{ borderTop: '0.5px solid rgba(255,255,255,0.08)' }}>
                                 {sq.teams.map(t => <TeamBlock key={t.id} team={t} />)}
-                                {sq.loose.map(m => <MemberRow key={m.profile_id} m={m} />)}
+                                {sq.loose.map(m => <MemberRowItem key={m.profile_id} m={m} />)}
                               </div>
                             )}
                           </div>
@@ -1216,8 +1404,14 @@ export default function SolsticeAdminConfig() {
 
                       {/* Teams without squad */}
                       {noSquadTeams.length > 0 && (
-                        <div style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
-                          <div className="px-5 py-3 text-[9px] uppercase tracking-widest" style={{ color: C.gray, borderBottom: `1px solid ${C.gray}10` }}>
+                        <div style={{
+                          background: 'rgba(255,255,255,0.04)',
+                          backdropFilter: 'blur(32px) saturate(180%)',
+                          border: '0.5px solid rgba(255,255,255,0.08)',
+                          borderRadius: '24px',
+                          boxShadow: '0 20px 40px rgba(0,0,0,0.20)',
+                        }}>
+                          <div className="px-5 py-3 text-[9px] uppercase tracking-widest" style={{ color: C.gray, borderBottom: '0.5px solid rgba(255,255,255,0.08)', fontWeight: 500, letterSpacing: '0.06em' }}>
                             Equipos sin squad
                           </div>
                           {noSquadTeams.map(t => <TeamBlock key={t.id} team={t} />)}
@@ -1226,11 +1420,17 @@ export default function SolsticeAdminConfig() {
 
                       {/* Unassigned */}
                       {unassigned.length > 0 && (
-                        <div style={{ background: C.bgS, border: `1px solid ${C.gray}15` }}>
-                          <div className="px-5 py-3 text-[9px] uppercase tracking-widest" style={{ color: C.gray, borderBottom: `1px solid ${C.gray}10` }}>
+                        <div style={{
+                          background: 'rgba(255,255,255,0.04)',
+                          backdropFilter: 'blur(32px) saturate(180%)',
+                          border: '0.5px solid rgba(255,255,255,0.08)',
+                          borderRadius: '24px',
+                          boxShadow: '0 20px 40px rgba(0,0,0,0.20)',
+                        }}>
+                          <div className="px-5 py-3 text-[9px] uppercase tracking-widest" style={{ color: C.gray, borderBottom: '0.5px solid rgba(255,255,255,0.08)', fontWeight: 500, letterSpacing: '0.06em' }}>
                             Sin equipo asignado · {unassigned.length}
                           </div>
-                          {unassigned.map(m => <MemberRow key={m.profile_id} m={m} />)}
+                          {unassigned.map(m => <MemberRowItem key={m.profile_id} m={m} />)}
                         </div>
                       )}
                     </div>
@@ -1248,35 +1448,60 @@ export default function SolsticeAdminConfig() {
         {recruitOpen && (
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[300] bg-black/80 backdrop-blur-sm" onClick={() => setRecruitOpen(false)} />
+              className="fixed inset-0 z-[300]"
+              style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(8px)' }}
+              onClick={() => setRecruitOpen(false)} />
             <motion.div
               initial={{ opacity: 0, scale: 0.96, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }}
               className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[310] w-full max-w-lg p-8 space-y-5 overflow-y-auto max-h-[90vh]"
-              style={{ background: C.bgS, border: `1px solid ${C.gray}20` }}>
+              style={{
+                background: 'rgba(8,0,0,0.92)',
+                backdropFilter: 'blur(40px) saturate(160%)',
+                border: '0.5px solid rgba(255,255,255,0.08)',
+                borderRadius: '32px',
+                boxShadow: '0 40px 80px rgba(0,0,0,0.60)',
+              }}>
 
               {/* Header */}
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-base uppercase font-black" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.12em', color: C.cream }}>
+                  <h3 className="text-base uppercase font-medium" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.12em', color: C.cream, fontWeight: 300 }}>
                     Reclutar Staff
                   </h3>
                   <p className="text-[9px] uppercase mt-0.5" style={{ color: C.gray, letterSpacing: '0.2em' }}>
                     Registra en Midnight + activa en Solstice automáticamente
                   </p>
                 </div>
-                <button onClick={() => setRecruitOpen(false)} style={{ color: C.gray }}>
-                  <X size={18} />
+                <button onClick={() => setRecruitOpen(false)}
+                  style={{
+                    color: C.gray,
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '0.5px solid rgba(255,255,255,0.12)',
+                    borderRadius: '999px',
+                    padding: '6px',
+                    transition: 'all 0.3s ease',
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = C.cream; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = C.gray; }}>
+                  <X size={16} />
                 </button>
               </div>
 
               {/* Mode tabs */}
-              <div className="grid grid-cols-2 gap-1 p-1" style={{ background: `${C.gray}10`, border: `1px solid ${C.gray}15` }}>
+              <div className="grid grid-cols-2 gap-1 p-1" style={{
+                background: 'rgba(255,255,255,0.04)',
+                border: '0.5px solid rgba(255,255,255,0.08)',
+                borderRadius: '999px',
+              }}>
                 {(['create', 'link'] as const).map(mode => (
                   <button key={mode} onClick={() => setRecruitMode(mode)}
-                    className="py-2.5 text-[10px] uppercase font-black tracking-widest transition-all"
+                    className="py-2.5 text-[10px] uppercase font-medium tracking-widest"
                     style={{
-                      background: recruitMode === mode ? C.red : 'transparent',
+                      background: recruitMode === mode ? 'rgba(230,57,47,0.20)' : 'transparent',
                       color: recruitMode === mode ? C.cream : C.gray,
+                      border: recruitMode === mode ? '0.5px solid rgba(230,57,47,0.45)' : '0.5px solid transparent',
+                      borderRadius: '999px',
+                      transition: 'all 0.3s ease',
                     }}>
                     {mode === 'create' ? 'Nuevo Ingreso' : 'Vincular Existente'}
                   </button>
@@ -1287,41 +1512,65 @@ export default function SolsticeAdminConfig() {
               {recruitMode === 'create' && (
                 <div className="space-y-4">
                   <div className="flex flex-col gap-1">
-                    <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Nombre completo</label>
+                    <label className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>Nombre completo</label>
                     <input value={rName} onChange={e => setRName(e.target.value)}
                       placeholder="Ej: Ana María López"
                       className="px-3 py-2.5 text-xs outline-none"
-                      style={{ background: C.bgT, border: `1px solid ${C.gray}20`, color: C.cream }}
-                      onFocus={e => (e.currentTarget.style.borderColor = C.red)}
-                      onBlur={e => (e.currentTarget.style.borderColor = `${C.gray}20`)} />
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '0.5px solid rgba(255,255,255,0.10)',
+                        borderRadius: '16px',
+                        color: C.cream,
+                        transition: 'all 0.3s ease',
+                      }}
+                      onFocus={e => (e.currentTarget.style.borderColor = 'rgba(230,57,47,0.55)')}
+                      onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.10)')} />
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Código de acceso</label>
+                    <label className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>Código de acceso</label>
                     <input value={rCode} onChange={e => setRCode(e.target.value.replace(/\s/g, '').toUpperCase())}
                       placeholder="Ej: ANA2026"
                       className="px-3 py-2.5 text-xs outline-none font-mono tracking-widest text-center"
-                      style={{ background: C.bgT, border: `1px solid ${C.gray}20`, color: C.cream }}
-                      onFocus={e => (e.currentTarget.style.borderColor = C.red)}
-                      onBlur={e => (e.currentTarget.style.borderColor = `${C.gray}20`)} />
-                    <p className="text-[9px]" style={{ color: `${C.gray}60` }}>Sin espacios · Si se deja vacío se genera del email</p>
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '0.5px solid rgba(255,255,255,0.10)',
+                        borderRadius: '16px',
+                        color: C.cream,
+                        transition: 'all 0.3s ease',
+                      }}
+                      onFocus={e => (e.currentTarget.style.borderColor = 'rgba(230,57,47,0.55)')}
+                      onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.10)')} />
+                    <p className="text-[9px]" style={{ color: 'rgba(96,96,96,0.6)' }}>Sin espacios · Si se deja vacío se genera del email</p>
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Email (para inicio de sesión)</label>
+                    <label className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>Email (para inicio de sesión)</label>
                     <input type="email" value={rEmail} onChange={e => setREmail(e.target.value)}
                       placeholder="promotor@gmail.com"
                       className="px-3 py-2.5 text-xs outline-none font-mono"
-                      style={{ background: C.bgT, border: `1px solid ${C.gray}20`, color: C.cream }}
-                      onFocus={e => (e.currentTarget.style.borderColor = C.red)}
-                      onBlur={e => (e.currentTarget.style.borderColor = `${C.gray}20`)} />
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '0.5px solid rgba(255,255,255,0.10)',
+                        borderRadius: '16px',
+                        color: C.cream,
+                        transition: 'all 0.3s ease',
+                      }}
+                      onFocus={e => (e.currentTarget.style.borderColor = 'rgba(230,57,47,0.55)')}
+                      onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.10)')} />
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Asignar a equipo</label>
+                    <label className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>Asignar a equipo</label>
                     <select value={rTeamId} onChange={e => setRTeamId(e.target.value)}
                       className="px-3 py-2.5 text-xs outline-none"
-                      style={{ background: C.bgT, border: `1px solid ${C.gray}20`, color: C.cream }}>
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '0.5px solid rgba(255,255,255,0.10)',
+                        borderRadius: '16px',
+                        color: C.cream,
+                        transition: 'all 0.3s ease',
+                      }}>
                       <option value="">— Independiente (sin equipo) —</option>
                       {squadGroups.map(sq => (
                         <optgroup key={sq.id} label={sq.name}>
@@ -1336,7 +1585,12 @@ export default function SolsticeAdminConfig() {
                     </select>
                   </div>
 
-                  <div className="p-3 text-[10px]" style={{ background: `${C.red}08`, border: `1px solid ${C.red}20`, color: C.gray }}>
+                  <div className="p-3 text-[10px]" style={{
+                    background: 'rgba(230,57,47,0.08)',
+                    border: '0.5px solid rgba(230,57,47,0.20)',
+                    borderRadius: '16px',
+                    color: C.gray,
+                  }}>
                     <span style={{ color: C.red }}>Nota: </span>
                     {rTeamId
                       ? `Se registrará en Midnight y se activará en Solstice con ref_code automático.`
@@ -1344,8 +1598,17 @@ export default function SolsticeAdminConfig() {
                   </div>
 
                   <button onClick={handleCreate} disabled={recruiting || !rName || !rEmail}
-                    className="w-full py-3 text-xs uppercase font-black tracking-widest disabled:opacity-40 flex items-center justify-center gap-2"
-                    style={{ background: C.red, color: C.cream }}>
+                    className="w-full text-xs uppercase font-medium tracking-widest disabled:opacity-40 flex items-center justify-center gap-2"
+                    style={{
+                      background: 'rgba(230,57,47,0.20)',
+                      border: '0.5px solid rgba(230,57,47,0.45)',
+                      borderRadius: '999px',
+                      color: C.cream,
+                      padding: '14px 20px',
+                      transition: 'all 0.3s ease',
+                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)'; }}>
                     {recruiting ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
                     Registrar promotor
                   </button>
@@ -1355,17 +1618,28 @@ export default function SolsticeAdminConfig() {
               {/* ── VINCULAR EXISTENTE ── */}
               {recruitMode === 'link' && (
                 <div className="space-y-4">
-                  <div className="p-3 text-[10px]" style={{ background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.25)', color: '#a855f7' }}>
+                  <div className="p-3 text-[10px]" style={{
+                    background: 'rgba(168,85,247,0.08)',
+                    border: '0.5px solid rgba(168,85,247,0.25)',
+                    borderRadius: '16px',
+                    color: '#a855f7',
+                  }}>
                     Selecciona un promotor de Midnight sin equipo asignado para vincularlo a un squad.
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>
+                    <label className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>
                       Promotor disponible · {unassigned.length} sin equipo
                     </label>
                     <select value={rLinkId} onChange={e => setRLinkId(e.target.value)}
                       className="px-3 py-2.5 text-xs outline-none"
-                      style={{ background: C.bgT, border: `1px solid ${C.gray}20`, color: C.cream }}>
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '0.5px solid rgba(255,255,255,0.10)',
+                        borderRadius: '16px',
+                        color: C.cream,
+                        transition: 'all 0.3s ease',
+                      }}>
                       <option value="">— Seleccionar promotor —</option>
                       {unassigned.map(m => (
                         <option key={m.profile_id} value={m.profile_id}>
@@ -1379,10 +1653,16 @@ export default function SolsticeAdminConfig() {
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Equipo de destino</label>
+                    <label className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>Equipo de destino</label>
                     <select value={rLinkTeamId} onChange={e => setRLinkTeamId(e.target.value)}
                       className="px-3 py-2.5 text-xs outline-none"
-                      style={{ background: C.bgT, border: `1px solid ${C.gray}20`, color: C.cream }}>
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '0.5px solid rgba(255,255,255,0.10)',
+                        borderRadius: '16px',
+                        color: C.cream,
+                        transition: 'all 0.3s ease',
+                      }}>
                       <option value="">— Seleccionar equipo —</option>
                       {squadGroups.map(sq => (
                         <optgroup key={sq.id} label={sq.name}>
@@ -1398,8 +1678,17 @@ export default function SolsticeAdminConfig() {
                   </div>
 
                   <button onClick={handleLink} disabled={recruiting || !rLinkId || !rLinkTeamId}
-                    className="w-full py-3 text-xs uppercase font-black tracking-widest disabled:opacity-40 flex items-center justify-center gap-2"
-                    style={{ background: 'rgba(168,85,247,0.8)', color: C.cream }}>
+                    className="w-full text-xs uppercase font-medium tracking-widest disabled:opacity-40 flex items-center justify-center gap-2"
+                    style={{
+                      background: 'rgba(168,85,247,0.20)',
+                      border: '0.5px solid rgba(168,85,247,0.40)',
+                      borderRadius: '999px',
+                      color: C.cream,
+                      padding: '14px 20px',
+                      transition: 'all 0.3s ease',
+                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)'; }}>
                     {recruiting ? <Loader2 size={13} className="animate-spin" /> : <Users size={13} />}
                     Vincular al equipo
                   </button>

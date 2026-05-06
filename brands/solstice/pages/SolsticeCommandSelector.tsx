@@ -20,14 +20,25 @@ export default function SolsticeCommandSelector({ sellerName, onSelectSolstice, 
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center gap-10 px-4"
-      style={{ background: '#000', fontFamily: "'Archivo', sans-serif" }}
+      style={{ background: '#0d0d0d', fontFamily: "'Archivo', sans-serif" }}
     >
       {/* Title */}
       <div className="text-center space-y-2">
-        <p className="text-[10px] uppercase tracking-[0.4em]" style={{ color: '#606060' }}>
+        <p
+          className="text-[10px] uppercase"
+          style={{ color: '#606060', fontWeight: 500, letterSpacing: '0.08em' }}
+        >
           Bienvenido, {sellerName}
         </p>
-        <h1 className="text-2xl uppercase tracking-widest" style={{ color: '#F9F2D7', fontFamily: "'Poiret One', sans-serif" }}>
+        <h1
+          className="text-2xl uppercase"
+          style={{
+            color: '#F9F2D7',
+            fontFamily: "'Poiret One', sans-serif",
+            fontWeight: 300,
+            letterSpacing: '-0.02em',
+          }}
+        >
           ¿Desde dónde vas a vender hoy?
         </h1>
       </div>
@@ -36,20 +47,46 @@ export default function SolsticeCommandSelector({ sellerName, onSelectSolstice, 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-xl">
         {/* Solstice */}
         <motion.button
-          whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+          whileHover={{ scale: 1.005, y: -4 }}
+          whileTap={{ scale: 0.97 }}
           onClick={onSelectSolstice}
-          className="flex flex-col items-center gap-5 p-10 text-center transition-all"
-          style={{ background: '#0d0d0d', border: '1px solid rgba(230,57,47,0.4)' }}
+          className="flex flex-col items-center gap-5 p-6 text-center"
+          style={{
+            background: 'rgba(255,255,255,0.04)',
+            backdropFilter: 'blur(32px) saturate(180%)',
+            border: '0.5px solid rgba(230,57,47,0.40)',
+            borderRadius: '24px',
+            boxShadow: '0 24px 48px rgba(0,0,0,0.30)',
+            transition: 'all 0.4s cubic-bezier(0.25,0.46,0.45,0.94)',
+          }}
+          onMouseEnter={e => {
+            (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 32px 64px rgba(0,0,0,0.40)';
+          }}
+          onMouseLeave={e => {
+            (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 24px 48px rgba(0,0,0,0.30)';
+          }}
         >
-          <div className="w-14 h-14 rounded-full flex items-center justify-center"
-            style={{ background: 'rgba(230,57,47,0.12)', border: '1px solid rgba(230,57,47,0.5)' }}>
+          <div
+            className="w-14 h-14 flex items-center justify-center"
+            style={{
+              background: 'rgba(230,57,47,0.12)',
+              border: '0.5px solid rgba(230,57,47,0.40)',
+              borderRadius: '14px',
+            }}
+          >
             <Sun size={26} style={{ color: '#E6392F' }} />
           </div>
           <div>
-            <p className="text-lg font-black uppercase tracking-widest" style={{ color: '#F9F2D7', letterSpacing: '0.15em' }}>
+            <p
+              className="text-lg uppercase"
+              style={{ color: '#F9F2D7', letterSpacing: '0.15em', fontWeight: 600 }}
+            >
               Solstice
             </p>
-            <p className="text-[10px] uppercase mt-1" style={{ color: '#606060', letterSpacing: '0.2em' }}>
+            <p
+              className="text-[10px] uppercase mt-1"
+              style={{ color: '#606060', letterSpacing: '0.08em', fontWeight: 500 }}
+            >
               Boletas & combos Solstice 2026
             </p>
           </div>
@@ -57,27 +94,56 @@ export default function SolsticeCommandSelector({ sellerName, onSelectSolstice, 
 
         {/* Midnight */}
         <motion.button
-          whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+          whileHover={{ scale: 1.005, y: -4 }}
+          whileTap={{ scale: 0.97 }}
           onClick={onSelectMidnight}
-          className="flex flex-col items-center gap-5 p-10 text-center transition-all"
-          style={{ background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.12)' }}
+          className="flex flex-col items-center gap-5 p-6 text-center"
+          style={{
+            background: 'rgba(255,255,255,0.04)',
+            backdropFilter: 'blur(32px) saturate(180%)',
+            border: '0.5px solid rgba(255,255,255,0.10)',
+            borderRadius: '24px',
+            boxShadow: '0 24px 48px rgba(0,0,0,0.30)',
+            transition: 'all 0.4s cubic-bezier(0.25,0.46,0.45,0.94)',
+          }}
+          onMouseEnter={e => {
+            (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 32px 64px rgba(0,0,0,0.40)';
+          }}
+          onMouseLeave={e => {
+            (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 24px 48px rgba(0,0,0,0.30)';
+          }}
         >
-          <div className="w-14 h-14 rounded-full flex items-center justify-center"
-            style={{ background: 'rgba(249,242,215,0.06)', border: '1px solid rgba(249,242,215,0.2)' }}>
+          <div
+            className="w-14 h-14 flex items-center justify-center"
+            style={{
+              background: 'rgba(249,242,215,0.06)',
+              border: '0.5px solid rgba(255,255,255,0.10)',
+              borderRadius: '14px',
+            }}
+          >
             <Moon size={26} style={{ color: '#F9F2D7' }} />
           </div>
           <div>
-            <p className="text-lg font-black uppercase tracking-widest" style={{ color: '#F9F2D7', letterSpacing: '0.15em' }}>
+            <p
+              className="text-lg uppercase"
+              style={{ color: '#F9F2D7', letterSpacing: '0.15em', fontWeight: 600 }}
+            >
               Midnight
             </p>
-            <p className="text-[10px] uppercase mt-1" style={{ color: '#606060', letterSpacing: '0.2em' }}>
+            <p
+              className="text-[10px] uppercase mt-1"
+              style={{ color: '#606060', letterSpacing: '0.08em', fontWeight: 500 }}
+            >
               Eventos y fiestas regulares
             </p>
           </div>
         </motion.button>
       </div>
 
-      <p className="text-[9px] uppercase tracking-widest" style={{ color: '#303030' }}>
+      <p
+        className="text-[9px] uppercase"
+        style={{ color: '#303030', letterSpacing: '0.08em', fontWeight: 500 }}
+      >
         Los datos de cada plataforma se guardan por separado
       </p>
     </div>
