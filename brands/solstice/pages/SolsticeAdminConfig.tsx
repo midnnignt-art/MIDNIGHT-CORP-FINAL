@@ -18,13 +18,22 @@ interface Season {
   status: 'draft' | 'open' | 'closed';
   tagline: string;
   entry_price: number;
+  // Combo completo (5 días)
   combo_total: number;
   installments: number;
-  phase1_price: number | null;
+  // Combo 1 (4 días sin Catamarán)
+  combo1_total: number;
+  combo1_installments: number;
+  // Fases de precio
   phase1_limit: number | null;
+  phase_increment: number | null;
+  phase_increment_type: 'fixed' | 'percent';
+  // Early bird (legacy, keep for compat)
+  phase1_price: number | null;
   phase2_price: number | null;
   early_bird_price: number | null;
   early_bird_deadline: string | null;
+  // Penalidades
   penalty_catamaran_at: number;
   warning_days_before: number;
   commission_pct: number;
@@ -155,6 +164,21 @@ function SaveBtn({ loading, onClick }: { loading: boolean; onClick: () => void }
   );
 }
 
+function PriceSection({ title, subtitle, onSave, saving, children }: {
+  title: string; subtitle: string; onSave: () => void; saving: boolean; children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-4 pb-8" style={{ borderBottom: `1px solid ${C.gray}12` }}>
+      <div>
+        <h2 className="text-sm uppercase font-black tracking-widest" style={{ color: C.cream, letterSpacing: '0.15em' }}>{title}</h2>
+        <p className="text-[10px] uppercase mt-0.5" style={{ color: C.gray, letterSpacing: '0.18em' }}>{subtitle}</p>
+      </div>
+      <div>{children}</div>
+      <div className="pt-1"><SaveBtn loading={saving} onClick={onSave} /></div>
+    </div>
+  );
+}
+
 // ── Image upload helper (Supabase Storage) ─────────────────────────────────────
 
 async function uploadDayImage(file: File, dayNumber: number): Promise<string | null> {
@@ -210,14 +234,25 @@ export default function SolsticeAdminConfig() {
       ]);
 
       if (s) {
-        setSeason(s as Season);
-        setPhasesOn(!!s.phase1_price);
+        setSeason({
+          combo1_total: 300000, combo1_installments: 5,
+          phase_increment: null, phase_increment_type: 'fixed',
+          ...s,
+        } as Season);
+        setPhasesOn(!!(s as any).phase1_limit);
         setEarlyBirdOn(!!s.early_bird_price);
       } else {
-        setSeason({ id: '', name: 'SOLSTICE 2026', status: 'open', tagline: 'SELECTED BEATS. PRIVATE SUNSET.',
-          entry_price: 40000, combo_total: 400000, installments: 5, phase1_price: null, phase1_limit: null,
-          phase2_price: null, early_bird_price: null, early_bird_deadline: null,
-          penalty_catamaran_at: 1, warning_days_before: 15, commission_pct: 10, manager_commission_pct: 3 });
+        setSeason({
+          id: '', name: 'SOLSTICE 2026', status: 'open', tagline: 'SELECTED BEATS. PRIVATE SUNSET.',
+          entry_price: 40000,
+          combo_total: 400000,   installments: 5,
+          combo1_total: 300000,  combo1_installments: 5,
+          phase1_limit: null,    phase_increment: null, phase_increment_type: 'fixed',
+          phase1_price: null,    phase2_price: null,
+          early_bird_price: null, early_bird_deadline: null,
+          penalty_catamaran_at: 1, warning_days_before: 15,
+          commission_pct: 10, manager_commission_pct: 3,
+        });
       }
 
       setWeeks(w?.length ? (w as Week[]) : [
@@ -267,25 +302,29 @@ export default function SolsticeAdminConfig() {
     if (!season) return;
     setSaving(true);
     const payload = {
-      name:                 season.name,
-      status:               season.status,
-      tagline:              season.tagline,
-      entry_price:          toInt(season.entry_price),
-      combo_total:          toInt(season.combo_total),
-      installments:         toInt(season.installments) || 1,
-      commission_pct:       toInt(season.commission_pct),
-      manager_commission_pct: toInt(season.manager_commission_pct),
-      penalty_catamaran_at: toInt(season.penalty_catamaran_at),
-      warning_days_before:  toInt(season.warning_days_before),
-      phase1_price:         phasesOn ? toIntOrNull(season.phase1_price)       : null,
-      phase1_limit:         phasesOn ? toIntOrNull(season.phase1_limit)       : null,
-      phase2_price:         phasesOn ? toIntOrNull(season.phase2_price)       : null,
-      early_bird_price:     earlyBirdOn ? toIntOrNull(season.early_bird_price): null,
-      early_bird_deadline:  earlyBirdOn ? toDateOrNull(season.early_bird_deadline) : null,
+      name:                    season.name,
+      status:                  season.status,
+      tagline:                 season.tagline,
+      entry_price:             toInt(season.entry_price),
+      combo_total:             toInt(season.combo_total),
+      installments:            toInt(season.installments) || 1,
+      combo1_total:            toInt(season.combo1_total),
+      combo1_installments:     toInt(season.combo1_installments) || 1,
+      commission_pct:          toInt(season.commission_pct),
+      manager_commission_pct:  toInt(season.manager_commission_pct),
+      penalty_catamaran_at:    toInt(season.penalty_catamaran_at),
+      warning_days_before:     toInt(season.warning_days_before),
+      phase1_limit:            phasesOn ? toIntOrNull(season.phase1_limit)      : null,
+      phase_increment:         phasesOn ? toIntOrNull(season.phase_increment)   : null,
+      phase_increment_type:    season.phase_increment_type || 'fixed',
+      phase1_price:            null,
+      phase2_price:            null,
+      early_bird_price:        earlyBirdOn ? toIntOrNull(season.early_bird_price) : null,
+      early_bird_deadline:     earlyBirdOn ? toDateOrNull(season.early_bird_deadline) : null,
     };
     const { error } = season.id
       ? await supabase.from('solstice_seasons').update(payload).eq('id', season.id)
-      : await supabase.from('solstice_seasons').insert(payload);
+      : await supabase.from('solstice_seasons').insert({ ...payload, status: 'open' });
     setSaving(false);
     if (error) toast.error('Error: ' + error.message);
     else toast.success('Temporada guardada');
@@ -342,6 +381,38 @@ export default function SolsticeAdminConfig() {
     await loadAll();
     toast.success('Programa guardado');
   };
+
+  // ── Granular save helpers ──────────────────────────────────────────────────────
+  const saveField = async (fields: Partial<Season>, label: string) => {
+    if (!season) return;
+    setSaving(true);
+    const { error } = season.id
+      ? await supabase.from('solstice_seasons').update(fields).eq('id', season.id)
+      : await supabase.from('solstice_seasons').insert({ ...season, ...fields, status: 'open' });
+    setSaving(false);
+    if (error) toast.error(`${label}: ${error.message}`);
+    else { toast.success(`${label} guardado`); loadAll(); }
+  };
+
+  const saveIndividualPrices = () => saveField({
+    entry_price: toInt(season?.entry_price),
+  }, 'Precio de reserva');
+
+  const saveCombo1 = () => saveField({
+    combo1_total:        toInt(season?.combo1_total),
+    combo1_installments: toInt(season?.combo1_installments) || 1,
+  }, 'Combo 1');
+
+  const saveComboCom = () => saveField({
+    combo_total:  toInt(season?.combo_total),
+    installments: toInt(season?.installments) || 1,
+  }, 'Combo completo');
+
+  const savePhases = () => saveField({
+    phase1_limit:         phasesOn ? toIntOrNull(season?.phase1_limit)    : null,
+    phase_increment:      phasesOn ? toIntOrNull(season?.phase_increment) : null,
+    phase_increment_type: season?.phase_increment_type || 'fixed',
+  }, 'Sistema de etapas');
 
   // ── Image upload ──────────────────────────────────────────────────────────────
   const handleImageFile = async (idx: number, file: File) => {
@@ -532,139 +603,199 @@ export default function SolsticeAdminConfig() {
 
             {/* ── PRECIOS ── */}
             {tab === 'prices' && season && (
-              <div className="space-y-8">
+              <div className="space-y-10">
 
-                {/* Precios base */}
-                <div className="space-y-4">
-                  <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray }}>Precios base</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <InputRow label="Precio de reserva (entrada)" value={season.entry_price} onChange={v => upSeason('entry_price', Number(v))} type="number" prefix="$" />
-                    <InputRow label="Precio combo total" value={season.combo_total} onChange={v => upSeason('combo_total', Number(v))} type="number" prefix="$" />
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Número de cuotas</label>
-                      <div className="px-3 py-2.5 text-xs flex items-center gap-2" style={{ background: C.bgT, border: `1px solid ${C.gray}20` }}>
-                        <input type="number" value={season.installments} onChange={e => upSeason('installments', Number(e.target.value))}
-                          className="w-16 bg-transparent outline-none" style={{ color: C.cream }} />
-                        <span style={{ color: C.gray }}>× ${Math.round(season.combo_total / season.installments / 1000)}K/mes</span>
-                      </div>
+                {/* ── 1. Días individuales ── */}
+                <PriceSection
+                  title="Días individuales"
+                  subtitle="Precios cuando el comprador elige días sueltos"
+                  onSave={saveDays}
+                  saving={saving}>
+                  <div className="space-y-3">
+                    {/* Header */}
+                    <div className="grid grid-cols-12 px-3 py-1.5 text-[8px] uppercase tracking-widest"
+                      style={{ color: C.gray, borderBottom: `1px solid ${C.gray}10` }}>
+                      <div className="col-span-3">Día</div>
+                      <div className="col-span-2 text-center">Digital</div>
+                      <div className="col-span-2 text-center">Efectivo</div>
+                      <div className="col-span-2 text-center">Aporte combo</div>
+                      <div className="col-span-2 text-center">Aporte mensual</div>
+                      <div className="col-span-1 text-right">★</div>
                     </div>
-                  </div>
-                </div>
-
-                {/* Fases */}
-                <div className="space-y-3" style={{ borderTop: `1px solid ${C.gray}10`, paddingTop: '1.5rem' }}>
-                  <Toggle label="Sistema de fases de precio" active={phasesOn} onToggle={() => setPhasesOn(p => !p)} />
-                  {phasesOn && (
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pl-2">
-                      <InputRow label="Precio fase 1" value={season.phase1_price || ''} onChange={v => upSeason('phase1_price', Number(v))} type="number" prefix="$" />
-                      <InputRow label="Límite cupos fase 1" value={season.phase1_limit || ''} onChange={v => upSeason('phase1_limit', Number(v))} type="number" />
-                      <InputRow label="Precio fase 2" value={season.phase2_price || ''} onChange={v => upSeason('phase2_price', Number(v))} type="number" prefix="$" />
-                    </div>
-                  )}
-                </div>
-
-                {/* Early bird */}
-                <div className="space-y-3" style={{ borderTop: `1px solid ${C.gray}10`, paddingTop: '1.5rem' }}>
-                  <Toggle label="Early bird" active={earlyBirdOn} onToggle={() => setEarlyBirdOn(p => !p)} />
-                  {earlyBirdOn && (
-                    <div className="grid grid-cols-2 gap-4 pl-2">
-                      <InputRow label="Precio early bird" value={season.early_bird_price || ''} onChange={v => upSeason('early_bird_price', Number(v))} type="number" prefix="$" />
-                      <InputRow label="Fecha límite" value={season.early_bird_deadline?.split('T')[0] || ''} onChange={v => upSeason('early_bird_deadline', v)} type="date" />
-                    </div>
-                  )}
-                </div>
-
-                {/* ── Programa 5 días ── */}
-                <div className="space-y-4" style={{ borderTop: `1px solid ${C.gray}10`, paddingTop: '1.5rem' }}>
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray }}>Programa — 5 días</h2>
-                    <button onClick={saveDays} disabled={saving}
-                      className="flex items-center gap-1.5 px-4 py-1.5 text-[10px] uppercase font-black tracking-widest disabled:opacity-40"
-                      style={{ border: `1px solid ${C.red}40`, color: C.red }}>
-                      {saving ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
-                      Guardar días
-                    </button>
-                  </div>
-
-                  <div className="space-y-4">
                     {days.map((day, idx) => (
-                      <div key={day.day_number} className="p-5" style={{ background: C.bgS, border: `1px solid ${day.highlight ? C.red + '35' : C.gray + '15'}` }}>
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0"
-                              style={{ background: day.highlight ? C.red : `${C.gray}20`, color: day.highlight ? C.cream : C.gray }}>
-                              {day.day_number}
+                      <div key={day.day_number}
+                        className="grid grid-cols-12 items-center gap-1 px-3 py-2"
+                        style={{ background: day.highlight ? `${C.red}08` : `${C.gray}05`, border: `1px solid ${day.highlight ? C.red + '25' : C.gray + '12'}` }}>
+                        {/* Name + subtitle */}
+                        <div className="col-span-3">
+                          <input value={day.title} onChange={e => upDay(idx, 'title', e.target.value)}
+                            className="w-full bg-transparent text-xs font-bold uppercase outline-none mb-0.5"
+                            style={{ color: day.highlight ? C.red : C.cream }}
+                            onFocus={e => (e.currentTarget.style.borderBottom = `1px solid ${C.red}`)}
+                            onBlur={e => (e.currentTarget.style.borderBottom = 'none')} />
+                          <input value={day.subtitle} onChange={e => upDay(idx, 'subtitle', e.target.value)}
+                            className="w-full bg-transparent text-[9px] outline-none"
+                            style={{ color: C.gray }} placeholder="subtítulo" />
+                        </div>
+                        {/* Prices */}
+                        {(['price', 'price_cash', 'price_combo', 'price_monthly'] as const).map(field => (
+                          <div key={field} className="col-span-2">
+                            <div className="flex items-center gap-1 px-2 py-1.5"
+                              style={{ background: C.bgT, border: `1px solid ${C.gray}15` }}>
+                              <span className="text-[9px] shrink-0" style={{ color: C.gray }}>$</span>
+                              <input
+                                type="number"
+                                value={day[field] || ''}
+                                onChange={e => upDay(idx, field, e.target.value)}
+                                className="w-full bg-transparent text-xs outline-none text-right"
+                                style={{ color: C.cream }}
+                                onFocus={e => (e.currentTarget.parentElement!.style.borderColor = C.red)}
+                                onBlur={e => (e.currentTarget.parentElement!.style.borderColor = `${C.gray}15`)}
+                              />
                             </div>
-                            <span className="text-[9px] uppercase tracking-widest" style={{ color: day.highlight ? C.red : C.gray }}>
-                              {day.highlight ? '★ Destacado' : `Día ${day.day_number}`}
-                            </span>
                           </div>
+                        ))}
+                        {/* Highlight toggle */}
+                        <div className="col-span-1 flex justify-end">
                           <button onClick={() => upDay(idx, 'highlight', !day.highlight)}
-                            className="flex items-center gap-1.5 text-[9px] uppercase tracking-widest transition-all"
-                            style={{ color: day.highlight ? C.red : `${C.gray}60` }}>
-                            <Star size={11} fill={day.highlight ? C.red : 'none'} />
-                            {day.highlight ? 'Quitar destacado' : 'Marcar como destacado'}
+                            title={day.highlight ? 'Quitar destacado' : 'Destacar'}>
+                            <Star size={14} fill={day.highlight ? C.red : 'none'} style={{ color: day.highlight ? C.red : `${C.gray}50` }} />
                           </button>
                         </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                          <InputRow label="Nombre del día" value={day.title} onChange={v => upDay(idx, 'title', v)} placeholder="ej. Catamarán" />
-                          <InputRow label="Subtítulo" value={day.subtitle} onChange={v => upDay(idx, 'subtitle', v)} placeholder="ej. 50 p · DJ · AYCD" />
-                        </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-                          <InputRow label="Digital (base)" value={day.price || ''} onChange={v => upDay(idx, 'price', v)} type="number" prefix="$" />
-                          <InputRow label="Efectivo / Cash" value={day.price_cash || ''} onChange={v => upDay(idx, 'price_cash', v)} type="number" prefix="$" />
-                          <InputRow label="Aporte combo" value={day.price_combo || ''} onChange={v => upDay(idx, 'price_combo', v)} type="number" prefix="$" />
-                          <InputRow label="Aporte mensual" value={day.price_monthly || ''} onChange={v => upDay(idx, 'price_monthly', v)} type="number" prefix="$" />
-                        </div>
-                        <div className="grid grid-cols-1 gap-3">
-                          <div className="flex flex-col gap-1">
-                            <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Imagen</label>
-                            <div className="flex gap-2">
-                              <div className="flex items-center flex-1" style={{ background: C.bgT, border: `1px solid ${C.gray}20` }}>
-                                <Image size={12} className="ml-3 shrink-0" style={{ color: C.gray }} />
-                                <input
-                                  type="url"
-                                  placeholder="Pega una URL o usa el botón para subir"
-                                  value={day.image_url}
-                                  onChange={e => upDay(idx, 'image_url', e.target.value)}
-                                  className="flex-1 px-3 py-2.5 text-xs outline-none bg-transparent"
-                                  style={{ color: C.cream }}
-                                  onFocus={e => (e.currentTarget.parentElement!.style.borderColor = C.red)}
-                                  onBlur={e => (e.currentTarget.parentElement!.style.borderColor = `${C.gray}20`)}
-                                />
-                              </div>
-                              {/* Hidden file input */}
-                              <input
-                                ref={el => { fileRefs.current[idx] = el; }}
-                                type="file" accept="image/*" className="hidden"
-                                onChange={e => { const f = e.target.files?.[0]; if (f) handleImageFile(idx, f); }}
-                              />
-                              <button onClick={() => fileRefs.current[idx]?.click()}
-                                className="px-3 py-2 text-[10px] uppercase shrink-0 transition-all"
-                                style={{ background: `${C.gray}15`, color: C.gray, border: `1px solid ${C.gray}20` }}
-                                onMouseEnter={e => (e.currentTarget.style.color = C.cream)}
-                                onMouseLeave={e => (e.currentTarget.style.color = C.gray)}>
-                                Subir
-                              </button>
-                            </div>
-                            {day.image_url && (
-                              <div className="mt-2 relative w-full h-24 overflow-hidden rounded-sm"
-                                style={{ border: `1px solid ${C.gray}20` }}>
-                                <img src={day.image_url} alt={day.title} className="w-full h-full object-cover"
-                                  onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                              </div>
-                            )}
-                          </div>
+                        {/* Image URL */}
+                        <div className="col-span-12 mt-1 flex gap-2 items-center">
+                          <Image size={10} className="shrink-0" style={{ color: C.gray }} />
+                          <input
+                            type="url"
+                            value={day.image_url || ''}
+                            onChange={e => upDay(idx, 'image_url', e.target.value)}
+                            placeholder="URL de imagen (opcional)"
+                            className="flex-1 bg-transparent text-[10px] outline-none"
+                            style={{ color: C.gray }}
+                          />
+                          <input ref={el => { fileRefs.current[idx] = el; }} type="file" accept="image/*" className="hidden"
+                            onChange={e => { const f = e.target.files?.[0]; if (f) handleImageFile(idx, f); }} />
+                          <button onClick={() => fileRefs.current[idx]?.click()}
+                            className="text-[9px] uppercase px-2 py-1 transition-all"
+                            style={{ background: `${C.gray}12`, color: C.gray, border: `1px solid ${C.gray}15` }}>
+                            Subir
+                          </button>
                         </div>
                       </div>
                     ))}
                   </div>
-                </div>
+                </PriceSection>
 
-                <div className="pt-2 flex gap-3">
-                  <SaveBtn loading={saving} onClick={saveSeason} />
-                </div>
+                {/* ── 2. Combo 1 — 4 días sin Catamarán ── */}
+                <PriceSection
+                  title="Combo 1 — 4 días sin Catamarán"
+                  subtitle="Llegada · Día libre · Playa privada · Cierre"
+                  onSave={saveCombo1}
+                  saving={saving}>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <InputRow label="Precio total combo 1" value={season.combo1_total} onChange={v => upSeason('combo1_total', v)} type="number" prefix="$" />
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Cuotas mensuales</label>
+                      <div className="flex items-center gap-2 px-3 py-2.5"
+                        style={{ background: C.bgT, border: `1px solid ${C.gray}20` }}>
+                        <input type="number" value={season.combo1_installments}
+                          onChange={e => upSeason('combo1_installments', e.target.value)}
+                          className="w-16 bg-transparent outline-none text-xs" style={{ color: C.cream }} />
+                        <span className="text-[10px]" style={{ color: C.gray }}>
+                          × ${Math.round(season.combo1_total / (season.combo1_installments || 1) / 1000)}K/mes
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col justify-end p-4 gap-1"
+                      style={{ background: `${C.gray}08`, border: `1px solid ${C.gray}12` }}>
+                      <p className="text-[8px] uppercase" style={{ color: C.gray }}>Reserva inicial</p>
+                      <p className="text-xl font-black" style={{ color: C.cream }}>${Math.round(season.entry_price / 1000)}K</p>
+                      <p className="text-[8px] uppercase" style={{ color: C.gray }}>+ {season.combo1_installments} cuotas de ${Math.round(season.combo1_total / (season.combo1_installments || 1) / 1000)}K</p>
+                    </div>
+                  </div>
+                </PriceSection>
+
+                {/* ── 3. Combo completo — 5 días ── */}
+                <PriceSection
+                  title="Combo completo — 5 días"
+                  subtitle="Incluye Catamarán (Día 3)"
+                  onSave={saveComboCom}
+                  saving={saving}>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <InputRow label="Precio total combo completo" value={season.combo_total} onChange={v => upSeason('combo_total', v)} type="number" prefix="$" />
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Cuotas mensuales</label>
+                      <div className="flex items-center gap-2 px-3 py-2.5"
+                        style={{ background: C.bgT, border: `1px solid ${C.gray}20` }}>
+                        <input type="number" value={season.installments}
+                          onChange={e => upSeason('installments', e.target.value)}
+                          className="w-16 bg-transparent outline-none text-xs" style={{ color: C.cream }} />
+                        <span className="text-[10px]" style={{ color: C.gray }}>
+                          × ${Math.round(season.combo_total / (season.installments || 1) / 1000)}K/mes
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col justify-end p-4 gap-1"
+                      style={{ background: `${C.red}08`, border: `1px solid ${C.red}20` }}>
+                      <p className="text-[8px] uppercase" style={{ color: `${C.red}90` }}>Reserva inicial</p>
+                      <p className="text-xl font-black" style={{ color: C.red }}>${Math.round(season.entry_price / 1000)}K</p>
+                      <p className="text-[8px] uppercase" style={{ color: `${C.red}90` }}>+ {season.installments} cuotas de ${Math.round(season.combo_total / (season.installments || 1) / 1000)}K</p>
+                    </div>
+                  </div>
+                </PriceSection>
+
+                {/* ── 4. Sistema de etapas ── */}
+                <PriceSection
+                  title="Sistema de etapas"
+                  subtitle="Sube automáticamente todos los precios después de X reservas. La reserva inicial ($40K) siempre fija."
+                  onSave={savePhases}
+                  saving={saving}>
+                  <Toggle label="Activar sistema de etapas" active={phasesOn} onToggle={() => setPhasesOn(p => !p)} />
+                  {phasesOn && (
+                    <div className="space-y-4 mt-3">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <InputRow
+                          label="Reservas en Fase 1 (límite)"
+                          value={season.phase1_limit || ''}
+                          onChange={v => upSeason('phase1_limit', v)}
+                          type="number"
+                          placeholder="ej. 50"
+                        />
+                        <InputRow
+                          label="Incremento de precio"
+                          value={season.phase_increment || ''}
+                          onChange={v => upSeason('phase_increment', v)}
+                          type="number"
+                          prefix={season.phase_increment_type === 'percent' ? '%' : '$'}
+                          placeholder="ej. 20000"
+                        />
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[9px] uppercase tracking-[0.25em]" style={{ color: C.gray }}>Tipo de incremento</label>
+                          <select value={season.phase_increment_type}
+                            onChange={e => upSeason('phase_increment_type', e.target.value)}
+                            className="px-3 py-2.5 text-xs outline-none"
+                            style={{ background: C.bgT, border: `1px solid ${C.gray}20`, color: C.cream }}>
+                            <option value="fixed">Valor fijo ($)</option>
+                            <option value="percent">Porcentaje (%)</option>
+                          </select>
+                        </div>
+                      </div>
+                      {season.phase1_limit && season.phase_increment && (
+                        <div className="p-4 text-[10px] leading-relaxed uppercase"
+                          style={{ background: `${C.red}08`, border: `1px solid ${C.red}20`, color: C.gray, letterSpacing: '0.12em' }}>
+                          <span style={{ color: C.cream }}>Fase 1:</span> precio actual hasta {season.phase1_limit} reservas ·{' '}
+                          <span style={{ color: C.red }}>
+                            Fase 2: sube {season.phase_increment_type === 'percent'
+                              ? `${season.phase_increment}%`
+                              : `$${Math.round(season.phase_increment / 1000)}K`} en todos los combos e individuales
+                          </span>
+                          {' '}· La reserva inicial se mantiene en ${Math.round(season.entry_price / 1000)}K
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </PriceSection>
+
               </div>
             )}
 
