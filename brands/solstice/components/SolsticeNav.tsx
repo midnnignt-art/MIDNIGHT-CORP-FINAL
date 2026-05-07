@@ -72,8 +72,11 @@ export default function SolsticeNav({ currentPage, onNavigate, onExit, role }: P
           (e.currentTarget as HTMLButtonElement).style.opacity = '1';
         }}
       >
-        <Sun size={14} />
-        <span className="text-[10px] uppercase" style={{ fontWeight: 500, letterSpacing: '0.08em' }}>Solstice</span>
+        {logoUrl ? (
+          <img src={logoUrl} alt="SOLSTICE" style={{ height: '1rem', maxWidth: '72px', objectFit: 'contain', opacity: 0.9 }} />
+        ) : (
+          <><Sun size={14} /><span className="text-[10px] uppercase" style={{ fontWeight: 500, letterSpacing: '0.08em' }}>Solstice</span></>
+        )}
         <ChevronRight size={11} className="opacity-60" />
       </button>
 
