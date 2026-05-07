@@ -4,6 +4,7 @@ import { ChevronRight, Ship } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useSolsticeLogo } from '../hooks/useSolsticeLogo';
 import { useSolsticeLogoSize } from '../hooks/useSolsticeLogoSize';
+import { useSolsticeLogoLayout } from '../hooks/useSolsticeLogoLayout';
 
 const C = {
   bg:    '#000000',
@@ -159,6 +160,7 @@ function WeekCard({ week, onSelect, idx }: { week: Week; onSelect: () => void; i
 export default function SolsticeLanding({ onNavigate }: Props) {
   const [logoUrl] = useSolsticeLogo();
   const [logoSize] = useSolsticeLogoSize('landing');
+  const [logoLayout] = useSolsticeLogoLayout('landingHero');
   const [season, setSeason] = useState<Season | null>(null);
   const [weeks,  setWeeks]  = useState<Week[]>([]);
   const [days,   setDays]   = useState<Day[]>([]);
@@ -239,15 +241,26 @@ export default function SolsticeLanding({ onNavigate }: Props) {
         <motion.div
           initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1.1, ease: 'easeOut' }}
-          className="relative z-20 text-center px-6 mt-16 md:mt-0"
+          className="relative z-20 text-center px-6 mt-16 md:mt-0 w-full max-w-5xl"
         >
           {logoUrl ? (
-            <img
-              src={logoUrl}
-              alt="SOLSTICE"
-              className="mb-6"
-              style={{ height: `${logoSize}px`, maxWidth: '80vw', objectFit: 'contain', opacity: 0.95 }}
-            />
+            <div
+              className="mb-6 w-full flex"
+              style={{
+                justifyContent: logoLayout.align === 'left'
+                  ? 'flex-start'
+                  : logoLayout.align === 'right'
+                    ? 'flex-end'
+                    : 'center',
+                transform: `translate(${logoLayout.x}px, ${logoLayout.y}px)`,
+              }}
+            >
+              <img
+                src={logoUrl}
+                alt="SOLSTICE"
+                style={{ height: `${logoSize}px`, maxWidth: '80vw', objectFit: 'contain', opacity: 0.95 }}
+              />
+            </div>
           ) : (
             <h1 className="uppercase flex items-center justify-center gap-3 leading-none mb-6"
               style={{

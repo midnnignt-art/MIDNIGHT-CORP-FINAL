@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSolsticeLogo } from '../hooks/useSolsticeLogo';
 import { useSolsticeLogoSize } from '../hooks/useSolsticeLogoSize';
+import { SolsticeLogoAlign, useSolsticeLogoLayout } from '../hooks/useSolsticeLogoLayout';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Settings, Calendar, DollarSign, Percent, Bell, Users,
   Save, Plus, Loader2, Copy, ToggleLeft, ToggleRight,
-  X, Search, ExternalLink, Image, Star, ChevronRight
+  X, Search, ExternalLink, Image, Star, ChevronRight,
+  AlignLeft, AlignCenter, AlignRight
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { toast } from '../../../lib/toast';
@@ -358,6 +360,7 @@ export default function SolsticeAdminConfig() {
   const [landingSize, setLandingSize] = useSolsticeLogoSize('landing');
   const [drawerSize,  setDrawerSize]  = useSolsticeLogoSize('drawer');
   const [triggerSize, setTriggerSize] = useSolsticeLogoSize('trigger');
+  const [landingHeroLayout, setLandingHeroLayout] = useSolsticeLogoLayout('landingHero');
 
   // ── Load ──────────────────────────────────────────────────────────────────────
   useEffect(() => { loadAll(); }, []);
@@ -1503,6 +1506,15 @@ export default function SolsticeAdminConfig() {
                   : <p style={{ fontFamily: "'Poiret One', sans-serif", fontSize: h, color: '#F9F2D7', letterSpacing: '0.1em', fontWeight: 300, opacity: 0.45 }}>S○LSTICE</p>
               );
 
+              const logoJustify = (align: SolsticeLogoAlign) =>
+                align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center';
+
+              const alignOptions: { value: SolsticeLogoAlign; label: string; icon: React.ReactNode }[] = [
+                { value: 'left', label: 'Izquierda', icon: <AlignLeft size={13} /> },
+                { value: 'center', label: 'Centro', icon: <AlignCenter size={13} /> },
+                { value: 'right', label: 'Derecha', icon: <AlignRight size={13} /> },
+              ];
+
               return (
                 <div className="space-y-8">
 
@@ -1623,8 +1635,26 @@ export default function SolsticeAdminConfig() {
 
                       <div style={{ background: '#000', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '20px', overflow: 'hidden' }}>
                         <p className="px-4 pt-3 pb-2 text-[8px] uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500, borderBottom: '0.5px solid rgba(255,255,255,0.06)' }}>Landing · hero</p>
-                        <div className="flex flex-col items-center justify-center py-10 gap-3">
-                          <LogoOrText h="2.2rem" mw="160px" />
+                        <div className="flex flex-col items-center justify-center py-10 gap-3 px-4">
+                          <div
+                            className="w-full flex"
+                            style={{
+                              justifyContent: logoJustify(landingHeroLayout.align),
+                              transform: `translate(${landingHeroLayout.x / 4}px, ${landingHeroLayout.y / 4}px)`,
+                              transition: 'transform 0.2s ease',
+                            }}
+                          >
+                            {logoInput ? (
+                              <img
+                                src={logoInput}
+                                alt="SOLSTICE"
+                                style={{ height: `${Math.max(18, landingSize / 3)}px`, maxWidth: '160px', objectFit: 'contain', opacity: 0.92 }}
+                                onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = '0'; }}
+                              />
+                            ) : (
+                              <LogoOrText h="2.2rem" mw="160px" />
+                            )}
+                          </div>
                           <p style={{ fontSize: '7px', letterSpacing: '0.3em', color: 'rgba(230,57,47,0.8)', textTransform: 'uppercase', fontWeight: 300 }}>SELECTED BEATS. PRIVATE SUNSET.</p>
                         </div>
                       </div>
@@ -1690,6 +1720,121 @@ export default function SolsticeAdminConfig() {
                           </div>
                         </div>
                       ))}
+                    </div>
+                  )}
+
+                  {/* Hero position controls */}
+                  {(logoUrl || logoInput) && (
+                    <div className="p-5 space-y-5" style={{
+                      background: 'rgba(255,255,255,0.03)',
+                      backdropFilter: 'blur(24px)',
+                      border: '0.5px solid rgba(255,255,255,0.08)',
+                      borderRadius: '24px',
+                    }}>
+                      <div>
+                        <h2 className="text-xs uppercase tracking-widest mb-1" style={{ color: C.cream, fontWeight: 500, letterSpacing: '0.12em' }}>Posición en Landing · hero</h2>
+                        <p className="text-[10px] uppercase" style={{ color: C.gray, letterSpacing: '0.12em' }}>Ajusta el logo principal sin tocar código</p>
+                      </div>
+
+                      <div className="relative h-52 overflow-hidden" style={{
+                        borderRadius: '20px',
+                        border: '0.5px solid rgba(255,255,255,0.08)',
+                        background: '#000',
+                      }}>
+                        <img
+                          src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=900"
+                          alt=""
+                          className="absolute inset-0 w-full h-full object-cover"
+                          style={{ filter: 'grayscale(60%) brightness(0.42)' }}
+                        />
+                        <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.64)' }} />
+                        <div className="relative z-10 h-full flex flex-col items-center justify-center px-6">
+                          <div
+                            className="w-full flex mb-4"
+                            style={{
+                              justifyContent: logoJustify(landingHeroLayout.align),
+                              transform: `translate(${landingHeroLayout.x / 2}px, ${landingHeroLayout.y / 2}px)`,
+                              transition: 'transform 0.2s ease',
+                            }}
+                          >
+                            <img
+                              src={logoInput || logoUrl}
+                              alt="SOLSTICE hero preview"
+                              style={{ height: `${Math.max(34, landingSize / 2)}px`, maxWidth: '80%', objectFit: 'contain', opacity: 0.95 }}
+                              onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = '0'; }}
+                            />
+                          </div>
+                          <p className="text-center" style={{ fontSize: '8px', letterSpacing: '0.16em', color: C.red, fontWeight: 300 }}>SELECTED BEATS. PRIVATE SUNSET.</p>
+                          <p className="text-center uppercase mt-2" style={{ fontSize: '7px', letterSpacing: '0.08em', color: C.gray, fontWeight: 500 }}>Santa Marta · Sep-Oct 2026</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <label className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.1em' }}>Alineación</label>
+                          <div className="grid grid-cols-3 gap-2">
+                            {alignOptions.map(opt => {
+                              const active = landingHeroLayout.align === opt.value;
+                              return (
+                                <button
+                                  key={opt.value}
+                                  type="button"
+                                  onClick={() => setLandingHeroLayout({ align: opt.value })}
+                                  className="flex items-center justify-center gap-2 py-2 text-[9px] uppercase tracking-wider"
+                                  style={{
+                                    background: active ? 'rgba(230,57,47,0.20)' : 'rgba(255,255,255,0.04)',
+                                    border: `0.5px solid ${active ? 'rgba(230,57,47,0.55)' : 'rgba(255,255,255,0.08)'}`,
+                                    borderRadius: '999px',
+                                    color: active ? C.cream : C.gray,
+                                    transition: 'all 0.2s ease',
+                                  }}
+                                >
+                                  {opt.icon}
+                                  {opt.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {([
+                          { label: 'Movimiento horizontal', key: 'x', value: landingHeroLayout.x, min: -160, max: 160 },
+                          { label: 'Movimiento vertical', key: 'y', value: landingHeroLayout.y, min: -180, max: 180 },
+                        ] as const).map(row => (
+                          <div key={row.key} className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.1em' }}>{row.label}</label>
+                              <span className="text-[9px]" style={{ color: C.cream, fontFamily: "'Space Mono', monospace" }}>{row.value}px</span>
+                            </div>
+                            <input
+                              type="range"
+                              min={row.min}
+                              max={row.max}
+                              value={row.value}
+                              onChange={e => setLandingHeroLayout({ [row.key]: Number(e.target.value) })}
+                              className="w-full"
+                              style={{ accentColor: C.red, cursor: 'pointer' }}
+                            />
+                          </div>
+                        ))}
+
+                        <button
+                          type="button"
+                          onClick={() => setLandingHeroLayout({ align: 'center', x: 0, y: 0 })}
+                          className="text-[10px] uppercase tracking-widest"
+                          style={{
+                            color: C.gray,
+                            border: '0.5px solid rgba(255,255,255,0.10)',
+                            borderRadius: '999px',
+                            padding: '9px 16px',
+                            transition: 'all 0.2s ease',
+                          }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = C.cream; }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = C.gray; }}
+                        >
+                          Resetear posición del hero
+                        </button>
+                      </div>
                     </div>
                   )}
 
