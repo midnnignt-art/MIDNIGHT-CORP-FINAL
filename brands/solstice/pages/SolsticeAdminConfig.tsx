@@ -1643,7 +1643,7 @@ export default function SolsticeAdminConfig() {
                   </div>
 
                   {/* Size controls */}
-                  {logoInput && (
+                  {(logoUrl || logoInput) && (
                     <div className="p-5 space-y-5" style={{
                       background: 'rgba(255,255,255,0.03)',
                       backdropFilter: 'blur(24px)',
@@ -1682,7 +1682,7 @@ export default function SolsticeAdminConfig() {
                             minHeight: '2.5rem',
                           }}>
                             <img
-                              src={logoInput}
+                              src={logoInput || logoUrl}
                               alt="preview"
                               style={{ height: `${row.val}px`, maxWidth: '100%', objectFit: 'contain', opacity: 0.9 }}
                               onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
