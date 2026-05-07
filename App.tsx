@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from './lib/supabase';
 import { Navbar } from './components/Navbar';
 import { Showcase } from './pages/Showcase';
@@ -135,19 +135,47 @@ const App: React.FC = () => {
   if (discountMatch)   return <DiscountLanding  codigo={discountMatch[1]} />;
 
   const isSolstice = currentPage === 'solstice-preview';
+  // Slot for Solstice logo image — place your transparent PNG at /public/solstice-logo.png
+  // and set logoImgError to false below. If the file doesn't exist the text fallback renders.
+  const [solsticLogoErr, setSolsticeLogoErr] = useState(false);
 
   return (
     <div className="min-h-screen bg-void text-moonlight font-sans selection:bg-eclipse selection:text-white relative">
-      {/* GLOBAL DYNAMIC LOGO — Solstice red when inside Solstice, same blend/filter as Midnight */}
+      {/* GLOBAL DYNAMIC LOGO */}
       <div className="logo-main flex flex-col items-center">
-        <span
-          className="text-xl md:text-3xl font-black tracking-[-0.1em]"
-          style={{ color: isSolstice ? '#E6392F' : 'white' }}
-        >MIDNIGHT</span>
-        <span
-          className="text-[8px] font-light tracking-[0.8em] uppercase -mt-1 ml-1"
-          style={{ color: isSolstice ? 'rgba(230,57,47,0.7)' : 'rgba(255,255,255,0.7)' }}
-        >Worldwide</span>
+        {isSolstice && !solsticLogoErr ? (
+          /*
+           * ── SOLSTICE LOGO SLOT ──────────────────────────────────────────────
+           * Drop your transparent PNG at:  /public/solstice-logo.png
+           * Recommended size: at least 400 × 160 px, transparent background.
+           * If the file is missing the text fallback below is shown instead.
+           * ────────────────────────────────────────────────────────────────────
+           */
+          <img
+            src="/solstice-logo.png"
+            alt="SOLSTICE"
+            onError={() => setSolsticeLogoErr(true)}
+            style={{
+              height: 'clamp(1.8rem, 5vw, 2.8rem)',
+              maxWidth: '180px',
+              objectFit: 'contain',
+              mixBlendMode: 'normal',
+              filter: 'none',
+              opacity: 0.92,
+            }}
+          />
+        ) : (
+          <>
+            <span
+              className="text-xl md:text-3xl font-black tracking-[-0.1em]"
+              style={{ color: isSolstice ? '#E6392F' : 'white' }}
+            >{isSolstice ? 'SOLSTICE' : 'MIDNIGHT'}</span>
+            <span
+              className="text-[8px] font-light tracking-[0.8em] uppercase -mt-1 ml-1"
+              style={{ color: isSolstice ? 'rgba(230,57,47,0.65)' : 'rgba(255,255,255,0.7)' }}
+            >{isSolstice ? '2026' : 'Worldwide'}</span>
+          </>
+        )}
       </div>
 
       {/* Midnight navbar — hidden while inside Solstice to avoid overlap */}

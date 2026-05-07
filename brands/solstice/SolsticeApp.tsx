@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import SolsticeNav, { SolsticePage } from './components/SolsticeNav';
 import SolsticeSplash from './components/SolsticeSplash';
 import SolsticeLanding from './pages/SolsticeLanding';
@@ -46,12 +46,6 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
   const [page, setPage] = useState<SolsticePage>('landing');
   const [reservaWeek, setReservaWeek] = useState<string | undefined>(undefined);
 
-  /**
-   * DUAL_COMMAND: commandPlatform tracks whether a dual-platform seller
-   * has chosen their session context. null = not yet chosen (shows selector).
-   * When DUAL_COMMAND_ENABLED = false this is always 'solstice' and the
-   * selector never renders.
-   */
   const [commandPlatform, setCommandPlatform] = useState<'solstice' | 'midnight' | null>(
     DUAL_COMMAND_ENABLED ? null : 'solstice'
   );
@@ -74,7 +68,6 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
     setPage(target as SolsticePage);
   };
 
-  // ── DUAL_COMMAND gate (no-op while DUAL_COMMAND_ENABLED = false) ───────────
   if (DUAL_COMMAND_ENABLED && isSeller && commandPlatform === null) {
     return (
       <SolsticeCommandSelector
@@ -87,19 +80,27 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
 
   return (
     <div style={{ background: '#000', minHeight: '100vh' }}>
+
+      {/* Splash — z-9000, covers everything while loading */}
       <AnimatePresence>
         {splash && <SolsticeSplash onComplete={() => setSplash(false)} />}
       </AnimatePresence>
+
       <MouseTrail rgb="230,57,47" />
 
-      {/* Top fade mask — hides content scrolling under fixed Midnight logo + nav button on mobile */}
+      {/*
+        Top fade mask — covers content scrolling under the fixed MIDNIGHT logo
+        + nav button. Safe area inset handled via padding-top so the mask
+        truly starts at the physical top on notch/Dynamic Island iPhones.
+      */}
       <div
         aria-hidden
         style={{
           position: 'fixed',
           top: 0, left: 0, right: 0,
-          height: '6rem',
-          background: 'linear-gradient(to bottom, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.40) 55%, transparent 100%)',
+          // extra height to cover safe-area-inset-top on iPhone
+          height: 'calc(5.5rem + env(safe-area-inset-top, 0px))',
+          background: 'linear-gradient(to bottom, #000000 0%, rgba(0,0,0,0.75) 45%, transparent 100%)',
           pointerEvents: 'none',
           zIndex: 140,
         }}
@@ -112,22 +113,34 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
         role={role}
       />
 
-      {page === 'landing'       && <SolsticeLanding onNavigate={handleNavigate} />}
-      {page === 'programa'      && <SolsticePrograma onNavigate={handleNavigate} />}
-      {page === 'reserva'       && (
-        <SolsticeReserva
-          initialWeek={reservaWeek}
-          onBack={() => setPage('landing')}
-        />
-      )}
-      {page === 'admin-config'  && <SolsticeAdminConfig />}
-      {page === 'admin-sellers' && <SolsticeVentasDashboard role="admin" />}
-      {page === 'admin-finance' && <SolsticeAdminFinance />}
-      {page === 'admin-cobros'  && <SolsticeAdminCobros />}
-      {page === 'check-in'      && <SolsticeAdminCheckin />}
-      {page === 'seller'        && <SolsticeVentasDashboard role="seller" />}
-      {page === 'manager'       && <SolsticeVentasDashboard role="manager" />}
-      {page === 'buyer'         && <SolsticeMiSemana />}
+      {/*
+        Main content cross-dissolve.
+        Starts invisible, fades in 0.25s after the splash begins its exit
+        (splash exit = 0.85s, content fade-in starts at 0.2s → they overlap
+        for a smooth cross-dissolve with no jarring "layer pop").
+      */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: splash ? 0 : 1 }}
+        transition={{ duration: 0.9, delay: splash ? 0 : 0.2, ease: 'easeInOut' }}
+      >
+        {page === 'landing'       && <SolsticeLanding onNavigate={handleNavigate} />}
+        {page === 'programa'      && <SolsticePrograma onNavigate={handleNavigate} />}
+        {page === 'reserva'       && (
+          <SolsticeReserva
+            initialWeek={reservaWeek}
+            onBack={() => setPage('landing')}
+          />
+        )}
+        {page === 'admin-config'  && <SolsticeAdminConfig />}
+        {page === 'admin-sellers' && <SolsticeVentasDashboard role="admin" />}
+        {page === 'admin-finance' && <SolsticeAdminFinance />}
+        {page === 'admin-cobros'  && <SolsticeAdminCobros />}
+        {page === 'check-in'      && <SolsticeAdminCheckin />}
+        {page === 'seller'        && <SolsticeVentasDashboard role="seller" />}
+        {page === 'manager'       && <SolsticeVentasDashboard role="manager" />}
+        {page === 'buyer'         && <SolsticeMiSemana />}
+      </motion.div>
     </div>
   );
 }
