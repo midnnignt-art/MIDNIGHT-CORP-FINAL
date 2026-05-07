@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { loadSolsticeBranding, saveSolsticeBranding } from './solsticeBrandingStore';
 
 export type SolsticeLogoAlign = 'left' | 'center' | 'right';
 
@@ -46,11 +47,25 @@ export function useSolsticeLogoLayout(
     return () => window.removeEventListener(ev, handler as EventListener);
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    loadSolsticeBranding().then(branding => {
+      const remoteLayout = branding?.logo_layouts?.[context];
+      if (!active || !remoteLayout) return;
+      const next = sanitize(remoteLayout, def);
+      localStorage.setItem(key, JSON.stringify(next));
+      setLayout(next);
+      window.dispatchEvent(new CustomEvent(ev, { detail: next }));
+    });
+    return () => { active = false; };
+  }, [context]);
+
   const update = useCallback((next: Partial<SolsticeLogoLayout>) => {
     setLayout(prev => {
       const merged = sanitize({ ...prev, ...next }, def);
       localStorage.setItem(key, JSON.stringify(merged));
       window.dispatchEvent(new CustomEvent(ev, { detail: merged }));
+      saveSolsticeBranding({ logo_layouts: { [context]: merged } });
       return merged;
     });
   }, []);

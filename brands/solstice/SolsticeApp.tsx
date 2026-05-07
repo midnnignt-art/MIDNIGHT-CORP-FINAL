@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import SolsticeNav, { SolsticePage } from './components/SolsticeNav';
 import SolsticeSplash from './components/SolsticeSplash';
@@ -52,6 +52,10 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
 
   const role = solsticeRole(userRole);
   const isSeller = role === 'seller';
+
+  useEffect(() => {
+    requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
+  }, [page, reservaWeek]);
 
   const handleNavigate = (target: string) => {
     if (target === 'home') { onExit(); return; }

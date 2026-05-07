@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { loadSolsticeBranding, saveSolsticeBranding } from './solsticeBrandingStore';
 
 const EV_PREFIX = 'solstice-logo-size-';
 const KEY_PREFIX = 'solstice_logo_size_';
@@ -26,10 +27,23 @@ export function useSolsticeLogoSize(context: string): [number, (px: number) => v
     return () => window.removeEventListener(ev, handler as EventListener);
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    loadSolsticeBranding().then(branding => {
+      const remoteSize = branding?.logo_sizes?.[context];
+      if (!active || typeof remoteSize !== 'number') return;
+      localStorage.setItem(key, String(remoteSize));
+      setSize(remoteSize);
+      window.dispatchEvent(new CustomEvent(ev, { detail: remoteSize }));
+    });
+    return () => { active = false; };
+  }, [context]);
+
   const update = useCallback((px: number) => {
     localStorage.setItem(key, String(px));
     setSize(px);
     window.dispatchEvent(new CustomEvent(ev, { detail: px }));
+    saveSolsticeBranding({ logo_sizes: { [context]: px } });
   }, []);
 
   return [size, update];
