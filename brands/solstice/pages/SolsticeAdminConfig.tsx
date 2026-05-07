@@ -1466,6 +1466,181 @@ export default function SolsticeAdminConfig() {
               );
             })()}
 
+            {/* ── BRANDING ── */}
+            {tab === 'branding' && (() => {
+              const handleLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                setBrandingLoading(true);
+                try {
+                  const url = await uploadLogoImage(file);
+                  setLogoInput(url);
+                } catch { toast.error('No se pudo cargar la imagen'); }
+                finally { setBrandingLoading(false); }
+              };
+
+              const applyLogo = () => {
+                const url = logoInput.trim();
+                if (!url) return;
+                setLogoUrl(url);
+                toast.success('Logo aplicado en toda la app');
+              };
+
+              const clearLogo = () => {
+                setLogoUrl('');
+                setLogoInput('');
+                toast.success('Logo eliminado');
+              };
+
+              const LogoOrText = ({ h, mw }: { h: string; mw: string }) => (
+                logoInput
+                  ? <img src={logoInput} alt="SOLSTICE" style={{ height: h, maxWidth: mw, objectFit: 'contain', opacity: 0.92 }} onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = '0'; }} />
+                  : <p style={{ fontFamily: "'Poiret One', sans-serif", fontSize: h, color: '#F9F2D7', letterSpacing: '0.1em', fontWeight: 300, opacity: 0.45 }}>S○LSTICE</p>
+              );
+
+              return (
+                <div className="space-y-8">
+
+                  {/* Upload zone */}
+                  <div className="p-5 space-y-5" style={{
+                    background: 'rgba(255,255,255,0.03)',
+                    backdropFilter: 'blur(24px)',
+                    border: '0.5px solid rgba(255,255,255,0.08)',
+                    borderRadius: '24px',
+                  }}>
+                    <div>
+                      <h2 className="text-xs uppercase tracking-widest mb-1" style={{ color: C.cream, fontWeight: 500, letterSpacing: '0.12em' }}>Logo de marca</h2>
+                      <p className="text-[10px] uppercase" style={{ color: C.gray, letterSpacing: '0.12em' }}>PNG o SVG con fondo transparente · mínimo 600 × 200 px</p>
+                    </div>
+
+                    <input ref={logoFileRef} type="file" accept="image/png,image/svg+xml,image/webp" onChange={handleLogoFile} className="hidden" />
+                    <button
+                      onClick={() => logoFileRef.current?.click()}
+                      disabled={brandingLoading}
+                      className="w-full flex flex-col items-center justify-center gap-3 py-8 disabled:opacity-50"
+                      style={{
+                        background: 'rgba(230,57,47,0.06)',
+                        border: '0.5px dashed rgba(230,57,47,0.40)',
+                        borderRadius: '20px',
+                        transition: 'all 0.3s ease',
+                        cursor: 'pointer',
+                      }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(230,57,47,0.12)'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(230,57,47,0.06)'; }}
+                    >
+                      {brandingLoading
+                        ? <Loader2 size={22} className="animate-spin" style={{ color: C.red }} />
+                        : <Image size={22} style={{ color: C.red, opacity: 0.7 }} />
+                      }
+                      <span className="text-[10px] uppercase" style={{ color: C.gray, letterSpacing: '0.15em', fontWeight: 500 }}>
+                        {brandingLoading ? 'Subiendo…' : 'Subir imagen'}
+                      </span>
+                    </button>
+
+                    <div className="flex flex-col gap-2">
+                      <label className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>O pega una URL directa</label>
+                      <input
+                        type="text"
+                        value={logoInput}
+                        onChange={e => setLogoInput(e.target.value)}
+                        placeholder="https://…"
+                        className="px-4 py-3 text-xs outline-none"
+                        style={{
+                          background: 'rgba(255,255,255,0.05)',
+                          border: '0.5px solid rgba(255,255,255,0.12)',
+                          borderRadius: '16px',
+                          color: C.cream,
+                          fontFamily: "'Space Mono', monospace",
+                        }}
+                      />
+                    </div>
+
+                    {logoUrl && (
+                      <p className="text-[9px] uppercase flex items-center gap-2" style={{ color: C.green, letterSpacing: '0.15em', fontWeight: 500 }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.green, display: 'inline-block', boxShadow: `0 0 6px ${C.green}` }} />
+                        Logo activo en toda la app
+                      </p>
+                    )}
+
+                    <div className="flex gap-3 flex-wrap">
+                      <button
+                        onClick={applyLogo}
+                        disabled={!logoInput.trim() || brandingLoading}
+                        className="flex items-center gap-2 text-xs uppercase tracking-widest disabled:opacity-40"
+                        style={{
+                          background: 'rgba(230,57,47,0.20)',
+                          border: '0.5px solid rgba(230,57,47,0.45)',
+                          borderRadius: '999px',
+                          color: C.cream,
+                          padding: '10px 24px',
+                          fontWeight: 500,
+                          transition: 'all 0.3s ease',
+                        }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)'; }}
+                      >
+                        <Image size={13} /> Aplicar logo
+                      </button>
+                      {logoUrl && (
+                        <button
+                          onClick={clearLogo}
+                          className="flex items-center gap-2 text-xs uppercase tracking-widest"
+                          style={{
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '0.5px solid rgba(255,255,255,0.12)',
+                            borderRadius: '999px',
+                            color: C.gray,
+                            padding: '10px 20px',
+                            fontWeight: 500,
+                            transition: 'all 0.3s ease',
+                          }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = C.cream; }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = C.gray; }}
+                        >
+                          <X size={13} /> Quitar logo
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Live previews */}
+                  <div>
+                    <p className="text-[9px] uppercase mb-4" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>Vista previa en contexto</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                      <div style={{ background: '#000', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '20px', overflow: 'hidden' }}>
+                        <p className="px-4 pt-3 pb-2 text-[8px] uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500, borderBottom: '0.5px solid rgba(255,255,255,0.06)' }}>Pantalla de carga</p>
+                        <div className="flex flex-col items-center justify-center py-10 gap-2">
+                          <LogoOrText h="1.6rem" mw="140px" />
+                          {!logoInput && <p style={{ fontSize: '7px', letterSpacing: '0.5em', color: 'rgba(230,57,47,0.7)', textTransform: 'uppercase', fontWeight: 500 }}>2026</p>}
+                        </div>
+                      </div>
+
+                      <div style={{ background: '#000', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '20px', overflow: 'hidden' }}>
+                        <p className="px-4 pt-3 pb-2 text-[8px] uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500, borderBottom: '0.5px solid rgba(255,255,255,0.06)' }}>Landing · hero</p>
+                        <div className="flex flex-col items-center justify-center py-10 gap-3">
+                          <LogoOrText h="2.2rem" mw="160px" />
+                          <p style={{ fontSize: '7px', letterSpacing: '0.3em', color: 'rgba(230,57,47,0.8)', textTransform: 'uppercase', fontWeight: 300 }}>SELECTED BEATS. PRIVATE SUNSET.</p>
+                        </div>
+                      </div>
+
+                      <div style={{ background: 'rgba(10,0,0,0.9)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '20px', overflow: 'hidden' }}>
+                        <p className="px-4 pt-3 pb-2 text-[8px] uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500, borderBottom: '0.5px solid rgba(255,255,255,0.06)' }}>Menú lateral</p>
+                        <div className="flex items-center gap-3 px-5 py-4">
+                          <div className="flex flex-col gap-0.5">
+                            <LogoOrText h="1.2rem" mw="90px" />
+                            <p style={{ fontSize: '7px', letterSpacing: '0.15em', color: C.red, textTransform: 'uppercase', fontWeight: 500, marginTop: 2 }}>2026 · ADMIN</p>
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+
+                </div>
+              );
+            })()}
+
           </motion.div>
         </AnimatePresence>
       </div>
@@ -1721,188 +1896,6 @@ export default function SolsticeAdminConfig() {
                   </button>
                 </div>
               )}
-
-            {/* ── BRANDING ── */}
-            {tab === 'branding' && (() => {
-              const handleLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                setBrandingLoading(true);
-                try {
-                  const url = await uploadLogoImage(file);
-                  setLogoInput(url);
-                } catch { toast.error('No se pudo cargar la imagen'); }
-                finally { setBrandingLoading(false); }
-              };
-
-              const applyLogo = () => {
-                const url = logoInput.trim();
-                if (!url) return;
-                setLogoUrl(url);
-                toast.success('Logo aplicado en toda la app');
-              };
-
-              const clearLogo = () => {
-                setLogoUrl('');
-                setLogoInput('');
-                toast.success('Logo eliminado');
-              };
-
-              const LogoOrText = ({ height, maxWidth }: { height: string; maxWidth: string }) => (
-                logoInput
-                  ? <img src={logoInput} alt="SOLSTICE" style={{ height, maxWidth, objectFit: 'contain', opacity: 0.92 }} onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = '0'; }} />
-                  : <p style={{ fontFamily: "'Poiret One', sans-serif", fontSize: height, color: '#F9F2D7', letterSpacing: '0.1em', fontWeight: 300, opacity: 0.5 }}>S○LSTICE</p>
-              );
-
-              return (
-                <div className="space-y-8">
-
-                  {/* ── Upload zone ── */}
-                  <div className="p-5 space-y-5" style={{
-                    background: 'rgba(255,255,255,0.03)',
-                    backdropFilter: 'blur(24px)',
-                    border: '0.5px solid rgba(255,255,255,0.08)',
-                    borderRadius: '24px',
-                  }}>
-                    <div>
-                      <h2 className="text-xs uppercase tracking-widest mb-1" style={{ color: C.cream, fontWeight: 500, letterSpacing: '0.12em' }}>Logo de marca</h2>
-                      <p className="text-[10px] uppercase" style={{ color: C.gray, letterSpacing: '0.12em' }}>PNG o SVG con fondo transparente. Recomendado: 600 × 200 px mínimo.</p>
-                    </div>
-
-                    {/* File drop button */}
-                    <input ref={logoFileRef} type="file" accept="image/png,image/svg+xml,image/webp" onChange={handleLogoFile} className="hidden" />
-                    <button
-                      onClick={() => logoFileRef.current?.click()}
-                      disabled={brandingLoading}
-                      className="w-full flex flex-col items-center justify-center gap-3 py-8 disabled:opacity-50"
-                      style={{
-                        background: 'rgba(230,57,47,0.06)',
-                        border: '0.5px dashed rgba(230,57,47,0.40)',
-                        borderRadius: '20px',
-                        transition: 'all 0.3s ease',
-                        cursor: 'pointer',
-                      }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(230,57,47,0.12)'; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(230,57,47,0.06)'; }}
-                    >
-                      {brandingLoading
-                        ? <Loader2 size={22} className="animate-spin" style={{ color: C.red }} />
-                        : <Image size={22} style={{ color: C.red, opacity: 0.7 }} />
-                      }
-                      <span className="text-[10px] uppercase" style={{ color: C.gray, letterSpacing: '0.15em', fontWeight: 500 }}>
-                        {brandingLoading ? 'Subiendo…' : 'Subir imagen'}
-                      </span>
-                    </button>
-
-                    {/* URL input — alternative */}
-                    <div className="flex flex-col gap-2">
-                      <label className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>O pega una URL directa</label>
-                      <input
-                        type="text"
-                        value={logoInput}
-                        onChange={e => setLogoInput(e.target.value)}
-                        placeholder="https://…"
-                        className="px-4 py-3 text-xs outline-none"
-                        style={{
-                          background: 'rgba(255,255,255,0.05)',
-                          border: '0.5px solid rgba(255,255,255,0.12)',
-                          borderRadius: '16px',
-                          color: C.cream,
-                          fontFamily: "'Space Mono', monospace",
-                        }}
-                      />
-                    </div>
-
-                    {/* Status */}
-                    {logoUrl && (
-                      <p className="text-[9px] uppercase flex items-center gap-2" style={{ color: C.green, letterSpacing: '0.15em', fontWeight: 500 }}>
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.green, display: 'inline-block', boxShadow: `0 0 6px ${C.green}` }} />
-                        Logo activo en toda la app
-                      </p>
-                    )}
-
-                    {/* Action buttons */}
-                    <div className="flex gap-3 flex-wrap">
-                      <button
-                        onClick={applyLogo}
-                        disabled={!logoInput.trim() || brandingLoading}
-                        className="flex items-center gap-2 text-xs uppercase tracking-widest disabled:opacity-40"
-                        style={{
-                          background: 'rgba(230,57,47,0.20)',
-                          border: '0.5px solid rgba(230,57,47,0.45)',
-                          borderRadius: '999px',
-                          color: C.cream,
-                          padding: '10px 24px',
-                          fontWeight: 500,
-                          transition: 'all 0.3s ease',
-                        }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 8px 24px rgba(230,57,47,0.25)'; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none'; }}
-                      >
-                        <Image size={13} /> Aplicar logo
-                      </button>
-                      {logoUrl && (
-                        <button
-                          onClick={clearLogo}
-                          className="flex items-center gap-2 text-xs uppercase tracking-widest"
-                          style={{
-                            background: 'rgba(255,255,255,0.05)',
-                            border: '0.5px solid rgba(255,255,255,0.12)',
-                            borderRadius: '999px',
-                            color: C.gray,
-                            padding: '10px 20px',
-                            fontWeight: 500,
-                            transition: 'all 0.3s ease',
-                          }}
-                          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = C.cream; }}
-                          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = C.gray; }}
-                        >
-                          <X size={13} /> Quitar logo
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* ── Live previews ── */}
-                  <div>
-                    <p className="text-[9px] uppercase mb-4" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>Vista previa en contexto</p>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-                      {/* Splash preview */}
-                      <div style={{ background: '#000', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '20px', overflow: 'hidden' }}>
-                        <p className="px-4 pt-3 pb-2 text-[8px] uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500, borderBottom: '0.5px solid rgba(255,255,255,0.06)' }}>Pantalla de carga</p>
-                        <div className="flex flex-col items-center justify-center py-10 gap-2">
-                          <LogoOrText height="1.6rem" maxWidth="140px" />
-                          {!logoInput && <p style={{ fontSize: '7px', letterSpacing: '0.5em', color: 'rgba(230,57,47,0.7)', textTransform: 'uppercase', fontWeight: 500 }}>2026</p>}
-                        </div>
-                      </div>
-
-                      {/* Landing hero preview */}
-                      <div style={{ background: '#000', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '20px', overflow: 'hidden' }}>
-                        <p className="px-4 pt-3 pb-2 text-[8px] uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500, borderBottom: '0.5px solid rgba(255,255,255,0.06)' }}>Landing · hero</p>
-                        <div className="flex flex-col items-center justify-center py-10 gap-3" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, #000 100%)' }}>
-                          <LogoOrText height="2.2rem" maxWidth="160px" />
-                          <p style={{ fontSize: '7px', letterSpacing: '0.3em', color: 'rgba(230,57,47,0.8)', textTransform: 'uppercase', fontWeight: 300 }}>SELECTED BEATS. PRIVATE SUNSET.</p>
-                        </div>
-                      </div>
-
-                      {/* Nav drawer preview */}
-                      <div style={{ background: 'rgba(10,0,0,0.9)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '20px', overflow: 'hidden' }}>
-                        <p className="px-4 pt-3 pb-2 text-[8px] uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500, borderBottom: '0.5px solid rgba(255,255,255,0.06)' }}>Menú lateral</p>
-                        <div className="flex items-center gap-3 px-5 py-4">
-                          <div className="flex flex-col gap-0.5">
-                            <LogoOrText height="1.2rem" maxWidth="90px" />
-                            <p style={{ fontSize: '7px', letterSpacing: '0.15em', color: C.red, textTransform: 'uppercase', fontWeight: 500, marginTop: 2 }}>2026 · ADMIN</p>
-                          </div>
-                        </div>
-                      </div>
-
-                    </div>
-                  </div>
-
-                </div>
-              );
-            })()}
 
 
             </motion.div>
