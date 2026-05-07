@@ -235,7 +235,7 @@ export default function SolsticeLanding({ onNavigate }: Props) {
         <motion.div
           initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1.1, ease: 'easeOut' }}
-          className="relative z-20 text-center px-6"
+          className="relative z-20 text-center px-6 mt-16 md:mt-0"
         >
           <h1 className="uppercase flex items-center justify-center gap-3 leading-none mb-6"
             style={{
@@ -254,10 +254,10 @@ export default function SolsticeLanding({ onNavigate }: Props) {
               }} />
             LSTICE
           </h1>
-          <p className="text-lg md:text-2xl mb-3" style={{ letterSpacing: '0.22em', color: C.red, fontWeight: 300 }}>
+          <p className="text-sm md:text-2xl mb-3 px-2" style={{ letterSpacing: '0.16em', color: C.red, fontWeight: 300 }}>
             {s.tagline}
           </p>
-          <p className="text-sm mb-14 uppercase" style={{ letterSpacing: '0.08em', color: C.gray, fontWeight: 500 }}>
+          <p className="text-xs md:text-sm mb-10 md:mb-14 uppercase" style={{ letterSpacing: '0.08em', color: C.gray, fontWeight: 500 }}>
             Santa Marta · Sep–Oct 2026 · Una vez al año.
           </p>
           <motion.button

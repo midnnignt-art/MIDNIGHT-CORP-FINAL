@@ -52,9 +52,10 @@ export default function SolsticeNav({ currentPage, onNavigate, onExit, role }: P
       {/* Trigger button — always visible */}
       <button
         onClick={() => setOpen(true)}
-        className="fixed top-5 right-5 z-[180] flex items-center gap-2.5 py-3 px-6 rounded-full shadow-lg"
+        className="fixed top-[4.5rem] md:top-5 right-4 md:right-5 z-[180] flex items-center gap-2.5 py-2.5 px-5 md:py-3 md:px-6 rounded-full shadow-lg"
         style={{
-          background: 'rgba(230,57,47,0.20)',
+          background: 'rgba(10,0,0,0.78)',
+          backdropFilter: 'blur(20px) saturate(160%)',
           border: '0.5px solid rgba(230,57,47,0.40)',
           color: C.cream,
           transition: 'all 0.3s ease',

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import SolsticeNav, { SolsticePage } from './components/SolsticeNav';
+import SolsticeSplash from './components/SolsticeSplash';
 import SolsticeLanding from './pages/SolsticeLanding';
 import SolsticeReserva from './pages/SolsticeReserva';
 import SolsticeAdminConfig from './pages/SolsticeAdminConfig';
@@ -40,6 +42,7 @@ function solsticeRole(userRole: UserRole): 'admin' | 'seller' | 'manager' | 'buy
 }
 
 export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) {
+  const [splash, setSplash] = useState(true);
   const [page, setPage] = useState<SolsticePage>('landing');
   const [reservaWeek, setReservaWeek] = useState<string | undefined>(undefined);
 
@@ -84,7 +87,24 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
 
   return (
     <div style={{ background: '#000', minHeight: '100vh' }}>
+      <AnimatePresence>
+        {splash && <SolsticeSplash onComplete={() => setSplash(false)} />}
+      </AnimatePresence>
       <MouseTrail rgb="230,57,47" />
+
+      {/* Top fade mask — hides content scrolling under fixed Midnight logo + nav button on mobile */}
+      <div
+        aria-hidden
+        style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0,
+          height: '6rem',
+          background: 'linear-gradient(to bottom, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.40) 55%, transparent 100%)',
+          pointerEvents: 'none',
+          zIndex: 140,
+        }}
+      />
+
       <SolsticeNav
         currentPage={page}
         onNavigate={p => handleNavigate(p)}
