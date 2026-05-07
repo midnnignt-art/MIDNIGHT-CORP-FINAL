@@ -106,24 +106,19 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
         }}
       />
 
-      <SolsticeNav
-        currentPage={page}
-        onNavigate={p => handleNavigate(p)}
-        onExit={onExit}
-        role={role}
-      />
-
-      {/*
-        Main content cross-dissolve.
-        Starts invisible, fades in 0.25s after the splash begins its exit
-        (splash exit = 0.85s, content fade-in starts at 0.2s → they overlap
-        for a smooth cross-dissolve with no jarring "layer pop").
-      */}
+      {/* Nav + content fade in together after splash exits — prevents nav button popping */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: splash ? 0 : 1 }}
-        transition={{ duration: 0.9, delay: splash ? 0 : 0.2, ease: 'easeInOut' }}
+        transition={{ duration: 1.0, delay: splash ? 0 : 0.15, ease: 'easeInOut' }}
       >
+        <SolsticeNav
+          currentPage={page}
+          onNavigate={p => handleNavigate(p)}
+          onExit={onExit}
+          role={role}
+        />
+
         {page === 'landing'       && <SolsticeLanding onNavigate={handleNavigate} />}
         {page === 'programa'      && <SolsticePrograma onNavigate={handleNavigate} />}
         {page === 'reserva'       && (

@@ -1,17 +1,23 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { useSolsticeLogo } from '../hooks/useSolsticeLogo';
 
 interface Props {
   onComplete: () => void;
 }
 
-// Duration constants — keep in sync with the fade-in delay in SolsticeApp
 const SPLASH_DURATION_MS = 2600;
+// Hide the sun 700ms before exit so it's fully gone before the fade-out starts
+const SUN_HIDE_MS = SPLASH_DURATION_MS - 700;
 
 export default function SolsticeSplash({ onComplete }: Props) {
+  const [logoUrl] = useSolsticeLogo();
+  const [sunVisible, setSunVisible] = useState(true);
+
   useEffect(() => {
-    const t = setTimeout(onComplete, SPLASH_DURATION_MS);
-    return () => clearTimeout(t);
+    const t1 = setTimeout(() => setSunVisible(false), SUN_HIDE_MS);
+    const t2 = setTimeout(onComplete, SPLASH_DURATION_MS);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [onComplete]);
 
   return (
@@ -51,47 +57,53 @@ export default function SolsticeSplash({ onComplete }: Props) {
         }
       `}</style>
 
-      {/* ── Orbiting sun ────────────────────────────────────────────── */}
+      {/* ── Orbiting sun — fades out 700ms before splash exit to prevent re-entry artifact ── */}
       <div style={{
-        position: 'absolute', top: 0, left: 0,
-        animation: 'sol-orbit-x 2.7s linear infinite',
-        willChange: 'transform',
+        position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+        opacity: sunVisible ? 1 : 0,
+        transition: 'opacity 0.45s ease-out',
         pointerEvents: 'none',
       }}>
         <div style={{
-          animation: 'sol-orbit-y 2.7s ease-in-out infinite',
+          position: 'absolute', top: 0, left: 0,
+          animation: 'sol-orbit-x 2.7s linear infinite',
           willChange: 'transform',
         }}>
-          {/* Outer atmospheric corona */}
           <div style={{
-            position: 'absolute',
-            inset: '-52px',
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(255,140,20,0.35) 0%, rgba(230,57,47,0.12) 50%, transparent 72%)',
-            filter: 'blur(28px)',
-            animation: 'sol-corona-spin 2.7s linear infinite',
-          }} />
+            animation: 'sol-orbit-y 2.7s ease-in-out infinite',
+            willChange: 'transform',
+          }}>
+            {/* Outer atmospheric corona */}
+            <div style={{
+              position: 'absolute',
+              inset: '-52px',
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(255,140,20,0.35) 0%, rgba(230,57,47,0.12) 50%, transparent 72%)',
+              filter: 'blur(28px)',
+              animation: 'sol-corona-spin 2.7s linear infinite',
+            }} />
 
-          {/* Mid glow */}
-          <div style={{
-            position: 'absolute',
-            inset: '-20px',
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(255,180,50,0.50) 0%, rgba(255,100,0,0.20) 55%, transparent 75%)',
-            filter: 'blur(10px)',
-          }} />
+            {/* Mid glow */}
+            <div style={{
+              position: 'absolute',
+              inset: '-20px',
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(255,180,50,0.50) 0%, rgba(255,100,0,0.20) 55%, transparent 75%)',
+              filter: 'blur(10px)',
+            }} />
 
-          {/* Sun core */}
-          <div style={{
-            width: 52, height: 52,
-            borderRadius: '50%',
-            background: 'radial-gradient(circle at 36% 36%, #fffbe0 0%, #FFD040 30%, #FF8C00 65%, #E6392F 100%)',
-            boxShadow:
-              '0 0 32px 12px rgba(255,160,20,0.82), ' +
-              '0 0 64px 28px rgba(255,90,0,0.42), ' +
-              '0 0 110px 55px rgba(230,57,47,0.18)',
-            animation: 'sol-breathe 2.7s ease-in-out infinite',
-          }} />
+            {/* Sun core */}
+            <div style={{
+              width: 52, height: 52,
+              borderRadius: '50%',
+              background: 'radial-gradient(circle at 36% 36%, #fffbe0 0%, #FFD040 30%, #FF8C00 65%, #E6392F 100%)',
+              boxShadow:
+                '0 0 32px 12px rgba(255,160,20,0.82), ' +
+                '0 0 64px 28px rgba(255,90,0,0.42), ' +
+                '0 0 110px 55px rgba(230,57,47,0.18)',
+              animation: 'sol-breathe 2.7s ease-in-out infinite',
+            }} />
+          </div>
         </div>
       </div>
 
@@ -104,51 +116,64 @@ export default function SolsticeSplash({ onComplete }: Props) {
         pointerEvents: 'none',
       }} />
 
-      {/* ── Center logo — same split style as landing hero ───────────── */}
+      {/* ── Center logo ─────────────────────────────────────────────── */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.25, duration: 1.0, ease: 'easeOut' }}
         style={{ textAlign: 'center', position: 'relative', zIndex: 1, userSelect: 'none' }}
       >
-        {/* "S ○ LSTICE" — exactly mirroring the landing hero h1 */}
-        <h1
-          className="uppercase"
-          style={{
-            fontFamily: "'Poiret One', sans-serif",
-            fontSize: 'clamp(3.4rem, 12vw, 8rem)',
-            letterSpacing: '-0.02em',
-            fontWeight: 300,
-            color: '#F9F2D7',
-            lineHeight: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 'clamp(0.5rem, 2vw, 1.2rem)',
-          }}
-        >
-          S
-          <span style={{
-            display: 'inline-block',
-            width: 'clamp(1.8rem, 4.5vw, 4rem)',
-            height: 'clamp(1.8rem, 4.5vw, 4rem)',
-            borderRadius: '50%',
-            border: '0.5px solid rgba(230,57,47,0.50)',
-            flexShrink: 0,
-          }} />
-          LSTICE
-        </h1>
-
-        <p style={{
-          fontSize: '8px',
-          letterSpacing: '0.55em',
-          color: 'rgba(230,57,47,0.80)',
-          textTransform: 'uppercase',
-          fontWeight: 500,
-          marginTop: '12px',
-        }}>
-          2026
-        </p>
+        {logoUrl ? (
+          <img
+            src={logoUrl}
+            alt="SOLSTICE"
+            style={{
+              height: 'clamp(2.5rem, 9vw, 6rem)',
+              maxWidth: '280px',
+              objectFit: 'contain',
+              opacity: 0.92,
+            }}
+          />
+        ) : (
+          <>
+            <h1
+              className="uppercase"
+              style={{
+                fontFamily: "'Poiret One', sans-serif",
+                fontSize: 'clamp(3.4rem, 12vw, 8rem)',
+                letterSpacing: '-0.02em',
+                fontWeight: 300,
+                color: '#F9F2D7',
+                lineHeight: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 'clamp(0.5rem, 2vw, 1.2rem)',
+              }}
+            >
+              S
+              <span style={{
+                display: 'inline-block',
+                width: 'clamp(1.8rem, 4.5vw, 4rem)',
+                height: 'clamp(1.8rem, 4.5vw, 4rem)',
+                borderRadius: '50%',
+                border: '0.5px solid rgba(230,57,47,0.50)',
+                flexShrink: 0,
+              }} />
+              LSTICE
+            </h1>
+            <p style={{
+              fontSize: '8px',
+              letterSpacing: '0.55em',
+              color: 'rgba(230,57,47,0.80)',
+              textTransform: 'uppercase',
+              fontWeight: 500,
+              marginTop: '12px',
+            }}>
+              2026
+            </p>
+          </>
+        )}
       </motion.div>
     </motion.div>
   );

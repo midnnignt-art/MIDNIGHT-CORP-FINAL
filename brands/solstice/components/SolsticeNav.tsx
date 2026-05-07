@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Sun, LayoutDashboard, Users, Settings, DollarSign, LogOut, ChevronRight, AlertCircle, ScanLine, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSolsticeLogo } from '../hooks/useSolsticeLogo';
 
 export type SolsticePage =
   | 'landing'
@@ -45,6 +46,7 @@ const NAV_ITEMS: { page: SolsticePage; label: string; icon: React.ReactNode; rol
 
 export default function SolsticeNav({ currentPage, onNavigate, onExit, role }: Props) {
   const [open, setOpen] = useState(false);
+  const [logoUrl] = useSolsticeLogo();
   const visible = NAV_ITEMS.filter(i => i.roles.includes(role));
 
   return (
@@ -104,17 +106,25 @@ export default function SolsticeNav({ currentPage, onNavigate, onExit, role }: P
                 style={{ borderBottom: '0.5px solid rgba(255,255,255,0.10)' }}
               >
                 <div>
-                  <p
-                    className="text-base uppercase"
-                    style={{
-                      fontFamily: "'Poiret One', sans-serif",
-                      color: C.cream,
-                      letterSpacing: '0.15em',
-                      fontWeight: 300,
-                    }}
-                  >
-                    SOLSTICE
-                  </p>
+                  {logoUrl ? (
+                    <img
+                      src={logoUrl}
+                      alt="SOLSTICE"
+                      style={{ height: '1.6rem', maxWidth: '110px', objectFit: 'contain', opacity: 0.92 }}
+                    />
+                  ) : (
+                    <p
+                      className="text-base uppercase"
+                      style={{
+                        fontFamily: "'Poiret One', sans-serif",
+                        color: C.cream,
+                        letterSpacing: '0.15em',
+                        fontWeight: 300,
+                      }}
+                    >
+                      SOLSTICE
+                    </p>
+                  )}
                   <p
                     className="text-[9px] uppercase mt-0.5"
                     style={{ color: C.red, letterSpacing: '0.08em', fontWeight: 500 }}

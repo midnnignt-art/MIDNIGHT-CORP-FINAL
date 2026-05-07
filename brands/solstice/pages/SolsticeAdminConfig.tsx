@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useSolsticeLogo } from '../hooks/useSolsticeLogo';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Settings, Calendar, DollarSign, Percent, Bell, Users,
@@ -99,7 +100,7 @@ interface MidnightProfile {
   squad_name?: string;
 }
 
-type Tab = 'general' | 'weeks' | 'prices' | 'commissions' | 'penalties' | 'sellers';
+type Tab = 'general' | 'weeks' | 'prices' | 'commissions' | 'penalties' | 'sellers' | 'branding';
 
 // ── Team structure types ───────────────────────────────────────────────────────
 interface MemberRow {
@@ -327,6 +328,10 @@ export default function SolsticeAdminConfig() {
 
   // Image upload refs
   const fileRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // Branding
+  const [logoUrl, setLogoUrl] = useSolsticeLogo();
+  const [logoInput, setLogoInput] = useState(() => localStorage.getItem('solstice_logo_url') || '');
 
   // ── Load ──────────────────────────────────────────────────────────────────────
   useEffect(() => { loadAll(); }, []);
@@ -733,6 +738,7 @@ export default function SolsticeAdminConfig() {
     { id: 'commissions', label: 'Comisiones',  icon: <Percent size={14} /> },
     { id: 'penalties',   label: 'Penalidades', icon: <Bell size={14} /> },
     { id: 'sellers',     label: 'Vendedores',  icon: <Users size={14} /> },
+    { id: 'branding',    label: 'Branding',    icon: <Image size={14} /> },
   ];
 
   if (loading) return (
@@ -1694,6 +1700,103 @@ export default function SolsticeAdminConfig() {
                   </button>
                 </div>
               )}
+
+            {/* ── BRANDING ── */}
+            {tab === 'branding' && (
+              <div className="space-y-6 p-5" style={{
+                background: 'rgba(255,255,255,0.03)',
+                backdropFilter: 'blur(24px)',
+                border: '0.5px solid rgba(255,255,255,0.08)',
+                borderRadius: '24px',
+              }}>
+                <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.06em' }}>Logo de marca</h2>
+                <p className="text-[10px] uppercase" style={{ color: C.gray, letterSpacing: '0.15em' }}>
+                  Pega la URL de tu logo (PNG/SVG con fondo transparente). Se aplicará en splash, landing y menú.
+                </p>
+
+                <div className="flex flex-col gap-2">
+                  <label className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>URL del logo</label>
+                  <input
+                    type="text"
+                    value={logoInput}
+                    onChange={e => setLogoInput(e.target.value)}
+                    placeholder="https://..."
+                    className="px-4 py-3 text-xs outline-none"
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '0.5px solid rgba(255,255,255,0.12)',
+                      borderRadius: '16px',
+                      color: C.cream,
+                      fontFamily: "'Space Mono', monospace",
+                    }}
+                  />
+                </div>
+
+                {/* Preview */}
+                {logoInput && (
+                  <div className="flex items-center justify-center py-6"
+                    style={{
+                      background: '#000',
+                      border: '0.5px solid rgba(255,255,255,0.08)',
+                      borderRadius: '20px',
+                    }}>
+                    <img
+                      src={logoInput}
+                      alt="Preview"
+                      style={{ height: '3.5rem', maxWidth: '240px', objectFit: 'contain', opacity: 0.92 }}
+                      onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  </div>
+                )}
+
+                {/* Current active logo indicator */}
+                {logoUrl && (
+                  <p className="text-[9px] uppercase" style={{ color: C.green, letterSpacing: '0.15em', fontWeight: 500 }}>
+                    ✓ Logo activo en toda la app
+                  </p>
+                )}
+
+                <div className="flex gap-3 flex-wrap">
+                  <button
+                    onClick={() => { setLogoUrl(logoInput.trim()); toast.success('Logo aplicado'); }}
+                    disabled={!logoInput.trim()}
+                    className="flex items-center gap-2 text-xs uppercase tracking-widest disabled:opacity-40"
+                    style={{
+                      background: 'rgba(230,57,47,0.20)',
+                      border: '0.5px solid rgba(230,57,47,0.45)',
+                      borderRadius: '999px',
+                      color: C.cream,
+                      padding: '10px 20px',
+                      fontWeight: 500,
+                      transition: 'all 0.3s ease',
+                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)'; }}
+                  >
+                    <Image size={13} /> Aplicar logo
+                  </button>
+                  {logoUrl && (
+                    <button
+                      onClick={() => { setLogoUrl(''); setLogoInput(''); toast.success('Logo eliminado'); }}
+                      className="flex items-center gap-2 text-xs uppercase tracking-widest"
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '0.5px solid rgba(255,255,255,0.12)',
+                        borderRadius: '999px',
+                        color: C.gray,
+                        padding: '10px 20px',
+                        fontWeight: 500,
+                        transition: 'all 0.3s ease',
+                      }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = C.cream; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = C.gray; }}
+                    >
+                      <X size={13} /> Quitar logo
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
 
             </motion.div>
           </>

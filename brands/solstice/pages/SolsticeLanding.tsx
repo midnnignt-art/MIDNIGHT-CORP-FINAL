@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronRight, Ship } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
+import { useSolsticeLogo } from '../hooks/useSolsticeLogo';
 
 const C = {
   bg:    '#000000',
@@ -155,6 +156,7 @@ function WeekCard({ week, onSelect, idx }: { week: Week; onSelect: () => void; i
 
 // ── Main ───────────────────────────────────────────────────────────────────────
 export default function SolsticeLanding({ onNavigate }: Props) {
+  const [logoUrl] = useSolsticeLogo();
   const [season, setSeason] = useState<Season | null>(null);
   const [weeks,  setWeeks]  = useState<Week[]>([]);
   const [days,   setDays]   = useState<Day[]>([]);
@@ -237,23 +239,37 @@ export default function SolsticeLanding({ onNavigate }: Props) {
           transition={{ duration: 1.1, ease: 'easeOut' }}
           className="relative z-20 text-center px-6 mt-16 md:mt-0"
         >
-          <h1 className="uppercase flex items-center justify-center gap-3 leading-none mb-6"
-            style={{
-              fontFamily: "'Poiret One', sans-serif",
-              fontSize: 'clamp(4rem, 14vw, 10rem)',
-              letterSpacing: '-0.02em',
-              fontWeight: 300,
-            }}>
-            S
-            <span className="inline-block rounded-full"
+          {logoUrl ? (
+            <img
+              src={logoUrl}
+              alt="SOLSTICE"
+              className="mb-6"
               style={{
-                width: 'clamp(2.2rem,5vw,5rem)',
-                height: 'clamp(2.2rem,5vw,5rem)',
-                border: '0.5px solid rgba(230,57,47,0.45)',
-                borderRadius: '999px',
-              }} />
-            LSTICE
-          </h1>
+                height: 'clamp(3rem, 10vw, 7rem)',
+                maxWidth: '320px',
+                objectFit: 'contain',
+                opacity: 0.95,
+              }}
+            />
+          ) : (
+            <h1 className="uppercase flex items-center justify-center gap-3 leading-none mb-6"
+              style={{
+                fontFamily: "'Poiret One', sans-serif",
+                fontSize: 'clamp(4rem, 14vw, 10rem)',
+                letterSpacing: '-0.02em',
+                fontWeight: 300,
+              }}>
+              S
+              <span className="inline-block rounded-full"
+                style={{
+                  width: 'clamp(2.2rem,5vw,5rem)',
+                  height: 'clamp(2.2rem,5vw,5rem)',
+                  border: '0.5px solid rgba(230,57,47,0.45)',
+                  borderRadius: '999px',
+                }} />
+              LSTICE
+            </h1>
+          )}
           <p className="text-sm md:text-2xl mb-3 px-2" style={{ letterSpacing: '0.16em', color: C.red, fontWeight: 300 }}>
             {s.tagline}
           </p>
