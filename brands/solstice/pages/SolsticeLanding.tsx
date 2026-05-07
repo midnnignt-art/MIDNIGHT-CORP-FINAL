@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { ChevronRight, Ship } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useSolsticeLogo } from '../hooks/useSolsticeLogo';
+import { useSolsticeLogoSize } from '../hooks/useSolsticeLogoSize';
 
 const C = {
   bg:    '#000000',
@@ -157,6 +158,7 @@ function WeekCard({ week, onSelect, idx }: { week: Week; onSelect: () => void; i
 // ── Main ───────────────────────────────────────────────────────────────────────
 export default function SolsticeLanding({ onNavigate }: Props) {
   const [logoUrl] = useSolsticeLogo();
+  const [logoSize] = useSolsticeLogoSize('landing');
   const [season, setSeason] = useState<Season | null>(null);
   const [weeks,  setWeeks]  = useState<Week[]>([]);
   const [days,   setDays]   = useState<Day[]>([]);
@@ -244,12 +246,7 @@ export default function SolsticeLanding({ onNavigate }: Props) {
               src={logoUrl}
               alt="SOLSTICE"
               className="mb-6"
-              style={{
-                height: 'clamp(3rem, 10vw, 7rem)',
-                maxWidth: '320px',
-                objectFit: 'contain',
-                opacity: 0.95,
-              }}
+              style={{ height: `${logoSize}px`, maxWidth: '80vw', objectFit: 'contain', opacity: 0.95 }}
             />
           ) : (
             <h1 className="uppercase flex items-center justify-center gap-3 leading-none mb-6"

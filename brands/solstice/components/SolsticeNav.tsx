@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Sun, LayoutDashboard, Users, Settings, DollarSign, LogOut, ChevronRight, AlertCircle, ScanLine, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSolsticeLogo } from '../hooks/useSolsticeLogo';
+import { useSolsticeLogoSize } from '../hooks/useSolsticeLogoSize';
 
 export type SolsticePage =
   | 'landing'
@@ -47,6 +48,8 @@ const NAV_ITEMS: { page: SolsticePage; label: string; icon: React.ReactNode; rol
 export default function SolsticeNav({ currentPage, onNavigate, onExit, role }: Props) {
   const [open, setOpen] = useState(false);
   const [logoUrl] = useSolsticeLogo();
+  const [triggerSize] = useSolsticeLogoSize('trigger');
+  const [drawerSize]  = useSolsticeLogoSize('drawer');
   const visible = NAV_ITEMS.filter(i => i.roles.includes(role));
 
   return (
@@ -73,7 +76,7 @@ export default function SolsticeNav({ currentPage, onNavigate, onExit, role }: P
         }}
       >
         {logoUrl ? (
-          <img src={logoUrl} alt="SOLSTICE" style={{ height: '1rem', maxWidth: '72px', objectFit: 'contain', opacity: 0.9 }} />
+          <img src={logoUrl} alt="SOLSTICE" style={{ height: `${triggerSize}px`, maxWidth: '80px', objectFit: 'contain', opacity: 0.9 }} />
         ) : (
           <><Sun size={14} /><span className="text-[10px] uppercase" style={{ fontWeight: 500, letterSpacing: '0.08em' }}>Solstice</span></>
         )}
@@ -113,7 +116,7 @@ export default function SolsticeNav({ currentPage, onNavigate, onExit, role }: P
                     <img
                       src={logoUrl}
                       alt="SOLSTICE"
-                      style={{ height: '1.6rem', maxWidth: '110px', objectFit: 'contain', opacity: 0.92 }}
+                      style={{ height: `${drawerSize}px`, maxWidth: '120px', objectFit: 'contain', opacity: 0.92 }}
                     />
                   ) : (
                     <p

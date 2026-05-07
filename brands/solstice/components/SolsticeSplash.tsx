@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useSolsticeLogo } from '../hooks/useSolsticeLogo';
+import { useSolsticeLogoSize } from '../hooks/useSolsticeLogoSize';
 
 interface Props {
   onComplete: () => void;
@@ -12,6 +13,7 @@ const SUN_HIDE_MS = SPLASH_DURATION_MS - 700;
 
 export default function SolsticeSplash({ onComplete }: Props) {
   const [logoUrl] = useSolsticeLogo();
+  const [logoSize] = useSolsticeLogoSize('splash');
   const [sunVisible, setSunVisible] = useState(true);
 
   useEffect(() => {
@@ -127,12 +129,7 @@ export default function SolsticeSplash({ onComplete }: Props) {
           <img
             src={logoUrl}
             alt="SOLSTICE"
-            style={{
-              height: 'clamp(2.5rem, 9vw, 6rem)',
-              maxWidth: '280px',
-              objectFit: 'contain',
-              opacity: 0.92,
-            }}
+            style={{ height: `${logoSize}px`, maxWidth: '80vw', objectFit: 'contain', opacity: 0.92 }}
           />
         ) : (
           <>

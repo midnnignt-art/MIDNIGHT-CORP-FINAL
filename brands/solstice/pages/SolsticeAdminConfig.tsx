@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSolsticeLogo } from '../hooks/useSolsticeLogo';
+import { useSolsticeLogoSize } from '../hooks/useSolsticeLogoSize';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Settings, Calendar, DollarSign, Percent, Bell, Users,
@@ -353,6 +354,10 @@ export default function SolsticeAdminConfig() {
   const [logoInput, setLogoInput] = useState(() => localStorage.getItem('solstice_logo_url') || '');
   const [brandingLoading, setBrandingLoading] = useState(false);
   const logoFileRef = useRef<HTMLInputElement | null>(null);
+  const [splashSize,  setSplashSize]  = useSolsticeLogoSize('splash');
+  const [landingSize, setLandingSize] = useSolsticeLogoSize('landing');
+  const [drawerSize,  setDrawerSize]  = useSolsticeLogoSize('drawer');
+  const [triggerSize, setTriggerSize] = useSolsticeLogoSize('trigger');
 
   // ── Load ──────────────────────────────────────────────────────────────────────
   useEffect(() => { loadAll(); }, []);
@@ -1636,6 +1641,57 @@ export default function SolsticeAdminConfig() {
 
                     </div>
                   </div>
+
+                  {/* Size controls */}
+                  {logoInput && (
+                    <div className="p-5 space-y-5" style={{
+                      background: 'rgba(255,255,255,0.03)',
+                      backdropFilter: 'blur(24px)',
+                      border: '0.5px solid rgba(255,255,255,0.08)',
+                      borderRadius: '24px',
+                    }}>
+                      <div>
+                        <h2 className="text-xs uppercase tracking-widest mb-1" style={{ color: C.cream, fontWeight: 500, letterSpacing: '0.12em' }}>Tamaño del logo</h2>
+                        <p className="text-[10px] uppercase" style={{ color: C.gray, letterSpacing: '0.12em' }}>Ajusta por separado en cada sección</p>
+                      </div>
+
+                      {([
+                        { label: 'Pantalla de carga', context: 'splash',  val: splashSize,  set: setSplashSize,  min: 30,  max: 200 },
+                        { label: 'Landing · hero',    context: 'landing', val: landingSize, set: setLandingSize, min: 40,  max: 260 },
+                        { label: 'Menú lateral',      context: 'drawer',  val: drawerSize,  set: setDrawerSize,  min: 12,  max: 80  },
+                        { label: 'Botón del menú',    context: 'trigger', val: triggerSize, set: setTriggerSize, min: 8,   max: 48  },
+                      ] as const).map(row => (
+                        <div key={row.context} className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.1em' }}>{row.label}</label>
+                            <span className="text-[9px]" style={{ color: C.cream, fontFamily: "'Space Mono', monospace" }}>{row.val}px</span>
+                          </div>
+                          <input
+                            type="range"
+                            min={row.min}
+                            max={row.max}
+                            value={row.val}
+                            onChange={e => row.set(Number(e.target.value))}
+                            className="w-full"
+                            style={{ accentColor: C.red, cursor: 'pointer' }}
+                          />
+                          <div className="flex items-center justify-center py-2" style={{
+                            background: 'rgba(0,0,0,0.40)',
+                            border: '0.5px solid rgba(255,255,255,0.06)',
+                            borderRadius: '12px',
+                            minHeight: '2.5rem',
+                          }}>
+                            <img
+                              src={logoInput}
+                              alt="preview"
+                              style={{ height: `${row.val}px`, maxWidth: '100%', objectFit: 'contain', opacity: 0.9 }}
+                              onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                 </div>
               );
