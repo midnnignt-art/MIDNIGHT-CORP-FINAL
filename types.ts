@@ -7,6 +7,7 @@ export enum UserRole {
   HEAD = 'HEAD',                   // Cabeza de super squad — ve solo su super squad
   HEAD_OF_SALES = 'HEAD_OF_SALES', // Director global de ventas — ve todo
   ADMIN = 'ADMIN',
+  SUPER_ADMIN = 'SUPER_ADMIN',     // Acceso total + oculto de listas de staff
   BOUNCER = 'BOUNCER',
 }
 
@@ -36,6 +37,11 @@ export interface EventCost {
   notes?: string;
 }
 
+export interface FaqEntry {
+  q: string;
+  a: string;
+}
+
 export interface Event {
   id: string;
   title: string;
@@ -60,7 +66,20 @@ export interface Event {
   tags: string[];
   artists: string[];
   nft_benefits: string[];
-  costs: EventCost[]; 
+  costs: EventCost[];
+  // Campos editables desde Backoffice (default si NULL)
+  dress_code?: string;
+  min_age?: number;
+  faq?: FaqEntry[];
+}
+
+export interface CompanyBalance {
+  id: number;
+  capital_social: number;
+  share_premium: number;
+  fixed_assets: number;
+  updated_at: string;
+  updated_by?: string | null;
 }
 
 export interface TicketTier {
@@ -130,6 +149,7 @@ export interface Promoter {
   total_commission_earned: number;
   team_sales_volume?: number;
   link_views?: number;
+  is_hidden?: boolean;
 }
 
 export interface SuperSquad {

@@ -33,3 +33,7 @@ npm-debug.log*
 # Supabase local
 supabase/.branches
 supabase/.temp
+
+# Spreadsheets / content drafts (not source code)
+*.xlsx
+*.xls

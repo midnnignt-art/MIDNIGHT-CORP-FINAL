@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Sun, LayoutDashboard, Users, Settings, DollarSign, LogOut, ChevronRight, AlertCircle, ScanLine, BookOpen } from 'lucide-react';
+import { X, Sun, LayoutDashboard, Users, Settings, DollarSign, LogOut, ChevronRight, AlertCircle, ScanLine, BookOpen, Trophy, Ship, BedDouble, TrendingUp, Tag, FileSpreadsheet } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSolsticeLogo } from '../hooks/useSolsticeLogo';
 import { useSolsticeLogoSize } from '../hooks/useSolsticeLogoSize';
@@ -12,6 +12,12 @@ export type SolsticePage =
   | 'admin-sellers'
   | 'admin-finance'
   | 'admin-cobros'
+  | 'admin-proyecciones'
+  | 'admin-codes'
+  | 'admin-accounting'
+  | 'admin-top-clients'
+  | 'admin-boats'
+  | 'admin-lodgings'
   | 'check-in'
   | 'seller'
   | 'manager'
@@ -39,6 +45,12 @@ const NAV_ITEMS: { page: SolsticePage; label: string; icon: React.ReactNode; rol
   { page: 'admin-sellers', label: 'Equipo ventas',icon: <Users size={15} />,         roles: ['admin','manager'] },
   { page: 'admin-finance', label: 'Finanzas',     icon: <DollarSign size={15} />,    roles: ['admin'] },
   { page: 'admin-cobros', label: 'Cobros',        icon: <AlertCircle size={15} />,   roles: ['admin'] },
+  { page: 'admin-proyecciones', label: 'Proyecciones', icon: <TrendingUp size={15} />, roles: ['admin'] },
+  { page: 'admin-codes',  label: 'Códigos',        icon: <Tag size={15} />,           roles: ['admin'] },
+  { page: 'admin-accounting', label: 'Contabilidad', icon: <FileSpreadsheet size={15} />, roles: ['admin'] },
+  { page: 'admin-top-clients', label: 'Top clientes', icon: <Trophy size={15} />,    roles: ['admin','manager'] },
+  { page: 'admin-boats',  label: 'Lanchas activas', icon: <Ship size={15} />,        roles: ['admin','manager'] },
+  { page: 'admin-lodgings', label: 'Hospedaje',    icon: <BedDouble size={15} />,    roles: ['admin','manager'] },
   { page: 'check-in',    label: 'Check-in',      icon: <ScanLine size={15} />,      roles: ['admin','manager'] },
   { page: 'seller',        label: 'Mi dashboard', icon: <LayoutDashboard size={15} />,roles: ['seller'] },
   { page: 'manager',       label: 'Mi equipo',    icon: <Users size={15} />,         roles: ['manager'] },

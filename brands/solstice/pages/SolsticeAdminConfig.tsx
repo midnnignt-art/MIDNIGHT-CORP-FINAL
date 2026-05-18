@@ -2,12 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSolsticeLogo } from '../hooks/useSolsticeLogo';
 import { useSolsticeLogoSize } from '../hooks/useSolsticeLogoSize';
 import { SolsticeLogoAlign, useSolsticeLogoLayout } from '../hooks/useSolsticeLogoLayout';
+import { useSolsticeLogoPosition } from '../hooks/useSolsticeLogoPosition';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Settings, Calendar, DollarSign, Percent, Bell, Users,
   Save, Plus, Loader2, Copy, ToggleLeft, ToggleRight,
   X, Search, ExternalLink, Image, Star, ChevronRight,
-  AlignLeft, AlignCenter, AlignRight
+  AlignLeft, AlignCenter, AlignRight,
+  Ship, BedDouble, Trash2, Upload
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { toast } from '../../../lib/toast';
@@ -103,7 +105,7 @@ interface MidnightProfile {
   squad_name?: string;
 }
 
-type Tab = 'general' | 'weeks' | 'prices' | 'commissions' | 'penalties' | 'sellers' | 'branding';
+type Tab = 'general' | 'weeks' | 'prices' | 'commissions' | 'penalties' | 'sellers' | 'boats' | 'lodgings' | 'branding';
 
 // ── Team structure types ───────────────────────────────────────────────────────
 interface MemberRow {
@@ -766,6 +768,8 @@ export default function SolsticeAdminConfig() {
     { id: 'prices',      label: 'Precios',     icon: <DollarSign size={14} /> },
     { id: 'commissions', label: 'Comisiones',  icon: <Percent size={14} /> },
     { id: 'penalties',   label: 'Penalidades', icon: <Bell size={14} /> },
+    { id: 'boats',       label: 'Lanchas',     icon: <Ship size={14} /> },
+    { id: 'lodgings',    label: 'Hospedaje',   icon: <BedDouble size={14} /> },
     { id: 'sellers',     label: 'Vendedores',  icon: <Users size={14} /> },
     { id: 'branding',    label: 'Branding',    icon: <Image size={14} /> },
   ];
@@ -1205,64 +1209,14 @@ export default function SolsticeAdminConfig() {
 
             {/* ── PENALIDADES ── */}
             {tab === 'penalties' && season && (
-              <div className="space-y-8">
-                <div className="space-y-4 p-5" style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  backdropFilter: 'blur(24px)',
-                  border: '0.5px solid rgba(255,255,255,0.08)',
-                  borderRadius: '24px',
-                }}>
-                  <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.06em' }}>Recordatorios automáticos</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <InputRow label="Días antes del vencimiento (primer aviso)" value={season.warning_days_before} onChange={v => upSeason('warning_days_before', Number(v))} type="number" />
-                    <InputRow label="Días después sin pago para alertar vendedor" value={7} onChange={() => {}} type="number" />
-                  </div>
-                </div>
-                <div className="space-y-4 p-5" style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  backdropFilter: 'blur(24px)',
-                  border: '0.5px solid rgba(255,255,255,0.08)',
-                  borderRadius: '24px',
-                }}>
-                  <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.06em' }}>Penalidades por mora</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>Cuotas en mora para perder Catamarán (Día 3)</label>
-                      <div className="flex items-center gap-3 px-3 py-2.5" style={{
-                        background: 'rgba(255,255,255,0.05)',
-                        border: '0.5px solid rgba(255,255,255,0.10)',
-                        borderRadius: '16px',
-                      }}>
-                        <input type="number" value={season.penalty_catamaran_at} onChange={e => upSeason('penalty_catamaran_at', Number(e.target.value))}
-                          className="w-16 bg-transparent outline-none text-xs" style={{ color: C.cream }} />
-                        <span className="text-[10px]" style={{ color: C.gray }}>cuota(s)</span>
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>Cuotas en mora para perder 2 eventos</label>
-                      <div className="flex items-center gap-3 px-3 py-2.5" style={{
-                        background: 'rgba(255,255,255,0.05)',
-                        border: '0.5px solid rgba(255,255,255,0.10)',
-                        borderRadius: '16px',
-                      }}>
-                        <input type="number" defaultValue={2} className="w-16 bg-transparent outline-none text-xs" style={{ color: C.cream }} />
-                        <span className="text-[10px]" style={{ color: C.gray }}>cuotas(s)</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="p-4 text-[10px] leading-relaxed uppercase" style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '0.5px solid rgba(230,57,47,0.20)',
-                    borderRadius: '16px',
-                    color: C.gray,
-                    letterSpacing: '0.12em',
-                  }}>
-                    Con {season.penalty_catamaran_at} cuota(s) en mora al llegar el evento, el comprador pierde acceso al Catamarán. El sistema envía aviso {season.warning_days_before} días antes.
-                  </div>
-                </div>
-                <div className="pt-2"><SaveBtn loading={saving} onClick={saveSeason} /></div>
-              </div>
+              <PenaltiesAdmin season={season} upSeason={upSeason} saveSeason={saveSeason} saving={saving} />
             )}
+
+            {/* ── LANCHAS ── */}
+            {tab === 'boats' && <BoatsAdmin seasonId={season?.id ?? null} />}
+
+            {/* ── HOSPEDAJE ── */}
+            {tab === 'lodgings' && <LodgingsAdmin seasonId={season?.id ?? null} />}
 
             {/* ── VENDEDORES ── */}
             {tab === 'sellers' && (() => {
@@ -2103,6 +2057,785 @@ export default function SolsticeAdminConfig() {
           </>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMIN: Lanchas
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface Boat {
+  id: string;
+  season_id: string | null;
+  name: string;
+  image_url: string | null;
+  capacity: number;
+  price_per_person: number;
+  description: string | null;
+  status: 'active' | 'sold_out' | 'hidden' | 'archived';
+  sort_order: number;
+}
+
+function BoatsAdmin({ seasonId }: { seasonId: string | null }) {
+  const [boats, setBoats] = useState<Boat[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from('solstice_boats')
+        .select('*')
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true });
+      setBoats((data as Boat[]) ?? []);
+      setLoading(false);
+    })();
+  }, []);
+
+  const addBoat = async () => {
+    const newBoat = {
+      season_id: seasonId,
+      name: 'Nueva lancha',
+      capacity: 50,
+      price_per_person: 130000,
+      description: '',
+      status: 'active' as const,
+      sort_order: boats.length,
+    };
+    const { data, error } = await supabase.from('solstice_boats').insert(newBoat).select().single();
+    if (error) { toast.error('No se pudo crear la lancha'); return; }
+    setBoats(prev => [...prev, data as Boat]);
+    toast.success('Lancha creada');
+  };
+
+  const updateBoat = async (id: string, patch: Partial<Boat>) => {
+    setBoats(prev => prev.map(b => b.id === id ? { ...b, ...patch } : b));
+  };
+
+  const saveBoat = async (boat: Boat) => {
+    setSaving(boat.id);
+    const { error } = await supabase.from('solstice_boats').update({
+      name: boat.name,
+      image_url: boat.image_url,
+      capacity: boat.capacity,
+      price_per_person: boat.price_per_person,
+      description: boat.description,
+      status: boat.status,
+      sort_order: boat.sort_order,
+      updated_at: new Date().toISOString(),
+    }).eq('id', boat.id);
+    setSaving(null);
+    if (error) toast.error('Error al guardar');
+    else toast.success('Lancha guardada');
+  };
+
+  const deleteBoat = async (id: string) => {
+    if (!confirm('¿Eliminar esta lancha? Las reservas existentes no se borran.')) return;
+    const { error } = await supabase.from('solstice_boats').delete().eq('id', id);
+    if (error) { toast.error('No se pudo eliminar (¿tiene reservas?)'); return; }
+    setBoats(prev => prev.filter(b => b.id !== id));
+    toast.success('Eliminada');
+  };
+
+  if (loading) return <div className="py-12 text-center text-xs uppercase" style={{ color: '#606060' }}><Loader2 className="animate-spin mx-auto" /></div>;
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-2xl uppercase mb-1" style={{ fontFamily: "'Poiret One', sans-serif", fontWeight: 300, letterSpacing: '0.04em', color: '#F9F2D7' }}>
+            Lanchas / Catamaranes
+          </h2>
+          <p className="text-[10px] uppercase" style={{ color: '#606060', letterSpacing: '0.25em', fontWeight: 500 }}>
+            Inventario para el Día 3 · Combos que incluyen lancha eligen su lancha aquí
+          </p>
+        </div>
+        <button
+          onClick={addBoat}
+          className="inline-flex items-center gap-2 px-4 py-2 text-[10px] uppercase"
+          style={{
+            background: 'rgba(230,57,47,0.25)',
+            border: '0.5px solid rgba(230,57,47,0.55)',
+            borderRadius: '999px',
+            color: '#F9F2D7',
+            letterSpacing: '0.25em',
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+        >
+          <Plus size={12} /> Agregar lancha
+        </button>
+      </div>
+
+      {boats.length === 0 ? (
+        <div className="py-16 text-center" style={{
+          border: '0.5px dashed rgba(255,255,255,0.10)',
+          borderRadius: '24px',
+          color: '#606060',
+        }}>
+          <Ship size={32} className="mx-auto mb-3 opacity-40" />
+          <p className="text-xs uppercase" style={{ letterSpacing: '0.25em', fontWeight: 500 }}>Sin lanchas aún · Agregá la primera</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {boats.map(boat => (
+            <BoatCard
+              key={boat.id}
+              boat={boat}
+              saving={saving === boat.id}
+              onChange={patch => updateBoat(boat.id, patch)}
+              onSave={() => saveBoat(boat)}
+              onDelete={() => deleteBoat(boat.id)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BoatCard({ boat, saving, onChange, onSave, onDelete }: {
+  boat: Boat; saving: boolean;
+  onChange: (p: Partial<Boat>) => void;
+  onSave: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div
+      className="p-5"
+      style={{
+        background: 'rgba(255,255,255,0.03)',
+        backdropFilter: 'blur(24px)',
+        border: '0.5px solid rgba(255,255,255,0.10)',
+        borderRadius: '24px',
+      }}
+    >
+      <div className="grid grid-cols-1 md:grid-cols-[140px_1fr] gap-5">
+        <div className="aspect-square rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.10)' }}>
+          {boat.image_url ? (
+            <img src={boat.image_url} alt={boat.name} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center"><Ship size={24} style={{ color: '#606060' }} /></div>
+          )}
+        </div>
+
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <SolInput label="Nombre"          value={boat.name}              onChange={v => onChange({ name: v })} />
+            <SolInput label="URL imagen"      value={boat.image_url ?? ''}   onChange={v => onChange({ image_url: v || null })} placeholder="https://..." />
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <SolInput label="Capacidad" type="number" value={String(boat.capacity)}         onChange={v => onChange({ capacity: Number(v) })} />
+            <SolInput label="Precio/persona ($)" type="number" value={String(boat.price_per_person)} onChange={v => onChange({ price_per_person: Number(v) })} />
+            <div>
+              <label className="text-[9px] uppercase block mb-1.5" style={{ letterSpacing: '0.25em', color: '#606060', fontWeight: 600 }}>Estado</label>
+              <select
+                value={boat.status}
+                onChange={e => onChange({ status: e.target.value as Boat['status'] })}
+                className="w-full text-xs"
+                style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '0.5px solid rgba(255,255,255,0.10)',
+                  borderRadius: '12px',
+                  color: '#F9F2D7',
+                  padding: '10px 12px',
+                  outline: 'none',
+                }}
+              >
+                <option value="active">Activa</option>
+                <option value="sold_out">Agotada</option>
+                <option value="hidden">Oculta</option>
+                <option value="archived">Archivada</option>
+              </select>
+            </div>
+            <SolInput label="Orden" type="number" value={String(boat.sort_order)} onChange={v => onChange({ sort_order: Number(v) })} />
+          </div>
+          <div>
+            <label className="text-[9px] uppercase block mb-1.5" style={{ letterSpacing: '0.25em', color: '#606060', fontWeight: 600 }}>Descripción</label>
+            <textarea
+              value={boat.description ?? ''}
+              onChange={e => onChange({ description: e.target.value })}
+              rows={2}
+              placeholder="DJ en altamar · All You Can Drink · Bahía privada"
+              className="w-full text-xs"
+              style={{
+                background: 'rgba(255,255,255,0.04)',
+                border: '0.5px solid rgba(255,255,255,0.10)',
+                borderRadius: '12px',
+                color: '#F9F2D7',
+                padding: '10px 12px',
+                outline: 'none',
+                resize: 'vertical',
+              }}
+            />
+          </div>
+          <div className="flex items-center justify-end gap-2 pt-1">
+            <button onClick={onDelete} className="p-2 rounded-full" style={{ border: '0.5px solid rgba(230,57,47,0.30)', color: '#E6392F' }} aria-label="Eliminar">
+              <Trash2 size={14} />
+            </button>
+            <button
+              onClick={onSave}
+              disabled={saving}
+              className="inline-flex items-center gap-2 px-4 py-2 text-[10px] uppercase"
+              style={{
+                background: saving ? 'rgba(230,57,47,0.15)' : 'rgba(230,57,47,0.25)',
+                border: '0.5px solid rgba(230,57,47,0.55)',
+                borderRadius: '999px',
+                color: '#F9F2D7',
+                letterSpacing: '0.25em',
+                fontWeight: 600,
+                cursor: 'pointer',
+                opacity: saving ? 0.5 : 1,
+              }}
+            >
+              {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+              {saving ? 'Guardando' : 'Guardar'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMIN: Hospedaje
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface Lodging {
+  id: string;
+  season_id: string | null;
+  name: string;
+  image_url: string | null;
+  description: string | null;
+  price_per_night: number;
+  price_per_person: number;
+  total_units: number;
+  units_available: number;
+  category: 'budget' | 'standard' | 'premium' | 'vip';
+  status: 'active' | 'sold_out' | 'hidden' | 'archived';
+  address: string | null;
+  google_maps_url: string | null;
+  sort_order: number;
+  owner_name: string | null;
+  owner_email: string | null;
+  owner_phone: string | null;
+}
+
+function LodgingsAdmin({ seasonId }: { seasonId: string | null }) {
+  const [lodgings, setLodgings] = useState<Lodging[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from('solstice_lodgings')
+        .select('*')
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true });
+      setLodgings((data as Lodging[]) ?? []);
+      setLoading(false);
+    })();
+  }, []);
+
+  const addLodging = async () => {
+    const newL = {
+      season_id: seasonId,
+      name: 'Nuevo hospedaje',
+      category: 'standard' as const,
+      price_per_night: 80000,
+      price_per_person: 0,
+      total_units: 10,
+      units_available: 10,
+      status: 'active' as const,
+      sort_order: lodgings.length,
+    };
+    const { data, error } = await supabase.from('solstice_lodgings').insert(newL).select().single();
+    if (error) { toast.error('No se pudo crear'); return; }
+    setLodgings(prev => [...prev, data as Lodging]);
+    toast.success('Hospedaje creado');
+  };
+
+  const updateL = (id: string, patch: Partial<Lodging>) => {
+    setLodgings(prev => prev.map(l => l.id === id ? { ...l, ...patch } : l));
+  };
+
+  const saveL = async (l: Lodging) => {
+    setSaving(l.id);
+    const { error } = await supabase.from('solstice_lodgings').update({
+      name: l.name,
+      image_url: l.image_url,
+      description: l.description,
+      price_per_night: l.price_per_night,
+      price_per_person: l.price_per_person,
+      total_units: l.total_units,
+      units_available: l.units_available,
+      category: l.category,
+      status: l.status,
+      address: l.address,
+      google_maps_url: l.google_maps_url,
+      sort_order: l.sort_order,
+      owner_name: l.owner_name,
+      owner_email: l.owner_email,
+      owner_phone: l.owner_phone,
+      updated_at: new Date().toISOString(),
+    }).eq('id', l.id);
+    setSaving(null);
+    if (error) toast.error('Error al guardar');
+    else toast.success('Guardado');
+  };
+
+  const deleteL = async (id: string) => {
+    if (!confirm('¿Eliminar este hospedaje?')) return;
+    const { error } = await supabase.from('solstice_lodgings').delete().eq('id', id);
+    if (error) { toast.error('No se pudo eliminar'); return; }
+    setLodgings(prev => prev.filter(l => l.id !== id));
+    toast.success('Eliminado');
+  };
+
+  if (loading) return <div className="py-12 text-center"><Loader2 className="animate-spin mx-auto" style={{ color: '#606060' }} /></div>;
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-2xl uppercase mb-1" style={{ fontFamily: "'Poiret One', sans-serif", fontWeight: 300, letterSpacing: '0.04em', color: '#F9F2D7' }}>
+            Hospedajes
+          </h2>
+          <p className="text-[10px] uppercase" style={{ color: '#606060', letterSpacing: '0.25em', fontWeight: 500 }}>
+            Catálogo upsell post-compra · El cliente recibe el link después de pagar
+          </p>
+        </div>
+        <button
+          onClick={addLodging}
+          className="inline-flex items-center gap-2 px-4 py-2 text-[10px] uppercase"
+          style={{
+            background: 'rgba(230,57,47,0.25)',
+            border: '0.5px solid rgba(230,57,47,0.55)',
+            borderRadius: '999px',
+            color: '#F9F2D7',
+            letterSpacing: '0.25em',
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+        >
+          <Plus size={12} /> Agregar hospedaje
+        </button>
+      </div>
+
+      {lodgings.length === 0 ? (
+        <div className="py-16 text-center" style={{
+          border: '0.5px dashed rgba(255,255,255,0.10)',
+          borderRadius: '24px',
+          color: '#606060',
+        }}>
+          <BedDouble size={32} className="mx-auto mb-3 opacity-40" />
+          <p className="text-xs uppercase" style={{ letterSpacing: '0.25em', fontWeight: 500 }}>Sin hospedajes aún · Agregá el primero</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {lodgings.map(l => (
+            <LodgingCard
+              key={l.id}
+              lodging={l}
+              saving={saving === l.id}
+              onChange={p => updateL(l.id, p)}
+              onSave={() => saveL(l)}
+              onDelete={() => deleteL(l.id)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LodgingCard({ lodging, saving, onChange, onSave, onDelete }: {
+  lodging: Lodging; saving: boolean;
+  onChange: (p: Partial<Lodging>) => void;
+  onSave: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div
+      className="p-5"
+      style={{
+        background: 'rgba(255,255,255,0.03)',
+        backdropFilter: 'blur(24px)',
+        border: '0.5px solid rgba(255,255,255,0.10)',
+        borderRadius: '24px',
+      }}
+    >
+      <div className="grid grid-cols-1 md:grid-cols-[140px_1fr] gap-5">
+        <div className="aspect-square rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.10)' }}>
+          {lodging.image_url ? (
+            <img src={lodging.image_url} alt={lodging.name} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center"><BedDouble size={24} style={{ color: '#606060' }} /></div>
+          )}
+        </div>
+
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <SolInput label="Nombre"     value={lodging.name}            onChange={v => onChange({ name: v })} />
+            <SolInput label="URL imagen" value={lodging.image_url ?? ''} onChange={v => onChange({ image_url: v || null })} placeholder="https://..." />
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <SolInput label="Precio/noche ($)" type="number" value={String(lodging.price_per_night)}   onChange={v => onChange({ price_per_night: Number(v) })} />
+            <SolInput label="Precio/persona ($)" type="number" value={String(lodging.price_per_person)} onChange={v => onChange({ price_per_person: Number(v) })} />
+            <SolInput label="Total unidades" type="number" value={String(lodging.total_units)}        onChange={v => onChange({ total_units: Number(v) })} />
+            <SolInput label="Disponibles" type="number" value={String(lodging.units_available)}       onChange={v => onChange({ units_available: Number(v) })} />
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div>
+              <label className="text-[9px] uppercase block mb-1.5" style={{ letterSpacing: '0.25em', color: '#606060', fontWeight: 600 }}>Categoría</label>
+              <select
+                value={lodging.category}
+                onChange={e => onChange({ category: e.target.value as Lodging['category'] })}
+                className="w-full text-xs"
+                style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '0.5px solid rgba(255,255,255,0.10)',
+                  borderRadius: '12px',
+                  color: '#F9F2D7',
+                  padding: '10px 12px',
+                  outline: 'none',
+                }}
+              >
+                <option value="budget">Budget</option>
+                <option value="standard">Standard</option>
+                <option value="premium">Premium</option>
+                <option value="vip">VIP</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[9px] uppercase block mb-1.5" style={{ letterSpacing: '0.25em', color: '#606060', fontWeight: 600 }}>Estado</label>
+              <select
+                value={lodging.status}
+                onChange={e => onChange({ status: e.target.value as Lodging['status'] })}
+                className="w-full text-xs"
+                style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '0.5px solid rgba(255,255,255,0.10)',
+                  borderRadius: '12px',
+                  color: '#F9F2D7',
+                  padding: '10px 12px',
+                  outline: 'none',
+                }}
+              >
+                <option value="active">Activo</option>
+                <option value="sold_out">Agotado</option>
+                <option value="hidden">Oculto</option>
+                <option value="archived">Archivado</option>
+              </select>
+            </div>
+            <SolInput label="Orden" type="number" value={String(lodging.sort_order)} onChange={v => onChange({ sort_order: Number(v) })} />
+          </div>
+          <SolInput label="Dirección"        value={lodging.address ?? ''}         onChange={v => onChange({ address: v || null })} />
+          <SolInput label="Google Maps URL"  value={lodging.google_maps_url ?? ''} onChange={v => onChange({ google_maps_url: v || null })} placeholder="https://maps.google.com/..." />
+
+          {/* Datos del operador del hospedaje — para notificaciones automáticas */}
+          <div className="pt-2 mt-2" style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)' }}>
+            <p className="text-[9px] uppercase mb-3" style={{ letterSpacing: '0.3em', color: '#FFB48C', fontWeight: 600 }}>
+              Contacto del operador (recibe email al reservarse)
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <SolInput label="Nombre"   value={lodging.owner_name  ?? ''} onChange={v => onChange({ owner_name:  v || null })} placeholder="Manager / dueño" />
+              <SolInput label="Email"    type="email" value={lodging.owner_email ?? ''} onChange={v => onChange({ owner_email: v || null })} placeholder="ops@hotel.com" />
+              <SolInput label="WhatsApp" type="tel"   value={lodging.owner_phone ?? ''} onChange={v => onChange({ owner_phone: v || null })} placeholder="+57 300 ..." />
+            </div>
+            <p className="text-[10px] mt-2" style={{ color: '#606060aa', lineHeight: 1.5 }}>
+              Si dejás el email vacío, las notificaciones van al fallback ops (hospedaje@midnightcorp.click).
+            </p>
+          </div>
+          <div>
+            <label className="text-[9px] uppercase block mb-1.5" style={{ letterSpacing: '0.25em', color: '#606060', fontWeight: 600 }}>Descripción</label>
+            <textarea
+              value={lodging.description ?? ''}
+              onChange={e => onChange({ description: e.target.value })}
+              rows={2}
+              className="w-full text-xs"
+              style={{
+                background: 'rgba(255,255,255,0.04)',
+                border: '0.5px solid rgba(255,255,255,0.10)',
+                borderRadius: '12px',
+                color: '#F9F2D7',
+                padding: '10px 12px',
+                outline: 'none',
+                resize: 'vertical',
+              }}
+            />
+          </div>
+          <div className="flex items-center justify-end gap-2 pt-1">
+            <button onClick={onDelete} className="p-2 rounded-full" style={{ border: '0.5px solid rgba(230,57,47,0.30)', color: '#E6392F' }} aria-label="Eliminar">
+              <Trash2 size={14} />
+            </button>
+            <button
+              onClick={onSave}
+              disabled={saving}
+              className="inline-flex items-center gap-2 px-4 py-2 text-[10px] uppercase"
+              style={{
+                background: saving ? 'rgba(230,57,47,0.15)' : 'rgba(230,57,47,0.25)',
+                border: '0.5px solid rgba(230,57,47,0.55)',
+                borderRadius: '999px',
+                color: '#F9F2D7',
+                letterSpacing: '0.25em',
+                fontWeight: 600,
+                cursor: 'pointer',
+                opacity: saving ? 0.5 : 1,
+              }}
+            >
+              {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+              {saving ? 'Guardando' : 'Guardar'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── PenaltiesAdmin: combina campos legacy de Season + tabla singleton solstice_penalties ──
+interface PenaltyConfig {
+  late_payment_pct: number;
+  grace_period_days: number;
+  lock_combo_after_overdue: number;
+  no_show_penalty_pct: number;
+  cancellation_refund_pct: number;
+  cancellation_deadline_days: number;
+  whatsapp_reminder_days_before: number;
+}
+
+function PenaltiesAdmin({ season, upSeason, saveSeason, saving }: {
+  season: Season;
+  upSeason: (k: keyof Season, v: any) => void;
+  saveSeason: () => void;
+  saving: boolean;
+}) {
+  const [pen, setPen]       = useState<PenaltyConfig | null>(null);
+  const [savingPen, setSavingPen] = useState(false);
+
+  useEffect(() => {
+    supabase
+      .from('solstice_penalties')
+      .select('late_payment_pct, grace_period_days, lock_combo_after_overdue, no_show_penalty_pct, cancellation_refund_pct, cancellation_deadline_days, whatsapp_reminder_days_before')
+      .eq('id', 1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setPen(data as PenaltyConfig);
+        else setPen({
+          late_payment_pct: 5,
+          grace_period_days: 7,
+          lock_combo_after_overdue: 2,
+          no_show_penalty_pct: 100,
+          cancellation_refund_pct: 100,
+          cancellation_deadline_days: 14,
+          whatsapp_reminder_days_before: 3,
+        });
+      });
+  }, []);
+
+  const upPen = (k: keyof PenaltyConfig, v: any) => {
+    if (!pen) return;
+    setPen({ ...pen, [k]: v });
+  };
+
+  const savePen = async () => {
+    if (!pen) return;
+    setSavingPen(true);
+    try {
+      const { error } = await supabase
+        .from('solstice_penalties')
+        .upsert({ id: 1, ...pen, updated_at: new Date().toISOString() });
+      if (error) throw new Error(error.message);
+      toast.success('Penalidades guardadas');
+    } catch (err: any) {
+      toast.error('Error al guardar: ' + err.message);
+    } finally {
+      setSavingPen(false);
+    }
+  };
+
+  if (!pen) {
+    return <div className="text-xs uppercase py-12 text-center" style={{ color: C.gray, letterSpacing: '0.2em' }}>Cargando configuración...</div>;
+  }
+
+  const card = {
+    background: 'rgba(255,255,255,0.03)',
+    backdropFilter: 'blur(24px)',
+    border: '0.5px solid rgba(255,255,255,0.08)',
+    borderRadius: '24px',
+  } as const;
+
+  return (
+    <div className="space-y-8">
+      {/* Bloque 1: Recordatorios automáticos */}
+      <div className="space-y-4 p-5" style={card}>
+        <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.06em' }}>Recordatorios automáticos</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <InputRow
+            label="Días antes del cobro para avisar por WhatsApp"
+            value={pen.whatsapp_reminder_days_before}
+            onChange={v => upPen('whatsapp_reminder_days_before', Number(v))}
+            type="number"
+          />
+          <InputRow
+            label="Días antes del vencimiento (primer aviso email)"
+            value={season.warning_days_before}
+            onChange={v => upSeason('warning_days_before', Number(v))}
+            type="number"
+          />
+        </div>
+        <p className="text-[10px] uppercase leading-relaxed p-3" style={{
+          background: 'rgba(16,185,129,0.06)', border: '0.5px solid rgba(16,185,129,0.20)',
+          borderRadius: '12px', color: '#10b981', letterSpacing: '0.12em',
+        }}>
+          WhatsApp se manda {pen.whatsapp_reminder_days_before} día(s) antes de cada cobro · Email refuerza {season.warning_days_before} día(s) antes
+        </p>
+      </div>
+
+      {/* Bloque 2: Mora y recargos */}
+      <div className="space-y-4 p-5" style={card}>
+        <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.06em' }}>Mora y recargos</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <InputRow
+            label="% de recargo por pago tardío"
+            value={pen.late_payment_pct}
+            onChange={v => upPen('late_payment_pct', Number(v))}
+            type="number"
+          />
+          <InputRow
+            label="Días de gracia antes del recargo"
+            value={pen.grace_period_days}
+            onChange={v => upPen('grace_period_days', Number(v))}
+            type="number"
+          />
+          <InputRow
+            label="Cuotas en mora para bloquear combo"
+            value={pen.lock_combo_after_overdue}
+            onChange={v => upPen('lock_combo_after_overdue', Number(v))}
+            type="number"
+          />
+        </div>
+        <div className="p-4 text-[10px] leading-relaxed uppercase" style={{
+          background: 'rgba(255,255,255,0.04)',
+          border: '0.5px solid rgba(230,57,47,0.20)',
+          borderRadius: '16px',
+          color: C.gray,
+          letterSpacing: '0.12em',
+        }}>
+          Después de {pen.grace_period_days} días sin pago se aplica {pen.late_payment_pct}% de recargo.
+          Con {pen.lock_combo_after_overdue} cuota(s) atrasada(s) el acceso al combo queda bloqueado.
+        </div>
+      </div>
+
+      {/* Bloque 3: Penalidad Catamarán (legacy season) */}
+      <div className="space-y-4 p-5" style={card}>
+        <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.06em' }}>Catamarán (Día 3)</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <InputRow
+            label="Cuotas en mora para perder catamarán"
+            value={season.penalty_catamaran_at}
+            onChange={v => upSeason('penalty_catamaran_at', Number(v))}
+            type="number"
+          />
+        </div>
+        <div className="p-4 text-[10px] leading-relaxed uppercase" style={{
+          background: 'rgba(255,255,255,0.04)',
+          border: '0.5px solid rgba(230,57,47,0.20)',
+          borderRadius: '16px',
+          color: C.gray,
+          letterSpacing: '0.12em',
+        }}>
+          Con {season.penalty_catamaran_at} cuota(s) en mora al llegar el evento, el comprador pierde acceso al Catamarán.
+        </div>
+      </div>
+
+      {/* Bloque 4: No-show y cancelaciones */}
+      <div className="space-y-4 p-5" style={card}>
+        <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.06em' }}>Cancelaciones y no-show</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <InputRow
+            label="% que se queda Solstice si no asiste"
+            value={pen.no_show_penalty_pct}
+            onChange={v => upPen('no_show_penalty_pct', Number(v))}
+            type="number"
+          />
+          <InputRow
+            label="% reembolso si cancela a tiempo"
+            value={pen.cancellation_refund_pct}
+            onChange={v => upPen('cancellation_refund_pct', Number(v))}
+            type="number"
+          />
+          <InputRow
+            label="Días mínimos antes del evento"
+            value={pen.cancellation_deadline_days}
+            onChange={v => upPen('cancellation_deadline_days', Number(v))}
+            type="number"
+          />
+        </div>
+        <div className="p-4 text-[10px] leading-relaxed uppercase" style={{
+          background: 'rgba(255,255,255,0.04)',
+          border: '0.5px solid rgba(230,57,47,0.20)',
+          borderRadius: '16px',
+          color: C.gray,
+          letterSpacing: '0.12em',
+        }}>
+          Cancelaciones {pen.cancellation_deadline_days}+ días antes → reembolso del {pen.cancellation_refund_pct}%.
+          No-show → Solstice retiene el {pen.no_show_penalty_pct}% de lo pagado.
+        </div>
+      </div>
+
+      <div className="pt-2 flex gap-3">
+        <SaveBtn loading={saving} onClick={saveSeason} />
+        <button
+          onClick={savePen}
+          disabled={savingPen}
+          className="flex-1 flex items-center justify-center gap-2 px-5 py-3 text-xs uppercase"
+          style={{
+            background: 'rgba(230,57,47,0.18)',
+            border: '0.5px solid rgba(230,57,47,0.50)',
+            color: C.cream,
+            letterSpacing: '0.2em',
+            borderRadius: '999px',
+            fontWeight: 600,
+            opacity: savingPen ? 0.4 : 1,
+            cursor: savingPen ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {savingPen ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+          Guardar reglas globales
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Helper input reutilizable
+function SolInput({ label, value, onChange, type = 'text', placeholder }: {
+  label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string;
+}) {
+  return (
+    <div>
+      <label className="text-[9px] uppercase block mb-1.5" style={{ letterSpacing: '0.25em', color: '#606060', fontWeight: 600 }}>{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full text-xs"
+        style={{
+          background: 'rgba(255,255,255,0.04)',
+          border: '0.5px solid rgba(255,255,255,0.10)',
+          borderRadius: '12px',
+          color: '#F9F2D7',
+          padding: '10px 12px',
+          outline: 'none',
+        }}
+      />
     </div>
   );
 }

@@ -231,7 +231,7 @@ const Slot: React.FC<{
       <div className="relative aspect-[3/4] bg-white/5 border border-white/10 group overflow-hidden">
         {item.image_url ? (
           <>
-            <img src={item.image_url} className="w-full h-full object-cover" />
+            <img src={item.image_url} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
             <div className="absolute inset-0 bg-void/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
               <label className="p-2 bg-white/10 hover:bg-white/20 cursor-pointer rounded-full">
                 <Upload className="w-4 h-4" />

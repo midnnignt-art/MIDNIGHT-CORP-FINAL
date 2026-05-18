@@ -84,6 +84,32 @@ export default function SolsticeAdminCobros() {
 
   useEffect(() => { load(); }, []);
 
+  // Realtime: cuando un pago entra (webhook o admin), refresca el dashboard
+  // automáticamente. Throttle con un timer para evitar reloads en cascada.
+  useEffect(() => {
+    let timer: any = null;
+    const debouncedLoad = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => load(), 500);
+    };
+    const channel = supabase
+      .channel('solstice-admin-cobros')
+      .on('postgres_changes' as any,
+        { event: 'UPDATE', schema: 'public', table: 'solstice_payment_schedules' },
+        debouncedLoad,
+      )
+      .on('postgres_changes' as any,
+        { event: '*', schema: 'public', table: 'solstice_registrations' },
+        debouncedLoad,
+      )
+      .subscribe();
+    return () => {
+      if (timer) clearTimeout(timer);
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const universities = useMemo(() => {
     return [...new Set(regs.map(r => r.customer_university))].sort();
   }, [regs]);
@@ -180,16 +206,19 @@ export default function SolsticeAdminCobros() {
     <div style={{ background: C.bg, minHeight: '100vh', color: C.cream, fontFamily: "'Archivo', sans-serif" }}>
 
       {/* Header */}
-      <div className="px-8 pt-10 pb-6" style={{ borderBottom: '0.5px solid rgba(255,255,255,0.10)' }}>
-        <p className="text-[9px] uppercase mb-1"
-          style={{ color: C.red, letterSpacing: '0.08em', fontWeight: 500 }}>Admin</p>
-        <h1 className="text-3xl uppercase"
-          style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '-0.02em', fontWeight: 300 }}>
-          Cobros y Mora
-        </h1>
-        <p className="text-xs uppercase mt-1" style={{ color: C.gray, letterSpacing: '0.08em', fontWeight: 500 }}>
-          Gestión de clientes con pagos vencidos · actualización automática al cargar
-        </p>
+      <div className="px-8 pt-10 pb-6 flex flex-col md:flex-row md:items-end md:justify-between gap-4" style={{ borderBottom: '0.5px solid rgba(255,255,255,0.10)' }}>
+        <div>
+          <p className="text-[9px] uppercase mb-1"
+            style={{ color: C.red, letterSpacing: '0.08em', fontWeight: 500 }}>Admin</p>
+          <h1 className="text-3xl uppercase"
+            style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '-0.02em', fontWeight: 300 }}>
+            Cobros y Mora
+          </h1>
+          <p className="text-xs uppercase mt-1" style={{ color: C.gray, letterSpacing: '0.08em', fontWeight: 500 }}>
+            Gestión de clientes con pagos vencidos · actualización automática al cargar
+          </p>
+        </div>
+        <RunCronButton onComplete={load} />
       </div>
 
       {/* KPI strip */}
@@ -478,6 +507,66 @@ export default function SolsticeAdminCobros() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ── Botón para disparar manualmente el job de cobros (envío de recordatorios) ──
+function RunCronButton({ onComplete }: { onComplete: () => void }) {
+  const [running, setRunning] = useState(false);
+  const [result, setResult]   = useState<{ markedOverdue: number; sentPre: number; sentOverdue: number } | null>(null);
+
+  const run = async () => {
+    if (!confirm('¿Disparar job de cobros ahora? Envía recordatorios a clientes con cuotas próximas + avisos a los que están en mora.')) return;
+    setRunning(true);
+    setResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('solstice-cobros-cron', { body: {} });
+      if (error) throw new Error(error.message);
+      if (data?.ok) {
+        setResult({
+          markedOverdue: data.markedOverdue || 0,
+          sentPre:       data.sentPre || 0,
+          sentOverdue:   data.sentOverdue || 0,
+        });
+        toast.success(`Procesado · ${data.sentPre + data.sentOverdue} email(s) enviado(s)`);
+        onComplete();
+      } else {
+        toast.error('Error: ' + (data?.error || 'unknown'));
+      }
+    } catch (err: any) {
+      toast.error('Falló: ' + err.message);
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-start md:items-end gap-1.5">
+      <button
+        onClick={run}
+        disabled={running}
+        className="inline-flex items-center gap-2 px-5 py-3 text-[10px] uppercase"
+        style={{
+          background: 'rgba(230,57,47,0.18)',
+          border: '0.5px solid rgba(230,57,47,0.50)',
+          borderRadius: '999px',
+          color: C.cream,
+          letterSpacing: '0.25em',
+          fontWeight: 600,
+          opacity: running ? 0.5 : 1,
+          cursor: running ? 'not-allowed' : 'pointer',
+          transition: 'all 0.2s ease',
+        }}
+      >
+        {running ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+        Procesar cobros ahora
+      </button>
+      {result && (
+        <p className="text-[9px] uppercase" style={{ color: C.gray, letterSpacing: '0.18em' }}>
+          {result.markedOverdue} marcadas overdue · {result.sentPre} pre-aviso · {result.sentOverdue} aviso mora
+        </p>
+      )}
     </div>
   );
 }

@@ -31,6 +31,8 @@ export default function SolsticeAdminCheckin() {
   const [loading, setLoading]   = useState(true);
   const [day, setDay]           = useState(1);
   const [uniFilter, setUniFilter] = useState('all');
+  const [boatFilter, setBoatFilter] = useState('all');
+  const [boatPassengers, setBoatPassengers] = useState<Array<{ registration_id: string; boat_id: string; boat_name: string }>>([]);
   const [search, setSearch]     = useState('');
   const [scanning, setScanning] = useState(false);
   const [checkingId, setCheckingId] = useState<string | null>(null);
@@ -48,6 +50,35 @@ export default function SolsticeAdminCheckin() {
       ]);
       setRegs((r || []) as Reg[]);
       setCheckins((c || []) as CheckinRecord[]);
+
+      // Cargar pasajeros de lanchas para filtro del Día 3
+      const { data: pax } = await supabase
+        .from('solstice_boat_passengers')
+        .select('registration_id, boat_reservation_id');
+      if (pax && pax.length > 0) {
+        const resIds = [...new Set(pax.map(p => p.boat_reservation_id))];
+        const { data: bres } = await supabase
+          .from('solstice_boat_reservations')
+          .select('id, boat_id')
+          .in('id', resIds);
+        const boatIds = [...new Set((bres || []).map(b => b.boat_id))];
+        const { data: boats } = await supabase
+          .from('solstice_boats')
+          .select('id, name')
+          .in('id', boatIds);
+        const bresMap = new Map((bres || []).map(b => [b.id, b]));
+        const boatMap = new Map((boats || []).map(b => [b.id, b.name]));
+        setBoatPassengers(
+          pax.map((p: any) => {
+            const br = bresMap.get(p.boat_reservation_id);
+            return {
+              registration_id: p.registration_id,
+              boat_id: br?.boat_id ?? '',
+              boat_name: br ? (boatMap.get(br.boat_id) || '—') : '—',
+            };
+          }).filter(x => x.boat_id)
+        );
+      }
     } catch { /* DB not ready */ }
     finally { setLoading(false); }
   };
@@ -97,10 +128,31 @@ export default function SolsticeAdminCheckin() {
     [regs],
   );
 
+  // ── Boats list para filtro del Día 3 ─────────────────────────────────────
+  const boatsList = useMemo(() => {
+    const byBoat = new Map<string, string>();
+    boatPassengers.forEach(p => {
+      if (p.boat_id && !byBoat.has(p.boat_id)) byBoat.set(p.boat_id, p.boat_name);
+    });
+    return Array.from(byBoat.entries()).map(([id, name]) => ({ id, name }));
+  }, [boatPassengers]);
+
+  // Mapa rápido registration_id → boat_id
+  const regToBoat = useMemo(() => {
+    const m = new Map<string, string>();
+    boatPassengers.forEach(p => { m.set(p.registration_id, p.boat_id); });
+    return m;
+  }, [boatPassengers]);
+
   // ── Filtered list ─────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     return regs
       .filter(r => uniFilter === 'all' || r.customer_university === uniFilter)
+      .filter(r => {
+        // Filtro de lancha solo aplica si día === 3
+        if (day !== 3 || boatFilter === 'all') return true;
+        return regToBoat.get(r.id) === boatFilter;
+      })
       .filter(r => {
         if (!search) return true;
         const q = search.toLowerCase();
@@ -108,7 +160,7 @@ export default function SolsticeAdminCheckin() {
                r.order_number.toLowerCase().includes(q) ||
                r.customer_phone.includes(q);
       });
-  }, [regs, uniFilter, search]);
+  }, [regs, uniFilter, search, day, boatFilter, regToBoat]);
 
   const isCheckedIn = (regId: string) =>
     checkins.some(c => c.registration_id === regId && c.day_number === day);
@@ -241,6 +293,20 @@ export default function SolsticeAdminCheckin() {
             <option value="all">Todas las universidades</option>
             {universities.map(u => <option key={u} value={u}>{u}</option>)}
           </select>
+          {day === 3 && boatsList.length > 0 && (
+            <select value={boatFilter} onChange={e => setBoatFilter(e.target.value)}
+              className="px-3 py-2 text-xs outline-none"
+              style={{
+                background: 'rgba(230,57,47,0.10)',
+                backdropFilter: 'blur(32px) saturate(180%)',
+                border: '0.5px solid rgba(230,57,47,0.30)',
+                borderRadius: '16px',
+                color: C.cream,
+              }}>
+              <option value="all">Todas las lanchas</option>
+              {boatsList.map(b => <option key={b.id} value={b.id}>🚤 {b.name}</option>)}
+            </select>
+          )}
           <button onClick={() => setScanning(v => !v)}
             className="flex items-center gap-2 px-6 py-3 text-[10px] uppercase tracking-widest transition-all"
             style={{

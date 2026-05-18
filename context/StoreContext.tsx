@@ -4,6 +4,7 @@ import {
 } from '../types';
 import { supabase } from '../lib/supabase';
 import { sendTicketEmail } from '../services/emailService';
+import { logAudit, AuditActor } from '../lib/audit';
 
 interface StoreContextType {
     events: Event[];
@@ -23,7 +24,7 @@ interface StoreContextType {
     // Auth methods
     login: (code: string, password?: string) => Promise<boolean>;
     logout: () => void;
-    requestCustomerOtp: (email: string, metadata?: any) => Promise<{ success: boolean; message?: string }>;
+    requestCustomerOtp: (email: string, metadata?: any, captchaToken?: string) => Promise<{ success: boolean; message?: string }>;
     verifyOtpUnified: (email: string, token: string) => Promise<boolean>;
     verifyCustomerOtp: (email: string, token: string) => Promise<boolean>;
     customerLogout: () => Promise<void>;
@@ -72,6 +73,22 @@ const isValidUUID = (uuid: any) => {
     return regex.test(uuid);
 };
 
+// ─── Admin "virtual" hardcodeado ──────────────────────────────────────────
+// Este usuario NO existe en la tabla `profiles`; se crea en memoria cuando
+// el email coincide con `ADMIN_EMAIL` y completa el OTP correctamente.
+// Se persiste su UUID en localStorage para sobrevivir page reloads.
+const ADMIN_USER_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+const ADMIN_EMAIL   = 'midnnignt@gmail.com'; // sí, con typo — legacy
+const buildAdminUser = (email: string = ADMIN_EMAIL) => ({
+    user_id: ADMIN_USER_ID,
+    name: 'Super Admin',
+    email,
+    code: 'ADMIN123',
+    role: UserRole.ADMIN,
+    total_sales: 0,
+    total_commission_earned: 0,
+});
+
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     // ESTADO
     const [events, setEvents] = useState<Event[]>([]);
@@ -119,19 +136,50 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Hydrate User from LocalStorage with UUID Validation
     useEffect(() => {
         const storedId = localStorage.getItem('midnight_user_id');
-        
-        if (storedId) {
-            // Si el ID guardado NO es un UUID válido (ej: "000-admin"), lo borramos para evitar crash.
-            if (!isValidUUID(storedId)) {
-                console.warn("Legacy invalid ID found and cleared:", storedId);
-                localStorage.removeItem('midnight_user_id');
+
+        if (!storedId) return;
+
+        // Si el ID guardado NO es un UUID válido (ej: "000-admin"), lo borramos para evitar crash.
+        if (!isValidUUID(storedId)) {
+            console.warn("Legacy invalid ID found and cleared:", storedId);
+            localStorage.removeItem('midnight_user_id');
+            return;
+        }
+
+        // Admin virtual: no vive en la tabla profiles, hay que reconstruirlo desde la constante.
+        if (storedId === ADMIN_USER_ID && !currentUser) {
+            setCurrentUser(buildAdminUser());
+            return;
+        }
+
+        // Staff real: matchear contra promoters cargados de Supabase.
+        if (promoters.length > 0 && !currentUser) {
+            const user = promoters.find(p => p.user_id === storedId);
+            if (user) {
+                setCurrentUser(user);
                 return;
             }
-
-            if (promoters.length > 0 && !currentUser) {
-                const user = promoters.find(p => p.user_id === storedId);
-                if (user) setCurrentUser(user);
-            }
+            // Si NO está en promoters (es perfil oculto/SUPER_ADMIN), traerlo
+            // directo de Supabase por id para hidratar la sesión.
+            (async () => {
+                const { data } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', storedId)
+                    .maybeSingle();
+                if (data) {
+                    setCurrentUser({
+                        user_id: data.id,
+                        name: data.full_name || 'Sin Nombre',
+                        email: data.email,
+                        code: data.code || 'N/A',
+                        role: data.role,
+                        total_sales: data.total_sales || 0,
+                        total_commission_earned: data.total_commission_earned || 0,
+                        is_hidden: data.is_hidden || false,
+                    });
+                }
+            })();
         }
     }, [promoters]);
 
@@ -174,19 +222,26 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 ...e, gallery: [], tags: [], nft_benefits: [], costs: e.costs || []
             }));
 
-            const mappedPromoters: Promoter[] = (profilesData || []).map((p: any) => ({
-                user_id: p.id,
-                name: p.full_name || 'Sin Nombre',
-                email: p.email,
-                code: p.code || 'N/A',
-                role: p.role,
-                sales_team_id: p.sales_team_id,
-                manager_id: p.manager_id,
-                super_squad_id: p.super_squad_id,
-                total_sales: p.total_sales || 0,
-                total_commission_earned: p.total_commission_earned || 0,
-                link_views: p.link_views || 0
-            }));
+            // Filtrar perfiles ocultos (SUPER_ADMIN) — NUNCA aparecen en la lista
+            // de staff visible para ningún usuario (ni siquiera para sí mismos).
+            // La sesión del SUPER_ADMIN se hidrata aparte en el useEffect de
+            // localStorage (ver más abajo) usando una query directa a profiles.
+            const mappedPromoters: Promoter[] = (profilesData || [])
+                .filter((p: any) => !p.is_hidden)
+                .map((p: any) => ({
+                    user_id: p.id,
+                    name: p.full_name || 'Sin Nombre',
+                    email: p.email,
+                    code: p.code || 'N/A',
+                    role: p.role,
+                    sales_team_id: p.sales_team_id,
+                    manager_id: p.manager_id,
+                    super_squad_id: p.super_squad_id,
+                    total_sales: p.total_sales || 0,
+                    total_commission_earned: p.total_commission_earned || 0,
+                    link_views: p.link_views || 0,
+                    is_hidden: p.is_hidden || false,
+                }));
 
             const mappedOrders: Order[] = (ordersData || []).map((o: any) => ({
                 ...o,
@@ -226,8 +281,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const login = async (code: string, password?: string): Promise<boolean> => {
         const c = code.toUpperCase();
         if (c === 'ADMIN123') {
-             // UUID Fijo para el Admin Principal
-             const user = { user_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', name: 'Super Admin', email: 'admin@midnightcorp.click', code: 'ADMIN123', role: UserRole.ADMIN, total_sales: 0, total_commission_earned: 0 };
+             const user = buildAdminUser('admin@midnightcorp.click');
              setCurrentUser(user);
              localStorage.setItem('midnight_user_id', user.user_id);
              return true;
@@ -253,7 +307,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const normalized = email.toLowerCase().trim();
 
         // Admin hardcodeado — verificar OTP normalmente y luego setear como admin
-        const isAdminEmail = normalized === 'midnnignt@gmail.com';
+        const isAdminEmail = normalized === ADMIN_EMAIL;
 
         try {
             const { data, error } = await supabase.auth.verifyOtp({
@@ -265,7 +319,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
             // Admin
             if (isAdminEmail) {
-                const adminUser = { user_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', name: 'Super Admin', email: normalized, code: 'ADMIN123', role: UserRole.ADMIN, total_sales: 0, total_commission_earned: 0 };
+                const adminUser = buildAdminUser(normalized);
                 setCurrentUser(adminUser);
                 localStorage.setItem('midnight_user_id', adminUser.user_id);
                 return true;
@@ -298,43 +352,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
     };
 
-    const requestCustomerOtp = async (email: string, metadata?: any): Promise<{ success: boolean; message?: string }> => {
-        // BACKDOOR PARA DEMO/TESTING (Bypasses SMTP issues)
-        if (email.toLowerCase() === 'demo@midnight.com') {
-            console.log("⚡ MODO DEMO: OTP simulado para demo@midnight.com");
-            return { success: true };
-        }
-
+    const requestCustomerOtp = async (email: string, metadata?: any, captchaToken?: string): Promise<{ success: boolean; message?: string }> => {
         try {
-            const { error } = await supabase.auth.signInWithOtp({ 
-                email: email.trim().toLowerCase(), 
-                options: { 
+            const { error } = await supabase.auth.signInWithOtp({
+                email: email.trim().toLowerCase(),
+                options: {
                     shouldCreateUser: true,
-                    data: metadata 
-                } 
+                    data: metadata,
+                    ...(captchaToken ? { captchaToken } : {}),
+                }
             });
             if (error) throw error;
             return { success: true };
-        } catch (error: any) { 
+        } catch (error: any) {
             console.error("Supabase Auth Error:", error);
-            return { success: false, message: error.message }; 
+            return { success: false, message: error.message };
         }
     };
 
     const verifyCustomerOtp = async (email: string, token: string): Promise<boolean> => {
-        // BACKDOOR PARA DEMO/TESTING
-        if (email.toLowerCase() === 'demo@midnight.com' && token === '000000') {
-            const fakeUser = {
-                id: 'demo-user-id',
-                email: 'demo@midnight.com',
-                user_metadata: { full_name: 'Usuario Demo' },
-                aud: 'authenticated',
-                created_at: new Date().toISOString()
-            };
-            setCurrentCustomer(fakeUser);
-            return true;
-        }
-
         try {
             const { data, error } = await supabase.auth.verifyOtp({ email: email.trim().toLowerCase(), token: token, type: 'email' });
             if (error || !data.session) return false;
@@ -362,7 +398,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     cover_image: eventData.cover_image,
                     status: 'published',
                     current_stage: 'early_bird',
-                    total_capacity: tierData.reduce((acc, t) => acc + Number(t.quantity), 0)
+                    total_capacity: tierData.reduce((acc, t) => acc + Number(t.quantity), 0),
+                    dress_code: eventData.dress_code ?? null,
+                    min_age:    eventData.min_age    ?? null,
+                    faq:        Array.isArray(eventData.faq) ? eventData.faq : [],
                 })
                 .select()
                 .single();
@@ -402,7 +441,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     event_date: eventData.event_date,
                     doors_open: eventData.doors_open,
                     cover_image: eventData.cover_image,
-                    total_capacity: tierData.reduce((acc, t) => acc + Number(t.quantity), 0)
+                    total_capacity: tierData.reduce((acc, t) => acc + Number(t.quantity), 0),
+                    dress_code: eventData.dress_code ?? null,
+                    min_age:    eventData.min_age    ?? null,
+                    faq:        Array.isArray(eventData.faq) ? eventData.faq : [],
                 })
                 .eq('id', id);
 
@@ -477,10 +519,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     // ARCHIVE EVENT (Soft Delete)
-    const archiveEvent = async (id: string) => { 
+    const auditActor = (): AuditActor | null => currentUser ? {
+        user_id: currentUser.user_id,
+        name: currentUser.name,
+        role: currentUser.role,
+    } : null;
+
+    const archiveEvent = async (id: string) => {
         try {
+            const ev = events.find(e => e.id === id);
             const { error } = await supabase.from('events').update({ status: 'archived' }).eq('id', id);
             if (error) throw error;
+            logAudit({ action: 'event.archive', entityType: 'event', entityId: id, entityLabel: ev?.title, actor: auditActor() });
             await fetchData();
         } catch (error: any) {
             console.error("Error archiving event:", error);
@@ -491,8 +541,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // RESTORE EVENT (Unarchive)
     const restoreEvent = async (id: string) => {
         try {
+            const ev = events.find(e => e.id === id);
             const { error } = await supabase.from('events').update({ status: 'published' }).eq('id', id);
             if (error) throw error;
+            logAudit({ action: 'event.restore', entityType: 'event', entityId: id, entityLabel: ev?.title, actor: auditActor() });
             await fetchData();
         } catch (error: any) {
             console.error("Error restoring event:", error);
@@ -503,8 +555,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // TOGGLE VISIBILITY (published ↔ draft — does NOT move to cementerio)
     const setEventStatus = async (id: string, status: 'published' | 'draft') => {
         try {
+            const ev = events.find(e => e.id === id);
             const { error } = await supabase.from('events').update({ status }).eq('id', id);
             if (error) throw error;
+            logAudit({
+                action: status === 'published' ? 'event.publish' : 'event.unpublish',
+                entityType: 'event', entityId: id, entityLabel: ev?.title,
+                actor: auditActor(), details: { previous_status: ev?.status },
+            });
             await fetchData();
         } catch (error: any) {
             console.error("Error setting event status:", error);
@@ -515,12 +573,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // HARD DELETE (Only for archived events if really needed, or admin only)
     const hardDeleteEvent = async (id: string) => {
         try {
+             const ev = events.find(e => e.id === id);
+
              // 1. Eliminar Costos
              await supabase.from('event_costs').delete().eq('event_id', id);
-             
+
              // 2. Eliminar Tiers (Tickets)
              await supabase.from('ticket_tiers').delete().eq('event_id', id);
- 
+
              // 3. Eliminar Ordenes
              const { data: orders } = await supabase.from('orders').select('id').eq('event_id', id);
              if (orders && orders.length > 0) {
@@ -528,11 +588,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                  await supabase.from('order_items').delete().in('order_id', orderIds);
                  await supabase.from('orders').delete().eq('event_id', id);
              }
- 
+
              // 4. Finalmente eliminar el evento
              const { error } = await supabase.from('events').delete().eq('id', id);
-             
+
              if (error) throw error;
+             logAudit({
+                 action: 'event.hard_delete',
+                 entityType: 'event', entityId: id, entityLabel: ev?.title,
+                 actor: auditActor(),
+                 details: { orders_deleted: orders?.length ?? 0 },
+             });
              await fetchData();
         } catch (error: any) {
             console.error("Error deleting event:", error);
@@ -542,25 +608,33 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     
     const addStaff = async (staffData: any) => {
         try {
+            const newId = crypto.randomUUID();
             const { error } = await supabase.from('profiles').insert({
-                id: crypto.randomUUID(),
+                id: newId,
                 email: staffData.email,
                 full_name: staffData.name,
                 code: staffData.code,
                 role: staffData.role,
                 sales_team_id: staffData.sales_team_id,
-                manager_id: staffData.manager_id
+                manager_id: staffData.manager_id,
+                is_hidden: staffData.is_hidden ?? false,
             });
-            
+
             if (error) throw error;
+            logAudit({
+                action: 'staff.create', entityType: 'staff', entityId: newId,
+                entityLabel: staffData.name, actor: auditActor(),
+                details: { email: staffData.email, role: staffData.role, code: staffData.code },
+            });
             await fetchData();
-        } catch (error) { 
+        } catch (error) {
             console.error("Error adding staff:", error);
             throw error; // Re-throw to handle in UI
         }
     };
     
     const updateStaff = async (id: string, data: { name?: string; code?: string; role?: string; password?: string }) => {
+        const prev = promoters.find(p => p.user_id === id);
         const payload: any = {};
         if (data.name !== undefined) payload.full_name = data.name.trim();
         if (data.code !== undefined) payload.code = data.code.trim().toUpperCase();
@@ -568,10 +642,30 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (data.password !== undefined) payload.password = data.password;
         const { error } = await supabase.from('profiles').update(payload).eq('id', id);
         if (error) throw error;
+        // Solo audit si hubo cambio de rol (más sensible) o reseteo de password
+        if (data.role !== undefined && data.role !== prev?.role) {
+            logAudit({
+                action: 'staff.role_change', entityType: 'staff', entityId: id,
+                entityLabel: prev?.name, actor: auditActor(),
+                details: { from: prev?.role, to: data.role },
+            });
+        }
+        if (data.password !== undefined) {
+            logAudit({ action: 'staff.password_reset', entityType: 'staff', entityId: id, entityLabel: prev?.name, actor: auditActor() });
+        }
         await fetchData();
     };
 
-    const deleteStaff = async (id: string) => { await supabase.from('profiles').delete().eq('id', id); await fetchData(); };
+    const deleteStaff = async (id: string) => {
+        const prev = promoters.find(p => p.user_id === id);
+        await supabase.from('profiles').delete().eq('id', id);
+        logAudit({
+            action: 'staff.delete', entityType: 'staff', entityId: id,
+            entityLabel: prev?.name, actor: auditActor(),
+            details: { role: prev?.role, email: prev?.email },
+        });
+        await fetchData();
+    };
     const createTeam = async (name: string, managerId: string) => { 
         try {
             await supabase.from('sales_teams').insert({ name, manager_id: managerId });
@@ -588,10 +682,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const deleteTeam = async (teamId: string) => {
         try {
+            const team = teams.find(t => t.id === teamId);
             // Unassign members first
             await supabase.from('profiles').update({ sales_team_id: null }).eq('sales_team_id', teamId);
             // Delete team
             await supabase.from('sales_teams').delete().eq('id', teamId);
+            logAudit({ action: 'team.delete', entityType: 'team', entityId: teamId, entityLabel: team?.name, actor: auditActor() });
             await fetchData();
         } catch (error) { console.error(error); }
     };
@@ -864,12 +960,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             created_by: movement.created_by || null
         });
         if (error) throw error;
+        logAudit({
+            action: 'accounting.movement_create', entityType: 'accounting_movement',
+            entityLabel: `${movement.type}: ${movement.category} · $${movement.amount.toLocaleString('es-CO')}`,
+            actor: auditActor(),
+            details: { type: movement.type, category: movement.category, amount: movement.amount, event_id: movement.event_id ?? null },
+        });
         await fetchData();
     };
 
     const deleteAccountingMovement = async (id: string) => {
+        const mov = accountingMovements.find(m => m.id === id);
         const { error } = await supabase.from('accounting_movements').delete().eq('id', id);
         if (error) throw error;
+        logAudit({
+            action: 'accounting.movement_delete', entityType: 'accounting_movement', entityId: id,
+            entityLabel: mov ? `${mov.type}: ${mov.category} · $${mov.amount.toLocaleString('es-CO')}` : undefined,
+            actor: auditActor(),
+            details: mov ? { type: mov.type, category: mov.category, amount: mov.amount } : undefined,
+        });
         await fetchData();
     };
 
@@ -887,12 +996,26 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             registered_by: null
         });
         if (error) throw error;
+        const ev = events.find(e => e.id === data.event_id);
+        const promoter = promoters.find(p => p.user_id === data.promoter_id);
+        logAudit({
+            action: 'settlement.create', entityType: 'settlement',
+            entityLabel: `${promoter?.name ?? 'promoter'} · ${ev?.title ?? 'event'} · $${data.amount_sent.toLocaleString('es-CO')}`,
+            actor: auditActor(),
+            details: { event_id: data.event_id, promoter_id: data.promoter_id, amount: data.amount_sent, method: data.payment_method },
+        });
         await fetchData();
     };
 
     const deleteSettlement = async (id: string) => {
+        const settlement = settlements.find(s => s.id === id);
         const { error } = await supabase.from('event_settlements').delete().eq('id', id);
         if (error) throw error;
+        logAudit({
+            action: 'settlement.delete', entityType: 'settlement', entityId: id,
+            entityLabel: settlement ? `$${Number(settlement.amount_sent).toLocaleString('es-CO')}` : undefined,
+            actor: auditActor(),
+        });
         await fetchData();
     };
 

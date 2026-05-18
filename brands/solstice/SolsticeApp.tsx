@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { supabase } from '../../lib/supabase';
 import SolsticeNav, { SolsticePage } from './components/SolsticeNav';
 import SolsticeSplash from './components/SolsticeSplash';
 import SolsticeLanding from './pages/SolsticeLanding';
@@ -12,9 +13,16 @@ import SolsticePrograma from './pages/SolsticePrograma';
 import SolsticeVentasDashboard from './pages/SolsticeVentasDashboard';
 import SolsticeMiSemana from './pages/SolsticeMiSemana';
 import SolsticeCommandSelector from './pages/SolsticeCommandSelector';
+import SolsticeTopClients from './pages/SolsticeTopClients';
+import SolsticeAdminBoatReservations from './pages/SolsticeAdminBoatReservations';
+import SolsticeAdminLodgingReservations from './pages/SolsticeAdminLodgingReservations';
+import SolsticeProyecciones from './pages/SolsticeProyecciones';
+import SolsticeCodigosDescuentos from './pages/SolsticeCodigosDescuentos';
+import SolsticeContabilidad from './pages/SolsticeContabilidad';
 import { DUAL_COMMAND_ENABLED } from './featureFlags';
 import { UserRole } from '../../types';
 import { MouseTrail } from '../../components/MouseTrail';
+import { ChevronLeft } from 'lucide-react';
 
 interface Props {
   onExit: () => void;
@@ -35,16 +43,26 @@ function ComingSoon({ title }: { title: string }) {
 }
 
 function solsticeRole(userRole: UserRole): 'admin' | 'seller' | 'manager' | 'buyer' {
-  if (userRole === UserRole.ADMIN) return 'admin';
+  if (userRole === UserRole.ADMIN || userRole === UserRole.SUPER_ADMIN) return 'admin';
   if (userRole === UserRole.MANAGER) return 'manager';
   if (userRole === UserRole.PROMOTER) return 'seller';
   return 'buyer';
 }
 
 export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) {
-  const [splash, setSplash] = useState(true);
-  const [page, setPage] = useState<SolsticePage>('landing');
+  // Detectamos invite_code en la URL al montar — si está, saltamos splash y
+  // entramos directo a la reserva con el código pre-validado.
+  const initialInviteCode = (() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return (params.get('invite') || sessionStorage.getItem('solstice_boat_invite') || '').toUpperCase() || undefined;
+    } catch { return undefined; }
+  })();
+
+  const [splash, setSplash] = useState(!initialInviteCode);
+  const [page, setPage] = useState<SolsticePage>(initialInviteCode ? 'reserva' : 'landing');
   const [reservaWeek, setReservaWeek] = useState<string | undefined>(undefined);
+  const [inviteCode] = useState<string | undefined>(initialInviteCode);
 
   const [commandPlatform, setCommandPlatform] = useState<'solstice' | 'midnight' | null>(
     DUAL_COMMAND_ENABLED ? null : 'solstice'
@@ -52,6 +70,78 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
 
   const role = solsticeRole(userRole);
   const isSeller = role === 'seller';
+  const isAdmin = role === 'admin';
+
+  // Forzar bg negro puro en body/html mientras Solstice esté montado.
+  // Sin esto, el bg-void (#0B0316) del body queda visible en overscroll y
+  // al final del scroll, dando un "halo morado" que rompe la atmósfera.
+  useEffect(() => {
+    const prevBody = document.body.style.backgroundColor;
+    const prevHtml = document.documentElement.style.backgroundColor;
+    document.body.style.backgroundColor = '#000';
+    document.documentElement.style.backgroundColor = '#000';
+    return () => {
+      document.body.style.backgroundColor = prevBody;
+      document.documentElement.style.backgroundColor = prevHtml;
+    };
+  }, []);
+
+  // ── Browser history sync ─────────────────────────────────────────────────
+  // Sin esto el botón "atrás" del navegador sale de Solstice al home.
+  // Cada cambio de page hace pushState, y popstate restaura el page anterior.
+  useEffect(() => {
+    // Inicializar el history state si todavía no existe
+    if (!window.history.state?.solsticePage) {
+      window.history.replaceState({ solsticePage: page }, '');
+    }
+    const onPop = (e: PopStateEvent) => {
+      const target = e.state?.solsticePage;
+      if (target && typeof target === 'string') {
+        setPage(target as SolsticePage);
+      } else {
+        // No hay state Solstice en el history → salir limpio
+        onExit();
+      }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Push state cada vez que page cambia (excepto en el primer render)
+  const isFirstPageRender = useRef(true);
+  useEffect(() => {
+    if (isFirstPageRender.current) {
+      isFirstPageRender.current = false;
+      return;
+    }
+    if (window.history.state?.solsticePage !== page) {
+      window.history.pushState({ solsticePage: page }, '');
+    }
+  }, [page]);
+
+  // Load branding config from Supabase on mount so all devices stay in sync
+  useEffect(() => {
+    supabase.storage.from('assets').download('solstice/brand/config.json')
+      .then(({ data }) => data?.text())
+      .then(text => {
+        if (!text) return;
+        const cfg = JSON.parse(text);
+        if (cfg.logo_url) {
+          localStorage.setItem('solstice_logo_url', cfg.logo_url);
+          window.dispatchEvent(new CustomEvent('solstice-logo-change', { detail: cfg.logo_url }));
+        }
+        if (cfg.sizes) Object.entries(cfg.sizes).forEach(([ctx, px]) => {
+          localStorage.setItem(`solstice_logo_size_${ctx}`, String(px));
+          window.dispatchEvent(new CustomEvent(`solstice-logo-size-${ctx}`, { detail: Number(px) }));
+        });
+        if (cfg.position) {
+          localStorage.setItem('solstice_logo_pos', JSON.stringify(cfg.position));
+          window.dispatchEvent(new CustomEvent('solstice-logo-pos', { detail: cfg.position }));
+        }
+      })
+      .catch(() => {}); // silent — use localStorage fallback
+  }, []);
 
   useEffect(() => {
     requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
@@ -90,7 +180,7 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
         {splash && <SolsticeSplash onComplete={() => setSplash(false)} />}
       </AnimatePresence>
 
-      <MouseTrail rgb="230,57,47" />
+      <MouseTrail rgb="230,57,47" intensity={0.35} />
 
       {/*
         Top fade mask — covers content scrolling under the fixed MIDNIGHT logo
@@ -123,11 +213,50 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
           role={role}
         />
 
-        {page === 'landing'       && <SolsticeLanding onNavigate={handleNavigate} />}
+        {/* Botón Volver — visible en todas las sub-páginas excepto landing.
+            Usa history.back() para que el browser back también funcione natural. */}
+        {page !== 'landing' && page !== 'reserva' && (
+          <button
+            onClick={() => {
+              if (window.history.state?.solsticePage && window.history.state.solsticePage !== 'landing') {
+                window.history.back();
+              } else {
+                setPage('landing');
+              }
+            }}
+            className="fixed left-4 md:left-5 z-[180] flex items-center gap-2 py-2.5 px-4 md:py-3 md:px-5 rounded-full shadow-lg"
+            style={{
+              top: 'calc(4.5rem + env(safe-area-inset-top, 0px))',
+              background: 'rgba(10,0,0,0.78)',
+              backdropFilter: 'blur(20px) saturate(160%)',
+              border: '0.5px solid rgba(230,57,47,0.40)',
+              color: '#F9F2D7',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+            }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
+              (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(230,57,47,0.65)';
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
+              (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(230,57,47,0.40)';
+            }}
+            aria-label="Volver"
+          >
+            <ChevronLeft size={14} />
+            <span className="text-[10px] uppercase hidden sm:inline" style={{ letterSpacing: '0.2em', fontWeight: 600 }}>
+              Volver
+            </span>
+          </button>
+        )}
+
+        {page === 'landing'       && <SolsticeLanding onNavigate={handleNavigate} isAdmin={isAdmin} />}
         {page === 'programa'      && <SolsticePrograma onNavigate={handleNavigate} />}
         {page === 'reserva'       && (
           <SolsticeReserva
             initialWeek={reservaWeek}
+            initialInviteCode={inviteCode}
             onBack={() => setPage('landing')}
           />
         )}
@@ -135,6 +264,12 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
         {page === 'admin-sellers' && <SolsticeVentasDashboard role="admin" />}
         {page === 'admin-finance' && <SolsticeAdminFinance />}
         {page === 'admin-cobros'  && <SolsticeAdminCobros />}
+        {page === 'admin-proyecciones' && <SolsticeProyecciones />}
+        {page === 'admin-codes'        && <SolsticeCodigosDescuentos />}
+        {page === 'admin-accounting'   && <SolsticeContabilidad />}
+        {page === 'admin-top-clients' && <SolsticeTopClients />}
+        {page === 'admin-boats'   && <SolsticeAdminBoatReservations />}
+        {page === 'admin-lodgings' && <SolsticeAdminLodgingReservations />}
         {page === 'check-in'      && <SolsticeAdminCheckin />}
         {page === 'seller'        && <SolsticeVentasDashboard role="seller" />}
         {page === 'manager'       && <SolsticeVentasDashboard role="manager" />}

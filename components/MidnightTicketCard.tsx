@@ -2,6 +2,8 @@ import React, { useRef } from 'react';
 import { Download, Send } from 'lucide-react';
 import { Event, Order } from '../types';
 import { toast } from '../lib/toast';
+import { WalletButtons } from './WalletButtons';
+import { useDynamicQrToken } from '../lib/useDynamicQrToken';
 
 interface MidnightTicketCardProps {
     order: Order;
@@ -27,7 +29,13 @@ function rrect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h
 export const MidnightTicketCard: React.FC<MidnightTicketCardProps> = ({ order, event, onTransfer }) => {
     const [isDownloading, setIsDownloading] = React.useState(false);
 
-    const qrUrl = `https://quickchart.io/qr?text=${encodeURIComponent(order.order_number)}&size=400&ecLevel=H&margin=1`;
+    // Token QR rotativo (server-side firmado). Si el server no tiene
+    // QR_HMAC_SECRET configurado, el hook devuelve null y caemos al
+    // order_number estático (backward compat con bouncers actuales).
+    const { token: dynamicToken } = useDynamicQrToken(order.used ? null : order.id);
+    const qrPayload = dynamicToken ?? order.order_number;
+
+    const qrUrl = `https://quickchart.io/qr?text=${encodeURIComponent(qrPayload)}&size=400&ecLevel=H&margin=1`;
 
     const handleDownload = async () => {
         if (isDownloading) return;
@@ -253,7 +261,7 @@ export const MidnightTicketCard: React.FC<MidnightTicketCardProps> = ({ order, e
                 </div>
             </div>
 
-            {/* ACTION BUTTONS */}
+            {/* ACTION BUTTONS — fila 1: Reenviar + Descargar */}
             <div className="w-full flex gap-3">
                 {onTransfer && !order.used && (
                     <button
@@ -279,6 +287,9 @@ export const MidnightTicketCard: React.FC<MidnightTicketCardProps> = ({ order, e
                     )}
                 </button>
             </div>
+
+            {/* ACTION BUTTONS — fila 2: Add to Wallet (Apple/Google según plataforma) */}
+            {!order.used && <WalletButtons orderId={order.id} />}
         </div>
     );
 };

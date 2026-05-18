@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   ResponsiveContainer, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -715,19 +715,87 @@ export const Accounting: React.FC = () => {
     existingSettlements: EventSettlement[];
   } | null>(null);
 
-  // ── BALANCE SHEET MANUAL INPUTS (persisted in localStorage) ─────────────────
-  const [capitalSocial, setCapitalSocial] = useState(() => Number(localStorage.getItem('midnight_capitalSocial') || '0'));
-  const [primaAcciones, setPrimaAcciones] = useState(() => Number(localStorage.getItem('midnight_primaAcciones') || '0'));
-  const [activosFijos, setActivosFijos] = useState(() => Number(localStorage.getItem('midnight_activosFijos') || '0'));
+  // ── BALANCE SHEET — persistido en Supabase (tabla company_balance) ──────────
+  // Antes vivía en localStorage. Migración silenciosa: la primera vez que se
+  // monta, si la tabla está vacía y hay valores en localStorage, los sube y
+  // limpia el storage. Después: solo Supabase.
+  const [capitalSocial, setCapitalSocial] = useState(0);
+  const [primaAcciones, setPrimaAcciones] = useState(0);
+  const [activosFijos, setActivosFijos] = useState(0);
+  const [balanceLoaded, setBalanceLoaded] = useState(false);
   const [editingBalance, setEditingBalance] = useState(false);
   const [balanceOpenRow, setBalanceOpenRow] = useState<string | null>(null);
 
-  const saveBalanceInputs = (cap: number, prima: number, fijos: number) => {
-    localStorage.setItem('midnight_capitalSocial', cap.toString());
-    localStorage.setItem('midnight_primaAcciones', prima.toString());
-    localStorage.setItem('midnight_activosFijos', fijos.toString());
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const { data, error } = await supabase
+        .from('company_balance')
+        .select('capital_social, share_premium, fixed_assets')
+        .eq('id', 1)
+        .maybeSingle();
+
+      if (!mounted) return;
+
+      if (error && (error as any).code === '42P01') {
+        // Tabla no aplicada todavía → fallback a localStorage para no perder data
+        setCapitalSocial(Number(localStorage.getItem('midnight_capitalSocial') || '0'));
+        setPrimaAcciones(Number(localStorage.getItem('midnight_primaAcciones') || '0'));
+        setActivosFijos(Number(localStorage.getItem('midnight_activosFijos') || '0'));
+        setBalanceLoaded(true);
+        return;
+      }
+
+      // Migración: si la fila está vacía y localStorage tiene valores, los subimos
+      const lsCap   = Number(localStorage.getItem('midnight_capitalSocial') || '0');
+      const lsPrima = Number(localStorage.getItem('midnight_primaAcciones') || '0');
+      const lsFijos = Number(localStorage.getItem('midnight_activosFijos') || '0');
+      const dbEmpty = !data || (Number(data.capital_social) === 0 && Number(data.share_premium) === 0 && Number(data.fixed_assets) === 0);
+      const lsHasData = lsCap > 0 || lsPrima > 0 || lsFijos > 0;
+
+      if (dbEmpty && lsHasData) {
+        await supabase.from('company_balance').update({
+          capital_social: lsCap,
+          share_premium: lsPrima,
+          fixed_assets: lsFijos,
+          updated_at: new Date().toISOString(),
+        }).eq('id', 1);
+        setCapitalSocial(lsCap);
+        setPrimaAcciones(lsPrima);
+        setActivosFijos(lsFijos);
+        // Limpiar localStorage tras migrar para que no haya doble fuente de verdad
+        localStorage.removeItem('midnight_capitalSocial');
+        localStorage.removeItem('midnight_primaAcciones');
+        localStorage.removeItem('midnight_activosFijos');
+      } else {
+        setCapitalSocial(Number(data?.capital_social ?? 0));
+        setPrimaAcciones(Number(data?.share_premium ?? 0));
+        setActivosFijos(Number(data?.fixed_assets ?? 0));
+      }
+      setBalanceLoaded(true);
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  const saveBalanceInputs = async (cap: number, prima: number, fijos: number) => {
+    // Persistencia optimista en UI + commit a BD
     setCapitalSocial(cap); setPrimaAcciones(prima); setActivosFijos(fijos);
     setEditingBalance(false);
+
+    const { error } = await supabase.from('company_balance').update({
+      capital_social: cap,
+      share_premium: prima,
+      fixed_assets: fijos,
+      updated_at: new Date().toISOString(),
+    }).eq('id', 1);
+
+    if (error) {
+      // Si la tabla no existe aún, fallback a localStorage para no perder data
+      console.warn('[company_balance] update failed, fallback to localStorage:', error.message);
+      localStorage.setItem('midnight_capitalSocial', cap.toString());
+      localStorage.setItem('midnight_primaAcciones', prima.toString());
+      localStorage.setItem('midnight_activosFijos', fijos.toString());
+    }
   };
 
   // ── FILTERS (Movimientos Tab) ─────────────────────────────────────────────

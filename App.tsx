@@ -1,32 +1,45 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { supabase } from './lib/supabase';
 import { Navbar } from './components/Navbar';
 import { Showcase } from './pages/Showcase';
-import { Dashboard } from './pages/Dashboard';
-import { AdminEvents } from './pages/AdminEvents';
-import { Projections } from './pages/Projections';
-import { TopClients } from './pages/TopClients';
-import { Accounting } from './pages/Accounting';
-import { CodesDiscounts } from './pages/CodesDiscounts';
 import { SuccessPage } from './pages/SuccessPage';
-import BouncerScanner from './pages/BouncerScanner';
-import PromoLanding from './pages/PromoLanding';
-import GuestListLanding from './pages/GuestListLanding';
-import DiscountLanding from './pages/DiscountLanding';
 import { CheckoutModal } from './components/CheckoutModal';
 import MagicPanel from './components/MagicPanel';
 import { UserRole, Event } from './types';
 import { useStore } from './context/StoreContext';
+import { isAdminLevel } from './lib/permissions';
 import { CheckCircle2 } from 'lucide-react';
 
 import TicketWallet from './components/TicketWallet';
 import { ToastContainer } from './components/ToastContainer';
-import SolsticeApp from './brands/solstice/SolsticeApp';
 import { Tag, X as XIcon } from 'lucide-react';
+import { ConjunctionPortal } from './pages/ConjunctionPortal';
+
+// Code-split: páginas admin (cargan solo cuando se navega a ellas)
+const Dashboard       = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
+const AdminEvents     = lazy(() => import('./pages/AdminEvents').then(m => ({ default: m.AdminEvents })));
+const Projections     = lazy(() => import('./pages/Projections').then(m => ({ default: m.Projections })));
+const TopClients      = lazy(() => import('./pages/TopClients').then(m => ({ default: m.TopClients })));
+const Accounting      = lazy(() => import('./pages/Accounting').then(m => ({ default: m.Accounting })));
+const CodesDiscounts  = lazy(() => import('./pages/CodesDiscounts').then(m => ({ default: m.CodesDiscounts })));
+const SystemConfig    = lazy(() => import('./pages/SystemConfig').then(m => ({ default: m.SystemConfig })));
+
+// Code-split: rutas públicas dedicadas (no necesarias en home)
+const BouncerScanner    = lazy(() => import('./pages/BouncerScanner'));
+const PromoLanding      = lazy(() => import('./pages/PromoLanding'));
+const GuestListLanding  = lazy(() => import('./pages/GuestListLanding'));
+const DiscountLanding   = lazy(() => import('./pages/DiscountLanding'));
+const NotFound          = lazy(() => import('./pages/NotFound'));
+const EventDetail       = lazy(() => import('./pages/EventDetail').then(m => ({ default: m.EventDetail })));
+
+// Code-split: sub-marca completa (Solstice tiene su propio splash al cargar)
+const SolsticeApp = lazy(() => import('./brands/solstice/SolsticeApp'));
+const SolsticeInviteLanding = lazy(() => import('./brands/solstice/pages/SolsticeInviteLanding'));
+const SolsticePromoLanding  = lazy(() => import('./brands/solstice/pages/SolsticePromoLanding'));
 
 const App: React.FC = () => {
   const { currentUser, promoters, currentCustomer, events } = useStore();
-  const [currentPage, setCurrentPage] = useState<string>('home');
+  const [currentPage, setCurrentPage] = useState<string>('portal');
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isMagicOpen, setIsMagicOpen] = useState(false);
@@ -78,11 +91,18 @@ const App: React.FC = () => {
   });
 
   // Check for special routes
-  const isSuccessPage  = window.location.pathname === '/gracias';
-  const isBouncerPage  = window.location.pathname === '/bouncer';
-  const promoMatch     = window.location.pathname.match(/^\/promo\/([^/]+)$/);
-  const glMatch        = window.location.pathname.match(/^\/gl\/([^/]+)$/);
-  const discountMatch  = window.location.pathname.match(/^\/d\/([^/]+)$/);
+  const pathname       = window.location.pathname;
+  const isHomePage     = pathname === '/' || pathname === '';
+  const isSuccessPage  = pathname === '/gracias';
+  const isBouncerPage  = pathname === '/bouncer';
+  const promoMatch     = pathname.match(/^\/promo\/([^/]+)$/);
+  const glMatch        = pathname.match(/^\/gl\/([^/]+)$/);
+  const discountMatch  = pathname.match(/^\/d\/([^/]+)$/);
+  const eventMatch     = pathname.match(/^\/event\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i);
+  const solsticeInviteMatch = pathname.match(/^\/sol\/i\/([A-Za-z0-9]{4,12})$/);
+  const solsticePromoMatch  = pathname.match(/^\/sol\/p\/([A-Za-z0-9_-]{2,32})$/);
+  const isSolsticePublic = pathname === '/sol' || pathname === '/sol/' || pathname.startsWith('/sol/reserva');
+  const isKnownRoute   = isHomePage || isSuccessPage || isBouncerPage || !!promoMatch || !!glMatch || !!discountMatch || !!eventMatch || !!solsticeInviteMatch || !!solsticePromoMatch || isSolsticePublic;
 
   // Una vez cargados los promotores, resolver el nombre para el toast y el staffId para el checkout
   useEffect(() => {
@@ -100,7 +120,7 @@ const App: React.FC = () => {
   }, [promoters, pendingRef]);
 
   useEffect(() => {
-    if (!currentUser && (currentPage === 'dashboard' || currentPage === 'admin-events' || currentPage === 'projections' || currentPage === 'contabilidad' || currentPage === 'codes-discounts')) {
+    if (!currentUser && (currentPage === 'dashboard' || currentPage === 'admin-events' || currentPage === 'projections' || currentPage === 'contabilidad' || currentPage === 'codes-discounts' || currentPage === 'system-config')) {
       setCurrentPage('home');
     }
     if (!currentCustomer && !currentUser && currentPage === 'tickets') {
@@ -117,6 +137,34 @@ const App: React.FC = () => {
     window.scrollTo(0, 0);
   };
 
+  // ── Sync currentPage con el history del browser para que el back button
+  // del navegador funcione. Cuando el user sale del portal hacia una marca,
+  // pusheamos al historial; cuando da back, volvemos al portal.
+  useEffect(() => {
+    if (!window.history.state || window.history.state.appPage !== currentPage) {
+      // Replace inicial — sin generar entrada extra
+      if (!window.history.state?.appPage) {
+        window.history.replaceState({ appPage: currentPage }, '');
+      } else {
+        window.history.pushState({ appPage: currentPage }, '');
+      }
+    }
+  }, [currentPage]);
+
+  useEffect(() => {
+    const onPop = (e: PopStateEvent) => {
+      const target = e.state?.appPage;
+      if (typeof target === 'string') {
+        setCurrentPage(target);
+      } else {
+        // Sin state Midnight: volver al portal por defecto
+        setCurrentPage('portal');
+      }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
   const handleBuyTicket = (event: Event) => {
     setSelectedEvent(event);
     setIsCheckoutOpen(true);
@@ -129,34 +177,67 @@ const App: React.FC = () => {
   };
 
   if (isSuccessPage)   return <SuccessPage />;
-  if (isBouncerPage)   return <BouncerScanner />;
-  if (promoMatch)      return <PromoLanding    codigo={promoMatch[1]} />;
-  if (glMatch)         return <GuestListLanding codigo={glMatch[1]} />;
-  if (discountMatch)   return <DiscountLanding  codigo={discountMatch[1]} />;
+  if (isBouncerPage)   return <Suspense fallback={null}><BouncerScanner /></Suspense>;
+  if (promoMatch)      return <Suspense fallback={null}><PromoLanding    codigo={promoMatch[1]} /></Suspense>;
+  if (glMatch)         return <Suspense fallback={null}><GuestListLanding codigo={glMatch[1]} /></Suspense>;
+  if (discountMatch)   return <Suspense fallback={null}><DiscountLanding  codigo={discountMatch[1]} /></Suspense>;
+  if (solsticeInviteMatch) return <Suspense fallback={null}><SolsticeInviteLanding inviteCode={solsticeInviteMatch[1]} /></Suspense>;
+  if (solsticePromoMatch)  return <Suspense fallback={null}><SolsticePromoLanding refCode={solsticePromoMatch[1]} /></Suspense>;
+  if (isSolsticePublic) return (
+    <Suspense fallback={null}>
+      <SolsticeApp
+        onExit={() => { window.location.href = '/'; }}
+        userRole={currentUser?.role || UserRole.GUEST}
+        userName={currentUser?.name || ''}
+      />
+    </Suspense>
+  );
+  if (eventMatch) return (
+    <>
+      <Suspense fallback={null}>
+        <EventDetail
+          eventId={eventMatch[1]}
+          onBuy={handleBuyTicket}
+          onBack={() => { window.location.href = '/'; }}
+        />
+      </Suspense>
+      <CheckoutModal
+        event={selectedEvent}
+        isOpen={isCheckoutOpen}
+        onClose={handlePurchaseComplete}
+        referralStaffId={referralStaffId}
+      />
+      <ToastContainer />
+    </>
+  );
+  if (!isKnownRoute)   return <Suspense fallback={null}><NotFound /></Suspense>;
 
   const isSolstice = currentPage === 'solstice-preview';
+  const isPortal = currentPage === 'portal';
 
   return (
-    <div className="min-h-screen bg-void text-moonlight font-sans selection:bg-eclipse selection:text-white relative">
+    <div className="min-h-screen bg-black text-moonlight font-sans selection:bg-eclipse selection:text-white relative">
       {/* GLOBAL DYNAMIC LOGO — orange+blend in Solstice mode, white otherwise */}
-      <div className="logo-main flex flex-col items-center">
-        <span
-          className="text-xl md:text-3xl font-black tracking-[-0.1em]"
-          style={{ color: isSolstice ? '#E6392F' : 'white', transition: 'color 0.6s ease' }}
-        >MIDNIGHT</span>
-        <span
-          className="text-[8px] font-light tracking-[0.8em] uppercase -mt-1 ml-1"
-          style={{ color: isSolstice ? 'rgba(230,57,47,0.65)' : 'rgba(255,255,255,0.7)', transition: 'color 0.6s ease' }}
-        >Worldwide</span>
-      </div>
+      {!isPortal && (
+        <div className="logo-main flex flex-col items-center">
+          <span
+            className="text-xl md:text-3xl font-black tracking-[-0.1em]"
+            style={{ color: isSolstice ? '#E6392F' : 'white', transition: 'color 0.6s ease' }}
+          >MIDNIGHT</span>
+          <span
+            className="text-[8px] font-light tracking-[0.8em] uppercase -mt-1 ml-1"
+            style={{ color: isSolstice ? 'rgba(230,57,47,0.65)' : 'rgba(255,255,255,0.7)', transition: 'color 0.6s ease' }}
+          >Worldwide</span>
+        </div>
+      )}
 
-      {/* Midnight navbar — hidden while inside Solstice to avoid overlap */}
-      {!isSolstice && (
+      {/* Midnight navbar — hidden while inside Solstice or Portal to avoid overlap */}
+      {!isSolstice && !isPortal && (
         <Navbar onNavigate={handleNavigate} currentPage={currentPage} />
       )}
 
-      {/* Discount banner — hidden in Solstice */}
-      {discountBanner && !isSolstice && (
+      {/* Discount banner — hidden in Solstice or Portal */}
+      {discountBanner && !isSolstice && !isPortal && (
         <div className="fixed top-[4.5rem] md:top-[3.8rem] left-1/2 -translate-x-1/2 z-[95] animate-in slide-in-from-top-2 duration-400 px-4 w-full max-w-xs">
           <div className="flex items-center gap-2.5 bg-[#0A0A0A]/95 border border-[#C9A84C]/30 rounded-full px-4 py-1.5 shadow-[0_0_20px_rgba(201,168,76,0.10)]">
             <span className="w-1.5 h-1.5 rounded-full bg-[#C9A84C] flex-shrink-0 shadow-[0_0_6px_#C9A84C]" />
@@ -193,17 +274,35 @@ const App: React.FC = () => {
       )}
 
       <main>
-        {currentPage === 'home' && <Showcase onBuy={handleBuyTicket} onNavigate={handleNavigate} />}
-        {currentPage === 'solstice-preview' && currentUser?.role === UserRole.ADMIN && (
-          <SolsticeApp onExit={() => handleNavigate('home')} userRole={currentUser.role} userName={currentUser?.name || ''} />
+        {currentPage === 'portal' && (
+          <ConjunctionPortal
+            onEnterBrand={(brand) => {
+              if (brand === 'midnight') setCurrentPage('home');
+              // Solstice → ruta pública /sol con su propio splash de marca
+              if (brand === 'solstice') { window.location.href = '/sol'; }
+            }}
+          />
+        )}
+        {currentPage === 'home' && (
+          <div key="midnight-enter" className="animate-midnight-enter">
+            <Showcase onBuy={handleBuyTicket} onNavigate={handleNavigate} />
+          </div>
+        )}
+        {currentPage === 'solstice-preview' && isAdminLevel(currentUser?.role) && (
+          <Suspense fallback={null}>
+            <SolsticeApp onExit={() => handleNavigate('home')} userRole={currentUser.role} userName={currentUser?.name || ''} />
+          </Suspense>
         )}
         <div className={currentPage === 'home' ? '' : 'pt-20 md:pt-24 px-4 sm:px-6 md:px-12 max-w-7xl mx-auto pb-20'}>
-          {currentPage === 'dashboard' && <Dashboard role={currentUser?.role || UserRole.GUEST} />}
-          {currentPage === 'admin-events' && <AdminEvents role={currentUser?.role || UserRole.GUEST} />}
-          {currentPage === 'projections' && <Projections role={currentUser?.role || UserRole.GUEST} />}
-          {currentPage === 'top-clients' && <TopClients role={currentUser?.role || UserRole.GUEST} />}
-          {currentPage === 'contabilidad' && <Accounting />}
-          {currentPage === 'codes-discounts' && <CodesDiscounts />}
+          <Suspense fallback={null}>
+            {currentPage === 'dashboard' && <Dashboard role={currentUser?.role || UserRole.GUEST} />}
+            {currentPage === 'admin-events' && <AdminEvents role={currentUser?.role || UserRole.GUEST} />}
+            {currentPage === 'projections' && <Projections role={currentUser?.role || UserRole.GUEST} />}
+            {currentPage === 'top-clients' && <TopClients role={currentUser?.role || UserRole.GUEST} />}
+            {currentPage === 'contabilidad' && <Accounting />}
+            {currentPage === 'codes-discounts' && <CodesDiscounts />}
+            {currentPage === 'system-config' && <SystemConfig />}
+          </Suspense>
           {currentPage === 'tickets' && (
             <div className="animate-in fade-in slide-in-from-bottom-5 duration-700">
                 <div className="mb-12 text-center">

@@ -1,10 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
-import { ChevronRight, Ship } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronRight, Ship, Move, Check, X as XIcon, RotateCcw, Sun, Users, MapPin, Calendar as CalIcon, Quote } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useSolsticeLogo } from '../hooks/useSolsticeLogo';
 import { useSolsticeLogoSize } from '../hooks/useSolsticeLogoSize';
 import { useSolsticeLogoLayout } from '../hooks/useSolsticeLogoLayout';
+import { useSolsticeLogoPosition } from '../hooks/useSolsticeLogoPosition';
+import SolsticeAtmosphere from '../components/SolsticeAtmosphere';
+import SolsticeMarquee from '../components/SolsticeMarquee';
+import { useCountUp } from '../hooks/useCountUp';
 
 const C = {
   bg:    '#000000',
@@ -16,6 +20,7 @@ const C = {
 
 interface Props {
   onNavigate: (page: string) => void;
+  isAdmin?: boolean;
 }
 
 interface Season {
@@ -59,9 +64,13 @@ function useCountdown(targetDate: string) {
 }
 
 // ── Week card ──────────────────────────────────────────────────────────────────
-function WeekCard({ week, onSelect, idx }: { week: Week; onSelect: () => void; idx: number }) {
+function WeekCard({ week, reserved, onSelect, idx }: { week: Week; reserved: number; onSelect: () => void; idx: number }) {
   const { days, hours, mins, secs, pct } = useCountdown(week.start_date);
   const urgent = days < 30;
+  const occupancyPct = week.capacity > 0 ? Math.min(100, (reserved / week.capacity) * 100) : 0;
+  const isHot = occupancyPct >= 60;
+  const isAlmostFull = occupancyPct >= 85;
+  const remaining = Math.max(0, week.capacity - reserved);
   const [hovered, setHovered] = useState(false);
   const [btnHovered, setBtnHovered] = useState(false);
 
@@ -95,6 +104,30 @@ function WeekCard({ week, onSelect, idx }: { week: Week; onSelect: () => void; i
         </div>
       )}
 
+      {isAlmostFull && !urgent && (
+        <div
+          className="absolute -top-3 left-6 px-3 py-1 text-[9px] uppercase flex items-center gap-1.5"
+          style={{
+            background: '#FFB48C', color: '#0a0a0a',
+            letterSpacing: '0.2em', borderRadius: '999px', fontWeight: 700,
+          }}>
+          <span style={{ width: 5, height: 5, borderRadius: 999, background: '#0a0a0a', animation: 'pulse 1.6s ease-in-out infinite' }} />
+          Casi llena · {remaining} cupos
+        </div>
+      )}
+      {isHot && !isAlmostFull && !urgent && (
+        <div
+          className="absolute -top-3 left-6 px-3 py-1 text-[9px] uppercase"
+          style={{
+            background: 'rgba(255,180,140,0.20)',
+            color: '#FFB48C',
+            border: '0.5px solid rgba(255,180,140,0.45)',
+            letterSpacing: '0.2em', borderRadius: '999px', fontWeight: 600,
+          }}>
+          🔥 Trending
+        </div>
+      )}
+
       <h3 className="text-2xl mb-1 uppercase"
         style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.1em', fontWeight: 300 }}>
         {week.university}
@@ -105,24 +138,60 @@ function WeekCard({ week, onSelect, idx }: { week: Week; onSelect: () => void; i
         {new Date(week.end_date + 'T12:00:00').toLocaleDateString('es-CO', { month: 'short', day: 'numeric' })}
       </p>
 
-      {/* Countdown */}
+      {/* Countdown — fondo sólido para evitar inconsistencias visuales
+          al apilarse sobre el backdrop-filter del card padre */}
       <div className="grid grid-cols-4 gap-2 mb-5">
         {[['días', days], ['hrs', hours], ['min', mins], ['seg', secs]].map(([label, val]) => (
-          <div key={String(label)} className="flex flex-col items-center py-2"
+          <div
+            key={String(label)}
+            className="flex flex-col items-center justify-center py-3 px-2"
             style={{
-              background: 'rgba(255,255,255,0.05)',
-              border: '0.5px solid rgba(255,255,255,0.10)',
+              background: 'rgba(0,0,0,0.55)',
+              border: '0.5px solid rgba(255,255,255,0.08)',
               borderRadius: '14px',
-            }}>
-            <span className="text-xl font-semibold leading-none" style={{ color: urgent ? C.red : C.cream }}>
+              minHeight: '64px',
+            }}
+          >
+            <span className="text-xl font-semibold leading-none tabular-nums" style={{ color: urgent ? C.red : C.cream }}>
               {String(val).padStart(2, '0')}
             </span>
-            <span className="text-[8px] uppercase mt-1" style={{ color: C.gray, letterSpacing: '0.08em', fontWeight: 500 }}>{label}</span>
+            <span className="text-[8px] uppercase mt-1.5" style={{ color: C.gray, letterSpacing: '0.15em', fontWeight: 600 }}>
+              {label}
+            </span>
           </div>
         ))}
       </div>
 
-      {/* Urgency bar */}
+      {/* Live occupancy — actualiza realtime cuando alguien reserva */}
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[9px] uppercase" style={{
+          letterSpacing: '0.2em',
+          color: isAlmostFull ? '#FFB48C' : isHot ? `${C.red}` : C.gray,
+          fontWeight: 600,
+        }}>
+          {reserved} {reserved === 1 ? 'reserva' : 'reservas'}
+        </span>
+        <span className="text-[9px] uppercase tabular-nums" style={{
+          letterSpacing: '0.15em',
+          color: C.gray,
+          fontWeight: 500,
+        }}>
+          {reserved}/{week.capacity}
+        </span>
+      </div>
+      <div className="w-full h-[2px] mb-2" style={{ background: `${C.gray}20`, borderRadius: '999px' }}>
+        <motion.div className="h-full"
+          initial={{ width: 0 }}
+          animate={{ width: `${occupancyPct}%` }}
+          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          style={{
+            background: isAlmostFull ? '#FFB48C' : isHot ? C.red : `${C.red}aa`,
+            borderRadius: '999px',
+            boxShadow: isAlmostFull ? '0 0 8px rgba(255,180,140,0.55)' : 'none',
+          }} />
+      </div>
+
+      {/* Urgency bar (días al evento) */}
       <div className="w-full h-[2px] mb-1" style={{ background: `${C.gray}20`, borderRadius: '999px' }}>
         <motion.div className="h-full"
           initial={{ width: 0 }} whileInView={{ width: `${pct}%` }}
@@ -157,21 +226,56 @@ function WeekCard({ week, onSelect, idx }: { week: Week; onSelect: () => void; i
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────────
-export default function SolsticeLanding({ onNavigate }: Props) {
+export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
   const [logoUrl] = useSolsticeLogo();
   const [logoSize] = useSolsticeLogoSize('landing');
   const [logoLayout] = useSolsticeLogoLayout('landingHero');
+  const [pos, setPos] = useSolsticeLogoPosition();
+
+  // Edit mode drag state
+  const [editMode, setEditMode] = useState(false);
+  const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const startRef = useRef({ mx: 0, my: 0, ox: 0, oy: 0 });
+
+  useEffect(() => { if (editMode) setDragPos(pos); }, [editMode]);
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    setIsDragging(true);
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    startRef.current = { mx: e.clientX, my: e.clientY, ox: dragPos.x, oy: dragPos.y };
+    e.preventDefault();
+  };
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    setDragPos({ x: startRef.current.ox + (e.clientX - startRef.current.mx), y: startRef.current.oy + (e.clientY - startRef.current.my) });
+  };
+  const handlePointerUp = () => setIsDragging(false);
+
   const [season, setSeason] = useState<Season | null>(null);
   const [weeks,  setWeeks]  = useState<Week[]>([]);
   const [days,   setDays]   = useState<Day[]>([]);
   const [loading, setLoading] = useState(true);
   const [ctaHovered, setCtaHovered] = useState(false);
+  // CTA sticky: aparece cuando el usuario pasa el hero (~80vh)
+  const [showStickyCta, setShowStickyCta] = useState(false);
+  useEffect(() => {
+    const onScroll = () => {
+      const threshold = window.innerHeight * 0.85;
+      setShowStickyCta(window.scrollY > threshold);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
   const [finalCtaHovered, setFinalCtaHovered] = useState(false);
 
   useEffect(() => {
     document.title = 'SOLSTICE 2026';
     return () => { document.title = 'MIDNIGHT Worldwide'; };
   }, []);
+
+  // Live count de reservas por universidad (clave: university string, valor: count)
+  const [reservedByUni, setReservedByUni] = useState<Record<string, number>>({});
 
   useEffect(() => {
     (async () => {
@@ -187,6 +291,43 @@ export default function SolsticeLanding({ onNavigate }: Props) {
       } catch { /* fallback to defaults below */ }
       finally { setLoading(false); }
     })();
+  }, []);
+
+  // Reservas por semana + realtime — cuando alguien reserva, el contador sube
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadReservedCounts() {
+      try {
+        const { data } = await supabase
+          .from('solstice_registrations')
+          .select('customer_university, status')
+          .neq('status', 'cancelled');
+        if (!data || !mounted) return;
+        const map: Record<string, number> = {};
+        for (const r of data) {
+          const uni = (r.customer_university || '').trim();
+          if (uni) map[uni] = (map[uni] || 0) + 1;
+        }
+        setReservedByUni(map);
+      } catch {}
+    }
+
+    loadReservedCounts();
+
+    const channel = supabase
+      .channel('solstice-landing-registrations')
+      .on(
+        'postgres_changes' as any,
+        { event: '*', schema: 'public', table: 'solstice_registrations' },
+        () => loadReservedCounts(),
+      )
+      .subscribe();
+
+    return () => {
+      mounted = false;
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // Fallbacks if DB is empty
@@ -228,14 +369,79 @@ export default function SolsticeLanding({ onNavigate }: Props) {
 
       {/* ── HERO ── */}
       <section className="relative h-screen flex flex-col items-center justify-center overflow-hidden">
-        <div className="absolute inset-0">
-          <div className="absolute inset-0 z-10" style={{ background: 'rgba(0,0,0,0.65)' }} />
-          <img
-            src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=2000"
-            alt="Atardecer Santa Marta"
-            className="w-full h-full object-cover"
-            style={{ filter: 'grayscale(60%) brightness(0.45)' }}
-          />
+        {/* Atardecer animado de fondo (canvas + gradients) */}
+        <SolsticeAtmosphere className="absolute inset-0" />
+
+        {/* Overlay del hero — el sunset vive en los bordes, el centro queda
+            oscuro para que el texto rojo/cream se lea sin pelearse con el fondo. */}
+        <div
+          aria-hidden
+          className="absolute inset-0 z-10 pointer-events-none"
+          style={{
+            background: `
+              radial-gradient(ellipse 60% 45% at 50% 50%, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.55) 50%, transparent 90%),
+              radial-gradient(ellipse 120% 50% at 50% 105%, rgba(230,57,47,0.30) 0%, transparent 65%),
+              radial-gradient(ellipse 100% 60% at 50% -10%, rgba(20,5,35,0.55) 0%, transparent 70%),
+              linear-gradient(180deg, rgba(0,0,0,0.45) 0%, transparent 40%, transparent 60%, rgba(0,0,0,0.55) 100%)
+            `,
+          }}
+        />
+        {/* Viñeta laterales — oscurece esquinas izquierda/derecha */}
+        <div
+          aria-hidden
+          className="absolute inset-0 z-10 pointer-events-none"
+          style={{
+            background: `
+              radial-gradient(ellipse 50% 100% at 0% 50%, rgba(0,0,0,0.55) 0%, transparent 60%),
+              radial-gradient(ellipse 50% 100% at 100% 50%, rgba(0,0,0,0.55) 0%, transparent 60%)
+            `,
+          }}
+        />
+
+        {/* Decoración: Edition I — chip top */}
+        <motion.div
+          aria-hidden
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1.2, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          className="absolute top-[15%] left-1/2 z-10 pointer-events-none -translate-x-1/2 flex items-center gap-3"
+        >
+          <span style={{ width: 24, height: 1, background: 'rgba(230,57,47,0.45)' }} />
+          <span className="text-[9px] uppercase" style={{ letterSpacing: '0.6em', color: C.red, fontWeight: 600 }}>
+            Edition I
+          </span>
+          <span style={{ width: 24, height: 1, background: 'rgba(230,57,47,0.45)' }} />
+        </motion.div>
+
+        {/* Decoración: partículas estelares sutiles */}
+        <div aria-hidden className="absolute inset-0 z-10 pointer-events-none overflow-hidden">
+          {Array.from({ length: 24 }).map((_, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0 }}
+              animate={{
+                opacity: [0, 0.6, 0],
+                y: [0, -40, -80],
+                x: [0, Math.random() * 30 - 15, Math.random() * 60 - 30],
+              }}
+              transition={{
+                duration: 8 + Math.random() * 6,
+                delay: Math.random() * 5,
+                repeat: Infinity,
+                ease: 'easeOut',
+              }}
+              style={{
+                position: 'absolute',
+                left: `${Math.random() * 100}%`,
+                bottom: '-10px',
+                width: `${1.5 + Math.random() * 2}px`,
+                height: `${1.5 + Math.random() * 2}px`,
+                borderRadius: '999px',
+                background: i % 3 === 0 ? '#E6392F' : i % 3 === 1 ? '#FFB48C' : '#F9F2D7',
+                boxShadow: i % 3 === 0 ? '0 0 6px rgba(230,57,47,0.7)' : '0 0 4px rgba(255,180,140,0.5)',
+              }}
+            />
+          ))}
         </div>
 
         <motion.div
@@ -244,22 +450,63 @@ export default function SolsticeLanding({ onNavigate }: Props) {
           className="relative z-20 text-center px-6 mt-16 md:mt-0 w-full max-w-5xl"
         >
           {logoUrl ? (
-            <div
-              className="mb-6 w-full flex"
-              style={{
-                justifyContent: logoLayout.align === 'left'
-                  ? 'flex-start'
-                  : logoLayout.align === 'right'
-                    ? 'flex-end'
-                    : 'center',
-                transform: `translate(${logoLayout.x}px, ${logoLayout.y}px)`,
-              }}
-            >
-              <img
-                src={logoUrl}
-                alt="SOLSTICE"
-                style={{ height: `${logoSize}px`, maxWidth: '80vw', objectFit: 'contain', opacity: 0.95 }}
-              />
+            <div className="relative inline-block mb-6">
+              {/* Draggable logo wrapper */}
+              <div
+                style={{
+                  transform: editMode
+                    ? `translate(${dragPos.x}px, ${dragPos.y}px)`
+                    : `translate(${pos.x}px, ${pos.y}px)`,
+                  cursor: editMode ? (isDragging ? 'grabbing' : 'grab') : 'default',
+                  transition: isDragging ? 'none' : 'transform 0.25s ease',
+                  touchAction: editMode ? 'none' : 'auto',
+                  userSelect: 'none',
+                }}
+                onPointerDown={editMode ? handlePointerDown : undefined}
+                onPointerMove={editMode ? handlePointerMove : undefined}
+                onPointerUp={editMode ? handlePointerUp : undefined}
+              >
+                <img
+                  src={logoUrl}
+                  alt="SOLSTICE"
+                  draggable={false}
+                  style={{ height: `${logoSize}px`, maxWidth: '80vw', objectFit: 'contain', opacity: 0.95, display: 'block' }}
+                />
+                {/* Edit mode outline */}
+                {editMode && (
+                  <div style={{
+                    position: 'absolute', inset: -8, border: '1px dashed rgba(230,57,47,0.6)',
+                    borderRadius: 8, pointerEvents: 'none',
+                  }}>
+                    <div style={{
+                      position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
+                      background: 'rgba(230,57,47,0.15)', borderRadius: 6, padding: '4px 8px',
+                      display: 'flex', alignItems: 'center', gap: 4,
+                    }}>
+                      <Move size={11} style={{ color: '#E6392F' }} />
+                      <span style={{ fontSize: 9, color: '#E6392F', letterSpacing: '0.15em', textTransform: 'uppercase', fontWeight: 600 }}>arrastra</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Admin edit toggle button — only visible when not in edit mode */}
+              {isAdmin && !editMode && (
+                <button
+                  onClick={() => setEditMode(true)}
+                  style={{
+                    position: 'absolute', top: -10, right: -10,
+                    background: 'rgba(10,0,0,0.85)', border: '0.5px solid rgba(230,57,47,0.5)',
+                    borderRadius: '50%', width: 28, height: 28,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', zIndex: 10, backdropFilter: 'blur(12px)',
+                    transition: 'all 0.2s ease',
+                  }}
+                  title="Editar posición"
+                >
+                  <Move size={13} style={{ color: '#E6392F' }} />
+                </button>
+              )}
             </div>
           ) : (
             <h1 className="uppercase flex items-center justify-center gap-3 leading-none mb-6"
@@ -268,44 +515,183 @@ export default function SolsticeLanding({ onNavigate }: Props) {
                 fontSize: 'clamp(4rem, 14vw, 10rem)',
                 letterSpacing: '-0.02em',
                 fontWeight: 300,
+                color: C.cream,
+                textShadow: '0 4px 32px rgba(0,0,0,0.7), 0 2px 8px rgba(0,0,0,0.5)',
               }}>
               S
               <span className="inline-block rounded-full"
                 style={{
                   width: 'clamp(2.2rem,5vw,5rem)',
                   height: 'clamp(2.2rem,5vw,5rem)',
-                  border: '0.5px solid rgba(230,57,47,0.45)',
+                  border: '0.5px solid rgba(230,57,47,0.55)',
                   borderRadius: '999px',
+                  boxShadow: 'inset 0 0 20px rgba(230,57,47,0.20)',
                 }} />
               LSTICE
             </h1>
           )}
-          <p className="text-sm md:text-2xl mb-3 px-2" style={{ letterSpacing: '0.16em', color: C.red, fontWeight: 300 }}>
-            {s.tagline}
-          </p>
-          <p className="text-xs md:text-sm mb-10 md:mb-14 uppercase" style={{ letterSpacing: '0.08em', color: C.gray, fontWeight: 500 }}>
-            Santa Marta · Sep–Oct 2026 · Una vez al año.
-          </p>
+          {/* Filete decorativo bajo el wordmark — cream/sutil para legibilidad */}
+          <motion.div
+            aria-hidden
+            initial={{ opacity: 0, scaleX: 0 }}
+            animate={{ opacity: 1, scaleX: 1 }}
+            transition={{ duration: 1.2, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            className="mx-auto mb-5"
+            style={{
+              height: 1,
+              width: 'clamp(120px, 30vw, 320px)',
+              background: 'linear-gradient(90deg, transparent 0%, rgba(249,242,215,0.55) 50%, transparent 100%)',
+              transformOrigin: 'center',
+            }}
+          />
+
+          {/* Tagline: cream para máximo contraste sobre el sunset */}
+          <motion.p
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.9, delay: 0.55, ease: [0.16, 1, 0.3, 1] }}
+            className="mb-4 px-2 uppercase"
+            style={{
+              fontSize: 'clamp(0.85rem, 1.7vw, 1.35rem)',
+              letterSpacing: '0.45em',
+              color: C.cream,
+              fontWeight: 400,
+              fontFamily: "'Poiret One', sans-serif",
+              textShadow: '0 2px 16px rgba(0,0,0,0.75), 0 1px 3px rgba(0,0,0,0.55)',
+            }}
+          >
+            Selected beats <span style={{ color: C.red, margin: '0 0.5em' }}>·</span> Private sunset
+          </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.85 }}
+            className="flex items-center justify-center gap-3 mb-10 md:mb-12"
+          >
+            <span style={{ width: 18, height: 0.5, background: 'rgba(249,242,215,0.30)' }} />
+            <p
+              className="text-[10px] md:text-xs uppercase"
+              style={{
+                letterSpacing: '0.35em',
+                color: 'rgba(249,242,215,0.65)',
+                fontWeight: 500,
+                textShadow: '0 1px 6px rgba(0,0,0,0.65)',
+              }}
+            >
+              Santa Marta · Sep–Oct 2026
+            </p>
+            <span style={{ width: 18, height: 0.5, background: 'rgba(249,242,215,0.30)' }} />
+          </motion.div>
+
           <motion.button
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 1.0, ease: [0.16, 1, 0.3, 1] }}
             whileTap={{ scale: 0.97 }}
             onClick={() => onNavigate('reserva')}
-            className="px-12 py-4 text-sm font-medium uppercase"
+            className="px-12 py-4 text-sm font-medium uppercase flex items-center gap-3 mx-auto"
             style={{
-              background: ctaHovered ? 'rgba(230,57,47,0.35)' : 'rgba(230,57,47,0.22)',
+              background: ctaHovered
+                ? 'linear-gradient(135deg, rgba(230,57,47,0.55) 0%, rgba(255,122,0,0.40) 100%)'
+                : 'linear-gradient(135deg, rgba(230,57,47,0.32) 0%, rgba(255,122,0,0.18) 100%)',
               color: C.cream,
-              letterSpacing: '0.08em',
+              letterSpacing: '0.25em',
               borderRadius: '999px',
-              border: '0.5px solid rgba(230,57,47,0.45)',
-              transform: ctaHovered ? 'translateY(-1px)' : 'none',
-              boxShadow: ctaHovered ? '0 8px 24px rgba(230,57,47,0.25)' : 'none',
-              transition: 'all 0.3s ease',
+              border: '0.5px solid rgba(230,57,47,0.55)',
+              transform: ctaHovered ? 'translateY(-2px)' : 'none',
+              boxShadow: ctaHovered
+                ? '0 18px 48px rgba(230,57,47,0.45), inset 0 1px 0 rgba(255,255,255,0.08)'
+                : '0 10px 30px rgba(230,57,47,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+              transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+              cursor: 'pointer',
             }}
             onMouseEnter={() => setCtaHovered(true)}
             onMouseLeave={() => setCtaHovered(false)}
           >
-            RESERVA TU SEMANA
+            <span
+              style={{
+                width: 6, height: 6, borderRadius: 999,
+                background: '#fff',
+                boxShadow: '0 0 8px rgba(255,255,255,0.85)',
+                animation: 'pulse 2s ease-in-out infinite',
+              }}
+            />
+            Reservá tu semana
           </motion.button>
+
+          {/* Stats trust strip debajo del CTA */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.9, delay: 1.25 }}
+            className="flex items-center justify-center gap-5 md:gap-8 mt-8 md:mt-10"
+          >
+            <HeroStat value={String(displayDays.length)} label="Días" />
+            <HeroDivider />
+            <HeroStat value={String(displayWeeks.length)} label="Unis" />
+            <HeroDivider />
+            <HeroStat value={`$${entryK}K`} label="Desde" highlight />
+          </motion.div>
         </motion.div>
+
+        {/* Scroll hint sutil */}
+        <motion.div
+          aria-hidden
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.8, delay: 1.6 }}
+          className="absolute bottom-8 md:bottom-10 left-1/2 -translate-x-1/2 z-20 pointer-events-none flex flex-col items-center gap-2"
+        >
+          <span className="text-[8px] md:text-[9px] uppercase" style={{ letterSpacing: '0.5em', color: `${C.gray}aa`, fontWeight: 500 }}>
+            Scroll
+          </span>
+          <motion.div
+            animate={{ y: [0, 6, 0] }}
+            transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+            style={{ width: 1, height: 26, background: `linear-gradient(180deg, rgba(230,57,47,0.6) 0%, transparent 100%)` }}
+          />
+        </motion.div>
+
+        {/* ── Edit mode floating bar ── */}
+        {editMode && (
+          <div className="fixed bottom-8 left-1/2 z-[220]" style={{ transform: 'translateX(-50%)' }}>
+            <div className="flex items-center gap-3 px-5 py-3" style={{
+              background: 'rgba(6,0,0,0.92)',
+              backdropFilter: 'blur(24px) saturate(160%)',
+              border: '0.5px solid rgba(230,57,47,0.45)',
+              borderRadius: '999px',
+              boxShadow: '0 16px 40px rgba(0,0,0,0.5)',
+            }}>
+              <Move size={13} style={{ color: 'rgba(230,57,47,0.7)', flexShrink: 0 }} />
+              <span style={{ fontSize: 9, color: 'rgba(249,242,215,0.5)', letterSpacing: '0.2em', textTransform: 'uppercase', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                Modo edición
+              </span>
+              <button
+                onClick={() => { setPos(dragPos); setEditMode(false); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[9px] uppercase tracking-widest"
+                style={{ background: 'rgba(230,57,47,0.22)', border: '0.5px solid rgba(230,57,47,0.5)', borderRadius: '999px', color: '#F9F2D7', fontWeight: 600 }}
+              >
+                <Check size={11} /> Guardar
+              </button>
+              <button
+                onClick={() => { setDragPos(pos); setEditMode(false); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[9px] uppercase tracking-widest"
+                style={{ background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '999px', color: 'rgba(249,242,215,0.6)', fontWeight: 500 }}
+              >
+                <XIcon size={11} /> Cancelar
+              </button>
+              <button
+                onClick={() => { setDragPos({ x: 0, y: 0 }); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[9px] uppercase tracking-widest"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '999px', color: 'rgba(249,242,215,0.4)', fontWeight: 500 }}
+                title="Restablecer posición"
+              >
+                <RotateCcw size={11} />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Hero badge */}
         <div className="absolute bottom-10 left-0 right-0 z-20 flex justify-center gap-3 flex-wrap px-4">
@@ -326,9 +712,37 @@ export default function SolsticeLanding({ onNavigate }: Props) {
         </div>
       </section>
 
+      {/* ── MARQUEE ── */}
+      <section className="py-12 md:py-16 border-y" style={{ borderColor: 'rgba(230,57,47,0.15)' }}>
+        <SolsticeMarquee
+          items={['SOLSTICE 2026', 'SANTA MARTA', 'ATARDECER PRIVADO', 'CATAMARÁN', 'UNA VEZ AL AÑO', 'SELECTED BEATS']}
+          speedSeconds={60}
+        />
+      </section>
+
+      {/* ── STATS — counters scroll-triggered ── */}
+      <section className="py-24 px-4 max-w-6xl mx-auto">
+        <p className="text-center text-[10px] uppercase mb-3" style={{ letterSpacing: '0.4em', color: C.red, fontWeight: 600 }}>
+          La tradición
+        </p>
+        <h2 className="text-3xl md:text-4xl text-center mb-16 uppercase"
+          style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '-0.02em', fontWeight: 300, color: C.cream }}>
+          Hechos y números
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-10">
+          <StatBlock icon={<CalIcon />} value={3}    suffix="°"   label="Edición" />
+          <StatBlock icon={<Users />}    value={680}  suffix="+"   label="Asistentes acumulados" />
+          <StatBlock icon={<MapPin />}   value={displayWeeks.length} suffix=""   label="Universidades" />
+          <StatBlock icon={<Sun />}      value={5}    suffix=""   label="Atardeceres en 1 semana" />
+        </div>
+      </section>
+
       {/* ── SEMANAS ── */}
       <section className="py-24 px-4 max-w-7xl mx-auto">
-        <h2 className="text-3xl text-center mb-3 uppercase"
+        <p className="text-center text-[10px] uppercase mb-3" style={{ letterSpacing: '0.4em', color: C.red, fontWeight: 600 }}>
+          Elegí tu fecha
+        </p>
+        <h2 className="text-3xl md:text-4xl text-center mb-3 uppercase"
           style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '-0.02em', fontWeight: 300 }}>
           Semanas Disponibles
         </h2>
@@ -340,10 +754,99 @@ export default function SolsticeLanding({ onNavigate }: Props) {
             <WeekCard
               key={week.id}
               week={week}
+              reserved={reservedByUni[week.university] || 0}
               idx={idx}
               onSelect={() => onNavigate(`reserva:${week.university}`)}
             />
           ))}
+        </div>
+      </section>
+
+      {/* ── ¿QUÉ ES LA VACA? — Explicación del sistema de cuotas ── */}
+      <section className="py-24 px-4" style={{ background: 'rgba(255,255,255,0.015)' }}>
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14">
+            <p className="text-[10px] uppercase mb-3" style={{ letterSpacing: '0.4em', color: C.red, fontWeight: 600 }}>
+              Sistema de pago
+            </p>
+            <h2 className="text-3xl md:text-5xl uppercase mb-4"
+              style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '-0.02em', fontWeight: 300 }}>
+              ¿Qué es <span style={{ color: C.red }}>La Vaca</span>?
+            </h2>
+            <p className="text-sm md:text-base max-w-2xl mx-auto" style={{ color: '#a0a0a8', lineHeight: 1.6 }}>
+              Pensado para estudiantes universitarios: <strong style={{ color: C.cream }}>reservás ahora con ${entryK}K</strong> y
+              pagás el resto en {s.installments} cuotas mensuales. <strong style={{ color: C.cream }}>Sin recargo. Sin interés.</strong> Como hacer una vaca con tus panas, pero conmigo.
+            </p>
+          </div>
+
+          {/* Steps */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-12">
+            {[
+              {
+                n: '01',
+                title: 'Reservás hoy',
+                desc: `Con $${entryK}K asegurás tu lugar. Bold cobra al instante con tu tarjeta o transferencia.`,
+              },
+              {
+                n: '02',
+                title: 'Elegís cómo seguir',
+                desc: '5 modalidades: débito automático, mes a mes, efectivo al promotor, días sueltos, o todo de una.',
+              },
+              {
+                n: '03',
+                title: 'Te avisamos 24h antes',
+                desc: 'WhatsApp + email antes de cada cobro. Cero olvidos. Cero sorpresas.',
+              },
+              {
+                n: '04',
+                title: 'Llegás a Santa Marta',
+                desc: 'Con tu combo pagado, tu lancha asegurada y QR de acceso en tu billetera digital.',
+              },
+            ].map((step, i) => (
+              <motion.div
+                key={step.n}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-50px' }}
+                transition={{ delay: i * 0.1, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                className="p-6"
+                style={{
+                  background: 'rgba(255,255,255,0.035)',
+                  border: '0.5px solid rgba(255,255,255,0.08)',
+                  borderRadius: '20px',
+                  backdropFilter: 'blur(20px)',
+                }}
+              >
+                <p className="text-3xl mb-3 leading-none tabular-nums"
+                  style={{
+                    fontFamily: "'Poiret One', sans-serif",
+                    color: C.red,
+                    fontWeight: 300,
+                    letterSpacing: '-0.02em',
+                  }}>
+                  {step.n}
+                </p>
+                <p className="text-sm uppercase mb-2" style={{ color: C.cream, letterSpacing: '0.08em', fontWeight: 600 }}>
+                  {step.title}
+                </p>
+                <p className="text-[11px]" style={{ color: '#a0a0a8', lineHeight: 1.6 }}>
+                  {step.desc}
+                </p>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Stat row */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <VacaStat icon="✦" value={`${s.installments}`} label="Cuotas mensuales" />
+            <VacaStat icon="✓" value="0%" label="Recargo · Sin interés" highlight />
+            <VacaStat icon="🔒" value="100%" label="Reembolsable hasta 14 días antes" />
+          </div>
+
+          {/* Tagline */}
+          <p className="text-center text-[10px] uppercase mt-12" style={{ letterSpacing: '0.35em', color: `${C.gray}cc`, fontWeight: 500 }}>
+            Cuotas con tarjeta guardada · Bold cobra automático · Avisos por WhatsApp
+          </p>
         </div>
       </section>
 
@@ -403,6 +906,70 @@ export default function SolsticeLanding({ onNavigate }: Props) {
             </button>
           </div>
         </div>
+      </section>
+
+      {/* ── CÓMO SE VIVE — galería inmersiva ── */}
+      <section className="py-24 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 mb-12 text-center">
+          <p className="text-[10px] uppercase mb-3" style={{ letterSpacing: '0.4em', color: C.red, fontWeight: 600 }}>
+            La experiencia
+          </p>
+          <h2 className="text-3xl md:text-4xl uppercase"
+            style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '-0.02em', fontWeight: 300, color: C.cream }}>
+            Cómo se vive
+          </h2>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 px-4">
+          {GALLERY_IMAGES.map((src, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-50px' }}
+              transition={{ delay: i * 0.06, duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+              style={{
+                aspectRatio: i % 3 === 0 ? '3/4' : '1/1',
+                background: '#0a0a0a',
+                borderRadius: '12px',
+                overflow: 'hidden',
+                position: 'relative',
+                border: '0.5px solid rgba(230,57,47,0.15)',
+              }}
+            >
+              <img
+                src={src}
+                alt={`Solstice ${i + 1}`}
+                loading="lazy"
+                decoding="async"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  filter: 'saturate(0.85) brightness(0.85)',
+                  transition: 'transform 0.8s cubic-bezier(0.16, 1, 0.3, 1), filter 0.5s ease',
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLImageElement).style.transform = 'scale(1.05)';
+                  (e.currentTarget as HTMLImageElement).style.filter = 'saturate(1) brightness(1)';
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLImageElement).style.transform = 'scale(1)';
+                  (e.currentTarget as HTMLImageElement).style.filter = 'saturate(0.85) brightness(0.85)';
+                }}
+              />
+              <div
+                style={{
+                  position: 'absolute', inset: 0,
+                  background: 'linear-gradient(180deg, transparent 60%, rgba(0,0,0,0.6) 100%)',
+                  pointerEvents: 'none',
+                }}
+              />
+            </motion.div>
+          ))}
+        </div>
+        <p className="text-center text-[9px] uppercase mt-8" style={{ letterSpacing: '0.4em', color: C.gray, fontWeight: 500 }}>
+          Ediciones pasadas — Santa Marta 2024–2025
+        </p>
       </section>
 
       {/* ── LA VACA ── */}
@@ -514,37 +1081,266 @@ export default function SolsticeLanding({ onNavigate }: Props) {
         </div>
       </section>
 
-      {/* ── CTA FINAL ── */}
-      <section className="py-32 text-center px-4"
-        style={{ background: `linear-gradient(to top, ${C.red}22, transparent)` }}>
-        <h2 className="text-5xl md:text-7xl mb-8 uppercase"
-          style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '-0.02em', fontWeight: 300 }}>
-          Tu semana empieza aquí.
-        </h2>
-        <p className="text-lg mb-12 max-w-xl mx-auto" style={{ color: `${C.cream}cc`, fontWeight: 300 }}>
-          ¿Listo para el atardecer perfecto? Asegura tu cupo con ${entryK},000 hoy.
+      {/* ── VOCES — testimonios ── */}
+      <section className="py-24 px-4 max-w-5xl mx-auto">
+        <p className="text-center text-[10px] uppercase mb-3" style={{ letterSpacing: '0.4em', color: C.red, fontWeight: 600 }}>
+          Voces de ediciones pasadas
         </p>
-        <motion.button
-          whileTap={{ scale: 0.97 }}
-          onClick={() => onNavigate('reserva')}
-          className="flex items-center gap-4 mx-auto px-16 py-5 text-base font-medium uppercase"
-          style={{
-            background: finalCtaHovered ? 'rgba(230,57,47,0.35)' : 'rgba(230,57,47,0.22)',
-            color: '#fff',
-            letterSpacing: '0.08em',
-            borderRadius: '999px',
-            border: '0.5px solid rgba(230,57,47,0.45)',
-            transform: finalCtaHovered ? 'translateY(-1px)' : 'none',
-            boxShadow: finalCtaHovered ? '0 8px 24px rgba(230,57,47,0.25)' : 'none',
-            transition: 'all 0.3s ease',
-          }}
-          onMouseEnter={() => setFinalCtaHovered(true)}
-          onMouseLeave={() => setFinalCtaHovered(false)}
-        >
-          RESERVAR AHORA <ChevronRight size={18} />
-        </motion.button>
+        <h2 className="text-3xl md:text-4xl text-center mb-16 uppercase"
+          style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '-0.02em', fontWeight: 300, color: C.cream }}>
+          Lo que dicen
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {TESTIMONIALS.map((t, i) => (
+            <motion.figure
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-50px' }}
+              transition={{ delay: i * 0.08, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+              style={{
+                background: 'rgba(255,255,255,0.04)',
+                backdropFilter: 'blur(24px)',
+                border: '0.5px solid rgba(255,255,255,0.08)',
+                borderRadius: '20px',
+                padding: '28px 24px',
+                position: 'relative',
+              }}
+            >
+              <Quote size={18} style={{ color: C.red, opacity: 0.6, marginBottom: 12 }} />
+              <blockquote
+                style={{
+                  fontFamily: "'Archivo', sans-serif",
+                  fontWeight: 300,
+                  fontSize: '0.95rem',
+                  lineHeight: 1.55,
+                  color: C.cream,
+                  margin: 0,
+                  marginBottom: 18,
+                }}
+              >
+                "{t.quote}"
+              </blockquote>
+              <figcaption className="text-[10px] uppercase" style={{ letterSpacing: '0.15em', color: C.gray, fontWeight: 500 }}>
+                <strong style={{ color: C.cream, fontWeight: 600 }}>{t.name}</strong>
+                <span style={{ color: `${C.gray}80`, marginLeft: 8 }}>· {t.uni}</span>
+              </figcaption>
+            </motion.figure>
+          ))}
+        </div>
       </section>
+
+      {/* ── CTA FINAL ── */}
+      <section className="relative py-40 text-center px-4 overflow-hidden">
+        {/* Atardecer del CTA */}
+        <div className="absolute inset-0 pointer-events-none">
+          <SolsticeAtmosphere className="absolute inset-0 opacity-50" />
+          <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.85) 80%)' }} />
+        </div>
+        <div className="relative z-10">
+          <p className="text-[10px] uppercase mb-4" style={{ letterSpacing: '0.4em', color: C.red, fontWeight: 600 }}>
+            La hora de tomar la decisión
+          </p>
+          <h2 className="text-5xl md:text-7xl mb-8 uppercase"
+            style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '-0.02em', fontWeight: 300 }}>
+            Tu semana empieza aquí.
+          </h2>
+          <p className="text-lg mb-12 max-w-xl mx-auto" style={{ color: `${C.cream}cc`, fontWeight: 300 }}>
+            ¿Listo para el atardecer perfecto? Asegura tu cupo con <strong style={{ color: C.red }}>${entryK}.000</strong> hoy.
+          </p>
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={() => onNavigate('reserva')}
+            className="inline-flex items-center gap-4 mx-auto px-16 py-5 text-base font-medium uppercase"
+            style={{
+              background: finalCtaHovered ? 'rgba(230,57,47,0.45)' : 'rgba(230,57,47,0.25)',
+              color: '#fff',
+              letterSpacing: '0.08em',
+              borderRadius: '999px',
+              border: '0.5px solid rgba(230,57,47,0.55)',
+              transform: finalCtaHovered ? 'translateY(-2px) scale(1.02)' : 'none',
+              boxShadow: finalCtaHovered ? '0 12px 40px rgba(230,57,47,0.4)' : '0 4px 12px rgba(230,57,47,0.15)',
+              transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+            onMouseEnter={() => setFinalCtaHovered(true)}
+            onMouseLeave={() => setFinalCtaHovered(false)}
+          >
+            RESERVAR AHORA <ChevronRight size={18} />
+          </motion.button>
+          <p className="text-[9px] uppercase mt-8" style={{ letterSpacing: '0.4em', color: `${C.cream}80`, fontWeight: 500 }}>
+            Pago seguro · Cuotas sin interés · Sin multa de cancelación
+          </p>
+        </div>
+      </section>
+
+      {/* ── Sticky CTA — aparece después del hero, baja la fricción de scroll ── */}
+      <AnimatePresence>
+        {showStickyCta && (
+          <motion.div
+            key="solstice-sticky-cta"
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed bottom-0 inset-x-0 z-[180] px-4 pt-4 pb-5 md:pb-6 pointer-events-none"
+            style={{
+              background: 'linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.82) 60%, transparent 100%)',
+            }}
+          >
+            <div className="max-w-md md:max-w-lg mx-auto pointer-events-auto">
+              <button
+                onClick={() => onNavigate('reserva')}
+                className="w-full flex items-center justify-between gap-4 px-5 py-3 md:py-4"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(230,57,47,0.95) 0%, rgba(255,122,0,0.92) 100%)',
+                  color: '#fff',
+                  letterSpacing: '0.15em',
+                  borderRadius: '999px',
+                  fontWeight: 600,
+                  fontSize: 13,
+                  textTransform: 'uppercase',
+                  cursor: 'pointer',
+                  border: '0.5px solid rgba(255,180,140,0.40)',
+                  boxShadow: '0 16px 40px rgba(230,57,47,0.45), 0 0 0 0 rgba(230,57,47,0.4)',
+                  transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                  animation: 'pulse 2.5s ease-in-out infinite',
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)';
+                  (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 20px 50px rgba(230,57,47,0.55)';
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
+                  (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 16px 40px rgba(230,57,47,0.45)';
+                }}
+              >
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div
+                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ background: '#fff', boxShadow: '0 0 8px rgba(255,255,255,0.8)' }}
+                  />
+                  <span className="text-left truncate" style={{ fontFamily: "'Archivo', sans-serif" }}>
+                    Reservá tu Solstice · ${entryK}K
+                  </span>
+                </div>
+                <ChevronRight size={18} className="flex-shrink-0" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
 }
+
+// ─── Hero helpers ────────────────────────────────────────────────────────
+function HeroStat({ value, label, highlight }: { value: string; label: string; highlight?: boolean }) {
+  return (
+    <div className="flex flex-col items-center">
+      <p
+        className="tabular-nums leading-none"
+        style={{
+          fontFamily: "'Poiret One', sans-serif",
+          fontSize: 'clamp(1.4rem, 3vw, 2.2rem)',
+          fontWeight: 300,
+          letterSpacing: '-0.02em',
+          color: highlight ? '#E6392F' : '#F9F2D7',
+        }}
+      >
+        {value}
+      </p>
+      <p className="text-[8px] md:text-[9px] uppercase mt-1.5" style={{ letterSpacing: '0.4em', color: '#606060', fontWeight: 600 }}>
+        {label}
+      </p>
+    </div>
+  );
+}
+
+function HeroDivider() {
+  return <span aria-hidden style={{ width: 0.5, height: 28, background: 'rgba(255,255,255,0.10)' }} />;
+}
+
+function VacaStat({ icon, value, label, highlight }: { icon: string; value: string; label: string; highlight?: boolean }) {
+  return (
+    <div
+      className="p-5 flex items-center gap-4"
+      style={{
+        background: highlight ? 'rgba(230,57,47,0.10)' : 'rgba(255,255,255,0.03)',
+        border: highlight ? '0.5px solid rgba(230,57,47,0.40)' : '0.5px solid rgba(255,255,255,0.08)',
+        borderRadius: '20px',
+        backdropFilter: 'blur(24px)',
+      }}
+    >
+      <span
+        className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center"
+        style={{
+          background: highlight ? '#E6392F' : 'rgba(255,255,255,0.05)',
+          color: highlight ? '#fff' : '#E6392F',
+          fontSize: 16,
+        }}
+      >
+        {icon}
+      </span>
+      <div>
+        <p className="text-2xl leading-none tabular-nums"
+          style={{
+            fontFamily: "'Poiret One', sans-serif",
+            color: highlight ? '#E6392F' : '#F9F2D7',
+            fontWeight: 300,
+            letterSpacing: '-0.02em',
+          }}>
+          {value}
+        </p>
+        <p className="text-[10px] uppercase mt-1.5" style={{ letterSpacing: '0.25em', color: '#606060', fontWeight: 500 }}>
+          {label}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Subcomponentes y data estática
+// ─────────────────────────────────────────────────────────────────────────────
+
+const GALLERY_IMAGES = [
+  'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=800',
+  'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&q=80&w=800',
+  'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?auto=format&fit=crop&q=80&w=800',
+  'https://images.unsplash.com/photo-1519682337058-a94d519337bc?auto=format&fit=crop&q=80&w=800',
+  'https://images.unsplash.com/photo-1551244072-5d12893278ab?auto=format&fit=crop&q=80&w=800',
+  'https://images.unsplash.com/photo-1502920917128-1aa500764cbd?auto=format&fit=crop&q=80&w=800',
+  'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&q=80&w=800',
+  'https://images.unsplash.com/photo-1533777324565-a040eb52facd?auto=format&fit=crop&q=80&w=800',
+];
+
+const TESTIMONIALS = [
+  { quote: 'El catamarán fue otra cosa. Nunca había vivido un atardecer así con mis panas.', name: 'Camila R.', uni: 'Javeriana 2025' },
+  { quote: 'La organización impecable. Pagás en cuotas, llegás, todo listo.', name: 'Daniel M.',  uni: 'Los Andes 2024' },
+  { quote: 'Fui sola y conocí a media universidad. La energía es real.',                    name: 'Mariana O.', uni: 'CESA 2025' },
+];
+
+// Counter animado scroll-triggered
+const StatBlock: React.FC<{ icon: React.ReactNode; value: number; suffix?: string; label: string }> = ({ icon, value, suffix = '', label }) => {
+  const { value: animated, ref } = useCountUp(value, { duration: 1800 });
+  return (
+    <div ref={ref as any} className="text-center" style={{ color: '#F9F2D7' }}>
+      <div className="inline-flex items-center justify-center w-12 h-12 mb-4"
+        style={{
+          border: '0.5px solid rgba(230,57,47,0.35)',
+          borderRadius: '999px',
+          color: '#E6392F',
+        }}>
+        {icon}
+      </div>
+      <p className="text-4xl md:text-6xl mb-2 tabular-nums"
+        style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '-0.02em', fontWeight: 300 }}>
+        {animated}{suffix}
+      </p>
+      <p className="text-[10px] uppercase" style={{ letterSpacing: '0.2em', color: '#606060', fontWeight: 500 }}>
+        {label}
+      </p>
+    </div>
+  );
+};

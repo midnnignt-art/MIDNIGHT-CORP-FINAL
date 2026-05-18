@@ -3,7 +3,33 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-bold-signature',
+}
+
+// Compara dos strings en tiempo constante para evitar timing attacks
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false
+  let result = 0
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  }
+  return result === 0
+}
+
+// HMAC-SHA256(secret, payload) → hex
+async function hmacSha256Hex(secret: string, payload: string): Promise<string> {
+  const enc = new TextEncoder()
+  const key = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(payload))
+  return Array.from(new Uint8Array(sig))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('')
 }
 
 // @ts-ignore
@@ -20,7 +46,40 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const payload = await req.json()
+    // Body crudo (necesario para HMAC) — parseamos después
+    const rawBody = await req.text()
+    // @ts-ignore
+    const WEBHOOK_SECRET = Deno.env.get('BOLD_WEBHOOK_SECRET') ?? Deno.env.get('BOLD_SECRET_KEY') ?? ''
+    // @ts-ignore
+    const REQUIRE_SIGNATURE = (Deno.env.get('BOLD_WEBHOOK_REQUIRE_SIGNATURE') ?? 'false').toLowerCase() === 'true'
+    const signatureHeader = req.headers.get('x-bold-signature') ?? req.headers.get('X-Bold-Signature') ?? ''
+
+    if (WEBHOOK_SECRET) {
+      const expected = await hmacSha256Hex(WEBHOOK_SECRET, rawBody)
+      const provided = signatureHeader.trim().toLowerCase()
+      const valid = provided.length > 0 && timingSafeEqual(expected, provided)
+
+      if (!valid) {
+        if (REQUIRE_SIGNATURE) {
+          console.error('❌ Firma de webhook inválida o ausente — rechazando')
+          return new Response(JSON.stringify({ error: 'Invalid signature' }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 401,
+          })
+        }
+        console.warn('⚠️ Firma de webhook inválida o ausente (modo soft — activa BOLD_WEBHOOK_REQUIRE_SIGNATURE=true en producción)')
+      } else {
+        console.log('🔐 Firma de webhook verificada')
+      }
+    } else if (REQUIRE_SIGNATURE) {
+      console.error('❌ BOLD_WEBHOOK_SECRET no configurado pero firma requerida — rechazando')
+      return new Response(JSON.stringify({ error: 'Webhook secret not configured' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      })
+    }
+
+    const payload = JSON.parse(rawBody)
     console.log("🔔 WEBHOOK BOLD:", JSON.stringify(payload));
 
     const eventType      = payload.type;
@@ -45,6 +104,61 @@ Deno.serve(async (req) => {
     } else {
       console.log(`ℹ️ Evento no terminal: ${eventType} — ignorado`);
       return new Response(JSON.stringify({ message: "Event ignored", type: eventType }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    }
+
+    // ─── Rama Solstice: cuotas individuales pagadas online ────────────────
+    // Formato del reference: SOL-CUOTA-{scheduleId} (sin guiones del uuid)
+    // Solo procesamos SALE_APPROVED — los rejected dejan la cuota en su estado.
+    if (typeof reference === 'string' && reference.startsWith('SOL-CUOTA-')) {
+      if (newStatus !== 'completed') {
+        console.log(`ℹ️ Cuota Solstice ${reference} con status ${newStatus} — no se marca paid`);
+        return new Response(JSON.stringify({ success: true, kind: 'solstice_cuota', not_approved: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        });
+      }
+
+      // Buscar por bold_order_ref para evitar problemas de formato del uuid
+      const { data: schedule } = await supabase
+        .from('solstice_payment_schedules')
+        .select('id, registration_id, status, amount')
+        .eq('bold_order_ref', reference)
+        .maybeSingle();
+
+      if (!schedule) {
+        console.error(`❌ Cuota Solstice no encontrada para ref ${reference}`);
+        return new Response(JSON.stringify({ error: 'cuota not found' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        });
+      }
+
+      // Idempotente vía función SQL
+      const { data: result, error: rpcErr } = await supabase.rpc('fn_solstice_mark_cuota_paid', {
+        p_schedule_id:    schedule.id,
+        p_bold_payment_id: boldPaymentId,
+      });
+
+      if (rpcErr) {
+        console.error(`❌ RPC error marking cuota ${schedule.id}:`, rpcErr.message);
+        return new Response(JSON.stringify({ error: rpcErr.message }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        });
+      }
+
+      const row = Array.isArray(result) && result[0] ? result[0] : null;
+      console.log(`✅ Cuota Solstice ${schedule.id} procesada · was_pending=${row?.was_pending}`);
+
+      return new Response(JSON.stringify({
+        success:     true,
+        kind:        'solstice_cuota',
+        schedule_id: schedule.id,
+        was_pending: row?.was_pending ?? false,
+      }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       });

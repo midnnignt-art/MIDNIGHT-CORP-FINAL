@@ -1,14 +1,19 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { motion as _motion, AnimatePresence } from 'framer-motion';
-import { QrCode, Ticket, ChevronLeft, ChevronRight, Send, X, Loader2 } from 'lucide-react';
+import { QrCode, Ticket, ChevronLeft, ChevronRight, Send, X, Loader2, Sparkles, BarChart2, Users, Calendar, Copy, Check, MessageCircle } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { MidnightTicketCard } from './MidnightTicketCard';
+import { PaseBadge } from './PaseBadge';
 import { toast } from '../lib/toast';
+import { supabase } from '../lib/supabase';
 
 const motion = _motion as any;
 
+type WalletTab = 'upcoming' | 'past' | 'pase' | 'stats' | 'referrals';
+
 export default function TicketWallet() {
   const { orders, events, currentCustomer, currentUser, transferTicket } = useStore();
+  const [tab, setTab] = useState<WalletTab>('upcoming');
   const [viewMode, setViewMode] = useState<'carousel' | 'list'>('carousel');
   const [filterEventId, setFilterEventId] = useState<string>('all');
   const [[page, direction], setPage] = useState([0, 0]);
@@ -20,16 +25,31 @@ export default function TicketWallet() {
 
   const effectiveEmail = currentCustomer?.email || currentUser?.email || null;
 
-  const myOrders = useMemo(() => {
+  // Todas las órdenes completadas del cliente (sin filtrar por tab)
+  const allMyOrders = useMemo(() => {
     if (!effectiveEmail) return [];
     const userEmail = effectiveEmail.toLowerCase().trim();
     return orders.filter(o => {
       const orderEmail = o.customer_email ? o.customer_email.toLowerCase().trim() : '';
-      const matchesEmail = orderEmail === userEmail && o.status === 'completed';
-      const matchesEvent = filterEventId === 'all' || o.event_id === filterEventId;
-      return matchesEmail && matchesEvent;
+      return orderEmail === userEmail && o.status === 'completed';
     }).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  }, [orders, effectiveEmail, filterEventId]);
+  }, [orders, effectiveEmail]);
+
+  // Filtrar por tab (upcoming/past) + filterEventId
+  const myOrders = useMemo(() => {
+    const now = Date.now();
+    return allMyOrders.filter(o => {
+      const matchesEvent = filterEventId === 'all' || o.event_id === filterEventId;
+      if (!matchesEvent) return false;
+      if (tab === 'upcoming' || tab === 'past') {
+        const ev = events.find(e => e.id === o.event_id);
+        if (!ev) return tab === 'upcoming'; // si no encontramos el evento, asumimos próximo
+        const isFuture = new Date(ev.event_date).getTime() > now;
+        return tab === 'upcoming' ? isFuture : !isFuture;
+      }
+      return true;
+    });
+  }, [allMyOrders, filterEventId, tab, events]);
 
   React.useEffect(() => {
     if (page >= myOrders.length && myOrders.length > 0) {
@@ -207,20 +227,52 @@ export default function TicketWallet() {
         )}
       </AnimatePresence>
 
-      {/* ── FILTERS & VIEW TOGGLE ─────────────────────────────────────────── */}
-      <FilterBar
-        filterEventId={filterEventId}
-        setFilterEventId={(v: string) => { setFilterEventId(v); setPage([0, 0]); }}
-        viewMode={viewMode}
-        setViewMode={setViewMode}
-        events={events}
-        orders={orders}
-        currentCustomer={currentCustomer}
-        showViewToggle
-      />
+      {/* ── Solstice reservation banner — siempre visible arriba si tienes reserva activa ── */}
+      {effectiveEmail && <SolsticeReservationBanner email={effectiveEmail} />}
 
-      {/* ── CAROUSEL MODE ─────────────────────────────────────────────────── */}
-      {viewMode === 'carousel' ? (
+      {/* ── TABS — Mi Midnight expandido ──────────────────────────────────── */}
+      <WalletTabs tab={tab} setTab={setTab} />
+
+      {/* Sub-tabs que NO son carousel de tickets */}
+      {tab === 'pase' && (
+        <div className="max-w-md mx-auto">
+          <PaseBadge email={effectiveEmail} variant="full" />
+        </div>
+      )}
+      {tab === 'stats' && <StatsTab orders={allMyOrders} events={events} />}
+      {tab === 'referrals' && <ReferralsTab email={effectiveEmail} customerName={currentCustomer?.user_metadata?.full_name ?? currentUser?.name ?? ''} />}
+
+      {/* ── FILTERS & VIEW TOGGLE — solo en upcoming/past ─────────────────── */}
+      {(tab === 'upcoming' || tab === 'past') && (
+        <FilterBar
+          filterEventId={filterEventId}
+          setFilterEventId={(v: string) => { setFilterEventId(v); setPage([0, 0]); }}
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          events={events}
+          orders={orders}
+          currentCustomer={currentCustomer}
+          showViewToggle
+        />
+      )}
+
+      {/* ── CAROUSEL / LIST — solo en upcoming/past con órdenes ───────────── */}
+      {(tab === 'upcoming' || tab === 'past') && myOrders.length === 0 && (
+        <div className="text-center py-12 px-6 border border-moonlight/8 rounded-3xl bg-midnight/30 backdrop-blur-sm max-w-md mx-auto">
+          <div className="w-14 h-14 bg-eclipse/15 rounded-full flex items-center justify-center mb-4 mx-auto border border-eclipse/20">
+            <Ticket className="w-7 h-7 text-eclipse" />
+          </div>
+          <p className="text-moonlight/60 text-sm font-medium">
+            {tab === 'upcoming' ? 'No tenés entradas próximas' : 'No tenés eventos pasados todavía'}
+          </p>
+          {tab === 'upcoming' && (
+            <a href="/" className="text-eclipse text-[10px] font-black uppercase tracking-widest hover:text-neon-purple transition-colors mt-3 inline-block">
+              Ver eventos disponibles →
+            </a>
+          )}
+        </div>
+      )}
+      {(tab === 'upcoming' || tab === 'past') && myOrders.length > 0 && (viewMode === 'carousel' ? (
         <div className="relative w-full max-w-sm mx-auto">
 
           {/* Carousel slide container — clips x, lets y breathe */}
@@ -325,10 +377,194 @@ export default function TicketWallet() {
             </div>
           ))}
         </div>
-      )}
+      ))}
     </div>
   );
 }
+
+// ── Tabs de Mi Midnight ────────────────────────────────────────────────────
+
+const WalletTabs: React.FC<{ tab: WalletTab; setTab: (t: WalletTab) => void }> = ({ tab, setTab }) => {
+  const tabs: { key: WalletTab; label: string; icon: React.ReactNode }[] = [
+    { key: 'upcoming',  label: 'Próximos',     icon: <Ticket size={12} /> },
+    { key: 'past',      label: 'Pasados',      icon: <Calendar size={12} /> },
+    { key: 'pase',      label: 'Mi Pase',      icon: <Sparkles size={12} /> },
+    { key: 'stats',     label: 'Estadísticas', icon: <BarChart2 size={12} /> },
+    { key: 'referrals', label: 'Referidos',    icon: <Users size={12} /> },
+  ];
+  return (
+    <div className="flex items-center gap-1.5 overflow-x-auto pb-3 mb-6 -mx-4 px-4 scrollbar-hide">
+      {tabs.map(t => (
+        <button
+          key={t.key}
+          onClick={() => setTab(t.key)}
+          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.25em] whitespace-nowrap transition-all border ${
+            tab === t.key
+              ? 'bg-moonlight text-void border-moonlight'
+              : 'bg-transparent text-moonlight/45 border-moonlight/15 hover:text-moonlight hover:border-moonlight/35'
+          }`}
+        >
+          {t.icon}
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+};
+
+// ── StatsTab — estadísticas del cliente ──────────────────────────────────
+
+const StatsTab: React.FC<{ orders: any[]; events: any[] }> = ({ orders, events }) => {
+  const stats = useMemo(() => {
+    const eventIds = Array.from(new Set(orders.map(o => o.event_id)));
+    const totalSpent = orders.reduce((s, o) => s + Number(o.total || 0), 0);
+    const cities = Array.from(new Set(orders.map(o => {
+      const ev = events.find(e => e.id === o.event_id);
+      return ev?.city;
+    }).filter(Boolean)));
+    const venues = Array.from(new Set(orders.map(o => {
+      const ev = events.find(e => e.id === o.event_id);
+      return ev?.venue;
+    }).filter(Boolean)));
+    const firstPurchase = orders.length > 0 ? new Date(orders[orders.length - 1].timestamp) : null;
+    return {
+      eventsCount: eventIds.length,
+      totalSpent,
+      cities,
+      venues,
+      firstPurchase,
+      avgTicket: orders.length > 0 ? totalSpent / orders.length : 0,
+    };
+  }, [orders, events]);
+
+  if (orders.length === 0) {
+    return (
+      <div className="text-center py-12 px-6 border border-moonlight/8 rounded-3xl bg-midnight/30 backdrop-blur-sm max-w-md mx-auto">
+        <BarChart2 className="w-8 h-8 text-moonlight/30 mx-auto mb-3" />
+        <p className="text-moonlight/55 text-sm">Sin estadísticas todavía. Comprá tu primer ticket.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto grid grid-cols-2 gap-3 md:gap-4">
+      <StatCell label="Eventos asistidos" value={String(stats.eventsCount)} />
+      <StatCell label="Total invertido" value={`$${Math.round(stats.totalSpent / 1000)}K`} hint="COP" />
+      <StatCell label="Ticket promedio" value={`$${Math.round(stats.avgTicket / 1000)}K`} hint="COP" />
+      <StatCell label="Ciudades" value={String(stats.cities.length)} hint={stats.cities.slice(0, 2).join(' · ')} />
+      <StatCell
+        label="Primera vez"
+        value={stats.firstPurchase ? stats.firstPurchase.toLocaleDateString('es-CO', { month: 'short', year: 'numeric' }).toUpperCase() : '—'}
+        hint={stats.firstPurchase ? `hace ${Math.floor((Date.now() - stats.firstPurchase.getTime()) / (1000 * 60 * 60 * 24))} días` : undefined}
+      />
+      <StatCell
+        label="Venue favorito"
+        value={stats.venues[0] ?? '—'}
+        hint={stats.venues.length > 1 ? `+ ${stats.venues.length - 1} más` : undefined}
+      />
+    </div>
+  );
+};
+
+const StatCell: React.FC<{ label: string; value: string; hint?: string }> = ({ label, value, hint }) => (
+  <div className="rounded-2xl border border-moonlight/10 bg-midnight/30 p-4 md:p-5">
+    <p className="text-[9px] font-black tracking-[0.3em] text-moonlight/40 uppercase mb-2">{label}</p>
+    <p className="text-xl md:text-2xl font-black text-moonlight tabular-nums tracking-tight">{value}</p>
+    {hint && <p className="text-[10px] text-moonlight/40 font-light mt-1 truncate">{hint}</p>}
+  </div>
+);
+
+// ── ReferralsTab — código + invitados + crédito ──────────────────────────
+
+const ReferralsTab: React.FC<{ email: string | null; customerName: string }> = ({ email, customerName }) => {
+  const [code, setCode] = useState<string | null>(null);
+  const [invites, setInvites] = useState(0);
+  const [credit, setCredit] = useState(0);
+  const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!email) { setLoading(false); return; }
+    (async () => {
+      const e = email.toLowerCase();
+      // Buscar referral existente
+      const { data: existing } = await supabase.from('customer_referrals').select('*').eq('email', e).maybeSingle();
+      if (existing) {
+        setCode(existing.code);
+        setInvites(Number(existing.invites_count) || 0);
+        setCredit(Number(existing.credit_amount) || 0);
+        setLoading(false);
+        return;
+      }
+      // Generar nuevo
+      const prefix = (customerName.split(' ')[0] || 'MID').toUpperCase().slice(0, 4).replace(/[^A-Z]/g, '') || 'MID';
+      const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
+      const newCode = `${prefix}${suffix}`;
+      const { error } = await supabase.from('customer_referrals').insert({ email: e, code: newCode });
+      if (!error) {
+        setCode(newCode);
+      }
+      setLoading(false);
+    })();
+  }, [email, customerName]);
+
+  if (loading) {
+    return <div className="max-w-md mx-auto p-8 text-center text-moonlight/40 text-sm"><Loader2 className="animate-spin mx-auto" /></div>;
+  }
+  if (!email || !code) {
+    return <div className="max-w-md mx-auto p-8 text-center text-moonlight/50 text-sm">Iniciá sesión para activar tu programa de referidos.</div>;
+  }
+
+  const link = `https://midnightcorp.click/?ref=${code}`;
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      toast.success('Link copiado');
+      setTimeout(() => setCopied(false), 2000);
+    } catch { toast.error('No pudimos copiar'); }
+  };
+
+  const handleWhatsApp = () => {
+    const msg = `Te invito a Midnight. Si comprás con mi link, ambos ganamos crédito 🌙\n${link}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-4">
+      <div className="rounded-2xl border border-eclipse/40 bg-eclipse/10 p-5 md:p-6">
+        <div className="flex items-center gap-2 mb-2">
+          <Users size={14} className="text-eclipse" />
+          <p className="text-[10px] font-black tracking-[0.3em] text-moonlight uppercase">Tu código</p>
+        </div>
+        <p className="text-3xl md:text-4xl font-black text-moonlight tracking-tighter font-mono mb-3">{code}</p>
+        <p className="text-xs text-moonlight/55 mb-4 leading-relaxed">
+          Compartí este link. Cuando un amigo compra, vos ganás <strong className="text-moonlight">$10K crédito</strong> y él 10% off su primera compra.
+        </p>
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 bg-void/60 border border-moonlight/10 rounded-xl px-3 py-2">
+            <code className="flex-1 text-[11px] text-moonlight font-mono truncate">{link}</code>
+            <button onClick={handleCopy} className="text-moonlight/60 hover:text-moonlight transition-colors">
+              {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+            </button>
+          </div>
+          <button
+            onClick={handleWhatsApp}
+            className="w-full h-11 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 font-black text-[11px] uppercase tracking-[0.25em] rounded-xl flex items-center justify-center gap-2 transition-colors"
+          >
+            <MessageCircle size={14} /> Compartir por WhatsApp
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <StatCell label="Invitados" value={String(invites)} hint={invites === 0 ? 'Aún ninguno' : invites === 1 ? 'amigo' : 'amigos'} />
+        <StatCell label="Crédito acumulado" value={`$${Math.round(credit / 1000)}K`} hint="COP — canjeable" />
+      </div>
+    </div>
+  );
+};
 
 /* ── Filter Bar sub-component ──────────────────────────────────────────────── */
 function FilterBar({ filterEventId, setFilterEventId, viewMode, setViewMode, events, orders, effectiveEmail, showViewToggle }: any) {
@@ -374,3 +610,160 @@ function FilterBar({ filterEventId, setFilterEventId, viewMode, setViewMode, eve
     </div>
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Solstice reservation banner — visible si el cliente tiene reserva activa
+// Da entrada cinematográfica a /sol (MiSemana) desde el wallet de Midnight.
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface SolsticeReg {
+  id: string;
+  customer_name: string;
+  customer_university: string;
+  status: string;
+  amount_paid: number;
+  total_amount: number;
+  installments_remaining: number;
+  week: { university: string; start_date: string; end_date: string } | null;
+}
+
+const SolsticeReservationBanner: React.FC<{ email: string }> = ({ email }) => {
+  const [reg, setReg]       = useState<SolsticeReg | null>(null);
+  const [loading, setL]     = useState(true);
+  const [countdown, setCd]  = useState<{ days: number; hours: number; mins: number } | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('solstice_registrations')
+          .select('id, customer_name, customer_university, status, amount_paid, total_amount, installments_remaining, solstice_weeks(university, start_date, end_date)')
+          .eq('customer_email', email)
+          .neq('status', 'cancelled')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (mounted) {
+          if (data) {
+            const r: any = data;
+            setReg({ ...r, week: r.solstice_weeks ?? null });
+          } else {
+            setReg(null);
+          }
+        }
+      } catch {
+        if (mounted) setReg(null);
+      } finally {
+        if (mounted) setL(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [email]);
+
+  useEffect(() => {
+    if (!reg?.week?.start_date) {
+      setCd(null);
+      return;
+    }
+    const calc = () => {
+      const diff = new Date(reg.week!.start_date + 'T00:00:00').getTime() - Date.now();
+      if (diff <= 0) return { days: 0, hours: 0, mins: 0 };
+      return {
+        days:  Math.floor(diff / 86400000),
+        hours: Math.floor((diff % 86400000) / 3600000),
+        mins:  Math.floor((diff % 3600000) / 60000),
+      };
+    };
+    setCd(calc());
+    const id = setInterval(() => setCd(calc()), 30_000);
+    return () => clearInterval(id);
+  }, [reg?.week?.start_date]);
+
+  if (loading || !reg) return null;
+
+  const firstName = (reg.customer_name || '').split(' ')[0] || 'Tu pase';
+  const paidK     = Math.round(reg.amount_paid / 1000);
+  const totalK    = Math.round(reg.total_amount / 1000);
+  const progressPct = reg.total_amount > 0 ? Math.min(100, (reg.amount_paid / reg.total_amount) * 100) : 0;
+  const isComplete  = reg.installments_remaining === 0;
+
+  return (
+    <motion.a
+      href="/sol"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      className="block relative overflow-hidden mb-6"
+      style={{
+        background: 'linear-gradient(135deg, rgba(230,57,47,0.18) 0%, rgba(255,122,0,0.08) 100%)',
+        border: '0.5px solid rgba(230,57,47,0.40)',
+        borderRadius: '24px',
+        padding: '22px 24px',
+        textDecoration: 'none',
+        color: '#F9F2D7',
+        boxShadow: '0 20px 40px rgba(230,57,47,0.10)',
+      }}
+    >
+      {/* Atmospheric glow */}
+      <div
+        aria-hidden
+        style={{
+          position: 'absolute',
+          right: '-15%', top: '-30%',
+          width: '300px', height: '300px',
+          background: 'radial-gradient(circle, rgba(230,57,47,0.30) 0%, transparent 70%)',
+          filter: 'blur(40px)',
+          pointerEvents: 'none',
+        }}
+      />
+
+      <div className="relative z-10 flex items-center gap-5">
+        <div
+          className="flex-shrink-0 w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center"
+          style={{
+            background: 'linear-gradient(135deg, #E6392F, #FF7A00)',
+            boxShadow: '0 8px 24px rgba(230,57,47,0.45)',
+          }}
+        >
+          <Sparkles size={20} color="#fff" />
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <p className="text-[9px] md:text-[10px] uppercase mb-1" style={{ letterSpacing: '0.4em', color: '#E6392F', fontWeight: 700 }}>
+            Solstice 2026 · {reg.week?.university || reg.customer_university}
+          </p>
+          <p className="text-base md:text-lg" style={{ fontFamily: "'Poiret One', sans-serif", fontWeight: 300, letterSpacing: '-0.01em', lineHeight: 1.2 }}>
+            {countdown && countdown.days > 0 ? (
+              <>Faltan <strong style={{ color: '#fff' }}>{countdown.days}</strong> días, {firstName}</>
+            ) : isComplete ? (
+              <>Listo, {firstName} · combo 100% pagado ✓</>
+            ) : (
+              <>Tu reserva está activa, {firstName}</>
+            )}
+          </p>
+
+          <div className="flex items-center gap-3 mt-2">
+            <div className="flex-1 max-w-[200px] h-[2px] rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+              <div style={{
+                width: `${progressPct}%`,
+                height: '100%',
+                background: isComplete ? '#10b981' : '#E6392F',
+                transition: 'width 0.6s ease',
+              }} />
+            </div>
+            <span className="text-[10px] uppercase tabular-nums whitespace-nowrap" style={{
+              color: 'rgba(249,242,215,0.65)',
+              letterSpacing: '0.2em',
+              fontWeight: 500,
+            }}>
+              ${paidK}K / ${totalK}K
+            </span>
+          </div>
+        </div>
+
+        <ChevronRight size={18} style={{ color: '#E6392F', flexShrink: 0 }} />
+      </div>
+    </motion.a>
+  );
+};

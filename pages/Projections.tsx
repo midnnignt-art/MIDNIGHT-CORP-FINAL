@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
 import { UserRole, Event, TicketTier, EventCost, Order } from '../types';
+import { isAdminLevel } from '../lib/permissions';
 import { 
     TrendingUp, Target, Wallet, BarChart2, Activity, Zap, 
     Plus, Trash2, ShieldAlert, Receipt, DollarSign, Briefcase, 
@@ -38,7 +39,7 @@ interface ScenarioResult {
 }
 
 export const Projections: React.FC<ProjectionsProps> = ({ role }) => {
-    const { events, getEventTiers, addEventCost, deleteEventCost, updateCostStatus, orders, promoters, teams } = useStore();
+    const { events, getEventTiers, addEventCost, deleteEventCost, updateCostStatus, orders, promoters, teams, currentUser } = useStore();
     const [selectedEventId, setSelectedEventId] = useState<string>('');
     const [scenarios, setScenarios] = useState<ScenarioResult[]>([]);
     
@@ -183,7 +184,7 @@ export const Projections: React.FC<ProjectionsProps> = ({ role }) => {
         // 4. Procesar Independientes
         const independentPromoters = promoters.filter(p => 
             !p.sales_team_id && 
-            p.role !== UserRole.ADMIN &&
+            !isAdminLevel(p.role) &&
             !teamManagerIds.includes(p.user_id) // FIX: Ensure managers are not counted twice
         );
 
@@ -198,9 +199,12 @@ export const Projections: React.FC<ProjectionsProps> = ({ role }) => {
         }
 
         // 5. Procesar Orgánico + Admin
-        const adminPromoters = promoters.filter(p => p.role === UserRole.ADMIN);
+        const adminPromoters = promoters.filter(p => isAdminLevel(p.role));
         const adminIds = adminPromoters.map(p => p.user_id);
         if (!adminIds.includes('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11')) adminIds.push('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
+        if (currentUser?.role === UserRole.SUPER_ADMIN && currentUser.user_id && !adminIds.includes(currentUser.user_id)) {
+            adminIds.push(currentUser.user_id);
+        }
 
         const organicOrders = filteredOrders.filter(o => !o.staff_id || adminIds.includes(o.staff_id));
         if (organicOrders.length > 0) {

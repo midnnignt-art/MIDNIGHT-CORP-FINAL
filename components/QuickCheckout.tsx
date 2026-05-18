@@ -7,6 +7,10 @@ import TicketSelector from './TicketSelector';
 import { useStore } from '../context/StoreContext';
 import { supabase } from '../lib/supabase';
 import { toast } from '../lib/toast';
+import { isValidEmail, isValidOtp, isValidName, normalizeEmail } from '../lib/validation';
+import TurnstileWidget from './TurnstileWidget';
+
+const TURNSTILE_ENABLED = !!(import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined);
 
 const motion = _motion as any;
 
@@ -30,11 +34,19 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
   const [authError, setAuthError] = useState('');
   
   const [isProcessing, setIsProcessing] = useState(false);
-  const [pendingOrder, setPendingOrder] = useState<Order | null>(null); 
+  const [pendingOrder, setPendingOrder] = useState<Order | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'paid' | 'failed'>('pending');
-  
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+
   const [gatewayStatus, setGatewayStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [gatewayMessage, setGatewayMessage] = useState('');
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setInterval(() => setResendCooldown(s => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(t);
+  }, [resendCooldown]);
 
   // Read applied discount from sessionStorage (set by DiscountLanding, lives only for this tab session)
   const [appliedDiscount] = useState(() => {
@@ -95,16 +107,7 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
                  }
             }
 
-            // SEND EMAIL WITH ALL TICKETS
-            const allOrders = (pendingOrder as any)._groupOrders || [pendingOrder];
-            import('../services/emailService').then(({ sendTicketEmail }) => {
-                // Ensure timestamp is present for email template
-                const ordersWithTimestamp = allOrders.map((o: any) => ({
-                    ...o,
-                    timestamp: o.timestamp || o.created_at || new Date().toISOString()
-                }));
-                sendTicketEmail(ordersWithTimestamp, event).catch(console.error);
-            });
+            // Email se envía desde el webhook (servidor) — no desde el browser
 
             setTimeout(() => {
               window.location.href = `/gracias?order=${pendingOrder.order_number}`;
@@ -234,40 +237,61 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
   };
 
   const handleRequestOtp = async () => {
-    if (!email.includes('@')) return setAuthError('Email inválido');
+    if (!isValidName(name)) return setAuthError('Ingresa tu nombre completo');
+    if (!isValidEmail(email)) return setAuthError('Email inválido');
+    if (TURNSTILE_ENABLED && !captchaToken) return setAuthError('Completa la verificación');
     setIsAuthLoading(true);
     setAuthError('');
-    const res = await requestCustomerOtp(email, { full_name: name, phone: phone });
+    const res = await requestCustomerOtp(normalizeEmail(email), { full_name: name.trim(), phone: phone.trim() }, captchaToken ?? undefined);
     setIsAuthLoading(false);
-    if (res.success) setStep(1.5); 
-    else setAuthError(translateError(res.message));
+    if (res.success) { setStep(1.5); setResendCooldown(30); }
+    else { setAuthError(translateError(res.message)); setCaptchaToken(null); }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0 || isAuthLoading) return;
+    if (TURNSTILE_ENABLED && !captchaToken) return setAuthError('Completa la verificación');
+    setIsAuthLoading(true);
+    setAuthError('');
+    const res = await requestCustomerOtp(normalizeEmail(email), { full_name: name.trim(), phone: phone.trim() }, captchaToken ?? undefined);
+    setIsAuthLoading(false);
+    if (res.success) { setResendCooldown(30); toast.success('Código reenviado'); }
+    else { setAuthError(translateError(res.message)); setCaptchaToken(null); }
   };
 
   const handleVerifyOtp = async () => {
-    if (otp.length < 6) return setAuthError('El código debe tener 6 dígitos');
+    if (!isValidOtp(otp)) return setAuthError('El código debe tener 6 dígitos');
     setIsAuthLoading(true);
     setAuthError('');
-    const success = await verifyCustomerOtp(email, otp);
+    const success = await verifyCustomerOtp(normalizeEmail(email), otp);
     setIsAuthLoading(false);
-    if (success) setStep(2); 
+    if (success) setStep(2);
     else setAuthError('Código incorrecto.');
   };
 
   const handlePayment = async () => {
+    if (selectedItems.length === 0 || subtotal <= 0) {
+      toast.error('Selecciona al menos una entrada.');
+      return;
+    }
+    if (!Number.isFinite(subtotal) || !Number.isInteger(subtotal) || subtotal > 50_000_000) {
+      toast.error('Monto inválido. Recarga la página e intenta de nuevo.');
+      return;
+    }
     setIsProcessing(true);
     try {
-      const orderData = await onComplete({ 
-        customerInfo: { name: name || 'Cliente Midnight', email, phone }, 
+      const orderData = await onComplete({
+        customerInfo: { name: name.trim() || 'Cliente Midnight', email: normalizeEmail(email), phone: phone.trim() },
         items: selectedItems,
-        method: 'bold' 
+        method: 'bold'
       });
 
       if (!orderData) { setIsProcessing(false); return; }
-      
+
       console.log("📋 Orden creada en BD:", orderData.order_number, "| ID:", orderData.id);
       setPendingOrder(orderData);
       setStep(2.5);
-      
+
     } catch (error: any) {
       toast.error(`Error: ${error.message}`);
       setIsProcessing(false);
@@ -287,7 +311,13 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
         <AnimatePresence mode="wait">
           
           {step === 0 && (
-            <motion.div key="s0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-8">
+            <motion.div key="s0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
+              {/* ── Mini-card del evento (ancla contexto visual) ───────── */}
+              <EventMiniCard event={event} />
+
+              {/* ── Step indicator: ENTRADAS · DATOS · PAGO ─────────── */}
+              <StepIndicator currentStep={0} skipDataStep={!!currentCustomer} />
+
               <h3 className="text-2xl md:text-3xl font-black text-moonlight uppercase tracking-tighter">Entradas</h3>
 
               {/* Discount banner */}
@@ -306,7 +336,12 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
               )}
 
               <TicketSelector tiers={tiers} selectedTiers={selectedTiers} onSelect={setSelectedTiers} />
-              <div className="flex justify-between items-center py-6 border-t border-moonlight/10">
+
+              {/* ── Código promocional (colapsable) ─────────────────── */}
+              <PromoCodeField />
+
+              {/* ── Total con roll counter ─────────────────────────── */}
+              <div className="flex justify-between items-center py-5 border-t border-moonlight/10">
                 <span className="text-moonlight/40 font-light text-[10px] uppercase tracking-[0.3em]">Total</span>
                 <div className="text-right">
                   {discountAppliedToSelected && (
@@ -314,16 +349,35 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
                       ${selectedItems.reduce((s, i) => s + (i.original_price ?? i.unit_price) * i.quantity, 0).toLocaleString()}
                     </p>
                   )}
-                  <span className="text-3xl md:text-4xl font-black text-moonlight tabular-nums">${subtotal.toLocaleString()}</span>
+                  <AnimatePresence mode="popLayout" initial={false}>
+                    <motion.span
+                      key={subtotal}
+                      initial={{ y: 12, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      exit={{ y: -12, opacity: 0 }}
+                      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                      className="inline-block text-3xl md:text-4xl font-black text-moonlight tabular-nums"
+                    >
+                      ${subtotal.toLocaleString()}
+                    </motion.span>
+                  </AnimatePresence>
                 </div>
               </div>
+
               <button
                 onClick={() => setStep(currentCustomer ? 2 : 1)}
                 disabled={selectedItems.length === 0}
-                className="w-full h-16 bg-moonlight text-void font-black text-sm uppercase tracking-[0.5em] hover:bg-moonlight/90 transition-all disabled:opacity-20 disabled:cursor-not-allowed rounded-2xl"
+                className="w-full h-16 bg-moonlight text-void font-black text-sm uppercase tracking-[0.5em] hover:bg-white transition-all disabled:opacity-20 disabled:cursor-not-allowed rounded-2xl"
               >
-                Continuar
+                {selectedItems.length === 0 ? 'Selecciona Una Entrada' : 'Continuar'}
               </button>
+
+              {/* ── Trust signals ─────────────────────────────────── */}
+              <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 pt-1">
+                <TrustChip>🔒 Pago seguro · Bold</TrustChip>
+                <TrustChip>QR único anti-fraude</TrustChip>
+                <TrustChip>Tickets transferibles</TrustChip>
+              </div>
             </motion.div>
           )}
 
@@ -335,12 +389,18 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
                   <p className="text-moonlight/40 text-[10px] font-light tracking-[0.2em] uppercase mt-2">Para el envío de tickets</p>
               </div>
               <div className="space-y-4">
-                <Input placeholder="NOMBRE COMPLETO" value={name} onChange={e => setName(e.target.value)} className="h-14 bg-void border-moonlight/10 text-moonlight font-bold text-xs uppercase tracking-widest focus:border-eclipse rounded-2xl" />
-                <Input placeholder="CORREO ELECTRÓNICO" type="email" value={email} onChange={e => setEmail(e.target.value.toLowerCase())} className="h-14 bg-void border-moonlight/10 text-moonlight font-bold text-xs uppercase tracking-widest focus:border-eclipse rounded-2xl" />
-                <Input placeholder="TELÉFONO / CELULAR" type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="h-14 bg-void border-moonlight/10 text-moonlight font-bold text-xs uppercase tracking-widest focus:border-eclipse rounded-2xl" />
+                <Input aria-label="Nombre completo" autoComplete="name" placeholder="NOMBRE COMPLETO" value={name} onChange={e => setName(e.target.value)} className="h-14 bg-void border-moonlight/10 text-moonlight font-bold text-xs uppercase tracking-widest focus:border-eclipse rounded-2xl" />
+                <Input aria-label="Correo electrónico" autoComplete="email" inputMode="email" placeholder="CORREO ELECTRÓNICO" type="email" value={email} onChange={e => setEmail(e.target.value.toLowerCase())} className="h-14 bg-void border-moonlight/10 text-moonlight font-bold text-xs uppercase tracking-widest focus:border-eclipse rounded-2xl" />
+                <Input aria-label="Teléfono o celular" autoComplete="tel" inputMode="tel" placeholder="TELÉFONO / CELULAR" type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="h-14 bg-void border-moonlight/10 text-moonlight font-bold text-xs uppercase tracking-widest focus:border-eclipse rounded-2xl" />
+                {TURNSTILE_ENABLED && (
+                  <TurnstileWidget
+                    onToken={setCaptchaToken}
+                    onExpire={() => setCaptchaToken(null)}
+                  />
+                )}
                 {authError && <p className="text-red-500 text-[10px] text-center font-black uppercase tracking-widest bg-red-500/10 p-3 rounded-xl">{authError}</p>}
               </div>
-              <button onClick={handleRequestOtp} disabled={!email || !name || isAuthLoading} className="w-full h-16 bg-eclipse text-moonlight font-black text-sm uppercase tracking-[0.5em] hover:bg-eclipse/80 transition-all disabled:opacity-20 rounded-2xl">
+              <button onClick={handleRequestOtp} disabled={!email || !name || isAuthLoading || (TURNSTILE_ENABLED && !captchaToken)} className="w-full h-16 bg-eclipse text-moonlight font-black text-sm uppercase tracking-[0.5em] hover:bg-eclipse/80 transition-all disabled:opacity-20 rounded-2xl">
                   {isAuthLoading ? <Loader2 className="animate-spin mx-auto"/> : 'Continuar'}
               </button>
             </motion.div>
@@ -353,10 +413,18 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
                    <h3 className="text-2xl md:text-3xl font-black text-moonlight uppercase tracking-tighter">Verificar</h3>
                    <p className="text-moonlight/40 text-[10px] font-light tracking-[0.2em] uppercase mt-2">Código enviado a {email}</p>
                </div>
-               <Input autoFocus placeholder="000000" value={otp} maxLength={6} onChange={e => setOtp(e.target.value)} className="h-20 bg-void border-moonlight/10 text-moonlight font-black text-3xl text-center tracking-[0.5em] focus:border-eclipse rounded-2xl" />
+               <Input autoFocus aria-label="Código de verificación de 6 dígitos" inputMode="numeric" autoComplete="one-time-code" placeholder="000000" value={otp} maxLength={6} onChange={e => setOtp(e.target.value)} className="h-20 bg-void border-moonlight/10 text-moonlight font-black text-3xl text-center tracking-[0.5em] focus:border-eclipse rounded-2xl" />
                {authError && <p className="text-red-500 text-[10px] font-black uppercase tracking-widest text-center">{authError}</p>}
                <button onClick={handleVerifyOtp} disabled={otp.length < 6 || isAuthLoading} className="w-full h-16 bg-moonlight text-void font-black text-sm uppercase tracking-[0.5em] hover:bg-moonlight/90 transition-all rounded-2xl">
                   {isAuthLoading ? <Loader2 className="animate-spin mx-auto"/> : 'Verificar'}
+               </button>
+               <button
+                  type="button"
+                  onClick={handleResendOtp}
+                  disabled={resendCooldown > 0 || isAuthLoading}
+                  className="w-full text-center text-[10px] font-bold uppercase tracking-[0.3em] text-moonlight/40 hover:text-moonlight disabled:text-moonlight/20 disabled:cursor-not-allowed transition-colors"
+               >
+                  {resendCooldown > 0 ? `Reenviar en ${resendCooldown}s` : 'Reenviar código'}
                </button>
             </motion.div>
           )}
@@ -437,3 +505,137 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
     </div>
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Subcomponentes del step 0
+// ─────────────────────────────────────────────────────────────────────────────
+
+const EASE_OUT_CB = [0.16, 1, 0.3, 1] as const;
+
+const EventMiniCard: React.FC<{ event: any }> = ({ event }) => {
+  if (!event) return null;
+  const date = event.event_date
+    ? new Date(event.event_date).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }).toUpperCase().replace('.', '')
+    : '';
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: EASE_OUT_CB }}
+      className="flex items-center gap-3 p-3 rounded-2xl border border-moonlight/10 bg-midnight/30"
+    >
+      {event.cover_image && (
+        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden flex-shrink-0 border border-moonlight/10">
+          <img src={event.cover_image} alt={event.title} className="w-full h-full object-cover" loading="lazy" decoding="async" />
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] font-black text-moonlight uppercase tracking-tight truncate">{event.title}</p>
+        <p className="text-[9px] font-light text-moonlight/45 tracking-[0.25em] uppercase mt-0.5">
+          {date}{event.venue ? ` · ${event.venue}` : ''}
+        </p>
+      </div>
+    </motion.div>
+  );
+};
+
+const StepIndicator: React.FC<{ currentStep: number; skipDataStep?: boolean }> = ({ currentStep, skipDataStep }) => {
+  // currentStep: 0 = entradas, 1 = datos (o skip si ya está logueado), 2 = pago
+  const steps = skipDataStep
+    ? [{ label: 'Entradas', i: 0 }, { label: 'Pago', i: 1 }]
+    : [{ label: 'Entradas', i: 0 }, { label: 'Datos', i: 1 }, { label: 'Pago', i: 2 }];
+
+  return (
+    <div className="flex items-center justify-center gap-2 sm:gap-3">
+      {steps.map((s, idx) => {
+        const isActive = idx === currentStep;
+        const isDone = idx < currentStep;
+        return (
+          <React.Fragment key={s.label}>
+            <div className="flex items-center gap-2">
+              <span
+                className={`w-1.5 h-1.5 rounded-full transition-all ${
+                  isActive ? 'bg-moonlight shadow-[0_0_8px_rgba(255,255,255,0.6)] scale-150' : isDone ? 'bg-moonlight/60' : 'bg-moonlight/15'
+                }`}
+              />
+              <span className={`text-[9px] font-black tracking-[0.3em] uppercase transition-colors ${
+                isActive ? 'text-moonlight' : isDone ? 'text-moonlight/60' : 'text-moonlight/25'
+              }`}>
+                {s.label}
+              </span>
+            </div>
+            {idx < steps.length - 1 && (
+              <span className="w-4 sm:w-6 h-px bg-moonlight/15" />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+};
+
+const PromoCodeField: React.FC = () => {
+  const [open, setOpen] = useState(false);
+  const [code, setCode] = useState('');
+  const [status, setStatus] = useState<'idle' | 'applying' | 'invalid'>('idle');
+
+  const applyCode = () => {
+    if (!code.trim()) return;
+    setStatus('applying');
+    // Por ahora UX placeholder — la lógica real de códigos vive en DiscountLanding
+    // y se aplica vía sessionStorage. Aquí solo damos feedback al usuario.
+    setTimeout(() => setStatus('invalid'), 600);
+  };
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="text-[10px] font-bold uppercase tracking-[0.25em] text-moonlight/40 hover:text-moonlight transition-colors"
+      >
+        ¿Tienes código? +
+      </button>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      transition={{ duration: 0.3, ease: EASE_OUT_CB }}
+      className="overflow-hidden"
+    >
+      <div className="flex items-center gap-2">
+        <input
+          autoFocus
+          type="text"
+          value={code}
+          onChange={(e) => { setCode(e.target.value.toUpperCase()); setStatus('idle'); }}
+          placeholder="CÓDIGO"
+          aria-label="Código promocional"
+          className="flex-1 h-11 bg-void border border-moonlight/10 rounded-xl px-4 text-moonlight font-bold text-xs uppercase tracking-[0.3em] focus:outline-none focus:border-eclipse transition-colors"
+        />
+        <button
+          type="button"
+          onClick={applyCode}
+          disabled={!code.trim() || status === 'applying'}
+          className="h-11 px-5 bg-moonlight/10 hover:bg-moonlight/15 disabled:opacity-30 text-moonlight font-black text-[10px] uppercase tracking-[0.25em] rounded-xl transition-colors"
+        >
+          {status === 'applying' ? '...' : 'Aplicar'}
+        </button>
+      </div>
+      {status === 'invalid' && (
+        <p className="text-[10px] font-bold text-red-400 mt-2 tracking-wide">
+          Código no válido. Si tienes uno de promoción, accede vía el link directo.
+        </p>
+      )}
+    </motion.div>
+  );
+};
+
+const TrustChip: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <span className="text-[9px] font-bold tracking-[0.2em] uppercase text-moonlight/35 inline-flex items-center gap-1">
+    {children}
+  </span>
+);

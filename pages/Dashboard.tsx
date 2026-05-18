@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { toast } from '../lib/toast';
 import { UserRole, Promoter, SalesTeam, Order } from '../types';
+import { isAdminLevel } from '../lib/permissions';
 import { Button } from '../components/ui/button';
-import { Banknote, Award, Target, History, Users, Plus, X, Layers, UserPlus, TrendingUp, Sparkles, ChevronRight, Trash2, ShieldCheck, PieChart, Eye, Calendar, Ticket, ArrowRightLeft, ScrollText, Wallet, Link as LinkIcon, Copy, Share2, Check, Smartphone, User, Search, Filter, Loader2, Download, BarChart, AlertTriangle, CreditCard, Mail, Globe, MessageCircle, ChevronDown, ChevronUp, Laptop, Coins, UserCheck, QrCode, Send, CheckCircle2, Link2, ImagePlus, ZoomIn, ScanLine } from 'lucide-react';
+import { Banknote, Award, Target, History, Users, Plus, X, Layers, UserPlus, TrendingUp, Sparkles, ChevronRight, Trash2, ShieldCheck, PieChart, Eye, Calendar, Ticket, ArrowRightLeft, ScrollText, Wallet, Link as LinkIcon, Copy, Share2, Check, Smartphone, User, Search, Filter, Loader2, Download, BarChart, BarChart3, AlertTriangle, CreditCard, Mail, Globe, MessageCircle, ChevronDown, ChevronUp, Laptop, Coins, UserCheck, QrCode, Send, CheckCircle2, Link2, ImagePlus, ZoomIn, ScanLine } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { supabase } from '../lib/supabase';
 import PromoterRanking from '../components/PromoterRanking';
@@ -89,7 +90,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   const [savingPayout, setSavingPayout] = useState<string | null>(null);
 
   useEffect(() => {
-    if (currentUser?.role === UserRole.ADMIN) {
+    if (isAdminLevel(currentUser?.role)) {
       supabase.from('bouncer_links').select('*').order('created_at', { ascending: false })
         .then(({ data }) => { setBouncerLinks(data || []); setBouncerLinksLoaded(true); });
     }
@@ -98,7 +99,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   if (!currentUser) return null;
 
   // PERMISOS
-  const isAdmin = currentUser.role === UserRole.ADMIN;
+  const isAdmin = isAdminLevel(currentUser.role);
   const isBouncer = currentUser.role === UserRole.BOUNCER || isAdmin;
 
   // Director global de ventas (HEAD_OF_SALES) o Admin → ve absolutamente todo
@@ -147,7 +148,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
       : myTeam ? [myTeam] : [];
 
   // Staff disponible para vincular (sin equipo asignado)
-  const availableStaffToLink = promoters.filter(p => !p.sales_team_id && p.role !== UserRole.ADMIN);
+  const availableStaffToLink = promoters.filter(p => !p.sales_team_id && !isAdminLevel(p.role));
 
   // Initialize recruitment team selection when modal opens
   const openRecruitmentModal = () => {
@@ -180,51 +181,59 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
       if (!selectedEventFilter) { toast.error("Selecciona un evento primero."); return; }
       const eventName = events.find(e => e.id === selectedEventFilter)?.title || 'Evento';
 
-      const XLSX = await import('xlsx');
+      const { exportXlsx } = await import('../lib/exportXlsx');
 
       const rows = data.map(row => ({
-          'Squad': row.name,
-          'Manager': row.manager_name || 'N/A',
-          'Digital (und)': row.digitalQty ?? 0,
-          'Ventas Digital ($)': row.digitalGross,
-          'Efectivo (und)': row.cashQty ?? 0,
-          'Ventas Efectivo ($)': row.cashGross,
-          'Recaudo Efectivo ($)': row.cashGross,
-          'Comisión Total ($)': row.commission,
-          'A Liquidar – Neto ($)': row.net,
+          squad: row.name,
+          manager: row.manager_name || 'N/A',
+          digitalQty: row.digitalQty ?? 0,
+          digitalGross: row.digitalGross,
+          cashQty: row.cashQty ?? 0,
+          cashGross: row.cashGross,
+          cashCollected: row.cashGross,
+          commission: row.commission,
+          net: row.net,
       }));
 
       if (totals) {
           rows.push({
-              'Squad': 'TOTALES',
-              'Manager': '',
-              'Digital (und)': totals.digitalQty ?? 0,
-              'Ventas Digital ($)': totals.digitalGross,
-              'Efectivo (und)': totals.cashQty ?? 0,
-              'Ventas Efectivo ($)': totals.cashGross,
-              'Recaudo Efectivo ($)': totals.cashGross,
-              'Comisión Total ($)': totals.totalCommission,
-              'A Liquidar – Neto ($)': totals.netLiquidation,
+              squad: 'TOTALES',
+              manager: '',
+              digitalQty: totals.digitalQty ?? 0,
+              digitalGross: totals.digitalGross,
+              cashQty: totals.cashQty ?? 0,
+              cashGross: totals.cashGross,
+              cashCollected: totals.cashGross,
+              commission: totals.totalCommission,
+              net: totals.netLiquidation,
           });
       }
 
-      const ws = XLSX.utils.json_to_sheet(rows);
-      // Column widths
-      ws['!cols'] = [{ wch: 28 }, { wch: 22 }, { wch: 14 }, { wch: 20 }, { wch: 14 }, { wch: 20 }, { wch: 22 }, { wch: 20 }, { wch: 22 }];
-
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Liquidación');
-
-      // Metadata sheet
-      const metaData = [
-          ['Reporte generado:', new Date().toLocaleString('es-CO')],
-          ['Evento:', eventName],
-          ['Midnight Corp — Liquidación Maestra'],
-      ];
-      const metaWs = XLSX.utils.aoa_to_sheet(metaData);
-      XLSX.utils.book_append_sheet(wb, metaWs, 'Info');
-
-      XLSX.writeFile(wb, `Liquidacion_${eventName.replace(/\s+/g, '_')}.xlsx`);
+      await exportXlsx(`Liquidacion_${eventName.replace(/\s+/g, '_')}.xlsx`, [
+          {
+              name: 'Liquidación',
+              rows,
+              columns: [
+                  { key: 'squad',         header: 'Squad',                  width: 28 },
+                  { key: 'manager',       header: 'Manager',                width: 22 },
+                  { key: 'digitalQty',    header: 'Digital (und)',          width: 14 },
+                  { key: 'digitalGross',  header: 'Ventas Digital ($)',     width: 20 },
+                  { key: 'cashQty',       header: 'Efectivo (und)',         width: 14 },
+                  { key: 'cashGross',     header: 'Ventas Efectivo ($)',    width: 20 },
+                  { key: 'cashCollected', header: 'Recaudo Efectivo ($)',   width: 22 },
+                  { key: 'commission',    header: 'Comisión Total ($)',     width: 20 },
+                  { key: 'net',           header: 'A Liquidar – Neto ($)',  width: 22 },
+              ],
+          },
+          {
+              name: 'Info',
+              rows: [
+                  { a: 'Reporte generado:', b: new Date().toLocaleString('es-CO') },
+                  { a: 'Evento:',           b: eventName },
+                  { a: 'Midnight Corp — Liquidación Maestra', b: '' },
+              ],
+          },
+      ]);
       toast.success('Reporte exportado correctamente');
   };
 
@@ -321,7 +330,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
       // 2. Procesar Promotores Independientes — filtrados al scope del usuario
       const independentPromoters = myScopePromoters.filter(p =>
         !p.sales_team_id &&
-        p.role !== UserRole.ADMIN &&
+        !isAdminLevel(p.role) &&
         !teamManagerIds.includes(p.user_id)
       );
       
@@ -370,9 +379,12 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
           return { allTeams: teamStats, stages, grandTotals };
       }
 
-      const adminPromoters = promoters.filter(p => p.role === UserRole.ADMIN);
+      const adminPromoters = promoters.filter(p => isAdminLevel(p.role));
       const adminIds = adminPromoters.map(p => p.user_id);
       if (!adminIds.includes('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11')) adminIds.push('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
+      if (currentUser?.role === UserRole.SUPER_ADMIN && currentUser.user_id && !adminIds.includes(currentUser.user_id)) {
+          adminIds.push(currentUser.user_id);
+      }
 
       const organicOrders = filteredOrders.filter(o => !o.staff_id || adminIds.includes(o.staff_id));
 
@@ -551,8 +563,12 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
 
     const sales = scopeOrders.reduce((acc, o) => acc + o.total, 0);
 
-    const adminIds = promoters.filter(p => p.role === UserRole.ADMIN).map(p => p.user_id);
+    const adminIds = promoters.filter(p => isAdminLevel(p.role)).map(p => p.user_id);
     if (!adminIds.includes('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11')) adminIds.push('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
+    // SUPER_ADMIN está oculto del listado de promoters: incluir su user_id explícitamente
+    if (currentUser?.role === UserRole.SUPER_ADMIN && currentUser.user_id && !adminIds.includes(currentUser.user_id)) {
+        adminIds.push(currentUser.user_id);
+    }
 
     const commissions = scopeOrders.reduce((acc, o) => {
         if (!o.staff_id || adminIds.includes(o.staff_id)) return acc;
@@ -1436,7 +1452,13 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                   </div>
               ) : globalLiquidationData && (
                   <div className="grid grid-cols-1 gap-6">
-                      
+
+                      {/* SALES INTELLIGENCE — % participación por equipo */}
+                      <MidnightSalesIntelligence
+                        teams={globalLiquidationData.allTeams}
+                        grandTotals={globalLiquidationData.grandTotals}
+                      />
+
                       {/* LIQUIDACIÓN UNIFICADA DE SQUADS */}
                       <div className="bg-zinc-900/50 border border-white/5 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden">
                           <div className="p-5 md:p-8 border-b border-white/5 bg-white/[0.02] flex justify-between items-center">
@@ -1948,21 +1970,55 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
 
       {/* VISTAS DE LANDING POR VENDEDOR — solo admin/global head */}
       {isGlobalHead && (() => {
+          const ordersByStaff: Record<string, { qty: number; revenue: number }> = {};
+          for (const o of orders) {
+              if (o.status !== 'completed' || !o.staff_id) continue;
+              if (!ordersByStaff[o.staff_id]) ordersByStaff[o.staff_id] = { qty: 0, revenue: 0 };
+              ordersByStaff[o.staff_id].qty += 1;
+              ordersByStaff[o.staff_id].revenue += (o.total || 0);
+          }
+
           const withViews = promoters
               .filter(p => (p.link_views || 0) > 0)
+              .map(p => {
+                  const att = ordersByStaff[p.user_id] || { qty: 0, revenue: 0 };
+                  const conv = (p.link_views || 0) > 0 ? (att.qty / (p.link_views || 1)) * 100 : 0;
+                  return { ...p, attributedQty: att.qty, attributedRevenue: att.revenue, conversionPct: conv };
+              })
               .sort((a, b) => (b.link_views || 0) - (a.link_views || 0));
 
           if (withViews.length === 0) return null;
 
+          // Stats agregados
+          const totalViews = withViews.reduce((s, p) => s + (p.link_views || 0), 0);
+          const totalAtt   = withViews.reduce((s, p) => s + p.attributedQty, 0);
+          const avgConv    = totalViews > 0 ? (totalAtt / totalViews) * 100 : 0;
+
           return (
               <div className="mt-12 bg-zinc-900 border border-white/5 rounded-[2.5rem] p-6 md:p-8">
-                  <div className="mb-8">
-                      <h2 className="text-xl md:text-2xl font-black text-white flex items-center gap-3">
-                          <Globe className="text-neon-purple w-6 h-6" /> Vistas de Landing Page
-                      </h2>
-                      <p className="text-xs text-zinc-500 mt-1 font-bold uppercase tracking-widest">
-                          Vendedores con visitas registradas en su link personal
-                      </p>
+                  <div className="mb-6 flex justify-between items-end flex-wrap gap-4">
+                      <div>
+                          <h2 className="text-xl md:text-2xl font-black text-white flex items-center gap-3">
+                              <Globe className="text-neon-purple w-6 h-6" /> Analytics · Landing Pages
+                          </h2>
+                          <p className="text-xs text-zinc-500 mt-1 font-bold uppercase tracking-widest">
+                              Vistas, ventas atribuidas y conversión por vendedor
+                          </p>
+                      </div>
+                      <div className="flex gap-4 text-right">
+                          <div>
+                              <p className="text-[9px] uppercase tracking-widest text-zinc-500 font-black">Vistas totales</p>
+                              <p className="text-2xl font-black text-white tabular-nums">{totalViews.toLocaleString('es-CO')}</p>
+                          </div>
+                          <div>
+                              <p className="text-[9px] uppercase tracking-widest text-zinc-500 font-black">Ventas atrib.</p>
+                              <p className="text-2xl font-black text-emerald-400 tabular-nums">{totalAtt}</p>
+                          </div>
+                          <div>
+                              <p className="text-[9px] uppercase tracking-widest text-zinc-500 font-black">Conv. promedio</p>
+                              <p className="text-2xl font-black text-neon-purple tabular-nums">{avgConv.toFixed(1)}%</p>
+                          </div>
+                      </div>
                   </div>
 
                   <div className="overflow-x-auto">
@@ -1972,51 +2028,75 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                                   <th className="p-4 rounded-l-xl">#</th>
                                   <th className="p-4">Vendedor</th>
                                   <th className="p-4">Código</th>
-                                  <th className="p-4">Rol</th>
                                   <th className="p-4 text-right text-neon-purple">Vistas</th>
+                                  <th className="p-4 text-right text-emerald-400">Ventas</th>
+                                  <th className="p-4 text-right text-amber-400">Conv. %</th>
                                   <th className="p-4 text-right rounded-r-xl">Link</th>
                               </tr>
                           </thead>
                           <tbody className="divide-y divide-white/5 text-xs md:text-sm">
-                              {withViews.map((p, idx) => (
-                                  <tr key={p.user_id} className="hover:bg-white/[0.02] transition-colors">
-                                      <td className="p-4 font-black text-zinc-500 text-base">{idx + 1}</td>
-                                      <td className="p-4">
-                                          <div className="font-bold text-white">{p.name}</div>
-                                          <div className="text-[10px] text-zinc-500">{p.email}</div>
-                                      </td>
-                                      <td className="p-4">
-                                          <span className="font-black text-white/60 tracking-widest text-[11px]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                              {p.code}
-                                          </span>
-                                      </td>
-                                      <td className="p-4">
-                                          <span className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md bg-white/5 text-zinc-400">
-                                              {p.role}
-                                          </span>
-                                      </td>
-                                      <td className="p-4 text-right">
-                                          <span className="text-xl font-black text-neon-purple tabular-nums">
-                                              {(p.link_views || 0).toLocaleString('es-CO')}
-                                          </span>
-                                      </td>
-                                      <td className="p-4 text-right">
-                                          <button
-                                              onClick={() => {
-                                                  navigator.clipboard.writeText(`https://midnightcorp.click/?ref=${p.code}`);
-                                                  toast.success(`Link de ${p.name} copiado`);
-                                              }}
-                                              className="p-2 bg-zinc-800 hover:bg-neon-purple/20 rounded-lg text-zinc-400 hover:text-neon-purple transition-all"
-                                              title="Copiar link"
-                                          >
-                                              <LinkIcon size={13} />
-                                          </button>
-                                      </td>
-                                  </tr>
-                              ))}
+                              {withViews.map((p, idx) => {
+                                  const isHot = p.conversionPct >= 10;
+                                  const isCold = p.conversionPct < 1 && (p.link_views || 0) > 20;
+                                  return (
+                                      <tr key={p.user_id} className="hover:bg-white/[0.02] transition-colors">
+                                          <td className="p-4 font-black text-zinc-500 text-base">{idx + 1}</td>
+                                          <td className="p-4">
+                                              <div className="font-bold text-white flex items-center gap-2">
+                                                  {p.name}
+                                                  {isHot && <span title="Alta conversión" className="text-amber-400 text-xs">🔥</span>}
+                                                  {isCold && <span title="Baja conversión" className="text-zinc-600 text-xs">⚠</span>}
+                                              </div>
+                                              <div className="text-[10px] text-zinc-500">{p.email}</div>
+                                          </td>
+                                          <td className="p-4">
+                                              <span className="font-black text-white/60 tracking-widest text-[11px]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                                  {p.code}
+                                              </span>
+                                          </td>
+                                          <td className="p-4 text-right">
+                                              <span className="text-xl font-black text-neon-purple tabular-nums">
+                                                  {(p.link_views || 0).toLocaleString('es-CO')}
+                                              </span>
+                                          </td>
+                                          <td className="p-4 text-right">
+                                              <div className="text-lg font-black text-emerald-400 tabular-nums">
+                                                  {p.attributedQty}
+                                              </div>
+                                              <div className="text-[10px] text-zinc-500">
+                                                  ${Math.round(p.attributedRevenue / 1000)}K
+                                              </div>
+                                          </td>
+                                          <td className="p-4 text-right">
+                                              <span
+                                                  className="text-lg font-black tabular-nums"
+                                                  style={{ color: isHot ? '#f59e0b' : isCold ? '#71717a' : '#fff' }}
+                                              >
+                                                  {p.conversionPct.toFixed(1)}%
+                                              </span>
+                                          </td>
+                                          <td className="p-4 text-right">
+                                              <button
+                                                  onClick={() => {
+                                                      navigator.clipboard.writeText(`https://midnightcorp.click/?ref=${p.code}`);
+                                                      toast.success(`Link de ${p.name} copiado`);
+                                                  }}
+                                                  className="p-2 bg-zinc-800 hover:bg-neon-purple/20 rounded-lg text-zinc-400 hover:text-neon-purple transition-all"
+                                                  title="Copiar link"
+                                              >
+                                                  <LinkIcon size={13} />
+                                              </button>
+                                          </td>
+                                      </tr>
+                                  );
+                              })}
                           </tbody>
                       </table>
                   </div>
+
+                  <p className="text-[10px] uppercase tracking-widest text-zinc-500 font-black mt-6">
+                      🔥 conversión ≥ 10% &nbsp;·&nbsp; ⚠ conversión &lt; 1% con &gt;20 vistas
+                  </p>
               </div>
           );
       })()}
@@ -2559,6 +2639,126 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
           onClose={() => setShowScanner(false)}
         />
       )}
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sales Intelligence — % de participación por equipo en las ventas del evento
+// Módulo visual dedicado (separado del Liquidación) que muestra dónde está
+// concentrada la venta y cuánto pesa cada squad.
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface SiTeam {
+  id: string;
+  name: string;
+  digitalGross: number;
+  cashGross: number;
+  isVirtual?: boolean;
+}
+
+const MidnightSalesIntelligence: React.FC<{
+  teams: SiTeam[];
+  grandTotals: { digitalGross: number; cashGross: number; totalCommission: number; netLiquidation: number };
+}> = ({ teams, grandTotals }) => {
+  const totalSales = grandTotals.digitalGross + grandTotals.cashGross;
+  if (totalSales === 0) return null;
+
+  // Ordenar por % de participación desc
+  const ranked = [...teams]
+    .map(t => {
+      const sales = (t.digitalGross || 0) + (t.cashGross || 0);
+      return { ...t, sales, pct: (sales / totalSales) * 100 };
+    })
+    .sort((a, b) => b.pct - a.pct);
+
+  const top = ranked[0];
+  const colors = ['#b026ff', '#22d3ee', '#a3e635', '#f59e0b', '#ec4899', '#10b981', '#f97316', '#8b5cf6'];
+
+  return (
+    <div className="bg-zinc-900/50 border border-white/5 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden">
+      <div className="p-5 md:p-8 border-b border-white/5 bg-white/[0.02] flex justify-between items-center flex-wrap gap-3">
+        <div>
+          <h3 className="text-lg font-black text-white uppercase tracking-tighter flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-neon-purple" /> Sales Intelligence
+          </h3>
+          <p className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold mt-1">
+            Participación por equipo en el total
+          </p>
+        </div>
+        {top && (
+          <div className="text-right">
+            <p className="text-[9px] uppercase tracking-widest text-zinc-500 font-black">Lidera</p>
+            <p className="text-sm font-black text-white">{top.name}</p>
+            <p className="text-xs font-black" style={{ color: colors[0] }}>{top.pct.toFixed(1)}%</p>
+          </div>
+        )}
+      </div>
+
+      <div className="p-5 md:p-8">
+        {/* Stacked bar — mostrar visualmente la distribución */}
+        <div className="w-full h-3 rounded-full overflow-hidden mb-6 flex" style={{ background: 'rgba(255,255,255,0.04)' }}>
+          {ranked.map((t, i) => (
+            <div
+              key={t.id}
+              style={{
+                width: `${t.pct}%`,
+                background: colors[i % colors.length],
+                transition: 'width 0.8s cubic-bezier(0.16, 1, 0.3, 1)',
+              }}
+              title={`${t.name}: ${t.pct.toFixed(1)}%`}
+            />
+          ))}
+        </div>
+
+        {/* Lista detallada por equipo */}
+        <div className="space-y-3">
+          {ranked.map((t, i) => {
+            const c = colors[i % colors.length];
+            const salesK = Math.round(t.sales / 1000);
+            return (
+              <div key={t.id} className="flex items-center gap-4">
+                <span
+                  className="flex-shrink-0 w-2.5 h-2.5 rounded-full"
+                  style={{ background: c, boxShadow: `0 0 6px ${c}80` }}
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline justify-between gap-3 mb-1">
+                    <span className="text-xs md:text-sm font-bold text-white uppercase tracking-tight truncate">
+                      {t.name}
+                    </span>
+                    <span className="text-xs font-black tabular-nums whitespace-nowrap" style={{ color: c }}>
+                      {t.pct.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="w-full h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                    <div
+                      style={{
+                        width: `${t.pct}%`,
+                        height: '100%',
+                        background: c,
+                        borderRadius: '999px',
+                        transition: 'width 0.8s cubic-bezier(0.16, 1, 0.3, 1)',
+                      }}
+                    />
+                  </div>
+                  <p className="text-[9px] uppercase tracking-widest text-zinc-500 mt-0.5">
+                    ${salesK}K · {t.digitalGross > 0 ? 'Digital' : ''}{t.digitalGross > 0 && t.cashGross > 0 ? ' + ' : ''}{t.cashGross > 0 ? 'Efectivo' : ''}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Footer con total */}
+        <div className="mt-6 pt-4 border-t border-white/5 flex justify-between items-baseline">
+          <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-black">Total</span>
+          <span className="text-xl font-black text-white tabular-nums">
+            ${Math.round(totalSales / 1000)}K
+          </span>
+        </div>
+      </div>
     </div>
   );
 };

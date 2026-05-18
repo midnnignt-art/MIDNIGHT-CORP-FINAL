@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ChevronLeft, Loader2, Shield, CreditCard, CheckCircle2,
+  ChevronLeft, ChevronRight, Loader2, Shield, CreditCard, CheckCircle2,
   Ship, Zap, Calendar, Banknote, Repeat, ListChecks, Star
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
@@ -14,11 +14,11 @@ const C = { bg: '#000', bgS: '#0d0d0d', red: '#E6392F', org: '#FF7A00', gray: '#
 type PaymentMode = 'auto_subscription' | 'manual_monthly' | 'cash_to_seller' | 'individual_days' | 'full_combo';
 
 const MODES: { id: PaymentMode; label: string; sub: string; icon: React.ReactNode; badge?: string }[] = [
-  { id: 'auto_subscription', label: 'Débito automático', sub: '$40K hoy, luego automático cada mes', icon: <Repeat size={18} />, badge: 'Más fácil' },
-  { id: 'manual_monthly',    label: 'Mes a mes',          sub: '$40K hoy, te avisamos cuando toca',  icon: <Calendar size={18} /> },
-  { id: 'cash_to_seller',    label: 'Efectivo',            sub: '$40K hoy, pagas al promotor',         icon: <Banknote size={18} /> },
-  { id: 'individual_days',   label: 'Días sueltos',        sub: 'Elige solo los días que quieres',     icon: <ListChecks size={18} /> },
-  { id: 'full_combo',        label: 'Todo de una',         sub: 'Sin cuotas, precio total',            icon: <Star size={18} />, badge: 'Mejor precio' },
+  { id: 'auto_subscription', label: 'Débito automático',   sub: '$40K hoy + cargos automáticos cada mes',         icon: <Repeat size={18} />,    badge: 'Más fácil' },
+  { id: 'manual_monthly',    label: 'Mes a mes con tarjeta', sub: '$40K hoy + tarjeta guardada (te avisamos 24h antes)', icon: <Calendar size={18} /> },
+  { id: 'cash_to_seller',    label: 'Combo en efectivo',     sub: 'Pagás todo el combo al promotor el día 1',     icon: <Banknote size={18} /> },
+  { id: 'individual_days',   label: 'Días sueltos prepagos', sub: 'Comprás solo los días que querés, 100% online', icon: <ListChecks size={18} /> },
+  { id: 'full_combo',        label: 'Todo de una',           sub: 'Pagás hoy, sin cuotas, sin recargos',           icon: <Star size={18} />,     badge: 'Mejor precio' },
 ];
 
 interface SeasonData {
@@ -31,6 +31,7 @@ interface SeasonData {
 
 interface Props {
   initialWeek?: string;
+  initialInviteCode?: string;
   onBack: () => void;
 }
 
@@ -44,7 +45,7 @@ function addMonths(date: Date, n: number) {
   return d.toISOString().split('T')[0];
 }
 
-export default function SolsticeReserva({ initialWeek, onBack }: Props) {
+export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack }: Props) {
   const { requestCustomerOtp, verifyOtpUnified, currentCustomer, currentUser } = useStore();
 
   // ── Real data from DB (falls back to mock if not yet migrated) ──
@@ -84,14 +85,117 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
   const [email, setEmail]         = useState('');
   const [phone, setPhone]         = useState('');
   const [uni, setUni]             = useState('');
+  const [cedula, setCedula]       = useState('');
+  const [birthDate, setBirthDate] = useState(''); // YYYY-MM-DD
+  const [emergencyName, setEmergencyName] = useState('');
+  const [emergencyPhone, setEmergencyPhone] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  // Validadores
+  const EMAIL_RE = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
+  const PHONE_RE = /^\+?[0-9\s\-()]{7,20}$/;
+  const validateForm = (): boolean => {
+    const errs: Record<string, string> = {};
+    if (name.trim().length < 3) errs.name = 'Nombre completo (mínimo 3 caracteres)';
+    if (!EMAIL_RE.test(email.trim())) errs.email = 'Email inválido';
+    if (!PHONE_RE.test(phone.trim())) errs.phone = 'Teléfono inválido (incluí lada)';
+    if (uni.trim().length < 2) errs.uni = 'Universidad requerida';
+    if (cedula.trim().length < 6) errs.cedula = 'Documento mínimo 6 dígitos';
+    if (!birthDate) errs.birthDate = 'Fecha de nacimiento requerida';
+    else {
+      const age = (Date.now() - new Date(birthDate).getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+      if (age < 16) errs.birthDate = 'Debes tener al menos 16 años';
+      if (age > 80) errs.birthDate = 'Fecha de nacimiento inválida';
+    }
+    if (emergencyName.trim().length < 3) errs.emergencyName = 'Nombre de contacto de emergencia';
+    if (!PHONE_RE.test(emergencyPhone.trim())) errs.emergencyPhone = 'Teléfono de emergencia inválido';
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
   const [otp, setOtp]             = useState('');
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError]     = useState('');
   const [processing, setProcessing]   = useState(false);
   const [pendingOrderNum, setPendingOrderNum] = useState<string | null>(null);
   const [pendingRegId, setPendingRegId]       = useState<string | null>(null);
+
+  // ── Lanchas ──────────────────────────────────────────────────────────────
+  // El combo incluye lancha siempre que el día 3 esté incluido:
+  //   - full_combo / auto_subscription / manual_monthly / cash_to_seller → siempre día 3
+  //   - individual_days → solo si selDays incluye 3
+  const [boats, setBoats]                       = useState<any[]>([]);
+  const [selectedBoatId, setSelectedBoatId]     = useState<string | null>(null);
+  const [boatChoice, setBoatChoice]             = useState<'lead' | 'join' | null>(initialInviteCode ? 'join' : null);
+  const [joinInviteCode, setJoinInviteCode]     = useState(initialInviteCode || '');
+  const [joinError, setJoinError]               = useState('');
+  const [boatInviteCode, setBoatInviteCode]     = useState<string | null>(null);
+  const [boatReservationId, setBoatReservationId] = useState<string | null>(null);
   const [payStatus, setPayStatus] = useState<'pending' | 'paid'>('pending');
   const [simulating, setSimulating] = useState(false);
+
+  // Mapa boatId → total de pasajeros activos (suma de slots_claimed de todas
+  // las reservas de esa lancha). Se hidrata al cargar + se actualiza en
+  // realtime cuando alguien reserva/cancela en otra sesión.
+  const [boatOccupancy, setBoatOccupancy] = useState<Record<string, number>>({});
+  const [recentBoatId, setRecentBoatId]   = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadBoats() {
+      try {
+        const { data } = await supabase
+          .from('solstice_boats')
+          .select('*')
+          .in('status', ['active', 'sold_out'])
+          .order('sort_order', { ascending: true });
+        if (data && data.length > 0 && mounted) setBoats(data);
+      } catch {
+        // tabla aún no migrada
+      }
+    }
+
+    async function loadOccupancy() {
+      try {
+        const { data } = await supabase
+          .from('solstice_boat_reservations')
+          .select('boat_id, slots_claimed, status')
+          .neq('status', 'cancelled');
+        if (!data || !mounted) return;
+        const map: Record<string, number> = {};
+        for (const r of data) {
+          map[r.boat_id] = (map[r.boat_id] || 0) + (r.slots_claimed || 0);
+        }
+        setBoatOccupancy(map);
+      } catch {}
+    }
+
+    loadBoats();
+    loadOccupancy();
+
+    // Realtime: cuando se inserta/actualiza una reservation, refrescamos
+    // ocupación y mostramos un highlight breve sobre la lancha afectada.
+    const channel = supabase
+      .channel('solstice-boat-reservations')
+      .on(
+        'postgres_changes' as any,
+        { event: '*', schema: 'public', table: 'solstice_boat_reservations' },
+        (payload: any) => {
+          const row = (payload.new || payload.old) as any;
+          if (!row?.boat_id) return;
+          loadOccupancy();
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            setRecentBoatId(row.boat_id);
+            setTimeout(() => setRecentBoatId(prev => (prev === row.boat_id ? null : prev)), 4000);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      mounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   // When real weeks load, update the pre-selected week if we had an initialWeek
   useEffect(() => {
@@ -105,6 +209,8 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
   const dayTotal  = selDays.reduce((a, d) => a + (SOLSTICE_DAYS.find(x => x.day === d)?.price || 0), 0);
   const chargeNow = mode === 'full_combo' ? s.combo_total : mode === 'individual_days' ? dayTotal : s.entry_price;
   const chargeK   = Math.round(chargeNow / 1000);
+  // El día 3 (catamarán) está incluido en todos los modos salvo "días sueltos sin día 3"
+  const includesBoat = mode !== null && (mode !== 'individual_days' || selDays.includes(3));
 
   // Prefill auth if customer is already logged in (not staff — staff skips OTP in handleRequestOtp)
   useEffect(() => {
@@ -118,17 +224,27 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
   }, [currentCustomer]);
 
   const handleRequestOtp = async () => {
-    if (!email.includes('@')) return setAuthError('Email inválido');
-    if (!name.trim()) return setAuthError('Ingresa tu nombre');
+    // Validación completa de todos los campos antes de avanzar
+    if (!validateForm()) {
+      setAuthError('Revisa los campos marcados');
+      return;
+    }
+    setAuthError('');
 
     // Staff testing: skip OTP so it doesn't wipe the admin session
     if (currentUser) {
-      setStep(3);
+      setStep(includesBoat ? (2.7 as any) : 3);
       return;
     }
 
-    setAuthLoading(true); setAuthError('');
-    const res = await requestCustomerOtp(email, { full_name: name, phone });
+    setAuthLoading(true);
+    const res = await requestCustomerOtp(email, {
+      full_name: name,
+      phone,
+      cedula,
+      birth_date: birthDate,
+      emergency_contact: { name: emergencyName, phone: emergencyPhone },
+    });
     setAuthLoading(false);
     if (res.success) setStep(2.5 as any);
     else setAuthError(res.message || 'Error enviando código.');
@@ -139,8 +255,44 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
     setAuthLoading(true); setAuthError('');
     const ok = await verifyOtpUnified(email, otp);
     setAuthLoading(false);
-    if (ok) setStep(3);
+    if (ok) setStep(includesBoat ? (2.7 as any) : 3);
     else setAuthError('Código incorrecto o expirado.');
+  };
+
+  // ── Validar invite_code y unirse a lancha existente ──────────────────────
+  const handleValidateInviteCode = async () => {
+    setJoinError('');
+    const code = joinInviteCode.trim().toUpperCase();
+    if (code.length < 4) {
+      setJoinError('Código demasiado corto');
+      return;
+    }
+    try {
+      const { data, error } = await supabase
+        .from('solstice_boat_reservations')
+        .select('id, boat_id, status, slots_claimed, total_capacity, leader_name')
+        .ilike('invite_code', code)
+        .maybeSingle();
+      if (error || !data) {
+        setJoinError('Código no encontrado');
+        return;
+      }
+      if (data.status === 'full' || data.slots_claimed >= data.total_capacity) {
+        setJoinError('Esta lancha ya está llena');
+        return;
+      }
+      if (data.status === 'cancelled' || data.status === 'closed') {
+        setJoinError('Esta reserva ya no está activa');
+        return;
+      }
+      // Válido → guardar para usar en handleCreateRegistration
+      setBoatReservationId(data.id);
+      setSelectedBoatId(data.boat_id);
+      setBoatInviteCode(code);
+      setStep(3);
+    } catch (err: any) {
+      setJoinError('Error validando código');
+    }
   };
 
   const handleCreateRegistration = async () => {
@@ -200,6 +352,56 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
         await supabase.from('solstice_payment_schedules').insert(schedules);
       }
 
+      // ── Lancha: crear reservation + passenger ─────────────────────────
+      if (includesBoat && selectedBoatId) {
+        if (boatChoice === 'lead') {
+          // Generar invite_code corto (6 chars, mayúsculas + dígitos)
+          const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+          const boatRow = boats.find(b => b.id === selectedBoatId);
+          const capacity = boatRow?.capacity || 10;
+
+          const { data: bres, error: bresErr } = await supabase
+            .from('solstice_boat_reservations')
+            .insert({
+              boat_id:                selectedBoatId,
+              leader_registration_id: reg.id,
+              leader_name:            name,
+              leader_email:           email,
+              invite_code:            code,
+              total_capacity:         capacity,
+              slots_claimed:          1,
+              status:                 'open',
+            })
+            .select()
+            .single();
+
+          if (!bresErr && bres) {
+            setBoatReservationId(bres.id);
+            setBoatInviteCode(code);
+            await supabase.from('solstice_boat_passengers').insert({
+              boat_reservation_id: bres.id,
+              registration_id:     reg.id,
+              passenger_name:      name,
+              passenger_email:     email,
+              passenger_phone:     phone,
+              is_leader:           true,
+              amount_paid:         0,
+            });
+          }
+        } else if (boatChoice === 'join' && boatReservationId) {
+          // Unirse a lancha existente como invitado
+          await supabase.from('solstice_boat_passengers').insert({
+            boat_reservation_id: boatReservationId,
+            registration_id:     reg.id,
+            passenger_name:      name,
+            passenger_email:     email,
+            passenger_phone:     phone,
+            is_leader:           false,
+            amount_paid:         0,
+          });
+        }
+      }
+
       setPendingOrderNum(orderNum);
       setPendingRegId(reg.id);
       setStep(4);
@@ -222,6 +424,11 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
           .from('solstice_registrations')
           .update({ status: 'active', amount_paid: chargeNow })
           .eq('id', pendingRegId);
+
+        // Disparar email de confirmación — fire-and-forget para no bloquear UI
+        supabase.functions
+          .invoke('send-solstice-confirmation', { body: { registration_id: pendingRegId } })
+          .catch(err => console.warn('send-solstice-confirmation falló:', err?.message));
       }
       setPayStatus('paid');
       setTimeout(() => setStep(5), 1000);
@@ -236,7 +443,8 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
   const goBack = () => {
     if      (step === 5)            onBack();
     else if (step === 4)            setStep(3);
-    else if (step === 3)            setStep(currentCustomer ? 2 : (2.5 as any));
+    else if (step === 3)            setStep(includesBoat ? (2.7 as any) : (currentCustomer ? 2 : (2.5 as any)));
+    else if (step === (2.7 as any)) setStep(currentCustomer ? 2 : (2.5 as any));
     else if (step === (2.5 as any)) setStep(2);
     else if (step === 2)            setStep(mode === 'individual_days' ? (1.5 as any) : 1);
     else if (step === (1.5 as any)) setStep(1);
@@ -244,7 +452,9 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
     else                            onBack();
   };
 
-  const stepLabel = ['Semana', 'Modalidad', 'Tus datos', '', 'Pago', '✓'][Math.min(Math.floor(step), 5)];
+  const stepLabel = step === (2.7 as any)
+    ? 'Lancha'
+    : ['Semana', 'Modalidad', 'Tus datos', '', 'Pago', '✓'][Math.min(Math.floor(step), 5)];
   const stepNum   = Math.min(Math.floor(step), 5);
 
   // Shared style helpers
@@ -361,56 +571,287 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
             </motion.div>
           )}
 
-          {/* STEP 1 — Modalidad de pago */}
-          {step === 1 && (
-            <motion.div key="s1" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
-              <div>
-                <h2 className="text-3xl uppercase mb-1" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.08em', fontWeight: 300 }}>¿Cómo pagas?</h2>
-                <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>Semana {selWeek?.university}</p>
-              </div>
-              <div className="space-y-3">
-                {MODES.map(m => (
-                  <button key={m.id} onClick={() => {
-                    setMode(m.id);
-                    setStep(m.id === 'individual_days' ? (1.5 as any) : 2);
+          {/* STEP 1 — Modalidad de pago (rediseño conversión) */}
+          {step === 1 && (() => {
+            const entryK = Math.round((season?.entry_price ?? 40000) / 1000);
+            const totalK = Math.round((season?.combo_total ?? 400000) / 1000);
+            const cuotas = season?.installments ?? 5;
+            const cuotaK = Math.round((totalK * 1000) / cuotas / 1000);
+            const discountTodoUna = 50; // ahorro $K si paga todo de una
+            const meta: Record<PaymentMode, {
+              headline: string;
+              bigPrice: string;
+              afterPrice?: string;
+              ahorro?: string;
+              tags?: string[];
+              cobro: string;     // cómo se cobra realmente
+              respaldo: string;  // garantía / qué pasa si no pagás
+            }> = {
+              auto_subscription: {
+                headline: `${entryK}K hoy + ${cuotas} cuotas de ${cuotaK}K`,
+                bigPrice: `$${cuotaK}K`,
+                afterPrice: `/mes · ${cuotas}× automático`,
+                tags: ['Cero olvidos', 'Sin recargos por mora'],
+                cobro:    `Autorizás cargo automático. Bold cobra $${cuotaK}K en tu tarjeta el día 5 de cada mes.`,
+                respaldo: 'Si la tarjeta no tiene fondos, te damos 7 días para regularizar antes de suspender acceso.',
+              },
+              manual_monthly: {
+                headline: `${entryK}K hoy + tarjeta guardada`,
+                bigPrice: `$${cuotaK}K`,
+                afterPrice: `/mes · aviso 24h antes`,
+                tags: ['Avisamos por WhatsApp', 'Movés la fecha 1× si necesitás'],
+                cobro:    `Guardamos tu tarjeta de forma segura. Te avisamos 24h antes de cada cobro y se ejecuta automático al día siguiente.`,
+                respaldo: 'Podés posponer 1 cuota hasta 7 días sin costo. Más de 7 días = 5% recargo y review de tu lugar.',
+              },
+              cash_to_seller: {
+                headline: `Combo completo en efectivo · 1 sola entrega`,
+                bigPrice: `$${totalK}K`,
+                afterPrice: ` total`,
+                tags: ['Sin cuotas', 'Pago confirmado en BD con QR del promotor'],
+                cobro:    `Pagás el monto total en efectivo al promotor el día 1 del programa (Día Llegada). Te entrega QR de confirmación.`,
+                respaldo: 'Sin pago confirmado en BD = sin acceso al programa. La reserva con $40K se pierde si no se completa el día 1.',
+              },
+              individual_days: {
+                headline: 'Cada día se paga 100% online al elegirlo',
+                bigPrice: 'Desde $70K',
+                afterPrice: ' / día',
+                tags: ['Sin compromiso de combo', 'QR por día comprado'],
+                cobro:    `Cada día se paga al instante por Bold. No hay cuotas en esta modalidad.`,
+                respaldo: 'Los días son finales — sin reembolsos por inasistencia, pero podés transferirlos a un amigo.',
+              },
+              full_combo: {
+                headline: `Pagás hoy y te olvidás`,
+                bigPrice: `$${totalK - discountTodoUna}K`,
+                afterPrice: ` total`,
+                ahorro: `Ahorras $${discountTodoUna}K vs cuotas`,
+                tags: ['Sin pagos pendientes', 'Lock-in del precio del fase 1'],
+                cobro:    `1 sola transacción por Bold con tu tarjeta o transferencia. Quedás cerrado en minutos.`,
+                respaldo: 'Cero riesgo de mora · Cero recargos · 100% reembolsable hasta 14 días antes del evento.',
+              },
+            };
+            const recommended: PaymentMode = 'auto_subscription';
+
+            return (
+              <motion.div key="s1" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6 pb-32">
+                <div>
+                  <p className="text-[10px] uppercase mb-2" style={{ letterSpacing: '0.4em', color: C.red, fontWeight: 600 }}>
+                    Paso 2 · Modalidad
+                  </p>
+                  <h2 className="text-3xl md:text-4xl uppercase mb-1" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.04em', fontWeight: 300 }}>
+                    ¿Cómo te queda mejor pagar?
+                  </h2>
+                  <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>
+                    Semana {selWeek?.university} · Reserva hoy con <strong style={{ color: C.red }}>${entryK}K</strong> y elige cómo seguir
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  {MODES.map(m => {
+                    const sel = mode === m.id;
+                    const isRec = m.id === recommended;
+                    const isBestPrice = m.id === 'full_combo';
+                    const data = meta[m.id];
+                    return (
+                      <motion.button
+                        key={m.id}
+                        whileTap={{ scale: 0.995 }}
+                        onClick={() => setMode(m.id)}
+                        className="w-full p-5 text-left relative overflow-hidden block group"
+                        style={{
+                          borderRadius: '20px',
+                          background: sel ? 'rgba(230,57,47,0.10)' : 'rgba(255,255,255,0.035)',
+                          backdropFilter: 'blur(32px) saturate(180%)',
+                          border: sel ? '0.5px solid rgba(230,57,47,0.55)' : '0.5px solid rgba(255,255,255,0.10)',
+                          boxShadow: sel ? '0 24px 50px rgba(230,57,47,0.15)' : '0 16px 36px rgba(0,0,0,0.25)',
+                          transition: 'all 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+                        }}
+                      >
+                        {/* Badges */}
+                        {isRec && (
+                          <div className="absolute top-3 right-3 px-2.5 py-1 text-[8px] uppercase flex items-center gap-1"
+                            style={{ background: C.red, color: C.cream, letterSpacing: '0.2em', borderRadius: '999px', fontWeight: 600 }}>
+                            <span style={{ width: 5, height: 5, borderRadius: 999, background: '#fff', animation: 'pulse 2s ease-in-out infinite' }} />
+                            Más popular
+                          </div>
+                        )}
+                        {isBestPrice && (
+                          <div className="absolute top-3 right-3 px-2.5 py-1 text-[8px] uppercase"
+                            style={{ background: '#F9F2D7', color: '#0a0a0a', letterSpacing: '0.2em', borderRadius: '999px', fontWeight: 700 }}>
+                            Mejor precio
+                          </div>
+                        )}
+
+                        <div className="flex items-start gap-4">
+                          <div className="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center"
+                            style={{
+                              background: sel ? C.red : `${C.red}15`,
+                              color: sel ? C.cream : C.red,
+                              transition: 'all 0.3s ease',
+                            }}>
+                            {m.icon}
+                          </div>
+                          <div className="flex-1 min-w-0 pr-16">
+                            <p className="text-sm md:text-base uppercase" style={{ letterSpacing: '0.08em', fontWeight: 600, color: C.cream }}>
+                              {m.label}
+                            </p>
+                            <p className="text-[10px] md:text-[11px] mt-1" style={{ color: C.gray, letterSpacing: '0.05em' }}>
+                              {data.headline}
+                            </p>
+
+                            <div className="flex items-baseline gap-1 mt-3">
+                              <span className="text-2xl md:text-3xl tabular-nums" style={{ fontFamily: "'Poiret One', sans-serif", color: sel ? C.red : C.cream, fontWeight: 300, letterSpacing: '-0.02em' }}>
+                                {data.bigPrice}
+                              </span>
+                              {data.afterPrice && (
+                                <span className="text-[10px] md:text-xs" style={{ color: C.gray, fontWeight: 500 }}>
+                                  {data.afterPrice}
+                                </span>
+                              )}
+                            </div>
+
+                            {data.ahorro && (
+                              <p className="text-[10px] uppercase mt-1.5" style={{ color: '#9be15d', letterSpacing: '0.15em', fontWeight: 600 }}>
+                                ✦ {data.ahorro}
+                              </p>
+                            )}
+
+                            {data.tags && data.tags.length > 0 && (
+                              <ul className="flex flex-wrap gap-x-3 gap-y-1 mt-3">
+                                {data.tags.map((t, i) => (
+                                  <li key={i} className="text-[9px] uppercase" style={{ color: `${C.gray}cc`, letterSpacing: '0.15em', fontWeight: 500 }}>
+                                    · {t}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Bloque revelado al seleccionar: cómo se cobra + garantía */}
+                        {sel && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                            className="overflow-hidden mt-4"
+                          >
+                            <div className="pt-4 border-t" style={{ borderColor: 'rgba(230,57,47,0.25)' }}>
+                              <div className="space-y-3">
+                                <div className="flex gap-3">
+                                  <span className="text-[9px] uppercase flex-shrink-0 mt-0.5" style={{ color: C.red, letterSpacing: '0.25em', fontWeight: 600, minWidth: '64px' }}>
+                                    Cobro
+                                  </span>
+                                  <p className="text-[11px] leading-relaxed" style={{ color: C.cream, fontWeight: 400 }}>
+                                    {data.cobro}
+                                  </p>
+                                </div>
+                                <div className="flex gap-3">
+                                  <span className="text-[9px] uppercase flex-shrink-0 mt-0.5" style={{ color: C.red, letterSpacing: '0.25em', fontWeight: 600, minWidth: '64px' }}>
+                                    Respaldo
+                                  </span>
+                                  <p className="text-[11px] leading-relaxed" style={{ color: `${C.gray}dd`, fontWeight: 400 }}>
+                                    {data.respaldo}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+
+                        {/* Indicador de selección animado */}
+                        {sel && (
+                          <motion.div
+                            layoutId="modality-glow"
+                            className="absolute inset-0 pointer-events-none"
+                            style={{
+                              borderRadius: '20px',
+                              boxShadow: 'inset 0 0 60px rgba(230,57,47,0.18)',
+                            }}
+                          />
+                        )}
+                      </motion.button>
+                    );
+                  })}
+                </div>
+
+                {/* ── Cómo garantizamos tu lugar ── */}
+                <div
+                  className="p-5 md:p-6 mt-2"
+                  style={{
+                    background: 'rgba(255,255,255,0.025)',
+                    border: '0.5px solid rgba(255,255,255,0.08)',
+                    borderRadius: '20px',
                   }}
-                    className="w-full p-5 text-left flex items-center gap-4 relative"
+                >
+                  <p className="text-[10px] uppercase mb-4" style={{ letterSpacing: '0.4em', color: C.red, fontWeight: 600 }}>
+                    Cómo aseguramos tu lugar
+                  </p>
+                  <ul className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <GarantiaItem step="1" title="Reserva validada" desc={`Tu $${entryK}K se cobra vía Bold con firma cifrada. El lugar queda bloqueado solo si el pago aprueba.`} />
+                    <GarantiaItem step="2" title="Tarjeta autorizada" desc="En modalidades de cuotas, autorizás cobros automáticos. Sin autorización, no se confirma." />
+                    <GarantiaItem step="3" title="Recordatorios reales" desc="WhatsApp 24h antes de cada pago + email. Si la tarjeta no tiene fondos, 7 días de gracia." />
+                  </ul>
+                </div>
+
+                {/* Trust strip */}
+                <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 pt-2">
+                  <span className="text-[9px] uppercase" style={{ color: `${C.gray}cc`, letterSpacing: '0.2em', fontWeight: 500 }}>
+                    🔒 Pago seguro · Bold
+                  </span>
+                  <span style={{ color: `${C.gray}40` }}>·</span>
+                  <span className="text-[9px] uppercase" style={{ color: `${C.gray}cc`, letterSpacing: '0.2em', fontWeight: 500 }}>
+                    Sin recargo de cuotas
+                  </span>
+                  <span style={{ color: `${C.gray}40` }}>·</span>
+                  <span className="text-[9px] uppercase" style={{ color: `${C.gray}cc`, letterSpacing: '0.2em', fontWeight: 500 }}>
+                    Cancela antes del 1er pago sin costo
+                  </span>
+                </div>
+
+                {/* Sticky CTA bottom — solo en step 1 (modalidad), oculto en otros steps */}
+                {mode && step === 1 && (
+                  <motion.div
+                    initial={{ y: 100, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={{ y: 100, opacity: 0 }}
+                    transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                    className="fixed bottom-0 inset-x-0 z-30 px-4 pb-5 pt-4"
                     style={{
-                      borderRadius: '20px',
-                      background: mode === m.id ? 'rgba(230,57,47,0.08)' : 'rgba(255,255,255,0.04)',
-                      backdropFilter: 'blur(32px) saturate(180%)',
-                      border: mode === m.id ? '0.5px solid rgba(230,57,47,0.50)' : '0.5px solid rgba(255,255,255,0.10)',
-                      boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
-                      transition: 'all 0.3s ease',
-                    }}
-                    onMouseEnter={e => {
-                      (e.currentTarget as HTMLButtonElement).style.border = '0.5px solid rgba(230,57,47,0.25)';
-                    }}
-                    onMouseLeave={e => {
-                      (e.currentTarget as HTMLButtonElement).style.border = mode === m.id
-                        ? '0.5px solid rgba(230,57,47,0.50)'
-                        : '0.5px solid rgba(255,255,255,0.10)';
+                      background: 'linear-gradient(to top, rgba(0,0,0,0.98) 0%, rgba(0,0,0,0.85) 70%, transparent 100%)',
+                      backdropFilter: 'blur(20px)',
                     }}
                   >
-                    {m.badge && (
-                      <div className="absolute top-3 right-3 px-2 py-0.5 text-[8px] uppercase"
-                        style={{ background: C.red, color: C.cream, letterSpacing: '0.15em', borderRadius: '999px', fontWeight: 500 }}>
-                        {m.badge}
+                    <div className="max-w-2xl mx-auto flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[9px] uppercase" style={{ letterSpacing: '0.3em', color: C.gray, fontWeight: 500 }}>
+                          Reservás hoy con
+                        </p>
+                        <p className="text-xl md:text-2xl tabular-nums" style={{ fontFamily: "'Poiret One', sans-serif", color: C.cream, fontWeight: 300 }}>
+                          ${entryK}.000 <span className="text-[10px] uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>COP</span>
+                        </p>
                       </div>
-                    )}
-                    <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center"
-                      style={{ background: `${C.red}15`, color: C.red }}>
-                      {m.icon}
+                      <motion.button
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => setStep(mode === 'individual_days' ? (1.5 as any) : 2)}
+                        className="flex-shrink-0 px-7 py-4 text-sm uppercase flex items-center gap-3"
+                        style={{
+                          background: C.red,
+                          color: '#fff',
+                          letterSpacing: '0.2em',
+                          borderRadius: '999px',
+                          fontWeight: 600,
+                          boxShadow: '0 12px 32px rgba(230,57,47,0.45)',
+                        }}
+                      >
+                        Continuar
+                        <ChevronRight size={16} />
+                      </motion.button>
                     </div>
-                    <div>
-                      <p className="text-sm uppercase" style={{ letterSpacing: '0.1em', fontWeight: 500 }}>{m.label}</p>
-                      <p className="text-[10px] mt-0.5" style={{ color: C.gray }}>{m.sub}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          )}
+                  </motion.div>
+                )}
+              </motion.div>
+            );
+          })()}
 
           {/* STEP 1.5 — Días sueltos */}
           {step === (1.5 as any) && (
@@ -500,38 +941,119 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
           {step === 2 && (
             <motion.div key="s2" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
               <div>
-                <h2 className="text-3xl uppercase mb-1" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.08em', fontWeight: 300 }}>Tus datos</h2>
-                <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>Para el registro y confirmación</p>
+                <p className="text-[10px] uppercase mb-2" style={{ letterSpacing: '0.4em', color: C.red, fontWeight: 600 }}>
+                  Paso 3 · Tus datos
+                </p>
+                <h2 className="text-3xl md:text-4xl uppercase mb-1" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.04em', fontWeight: 300 }}>
+                  Quién eres
+                </h2>
+                <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>
+                  Lo necesitamos para tu QR de acceso y tu pase Solstice
+                </p>
               </div>
-              <div className="space-y-3">
-                {[
-                  { placeholder: 'NOMBRE COMPLETO',     value: name,  set: setName,  type: 'text'  },
-                  { placeholder: 'CORREO ELECTRÓNICO',  value: email, set: setEmail, type: 'email' },
-                  { placeholder: 'TELÉFONO / CELULAR',  value: phone, set: setPhone, type: 'tel'   },
-                  { placeholder: 'UNIVERSIDAD',         value: uni,   set: setUni,   type: 'text'  },
-                ].map(f => (
-                  <input key={f.placeholder} type={f.type} placeholder={f.placeholder} value={f.value}
-                    onChange={e => f.set(f.type === 'email' ? e.target.value.toLowerCase() : e.target.value)}
-                    style={inputStyle}
-                    onFocus={e => (e.currentTarget.style.borderColor = 'rgba(230,57,47,0.60)')}
-                    onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.10)')}
+
+              {/* Datos personales */}
+              <FieldGroup title="Identidad">
+                <SolField
+                  label="Nombre completo"
+                  value={name}
+                  onChange={v => { setName(v); if (fieldErrors.name) setFieldErrors({ ...fieldErrors, name: '' }); }}
+                  error={fieldErrors.name}
+                  type="text"
+                  autoComplete="name"
+                  placeholder="Como aparece en tu cédula"
+                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <SolField
+                    label="Documento / Cédula"
+                    value={cedula}
+                    onChange={v => { setCedula(v.replace(/\D/g, '')); if (fieldErrors.cedula) setFieldErrors({ ...fieldErrors, cedula: '' }); }}
+                    error={fieldErrors.cedula}
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    placeholder="1234567890"
                   />
-                ))}
-                {authError && (
-                  <p className="text-xs uppercase text-center py-2" style={{ color: C.red, letterSpacing: '0.15em', fontWeight: 500 }}>
-                    {authError}
-                  </p>
-                )}
-              </div>
-              <button onClick={handleRequestOtp} disabled={!email || !name || authLoading}
+                  <SolField
+                    label="Fecha de nacimiento"
+                    value={birthDate}
+                    onChange={v => { setBirthDate(v); if (fieldErrors.birthDate) setFieldErrors({ ...fieldErrors, birthDate: '' }); }}
+                    error={fieldErrors.birthDate}
+                    type="date"
+                    autoComplete="bday"
+                    placeholder="YYYY-MM-DD"
+                  />
+                </div>
+              </FieldGroup>
+
+              <FieldGroup title="Contacto">
+                <SolField
+                  label="Correo electrónico"
+                  value={email}
+                  onChange={v => { setEmail(v.toLowerCase()); if (fieldErrors.email) setFieldErrors({ ...fieldErrors, email: '' }); }}
+                  error={fieldErrors.email}
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  placeholder="tu@email.com"
+                />
+                <SolField
+                  label="Teléfono / WhatsApp"
+                  value={phone}
+                  onChange={v => { setPhone(v); if (fieldErrors.phone) setFieldErrors({ ...fieldErrors, phone: '' }); }}
+                  error={fieldErrors.phone}
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder="+57 300 123 4567"
+                />
+                <SolField
+                  label="Universidad"
+                  value={uni}
+                  onChange={v => { setUni(v); if (fieldErrors.uni) setFieldErrors({ ...fieldErrors, uni: '' }); }}
+                  error={fieldErrors.uni}
+                  type="text"
+                  autoComplete="organization"
+                  placeholder="Javeriana, Andes, CESA, etc."
+                />
+              </FieldGroup>
+
+              <FieldGroup title="Contacto de emergencia" hint="Para emergencias durante la semana. No los molestaremos por nada más.">
+                <SolField
+                  label="Nombre del contacto"
+                  value={emergencyName}
+                  onChange={v => { setEmergencyName(v); if (fieldErrors.emergencyName) setFieldErrors({ ...fieldErrors, emergencyName: '' }); }}
+                  error={fieldErrors.emergencyName}
+                  type="text"
+                  placeholder="Papá / Mamá / Pareja / Mejor amig@"
+                />
+                <SolField
+                  label="Teléfono del contacto"
+                  value={emergencyPhone}
+                  onChange={v => { setEmergencyPhone(v); if (fieldErrors.emergencyPhone) setFieldErrors({ ...fieldErrors, emergencyPhone: '' }); }}
+                  error={fieldErrors.emergencyPhone}
+                  type="tel"
+                  inputMode="tel"
+                  placeholder="+57 300 123 4567"
+                />
+              </FieldGroup>
+
+              {authError && (
+                <p className="text-xs uppercase text-center py-2" style={{ color: C.red, letterSpacing: '0.15em', fontWeight: 500 }}>
+                  {authError}
+                </p>
+              )}
+
+              <button onClick={handleRequestOtp} disabled={authLoading}
                 style={{
                   ...primaryBtnStyle,
-                  opacity: (!email || !name || authLoading) ? 0.35 : 1,
+                  padding: '18px 16px',
+                  opacity: authLoading ? 0.35 : 1,
                 }}
                 onMouseEnter={e => {
-                  if (email && name && !authLoading) {
+                  if (!authLoading) {
                     (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
-                    (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 8px 24px rgba(230,57,47,0.20)';
+                    (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 12px 28px rgba(230,57,47,0.30)';
                   }
                 }}
                 onMouseLeave={e => {
@@ -539,8 +1061,12 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
                   (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none';
                 }}
               >
-                {authLoading ? <Loader2 className="animate-spin" /> : 'Continuar →'}
+                {authLoading ? <Loader2 className="animate-spin" /> : <>Continuar al pago <ChevronRight size={16} /></>}
               </button>
+
+              <p className="text-[9px] uppercase text-center" style={{ color: `${C.gray}aa`, letterSpacing: '0.25em', fontWeight: 500 }}>
+                🔒 Datos cifrados · Solo Solstice los ve
+              </p>
             </motion.div>
           )}
 
@@ -587,6 +1113,266 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
             </motion.div>
           )}
 
+          {/* STEP 2.7 — Escoge tu lancha (sistema líder/invitado) */}
+          {step === (2.7 as any) && (
+            <motion.div key="s2.7" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+              <div>
+                <p className="text-[10px] uppercase mb-2" style={{ letterSpacing: '0.4em', color: C.red, fontWeight: 600 }}>
+                  Día 3 · Catamarán
+                </p>
+                <h2 className="text-3xl md:text-4xl uppercase mb-1" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.04em', fontWeight: 300 }}>
+                  ¿Lideras o te unes?
+                </h2>
+                <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>
+                  Cada lancha tiene cupos limitados. El líder elige + invita panas.
+                </p>
+              </div>
+
+              {/* Toggle Lead vs Join */}
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => { setBoatChoice('lead'); setJoinError(''); }}
+                  className="p-4 text-left"
+                  style={{
+                    borderRadius: '20px',
+                    background: boatChoice === 'lead' ? 'rgba(230,57,47,0.10)' : 'rgba(255,255,255,0.035)',
+                    backdropFilter: 'blur(32px) saturate(180%)',
+                    border: boatChoice === 'lead' ? '0.5px solid rgba(230,57,47,0.55)' : '0.5px solid rgba(255,255,255,0.10)',
+                    transition: 'all 0.3s ease',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Ship size={18} style={{ color: boatChoice === 'lead' ? C.red : C.gray, marginBottom: 8 }} />
+                  <p className="text-xs uppercase" style={{ color: C.cream, letterSpacing: '0.1em', fontWeight: 600 }}>
+                    Lidero
+                  </p>
+                  <p className="text-[10px] mt-1" style={{ color: C.gray }}>
+                    Escojo la lancha + invito panas
+                  </p>
+                </button>
+
+                <button
+                  onClick={() => { setBoatChoice('join'); setSelectedBoatId(null); }}
+                  className="p-4 text-left"
+                  style={{
+                    borderRadius: '20px',
+                    background: boatChoice === 'join' ? 'rgba(230,57,47,0.10)' : 'rgba(255,255,255,0.035)',
+                    backdropFilter: 'blur(32px) saturate(180%)',
+                    border: boatChoice === 'join' ? '0.5px solid rgba(230,57,47,0.55)' : '0.5px solid rgba(255,255,255,0.10)',
+                    transition: 'all 0.3s ease',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <CheckCircle2 size={18} style={{ color: boatChoice === 'join' ? C.red : C.gray, marginBottom: 8 }} />
+                  <p className="text-xs uppercase" style={{ color: C.cream, letterSpacing: '0.1em', fontWeight: 600 }}>
+                    Me uno
+                  </p>
+                  <p className="text-[10px] mt-1" style={{ color: C.gray }}>
+                    Tengo un código de invitación
+                  </p>
+                </button>
+              </div>
+
+              {/* Lead: catálogo de lanchas */}
+              {boatChoice === 'lead' && (
+                <div className="space-y-3">
+                  {boats.length === 0 ? (
+                    <div className="p-6 text-center" style={{
+                      borderRadius: '20px',
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '0.5px solid rgba(255,255,255,0.08)',
+                    }}>
+                      <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em' }}>
+                        No hay lanchas configuradas todavía.
+                      </p>
+                      <p className="text-[10px] mt-2" style={{ color: `${C.gray}80` }}>
+                        Continúa, el equipo asignará lancha después del pago.
+                      </p>
+                    </div>
+                  ) : (
+                    boats.map(b => {
+                      const sel = selectedBoatId === b.id;
+                      const claimed   = boatOccupancy[b.id] || 0;
+                      const available = Math.max(0, (b.capacity || 0) - claimed);
+                      const isFull    = available <= 0;
+                      const isSoldOut = b.status === 'sold_out' || isFull;
+                      const isJustReserved = recentBoatId === b.id;
+                      const priceK = Math.round((b.price_per_person || 0) / 1000);
+                      return (
+                        <motion.button
+                          key={b.id}
+                          whileTap={{ scale: 0.995 }}
+                          animate={isJustReserved ? { scale: [1, 1.012, 1] } : { scale: 1 }}
+                          transition={isJustReserved ? { duration: 0.6, ease: 'easeOut' } : undefined}
+                          onClick={() => !isSoldOut && setSelectedBoatId(b.id)}
+                          disabled={isSoldOut}
+                          className="w-full p-5 text-left relative overflow-hidden block"
+                          style={{
+                            borderRadius: '20px',
+                            background: sel ? 'rgba(230,57,47,0.10)' : 'rgba(255,255,255,0.035)',
+                            backdropFilter: 'blur(32px) saturate(180%)',
+                            border: sel
+                              ? '0.5px solid rgba(230,57,47,0.55)'
+                              : isJustReserved
+                                ? '0.5px solid rgba(255,180,140,0.55)'
+                                : '0.5px solid rgba(255,255,255,0.10)',
+                            boxShadow: sel
+                              ? '0 24px 50px rgba(230,57,47,0.15)'
+                              : isJustReserved
+                                ? '0 16px 36px rgba(255,180,140,0.25)'
+                                : '0 16px 36px rgba(0,0,0,0.25)',
+                            opacity: isSoldOut ? 0.4 : 1,
+                            cursor: isSoldOut ? 'not-allowed' : 'pointer',
+                            transition: 'all 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+                          }}
+                        >
+                          {isSoldOut && (
+                            <div className="absolute top-3 right-3 px-2.5 py-1 text-[8px] uppercase"
+                              style={{ background: C.gray, color: '#000', letterSpacing: '0.2em', borderRadius: '999px', fontWeight: 700 }}>
+                              Lleno
+                            </div>
+                          )}
+                          {!isSoldOut && isJustReserved && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -4 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0 }}
+                              className="absolute top-3 right-3 px-2.5 py-1 text-[8px] uppercase flex items-center gap-1.5"
+                              style={{
+                                background: '#FFB48C',
+                                color: '#0a0a0a',
+                                letterSpacing: '0.2em',
+                                borderRadius: '999px',
+                                fontWeight: 700,
+                              }}
+                            >
+                              <span style={{
+                                width: 5, height: 5, borderRadius: 999, background: '#0a0a0a',
+                                animation: 'pulse 1.4s ease-in-out infinite',
+                              }} />
+                              Recién reservada
+                            </motion.div>
+                          )}
+                          <div className="flex items-start gap-4">
+                            {b.image_url ? (
+                              <img src={b.image_url} alt={b.name} className="w-16 h-16 object-cover flex-shrink-0"
+                                style={{ borderRadius: '14px' }} />
+                            ) : (
+                              <div className="w-16 h-16 flex-shrink-0 flex items-center justify-center"
+                                style={{ borderRadius: '14px', background: `${C.red}15`, color: C.red }}>
+                                <Ship size={26} />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm md:text-base uppercase" style={{ letterSpacing: '0.08em', fontWeight: 600, color: C.cream }}>
+                                {b.name}
+                              </p>
+                              {b.description && (
+                                <p className="text-[10px] mt-1" style={{ color: C.gray, letterSpacing: '0.05em' }}>
+                                  {b.description}
+                                </p>
+                              )}
+                              <div className="flex items-baseline gap-3 mt-2 flex-wrap">
+                                <span className="text-[10px] uppercase tabular-nums" style={{
+                                  color: available <= 5 && available > 0 ? '#FFB48C' : isFull ? C.gray : C.red,
+                                  letterSpacing: '0.2em',
+                                  fontWeight: 600,
+                                }}>
+                                  {isFull ? 'Sin cupos' : `${available} de ${b.capacity} cupos`}
+                                </span>
+                                {priceK > 0 && (
+                                  <span className="text-[10px]" style={{ color: C.gray, letterSpacing: '0.05em' }}>
+                                    · ${priceK}K / persona
+                                  </span>
+                                )}
+                              </div>
+                              {/* Mini barra de ocupación */}
+                              {!isFull && (b.capacity || 0) > 0 && (
+                                <div className="w-full mt-2 h-[2px] rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                                  <div
+                                    style={{
+                                      width: `${(claimed / b.capacity) * 100}%`,
+                                      height: '100%',
+                                      background: available <= 5 ? '#FFB48C' : C.red,
+                                      transition: 'width 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
+                                    }}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </motion.button>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+
+              {/* Join: input de invite_code */}
+              {boatChoice === 'join' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-[9px] uppercase block mb-1.5" style={{ letterSpacing: '0.25em', color: joinError ? C.red : C.gray, fontWeight: 600 }}>
+                      Código de invitación
+                    </label>
+                    <input
+                      value={joinInviteCode}
+                      onChange={e => { setJoinInviteCode(e.target.value.toUpperCase()); setJoinError(''); }}
+                      placeholder="EJ: AB12CD"
+                      maxLength={10}
+                      style={{
+                        ...inputStyle,
+                        textAlign: 'center',
+                        fontSize: '22px',
+                        letterSpacing: '0.4em',
+                        fontWeight: 600,
+                        borderColor: joinError ? 'rgba(230,57,47,0.55)' : 'rgba(255,255,255,0.10)',
+                      }}
+                    />
+                    {joinError && (
+                      <p className="text-[10px] mt-1.5" style={{ color: C.red, fontWeight: 500 }}>
+                        · {joinError}
+                      </p>
+                    )}
+                  </div>
+                  <p className="text-[10px]" style={{ color: `${C.gray}cc`, lineHeight: 1.6 }}>
+                    Te lo manda quien reservó la lancha. Si todavía no lo tienes, pásate a "Lidero" y la armas tú.
+                  </p>
+                </div>
+              )}
+
+              {/* Continuar */}
+              <button
+                onClick={() => {
+                  if (boatChoice === 'lead') {
+                    if (!selectedBoatId) return;
+                    setStep(3);
+                  } else if (boatChoice === 'join') {
+                    handleValidateInviteCode();
+                  }
+                }}
+                disabled={!boatChoice || (boatChoice === 'lead' && !selectedBoatId)}
+                style={{
+                  ...primaryBtnStyle,
+                  padding: '18px 16px',
+                  opacity: (!boatChoice || (boatChoice === 'lead' && !selectedBoatId)) ? 0.35 : 1,
+                }}
+                onMouseEnter={e => {
+                  if (boatChoice && !(boatChoice === 'lead' && !selectedBoatId)) {
+                    (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
+                    (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 12px 28px rgba(230,57,47,0.30)';
+                  }
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
+                  (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none';
+                }}
+              >
+                {boatChoice === 'join' ? 'Validar código' : 'Continuar al resumen'} <ChevronRight size={16} />
+              </button>
+            </motion.div>
+          )}
+
           {/* STEP 3 — Resumen + confirmar */}
           {step === 3 && (
             <motion.div key="s3" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
@@ -607,6 +1393,14 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
                   ['Nombre',    name],
                   ['Email',     email],
                   mode === 'individual_days' ? ['Días', selDays.map(d => `Día ${d}`).join(', ')] : null,
+                  includesBoat && selectedBoatId
+                    ? ['Lancha', boats.find(b => b.id === selectedBoatId)?.name || 'Seleccionada']
+                    : null,
+                  includesBoat && boatChoice === 'lead'
+                    ? ['Rol lancha', 'Líder (te damos código para invitar)']
+                    : includesBoat && boatChoice === 'join'
+                    ? ['Rol lancha', `Invitado · ${boatInviteCode || ''}`]
+                    : null,
                 ] as ([string, string | undefined] | null)[])
                   .filter((x): x is [string, string | undefined] => Boolean(x))
                   .map(([k, v]) => (
@@ -719,72 +1513,730 @@ export default function SolsticeReserva({ initialWeek, onBack }: Props) {
 
           {/* STEP 5 — Confirmación */}
           {step === 5 && (
-            <motion.div key="s5" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-8 text-center py-12">
-              <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto"
-                style={{ background: `${C.red}20`, border: `0.5px solid rgba(230,57,47,0.40)` }}>
-                <CheckCircle2 size={36} style={{ color: C.red }} />
-              </div>
-              <div>
-                <h2 className="text-4xl uppercase mb-3" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.08em', fontWeight: 300 }}>
-                  ¡Tu semana está reservada!
-                </h2>
-                <p className="text-sm mb-1" style={{ color: C.gray }}>Semana <strong style={{ color: C.cream }}>{selWeek?.university}</strong></p>
-                <p className="text-sm" style={{ color: C.gray }}>
-                  Confirmación enviada a <strong style={{ color: C.cream }}>{email}</strong>
-                </p>
-              </div>
-              <div className="p-6 space-y-3 text-xs uppercase" style={{
-                borderRadius: '28px',
-                background: 'rgba(255,255,255,0.03)',
-                backdropFilter: 'blur(24px)',
-                border: '0.5px solid rgba(255,255,255,0.10)',
-                boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
-              }}>
-                <div className="flex justify-between" style={{ letterSpacing: '0.12em', fontWeight: 500 }}>
-                  <span style={{ color: C.gray }}>Modalidad</span>
-                  <span>{MODES.find(m => m.id === mode)?.label}</span>
-                </div>
-                {mode !== 'full_combo' && mode !== 'individual_days' && (
-                  <div className="flex justify-between" style={{ letterSpacing: '0.12em', fontWeight: 500 }}>
-                    <span style={{ color: C.gray }}>Próxima cuota</span>
-                    <span style={{ color: C.red }}>${Math.round(s.combo_total / s.installments / 1000)}K / mes</span>
-                  </div>
-                )}
-                <div className="flex justify-between pt-3" style={{ borderTop: '0.5px solid rgba(255,255,255,0.08)', letterSpacing: '0.12em', fontWeight: 500 }}>
-                  <span style={{ color: C.gray }}>Orden</span>
-                  <span className="font-mono">{pendingOrderNum}</span>
-                </div>
-              </div>
-              <button onClick={onBack}
-                style={{
-                  borderRadius: '999px',
-                  background: 'transparent',
-                  border: '0.5px solid rgba(255,255,255,0.10)',
-                  color: C.gray,
-                  letterSpacing: '0.2em',
-                  width: '100%',
-                  padding: '16px',
-                  fontSize: '14px',
-                  textTransform: 'uppercase' as const,
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                }}
-                onMouseEnter={e => {
-                  (e.currentTarget as HTMLButtonElement).style.borderColor = C.cream;
-                  (e.currentTarget as HTMLButtonElement).style.color = C.cream;
-                }}
-                onMouseLeave={e => {
-                  (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.10)';
-                  (e.currentTarget as HTMLButtonElement).style.color = C.gray;
-                }}>
-                Volver al inicio
-              </button>
-            </motion.div>
+            <ConfirmationCinematic
+              weekUniversity={selWeek?.university}
+              weekStartDate={selWeek?.start_date}
+              email={email}
+              name={name}
+              modalityLabel={MODES.find(m => m.id === mode)?.label || ''}
+              orderNum={pendingOrderNum ?? '—'}
+              installmentAmountK={Math.round(s.combo_total / (s.installments || 1) / 1000)}
+              showInstallments={mode !== 'full_combo' && mode !== 'individual_days'}
+              boatInviteCode={boatChoice === 'lead' ? boatInviteCode : null}
+              boatName={selectedBoatId ? boats.find(b => b.id === selectedBoatId)?.name : undefined}
+              registrationId={pendingRegId}
+              onBack={onBack}
+            />
           )}
 
         </AnimatePresence>
       </div>
     </div>
+  );
+}
+
+// ── Pantalla de confirmación cinemática ─────────────────────────────────
+
+interface ConfirmationProps {
+  weekUniversity?: string;
+  weekStartDate?: string;
+  email: string;
+  name: string;
+  modalityLabel: string;
+  orderNum: string;
+  installmentAmountK: number;
+  showInstallments: boolean;
+  boatInviteCode?: string | null;
+  boatName?: string;
+  registrationId?: string | null;
+  onBack: () => void;
+}
+
+function ConfirmationCinematic({
+  weekUniversity, weekStartDate, email, name, modalityLabel, orderNum,
+  installmentAmountK, showInstallments, boatInviteCode, boatName, registrationId, onBack,
+}: ConfirmationProps) {
+  const firstName = (name || '').split(' ')[0] || 'Tu pase';
+  const [countdown, setCountdown] = useState(() => calcCountdown(weekStartDate));
+  const [lodgings, setLodgings]   = useState<any[]>([]);
+  const [lodgeStatus, setLodgeStatus] = useState<'idle' | 'reserving' | 'reserved' | 'error'>('idle');
+  const [reservedLodgeName, setReservedLodgeName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!weekStartDate) return;
+    const id = setInterval(() => setCountdown(calcCountdown(weekStartDate)), 1000);
+    return () => clearInterval(id);
+  }, [weekStartDate]);
+
+  useEffect(() => {
+    supabase
+      .from('solstice_lodgings')
+      .select('id, name, image_url, description, price_per_night, price_per_person, units_available, category')
+      .eq('status', 'active')
+      .order('sort_order', { ascending: true })
+      .limit(6)
+      .then(({ data }) => {
+        if (data && data.length > 0) setLodgings(data);
+      });
+  }, []);
+
+  const handleReserveLodge = async (lodgeId: string, lodgeName: string, pricePerNight: number) => {
+    setLodgeStatus('reserving');
+    try {
+      const nights = 5; // semana completa por defecto
+      const { data: inserted, error } = await supabase
+        .from('solstice_lodging_reservations')
+        .insert({
+          lodging_id:    lodgeId,
+          registration_id: registrationId || null,
+          customer_name:   name,
+          customer_email:  email,
+          nights,
+          guests:          1,
+          total_amount:    nights * pricePerNight,
+          status:          'pending',
+        })
+        .select('id')
+        .single();
+      if (error) throw new Error(error.message);
+
+      // Notificación al operador del hospedaje + confirmación al cliente
+      // Fire-and-forget: no bloquea la UI ni rompe el upsell si el email falla.
+      if (inserted?.id) {
+        supabase.functions
+          .invoke('send-lodging-notification', { body: { reservation_id: inserted.id } })
+          .catch(err => console.warn('send-lodging-notification falló:', err?.message));
+      }
+
+      setReservedLodgeName(lodgeName);
+      setLodgeStatus('reserved');
+    } catch (err: any) {
+      console.warn('Lodging reserve error:', err.message);
+      setLodgeStatus('error');
+    }
+  };
+
+  return (
+    <motion.div
+      key="s5-cinematic"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.6 }}
+      className="relative"
+    >
+      {/* Confetti partículas */}
+      <ConfettiBurst />
+
+      <div className="relative z-10 space-y-8 py-8">
+        {/* Sun/check animado */}
+        <motion.div
+          initial={{ scale: 0, rotate: -45 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ delay: 0.1, type: 'spring', stiffness: 180, damping: 14 }}
+          className="relative w-24 h-24 mx-auto"
+        >
+          <div
+            className="absolute inset-0 rounded-full"
+            style={{
+              background: 'radial-gradient(circle, rgba(230,57,47,0.5) 0%, rgba(230,57,47,0.15) 50%, transparent 80%)',
+              filter: 'blur(20px)',
+              animation: 'pulse 2.5s ease-in-out infinite',
+            }}
+          />
+          <div
+            className="relative w-full h-full rounded-full flex items-center justify-center"
+            style={{
+              background: '#E6392F',
+              boxShadow: '0 0 50px rgba(230,57,47,0.6), inset 0 -10px 20px rgba(0,0,0,0.2)',
+            }}
+          >
+            <CheckCircle2 size={42} style={{ color: '#F9F2D7' }} strokeWidth={2} />
+          </div>
+        </motion.div>
+
+        {/* Headline */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4, duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          className="text-center"
+        >
+          <p className="text-[10px] uppercase mb-3" style={{ letterSpacing: '0.4em', color: '#E6392F', fontWeight: 600 }}>
+            Reserva confirmada
+          </p>
+          <h2 className="uppercase mb-3" style={{
+            fontFamily: "'Poiret One', sans-serif",
+            fontSize: 'clamp(2rem, 6vw, 3.5rem)',
+            letterSpacing: '-0.01em',
+            fontWeight: 300,
+            color: '#F9F2D7',
+            lineHeight: 1.05,
+          }}>
+            Bienvenido,<br/>{firstName}
+          </h2>
+          <p className="text-sm md:text-base" style={{ color: '#606060', fontFamily: "'Archivo', sans-serif" }}>
+            Tu lugar en <strong style={{ color: '#F9F2D7' }}>Solstice — {weekUniversity}</strong> está bloqueado.
+          </p>
+        </motion.div>
+
+        {/* Countdown */}
+        {weekStartDate && countdown.total > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            className="text-center"
+            style={{
+              padding: '24px 16px',
+              borderRadius: '24px',
+              background: 'linear-gradient(135deg, rgba(230,57,47,0.08), rgba(255,180,140,0.04))',
+              border: '0.5px solid rgba(230,57,47,0.30)',
+            }}
+          >
+            <p className="text-[10px] uppercase mb-3" style={{ letterSpacing: '0.35em', color: '#E6392F', fontWeight: 600 }}>Faltan</p>
+            <div className="flex items-center justify-center gap-3 md:gap-5 flex-wrap">
+              {([['días', countdown.days, true], ['horas', countdown.hours, false], ['min', countdown.mins, false], ['seg', countdown.secs, false]] as [string, number, boolean][]).map(([label, val, big]) => (
+                <div key={label} className="flex flex-col items-center min-w-[56px]">
+                  <span className="tabular-nums leading-none" style={{
+                    fontFamily: "'Poiret One', sans-serif",
+                    fontSize: big ? 'clamp(2.5rem, 7vw, 4.5rem)' : 'clamp(1.5rem, 4vw, 2.5rem)',
+                    fontWeight: 300,
+                    color: big ? '#E6392F' : '#F9F2D7',
+                    letterSpacing: '-0.02em',
+                  }}>
+                    {String(val).padStart(2, '0')}
+                  </span>
+                  <span className="text-[9px] uppercase mt-1.5" style={{ letterSpacing: '0.25em', color: '#606060', fontWeight: 500 }}>{label}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] uppercase mt-3" style={{ letterSpacing: '0.3em', color: '#606060aa', fontWeight: 500 }}>
+              para tu atardecer en Santa Marta
+            </p>
+          </motion.div>
+        )}
+
+        {/* Boarding pass */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.95, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          style={{
+            borderRadius: '24px',
+            background: 'rgba(255,255,255,0.035)',
+            backdropFilter: 'blur(28px) saturate(180%)',
+            border: '0.5px solid rgba(255,255,255,0.10)',
+            overflow: 'hidden',
+            boxShadow: '0 30px 60px rgba(0,0,0,0.4)',
+          }}
+        >
+          {/* Banda superior estilo boarding pass */}
+          <div style={{ padding: '14px 22px', background: 'linear-gradient(90deg, rgba(230,57,47,0.10) 0%, transparent 100%)', borderBottom: '0.5px solid rgba(255,255,255,0.06)' }}>
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] uppercase" style={{ letterSpacing: '0.35em', color: '#E6392F', fontWeight: 600 }}>Solstice Boarding</span>
+              <span className="text-[9px] uppercase font-mono" style={{ letterSpacing: '0.15em', color: '#606060' }}>2026</span>
+            </div>
+          </div>
+
+          {/* Cuerpo */}
+          <div style={{ padding: '22px' }} className="space-y-4">
+            <BoardingRow label="Pasajero"    value={name || 'Sin nombre'} />
+            <BoardingRow label="Universidad" value={weekUniversity || '—'} />
+            <BoardingRow label="Modalidad"   value={modalityLabel} />
+            {showInstallments && (
+              <BoardingRow label="Próxima cuota" value={`$${installmentAmountK}K / mes`} highlight />
+            )}
+            <BoardingRow label="Confirmación a" value={email} small />
+          </div>
+
+          {/* Footer con perforación */}
+          <div style={{ position: 'relative', borderTop: '1px dashed rgba(255,255,255,0.15)', padding: '14px 22px', background: 'rgba(0,0,0,0.25)' }}>
+            <div style={{ position: 'absolute', left: -10, top: -10, width: 20, height: 20, borderRadius: '999px', background: '#000' }} />
+            <div style={{ position: 'absolute', right: -10, top: -10, width: 20, height: 20, borderRadius: '999px', background: '#000' }} />
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] uppercase" style={{ letterSpacing: '0.25em', color: '#606060', fontWeight: 500 }}>Orden</span>
+              <span className="font-mono text-xs" style={{ color: '#F9F2D7', letterSpacing: '0.1em' }}>{orderNum}</span>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Tarjeta: Tu código de invitación (solo líderes de lancha) */}
+        {boatInviteCode && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.05, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            style={{
+              borderRadius: '24px',
+              background: 'linear-gradient(135deg, rgba(230,57,47,0.12) 0%, rgba(255,122,0,0.06) 100%)',
+              border: '0.5px solid rgba(230,57,47,0.40)',
+              padding: '24px 22px',
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <Ship size={16} style={{ color: '#E6392F' }} />
+              <p className="text-[10px] uppercase" style={{ letterSpacing: '0.35em', color: '#E6392F', fontWeight: 600 }}>
+                Tu lancha · {boatName || 'Catamarán'}
+              </p>
+            </div>
+            <p className="text-xs mb-3" style={{ color: '#F9F2D7', lineHeight: 1.55 }}>
+              Eres <strong>líder</strong>. Comparte este código con tus panas para que se sumen a tu lancha:
+            </p>
+
+            <div
+              style={{
+                background: 'rgba(0,0,0,0.45)',
+                border: '0.5px dashed rgba(230,57,47,0.45)',
+                borderRadius: '14px',
+                padding: '18px 16px',
+                textAlign: 'center',
+                marginBottom: '14px',
+              }}
+            >
+              <p
+                className="font-mono"
+                style={{
+                  fontSize: '32px',
+                  color: '#F9F2D7',
+                  letterSpacing: '0.5em',
+                  fontWeight: 600,
+                }}
+              >
+                {boatInviteCode}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                onClick={() => {
+                  const url = `${window.location.origin}/sol/i/${boatInviteCode}`;
+                  const msg = `Ya reservé lancha para Solstice 🌅 Únete con mi código: ${boatInviteCode}\n${url}`;
+                  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
+                }}
+                style={{
+                  borderRadius: '999px',
+                  background: 'rgba(16,185,129,0.15)',
+                  border: '0.5px solid rgba(16,185,129,0.45)',
+                  color: '#10b981',
+                  letterSpacing: '0.2em',
+                  padding: '12px',
+                  fontSize: '11px',
+                  textTransform: 'uppercase' as const,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                💬 WhatsApp
+              </button>
+              <button
+                onClick={() => {
+                  const url = `${window.location.origin}/sol/i/${boatInviteCode}`;
+                  navigator.clipboard?.writeText(url);
+                }}
+                style={{
+                  borderRadius: '999px',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '0.5px solid rgba(255,255,255,0.18)',
+                  color: '#F9F2D7',
+                  letterSpacing: '0.2em',
+                  padding: '12px',
+                  fontSize: '11px',
+                  textTransform: 'uppercase' as const,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Copiar link
+              </button>
+            </div>
+
+            <p className="text-[10px] uppercase mt-3" style={{ color: '#606060aa', letterSpacing: '0.2em', fontWeight: 500 }}>
+              Cada invitado paga su entrada por separado
+            </p>
+          </motion.div>
+        )}
+
+        {/* Hospedaje upsell */}
+        {lodgings.length > 0 && lodgeStatus !== 'reserved' && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.15, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            style={{
+              borderRadius: '24px',
+              background: 'rgba(255,255,255,0.04)',
+              backdropFilter: 'blur(28px) saturate(180%)',
+              border: '0.5px solid rgba(255,255,255,0.10)',
+              padding: '22px',
+              overflow: 'hidden',
+            }}
+          >
+            <p className="text-[10px] uppercase mb-2" style={{ letterSpacing: '0.35em', color: '#E6392F', fontWeight: 600 }}>
+              ¿Dónde te quedás?
+            </p>
+            <h3 className="text-xl uppercase mb-3" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.04em', fontWeight: 300 }}>
+              Hospedajes curados Solstice
+            </h3>
+            <p className="text-[11px] mb-4" style={{ color: '#606060', lineHeight: 1.55 }}>
+              Reservás ahora, te confirmamos por WhatsApp y pagás directo al hotel. Estos lugares saben que vienes con Solstice.
+            </p>
+
+            <div className="space-y-2.5">
+              {lodgings.slice(0, 3).map(l => {
+                const priceK = Math.round((l.price_per_night || 0) / 1000);
+                return (
+                  <div key={l.id}
+                    className="flex items-center gap-3 p-3"
+                    style={{
+                      borderRadius: '14px',
+                      background: 'rgba(255,255,255,0.025)',
+                      border: '0.5px solid rgba(255,255,255,0.06)',
+                    }}>
+                    {l.image_url ? (
+                      <img src={l.image_url} alt={l.name} className="w-14 h-14 object-cover flex-shrink-0"
+                        style={{ borderRadius: '10px' }} />
+                    ) : (
+                      <div className="w-14 h-14 flex-shrink-0 flex items-center justify-center"
+                        style={{ borderRadius: '10px', background: 'rgba(230,57,47,0.10)', color: '#E6392F', fontSize: 18 }}>
+                        ✦
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12px] uppercase truncate" style={{ color: '#F9F2D7', letterSpacing: '0.1em', fontWeight: 600 }}>
+                        {l.name}
+                      </p>
+                      <p className="text-[10px]" style={{ color: '#606060' }}>
+                        {priceK > 0 ? `Desde $${priceK}K/noche` : 'Consultá tarifas'} {l.category ? `· ${l.category}` : ''}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleReserveLodge(l.id, l.name, l.price_per_night || 0)}
+                      disabled={lodgeStatus === 'reserving'}
+                      className="flex-shrink-0 px-3 py-2 text-[10px] uppercase"
+                      style={{
+                        background: 'rgba(230,57,47,0.18)',
+                        border: '0.5px solid rgba(230,57,47,0.50)',
+                        color: '#E6392F',
+                        letterSpacing: '0.2em',
+                        borderRadius: '999px',
+                        fontWeight: 600,
+                        opacity: lodgeStatus === 'reserving' ? 0.4 : 1,
+                        cursor: lodgeStatus === 'reserving' ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {lodgeStatus === 'reserving' ? '...' : 'Reservar'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {lodgeStatus === 'error' && (
+              <p className="text-[10px] mt-3 text-center" style={{ color: '#E6392F' }}>
+                · No pudimos reservar. Intenta de nuevo.
+              </p>
+            )}
+          </motion.div>
+        )}
+
+        {lodgeStatus === 'reserved' && reservedLodgeName && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            style={{
+              borderRadius: '20px',
+              background: 'rgba(16,185,129,0.10)',
+              border: '0.5px solid rgba(16,185,129,0.40)',
+              padding: '18px',
+              textAlign: 'center',
+            }}
+          >
+            <CheckCircle2 size={20} style={{ color: '#10b981', margin: '0 auto 6px' }} />
+            <p className="text-xs uppercase" style={{ color: '#10b981', letterSpacing: '0.2em', fontWeight: 600 }}>
+              Hospedaje reservado · {reservedLodgeName}
+            </p>
+            <p className="text-[10px] mt-1" style={{ color: '#606060' }}>
+              Te contactamos por WhatsApp en las próximas 24h
+            </p>
+          </motion.div>
+        )}
+
+        {/* Próximos pasos */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.2, duration: 0.6 }}
+          className="space-y-3"
+        >
+          <p className="text-[10px] uppercase text-center mb-3" style={{ letterSpacing: '0.35em', color: '#E6392F', fontWeight: 600 }}>Próximos pasos</p>
+          <NextStepItem icon="✉" title="Revisa tu inbox" desc="Te enviamos el QR de confirmación a tu email" />
+          <NextStepItem icon="💬" title="Activá WhatsApp" desc="Te avisamos 24h antes de cada cobro" />
+          <NextStepItem icon="🌅" title="Llegada a Santa Marta" desc="Te mandamos guía completa 7 días antes del evento" />
+        </motion.div>
+
+        {/* Botones */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.4, duration: 0.5 }}
+          className="space-y-3 pt-2"
+        >
+          <button
+            onClick={() => {
+              const url = window.location.origin;
+              const msg = `Acabo de reservar Solstice 2026 — Semana ${weekUniversity} ✨ Te dejo el link: ${url}`;
+              window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
+            }}
+            style={{
+              borderRadius: '999px',
+              background: 'rgba(16,185,129,0.15)',
+              border: '0.5px solid rgba(16,185,129,0.45)',
+              color: '#10b981',
+              letterSpacing: '0.2em',
+              width: '100%',
+              padding: '16px',
+              fontSize: '13px',
+              textTransform: 'uppercase' as const,
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+            }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLButtonElement).style.background = 'rgba(16,185,129,0.25)';
+              (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLButtonElement).style.background = 'rgba(16,185,129,0.15)';
+              (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
+            }}
+          >
+            💬 Avisar a tus panas
+          </button>
+
+          <button
+            onClick={onBack}
+            style={{
+              borderRadius: '999px',
+              background: 'transparent',
+              border: '0.5px solid rgba(255,255,255,0.12)',
+              color: '#606060',
+              letterSpacing: '0.2em',
+              width: '100%',
+              padding: '14px',
+              fontSize: '12px',
+              textTransform: 'uppercase' as const,
+              fontWeight: 500,
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+            }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLButtonElement).style.borderColor = '#F9F2D7';
+              (e.currentTarget as HTMLButtonElement).style.color = '#F9F2D7';
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.12)';
+              (e.currentTarget as HTMLButtonElement).style.color = '#606060';
+            }}
+          >
+            Volver al inicio
+          </button>
+        </motion.div>
+      </div>
+    </motion.div>
+  );
+}
+
+function calcCountdown(date?: string) {
+  if (!date) return { total: 0, days: 0, hours: 0, mins: 0, secs: 0 };
+  const diff = new Date(date + 'T00:00:00').getTime() - Date.now();
+  if (diff <= 0) return { total: 0, days: 0, hours: 0, mins: 0, secs: 0 };
+  return {
+    total: diff,
+    days:  Math.floor(diff / 86400000),
+    hours: Math.floor((diff % 86400000) / 3600000),
+    mins:  Math.floor((diff % 3600000) / 60000),
+    secs:  Math.floor((diff % 60000) / 1000),
+  };
+}
+
+function BoardingRow({ label, value, highlight, small }: { label: string; value: string; highlight?: boolean; small?: boolean }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <span className="text-[9px] uppercase flex-shrink-0" style={{ letterSpacing: '0.3em', color: '#606060', fontWeight: 500 }}>
+        {label}
+      </span>
+      <span
+        className={small ? 'text-[10px]' : 'text-[13px]'}
+        style={{
+          color: highlight ? '#E6392F' : '#F9F2D7',
+          fontWeight: highlight ? 600 : 500,
+          letterSpacing: '0.03em',
+          textAlign: 'right',
+          wordBreak: 'break-all',
+        }}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function NextStepItem({ icon, title, desc }: { icon: string; title: string; desc: string }) {
+  return (
+    <div className="flex gap-3 items-start p-4" style={{
+      borderRadius: '16px',
+      background: 'rgba(255,255,255,0.025)',
+      border: '0.5px solid rgba(255,255,255,0.06)',
+    }}>
+      <span style={{ fontSize: '18px', flexShrink: 0, marginTop: 2 }}>{icon}</span>
+      <div>
+        <p className="text-[11px] uppercase mb-0.5" style={{ letterSpacing: '0.15em', color: '#F9F2D7', fontWeight: 600 }}>
+          {title}
+        </p>
+        <p className="text-[10px]" style={{ color: '#606060', lineHeight: 1.5 }}>
+          {desc}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ConfettiBurst() {
+  const PIECES = 30;
+  const items = Array.from({ length: PIECES }, (_, i) => i);
+  return (
+    <div aria-hidden style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+      {items.map(i => {
+        const angle = (Math.random() - 0.5) * 180;
+        const distance = 100 + Math.random() * 280;
+        const size = 4 + Math.random() * 7;
+        const colors = ['#E6392F', '#F9F2D7', '#FFB48C', '#FF7A00'];
+        const color = colors[i % colors.length];
+        const delay = Math.random() * 0.3;
+        return (
+          <motion.div
+            key={i}
+            initial={{ opacity: 1, x: 0, y: 0, rotate: 0, scale: 1 }}
+            animate={{
+              opacity: 0,
+              x: Math.cos((angle * Math.PI) / 180) * distance,
+              y: Math.sin((angle * Math.PI) / 180) * distance * 0.6 + 200,
+              rotate: 360 + Math.random() * 360,
+              scale: 0.3,
+            }}
+            transition={{ duration: 1.8 + Math.random() * 0.8, delay, ease: 'easeOut' }}
+            style={{
+              position: 'absolute',
+              top: '20%',
+              left: '50%',
+              width: `${size}px`,
+              height: `${size * 0.4}px`,
+              background: color,
+              borderRadius: '2px',
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Form fields del step Tus Datos ──────────────────────────────────────
+
+interface SolFieldProps {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  error?: string;
+  type?: string;
+  inputMode?: 'text' | 'numeric' | 'tel' | 'email' | 'url';
+  autoComplete?: string;
+  placeholder?: string;
+}
+
+function SolField({ label, value, onChange, error, type = 'text', inputMode, autoComplete, placeholder }: SolFieldProps) {
+  return (
+    <div>
+      <label className="text-[9px] uppercase block mb-1.5" style={{ letterSpacing: '0.25em', color: error ? '#E6392F' : '#606060', fontWeight: 600 }}>
+        {label}
+      </label>
+      <input
+        type={type}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        inputMode={inputMode as any}
+        autoComplete={autoComplete as any}
+        placeholder={placeholder}
+        aria-invalid={Boolean(error)}
+        style={{
+          borderRadius: '14px',
+          background: 'rgba(255,255,255,0.04)',
+          backdropFilter: 'blur(24px) saturate(180%)',
+          border: error ? '0.5px solid rgba(230,57,47,0.55)' : '0.5px solid rgba(255,255,255,0.10)',
+          color: '#F9F2D7',
+          padding: '14px 16px',
+          width: '100%',
+          outline: 'none',
+          fontSize: '13px',
+          fontFamily: "'Archivo', sans-serif",
+          fontWeight: 400,
+          letterSpacing: '0.02em',
+          transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+        }}
+        onFocus={e => {
+          e.currentTarget.style.borderColor = 'rgba(230,57,47,0.55)';
+          e.currentTarget.style.boxShadow = '0 0 0 3px rgba(230,57,47,0.10)';
+        }}
+        onBlur={e => {
+          e.currentTarget.style.borderColor = error ? 'rgba(230,57,47,0.55)' : 'rgba(255,255,255,0.10)';
+          e.currentTarget.style.boxShadow = 'none';
+        }}
+      />
+      {error && (
+        <p className="text-[10px] mt-1.5 flex items-center gap-1" style={{ color: '#E6392F', fontWeight: 500 }}>
+          <span>·</span> {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function FieldGroup({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-3">
+      <div>
+        <p className="text-[10px] uppercase" style={{ letterSpacing: '0.35em', color: '#E6392F', fontWeight: 600 }}>
+          {title}
+        </p>
+        {hint && <p className="text-[10px] mt-1" style={{ color: '#606060aa', fontWeight: 400 }}>{hint}</p>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// ── Sub-componente: item de garantía en el bloque "Cómo aseguramos tu lugar"
+function GarantiaItem({ step, title, desc }: { step: string; title: string; desc: string }) {
+  return (
+    <li className="flex gap-3">
+      <span
+        className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center"
+        style={{
+          border: '0.5px solid rgba(230,57,47,0.45)',
+          color: '#E6392F',
+          fontSize: '11px',
+          fontWeight: 600,
+        }}
+      >
+        {step}
+      </span>
+      <div>
+        <p className="text-[11px] uppercase mb-1" style={{ color: '#F9F2D7', letterSpacing: '0.15em', fontWeight: 600 }}>{title}</p>
+        <p className="text-[10px] leading-relaxed" style={{ color: '#606060cc', fontWeight: 400 }}>{desc}</p>
+      </div>
+    </li>
   );
 }

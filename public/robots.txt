@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /bouncer
+Disallow: /gracias
+
+Sitemap: https://midnightcorp.click/sitemap.xml

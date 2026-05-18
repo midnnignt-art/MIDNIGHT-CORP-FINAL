@@ -19,6 +19,106 @@
   /* Fonts */
   --font-sans: 'Inter', sans-serif;
   --font-display: 'Inter', sans-serif;
+  --font-serif: 'Cormorant Garamond', serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Custom Animations & Shadows for Conjunction Portal */
+  --animate-breathing: breathing-gradient 10s ease-in-out infinite alternate;
+}
+
+@keyframes breathing-gradient {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.1); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
+/* Universe Selector — twinkle for stars + flare for solar tongues + slow-spin */
+@keyframes twinkle {
+  0%, 100% { opacity: 0.2; transform: scale(0.9); }
+  50%      { opacity: 1;   transform: scale(1.1); }
+}
+
+/* flareScale — pulsa solo la opacidad y el scaleY del flare; el rotate y
+   translate de posicionamiento radial los maneja el style inline del element. */
+@keyframes flareScale {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+
+/* flare — pulse de llamarada solar (opacity + brightness via filter sutil) */
+@keyframes flare {
+  0%, 100% { opacity: 0.65; filter: brightness(1) blur(1.5px); }
+  50%      { opacity: 1;    filter: brightness(1.25) blur(1.2px); }
+}
+
+/* orbit — rotación lenta para anillos orbitales (estilo planetary system) */
+@keyframes orbit-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes orbit-reverse {
+  from { transform: rotate(360deg); }
+  to   { transform: rotate(0deg); }
+}
+
+/* rise-spark — chispa flotando sobre la multitud, sube + fade out */
+@keyframes rise-spark {
+  0%   { transform: translateY(0);     opacity: 0; }
+  20%  { opacity: 1; }
+  100% { transform: translateY(-100px); opacity: 0; }
+}
+
+/* ornament-pulse — variación sutil de opacidad para ornamentos dorados */
+@keyframes ornament-pulse {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1; }
+}
+
+/* Spotlights — sweep lateral lento, ángulos opuestos por side */
+@keyframes sweep-left {
+  0%   { transform: rotate(-22deg); }
+  50%  { transform: rotate(8deg); }
+  100% { transform: rotate(-28deg); }
+}
+
+@keyframes sweep-right {
+  0%   { transform: rotate(22deg); }
+  50%  { transform: rotate(-8deg); }
+  100% { transform: rotate(28deg); }
+}
+
+@keyframes slow-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Entrance al Showcase de Midnight al entrar desde el Conjunction Portal.
+   IMPORTANTE: solo animamos opacity — usar `transform` o `filter` aquí crea
+   un containing block que rompe el `position: fixed` del EclipseLoader. */
+@keyframes midnight-enter {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+.animate-midnight-enter {
+  animation: midnight-enter 1.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@utility glow-stellar-midnight {
+  box-shadow: 0 0 10px rgba(73, 15, 124, 0.4), 
+              0 0 40px rgba(73, 15, 124, 0.2), 
+              0 0 80px rgba(73, 15, 124, 0.1);
+}
+
+@utility glow-stellar-solstice {
+  box-shadow: 0 0 10px rgba(230, 57, 47, 0.4), 
+              0 0 40px rgba(230, 57, 47, 0.2), 
+              0 0 80px rgba(230, 57, 47, 0.1);
 }
 
 /* Smooth interactions for touch devices */
@@ -36,10 +136,15 @@ textarea {
   width: 0px;
 }
 
-body {
+html, body {
   overscroll-behavior-y: contain;
-  background-color: #0B0316;
+  background-color: #000000;
 }
+
+/* `bg-void` se usa en muchos wrappers — lo dejamos como token de marca pero
+   sobrescribimos el fondo crudo a negro puro para evitar manchas en
+   overscroll. Las cards que usan bg-void/40 o bg-midnight/30 siguen con
+   su tinte porque tienen alpha. */
 
 /* Cursor pointer para todos los elementos interactivos */
 button:not(:disabled),
@@ -90,3 +195,70 @@ a {
   0%,  100% { filter: blur(32px) brightness(1);    }
   50%        { filter: blur(48px) brightness(1.45); }
 }
+
+/* ── Conjunction Portal · PostFX & extras ──────────────────────────────────── */
+
+/* Film grain — desplazamiento aleatorio en steps para overdraw mínimo */
+@keyframes film-grain {
+  0%   { transform: translate(0, 0); }
+  20%  { transform: translate(-2%, 1%); }
+  40%  { transform: translate(1%, -2%); }
+  60%  { transform: translate(-1%, 2%); }
+  80%  { transform: translate(2%, -1%); }
+  100% { transform: translate(0, 0); }
+}
+
+/* Shooting stars — cruzan el cielo y se desvanecen
+   (la rotación la maneja el wrapper; aquí solo translateX + opacity) */
+@keyframes shoot {
+  0%   { opacity: 0; transform: translateX(-30%) scaleX(0.4); }
+  15%  { opacity: 1; transform: translateX(0%)   scaleX(1);   }
+  70%  { opacity: 1; transform: translateX(40vw) scaleX(1);   }
+  100% { opacity: 0; transform: translateX(70vw) scaleX(0.3); }
+}
+
+/* ── Orb Pseudo-elements for Cosmic Energy Effect ──────────────────────────── */
+.orb-midnight::before,
+.orb-midnight::after {
+  content: '';
+  position: absolute;
+  inset: -30px;
+  border-radius: 50%;
+  filter: blur(20px);
+  mix-blend-mode: screen;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.orb-midnight::before {
+  background: radial-gradient(circle at 30% 30%, rgba(216, 160, 255, 0.4), transparent 60%);
+  animation: pulse 4s infinite alternate;
+}
+
+.orb-midnight::after {
+  background: radial-gradient(circle at 70% 70%, rgba(176, 38, 255, 0.3), transparent 60%);
+  animation: pulse 5s infinite alternate-reverse;
+}
+
+.orb-solstice::before,
+.orb-solstice::after {
+  content: '';
+  position: absolute;
+  inset: -30px;
+  border-radius: 50%;
+  filter: blur(20px);
+  mix-blend-mode: screen;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.orb-solstice::before {
+  background: radial-gradient(circle at 20% 20%, rgba(255, 180, 140, 0.5), transparent 60%);
+  animation: flareScale 3s infinite alternate;
+}
+
+.orb-solstice::after {
+  background: radial-gradient(circle at 80% 80%, rgba(255, 122, 0, 0.4), transparent 60%);
+  animation: flareScale 4s infinite alternate-reverse;
+}
+

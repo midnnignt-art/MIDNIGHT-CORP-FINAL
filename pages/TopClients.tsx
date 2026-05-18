@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
 import { UserRole } from '../types';
+import { isAdminLevel } from '../lib/permissions';
 import { Trophy, Ticket, BarChart3, Search } from 'lucide-react';
 
 interface TopClientsProps {
@@ -11,7 +12,7 @@ export const TopClients: React.FC<TopClientsProps> = ({ role }) => {
   const { orders, events, tiers, currentUser, promoters, teams, superSquads } = useStore();
   const [searchTerm, setSearchTerm] = React.useState('');
 
-  const isAdmin = currentUser?.role === UserRole.ADMIN;
+  const isAdmin = isAdminLevel(currentUser?.role);
   const isGlobalHead = isAdmin || currentUser?.role === UserRole.HEAD_OF_SALES;
   const isSuperSquadHead = currentUser?.role === UserRole.HEAD;
   const isManager = currentUser?.role === UserRole.MANAGER;

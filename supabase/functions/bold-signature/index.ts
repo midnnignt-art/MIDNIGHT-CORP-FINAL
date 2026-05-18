@@ -1,6 +1,7 @@
 
 // LLAVE SECRETA DE BOLD (PROPORCIONADA)
-const BOLD_SECRET_KEY = 'Q5IqRlVXbC3c2mBonLmKRQ';
+// @ts-ignore
+const BOLD_SECRET_KEY = Deno.env.get('BOLD_SECRET_KEY') ?? '';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -25,30 +26,46 @@ Deno.serve(async (req) => {
     
     const body = JSON.parse(rawBody);
 
-    // 3. Extracción y validación de datos
+    // 3. Extracción y validación de datos (server-side, no confiar en frontend)
     const rawAmount = body.amount;
     const rawOrderId = body.orderId || body.order_id;
     const currency = (body.currency || 'COP').trim();
 
-    // Validación explícita
-    if (!rawAmount || !rawOrderId) {
-        console.error("❌ Faltan datos:", { rawAmount, rawOrderId });
-        return new Response(JSON.stringify({ 
-            error: `Datos incompletos. Recibido: Monto=${rawAmount}, OrderID=${rawOrderId}` 
+    const numAmount = Number(rawAmount);
+    if (!Number.isFinite(numAmount) || numAmount <= 0 || numAmount > 50_000_000) {
+        console.error("❌ Monto inválido:", rawAmount);
+        return new Response(JSON.stringify({
+            error: 'Monto inválido (debe ser entero positivo ≤ 50M COP)'
         }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 200, // IMPORTANTE: Devolvemos 200 para que el cliente lea el mensaje de error
+            status: 200,
+        });
+    }
+    if (typeof rawOrderId !== 'string' || !/^[A-Z0-9-]{4,64}$/i.test(rawOrderId.trim())) {
+        console.error("❌ OrderID inválido:", rawOrderId);
+        return new Response(JSON.stringify({
+            error: 'OrderID inválido'
+        }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200,
+        });
+    }
+    if (typeof currency !== 'string' || !/^[A-Z]{3}$/.test(currency)) {
+        console.error("❌ Moneda inválida:", currency);
+        return new Response(JSON.stringify({
+            error: 'Moneda inválida (ISO 4217)'
+        }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200,
         });
     }
 
     // 4. Normalización (Crucial para que coincida con Bold)
-    // Eliminar decimales
-    const amountInt = Math.round(Number(rawAmount));
-    const amountStr = String(amountInt); 
-    
-    // Eliminar espacios
-    const orderIdStr = String(rawOrderId).trim(); 
-    const currencyStr = String(currency);                 
+    const amountInt = Math.round(numAmount);
+    const amountStr = String(amountInt);
+
+    const orderIdStr = String(rawOrderId).trim();
+    const currencyStr = String(currency);
 
     // 5. Concatenación: OrderId + Monto + Moneda + Secreto
     const textToHash = `${orderIdStr}${amountStr}${currencyStr}${BOLD_SECRET_KEY}`;

@@ -92,7 +92,9 @@ const BouncerScanner: React.FC = () => {
             if (processingRef.current) return;
             processingRef.current = true;
             if (navigator.vibrate) navigator.vibrate(80);
-            const res = await validateTicket(decoded.trim().toUpperCase(), link.event_id);
+            // No hacemos toUpperCase aquí — el formato dinámico es case-sensitive
+            // (UUID lowercase + HMAC hex). El legacy se normaliza server-side.
+            const res = await validateTicket(decoded.trim(), link.event_id);
             if (mounted) setResult(res);
           },
           () => {}
@@ -115,12 +117,14 @@ const BouncerScanner: React.FC = () => {
     };
   }, [scanning, link]);
 
-  // ── Ticket validation (direct Supabase, no StoreContext) ────────────────────
-  async function validateTicket(orderNumber: string, eventId: string) {
+  // ── Ticket validation ────────────────────────────────────────────────────
+  // Llama a la edge function `validate-qr` que detecta automáticamente el
+  // formato (dinámico vs legacy), valida HMAC si aplica, y invoca el RPC
+  // atómico `validate_and_burn_ticket` con backward compat completo.
+  async function validateTicket(qrPayload: string, eventId: string) {
     try {
-      const { data, error } = await supabase.rpc('validate_and_burn_ticket', {
-        p_order_number: orderNumber,
-        p_event_id: eventId,
+      const { data, error } = await supabase.functions.invoke('validate-qr', {
+        body: { qr_payload: qrPayload, event_id: eventId },
       });
 
       if (!error && data) {
@@ -131,7 +135,19 @@ const BouncerScanner: React.FC = () => {
         };
       }
 
-      // Fallback: manual query
+      // Fallback (edge function caída) — llamar RPC directo asumiendo legacy
+      const orderNumber = qrPayload.trim().toUpperCase();
+      const { data: rpcData, error: rpcError } = await supabase.rpc('validate_and_burn_ticket', {
+        p_order_number: orderNumber,
+        p_event_id: eventId,
+      });
+
+      if (!rpcError && rpcData) {
+        const r = rpcData as { status: string; message: string };
+        return { status: r.status as ScanStatus, message: r.message };
+      }
+
+      // Último recurso: query manual
       const { data: order } = await supabase
         .from('orders')
         .select('id, used, used_at, event_id, status, customer_name')

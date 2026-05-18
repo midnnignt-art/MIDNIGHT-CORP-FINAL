@@ -1,34 +1,87 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="es-CO" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>NIGHTSTYLE LIFE || 💿🪩🍾🌙</title>
+    <meta name="theme-color" content="#050505" />
+    <meta name="color-scheme" content="dark" />
 
-    <!-- Open Graph / Link Preview -->
+    <title>MIDNIGHT CORP — Entradas para eventos, festivales y conciertos en Colombia</title>
+    <meta name="description" content="MIDNIGHT CORP es la plataforma de venta de entradas para los mejores eventos, festivales y conciertos de Latinoamérica. Pago seguro con Bold, QR instantáneo y billetera digital de tickets." />
+    <meta name="keywords" content="entradas, boletería, eventos, festivales, conciertos, Bold, Colombia, Latinoamérica, ticket, midnight" />
+    <meta name="author" content="Midnight Corp" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <link rel="canonical" href="https://midnightcorp.click/" />
+
+    <!-- Open Graph / Link Preview (WhatsApp, IG, FB) -->
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="NIGHTSTYLE LIFE || 💿🪩🍾🌙" />
-    <meta property="og:description" content="NIGHTSTYLE LIFE || 💿🪩🍾🌙" />
+    <meta property="og:site_name" content="MIDNIGHT CORP" />
+    <meta property="og:locale" content="es_CO" />
+    <meta property="og:title" content="MIDNIGHT CORP — Entradas para los mejores eventos" />
+    <meta property="og:description" content="Plataforma de boletería para festivales, conciertos y eventos exclusivos. Pago seguro con Bold y QR instantáneo." />
     <meta property="og:url" content="https://midnightcorp.click/" />
-    <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="NIGHTSTYLE LIFE || 💿🪩🍾🌙" />
-    <meta name="twitter:description" content="NIGHTSTYLE LIFE || 💿🪩🍾🌙" />
+    <meta property="og:image" content="https://midnightcorp.click/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="MIDNIGHT CORP — Worldwide" />
+
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="MIDNIGHT CORP — Entradas para los mejores eventos" />
+    <meta name="twitter:description" content="Plataforma de boletería para festivales, conciertos y eventos exclusivos. Pago seguro con Bold y QR instantáneo." />
+    <meta name="twitter:image" content="https://midnightcorp.click/og-image.png" />
 
     <!-- PWA & Mobile Optimization -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="NIGHTSTYLE LIFE || 💿🪩🍾🌙">
-    <meta name="theme-color" content="#050505">
-    <link rel="apple-touch-icon" href="https://images.unsplash.com/photo-1514525253361-bee8a19740c1?w=180&h=180&fit=crop">
-    <link rel="manifest" href="metadata.json">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600;1,700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Poiret+One&family=Archivo:ital,wdth,wght@0,125,100..900;1,125,100..900&display=swap" rel="stylesheet">
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="MIDNIGHT" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- Preconnect a orígenes críticos (acelera el first paint) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://images.unsplash.com" />
+    <link rel="preconnect" href="https://api.qrserver.com" />
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600;1,700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Poiret+One&family=Archivo:ital,wdth,wght@0,125,100..900;1,125,100..900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+    <!-- Structured data — Organization -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "Midnight Corp",
+      "alternateName": "MIDNIGHT",
+      "url": "https://midnightcorp.click/",
+      "logo": "https://midnightcorp.click/og-image.png",
+      "description": "Plataforma de venta de entradas para eventos, festivales y conciertos en Latinoamérica.",
+      "areaServed": "CO",
+      "sameAs": []
+    }
+    </script>
+
+    <!-- Structured data — WebSite + SearchAction -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "MIDNIGHT CORP",
+      "url": "https://midnightcorp.click/",
+      "inLanguage": "es-CO"
+    }
+    </script>
   </head>
-  <body class="bg-void text-moonlight antialiased selection:bg-eclipse selection:text-white">
+  <body class="bg-black text-moonlight antialiased selection:bg-eclipse selection:text-white">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

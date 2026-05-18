@@ -10,6 +10,7 @@ import {
 import { useStore } from '../context/StoreContext';
 import { Button } from '../components/ui/button';
 import { UserRole, TicketTier, EventCost, Event, Promoter, SalesTeam, Order } from '../types';
+import { isAdminLevel } from '../lib/permissions';
 import { Progress } from '../components/ui/progress';
 import { motion as _motion, AnimatePresence } from 'framer-motion';
 
@@ -24,7 +25,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
         events, addEvent, updateEvent, archiveEvent, restoreEvent, hardDeleteEvent, setEventStatus, getEventTiers,
         promoters, addStaff, updateStaff, deleteStaff, teams, createTeam, updateStaffTeam, deleteTeam,
         superSquads, createSuperSquad, deleteSuperSquad, assignTeamToSuperSquad,
-        orders, dbStatus, clearDatabase, fetchData
+        orders, dbStatus, clearDatabase, fetchData, currentUser,
     } = useStore();
     
     const [activeTab, setActiveTab] = useState<'events' | 'archived' | 'staff' | 'system'>('events');
@@ -70,8 +71,11 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
     const [isCreatingEvent, setIsCreatingEvent] = useState(false);
     const [editingEventId, setEditingEventId] = useState<string | null>(null);
     const [eventForm, setEventForm] = useState({
-        title: '', description: '', venue: '', city: '', 
-        date: '', time: '', cover_image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&q=80&w=1000'
+        title: '', description: '', venue: '', city: '',
+        date: '', time: '', cover_image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&q=80&w=1000',
+        dress_code: 'Strict Nightlife',
+        min_age: 18,
+        faq: [] as { q: string; a: string }[],
     });
     
     const [tierRows, setTierRows] = useState<any[]>([
@@ -105,9 +109,10 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
     const [staffCode, setStaffCode] = useState(''); // LOGIN CREDENTIAL 1
     const [staffPassword, setStaffPassword] = useState('1234'); // LOGIN CREDENTIAL 2
     const [staffEmail, setStaffEmail] = useState(''); 
-    const [staffRole, setStaffRole] = useState<'PROMOTER' | 'MANAGER' | 'HEAD_OF_SALES'>('PROMOTER');
+    const [staffRole, setStaffRole] = useState<'PROMOTER' | 'MANAGER' | 'HEAD_OF_SALES' | 'HEAD' | 'ADMIN' | 'SUPER_ADMIN' | 'BOUNCER'>('PROMOTER');
+    const [staffHidden, setStaffHidden] = useState(false);
 
-    if (role !== UserRole.ADMIN) {
+    if (!isAdminLevel(role)) {
         return <div className="pt-32 text-center text-red-500 font-bold">ACCESO NO AUTORIZADO</div>;
     }
 
@@ -173,7 +178,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
     // --- HELPER: TEAM EDITING ---
     const teamToEdit = teams.find(t => t.id === viewingTeamEditId);
     const teamMembers = promoters.filter(p => p.sales_team_id === viewingTeamEditId);
-    const availableStaff = promoters.filter(p => !p.sales_team_id && p.role !== UserRole.ADMIN);
+    const availableStaff = promoters.filter(p => !p.sales_team_id && !isAdminLevel(p.role));
 
     // --- HANDLERS: Event ---
     const handleAddTierRow = () => {
@@ -199,7 +204,10 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
             city: event.city,
             date: event.event_date.split('T')[0],
             time: event.doors_open,
-            cover_image: event.cover_image
+            cover_image: event.cover_image,
+            dress_code: event.dress_code ?? 'Strict Nightlife',
+            min_age: event.min_age ?? 18,
+            faq: Array.isArray(event.faq) ? event.faq : [],
         });
         const currentTiers = getEventTiers(event.id);
         setTierRows(currentTiers.map(t => ({
@@ -264,7 +272,10 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
             city: eventForm.city,
             event_date: `${eventForm.date}T${eventForm.time || '20:00'}:00-05:00`,
             doors_open: eventForm.time || '20:00',
-            cover_image: eventForm.cover_image
+            cover_image: eventForm.cover_image,
+            dress_code: eventForm.dress_code?.trim() || null,
+            min_age: Number.isFinite(Number(eventForm.min_age)) ? Number(eventForm.min_age) : null,
+            faq: eventForm.faq.filter(f => f.q?.trim() && f.a?.trim()),
         };
 
         const cleanTiers: any[] = tierRows.map(t => ({
@@ -287,7 +298,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
             }
             setIsCreatingEvent(false);
             setEditingEventId(null);
-            setEventForm({ title: '', description: '', venue: '', city: '', date: '', time: '', cover_image: '' });
+            setEventForm({ title: '', description: '', venue: '', city: '', date: '', time: '', cover_image: '', dress_code: 'Strict Nightlife', min_age: 18, faq: [] });
             setTierRows([{ id: undefined, name: 'General', price: 0, commission_manager: 0, commission_promoter_min: 0, quantity: 0, stage: 'general' }]);
         } catch (e: any) {
             toast.error(`Error: ${e.message}`);
@@ -297,7 +308,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
     const cancelEdit = () => {
         setIsCreatingEvent(false);
         setEditingEventId(null);
-        setEventForm({ title: '', description: '', venue: '', city: '', date: '', time: '', cover_image: '' });
+        setEventForm({ title: '', description: '', venue: '', city: '', date: '', time: '', cover_image: '', dress_code: 'Strict Nightlife', min_age: 18, faq: [] });
         setTierRows([{ id: undefined, name: 'General', price: 0, commission_manager: 0, commission_promoter_min: 0, quantity: 0, stage: 'general' }]);
     };
 
@@ -320,9 +331,10 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                 name: staffName,
                 code: finalCode,
                 email: staffEmail.toLowerCase().trim(),
-                role: staffRole
+                role: staffRole,
+                is_hidden: staffRole === 'SUPER_ADMIN' ? staffHidden : false,
             });
-            setStaffName(''); setStaffCode(''); setStaffEmail('');
+            setStaffName(''); setStaffCode(''); setStaffEmail(''); setStaffHidden(false);
             toast.success(`Staff registrado. Login con email: ${staffEmail.toLowerCase().trim()}`);
         } catch (error: any) {
             toast.error(`Error al registrar staff: ${error.message || 'Verifica que el email no esté duplicado.'}`);
@@ -338,30 +350,42 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
 
     const handleExportDatabase = async () => {
         if (!auditData) return;
-        const XLSX = await import('xlsx');
+        const { exportXlsx } = await import('../lib/exportXlsx');
         const rows: any[] = [];
         auditData.eventOrders.forEach(order => {
             const promoterName = promoters.find(p => p.user_id === order.staff_id)?.name || 'Venta Directa';
             order.items.forEach(item => {
                 const tier = auditData.tiers.find(t => t.id === item.tier_id);
                 rows.push({
-                    'Nombre Cliente': order.customer_name,
-                    'Correo Electrónico': order.customer_email,
-                    'Cantidad': item.quantity,
-                    'Tipo Boleta': item.tier_name,
-                    'Valor Total ($)': item.subtotal,
-                    'Fecha Compra': new Date(order.timestamp).toLocaleString('es-CO'),
-                    'Medio de Pago': order.payment_method,
-                    'Promotor': promoterName,
-                    'Etapa': tier?.stage || 'general',
+                    customer:   order.customer_name,
+                    email:      order.customer_email,
+                    quantity:   item.quantity,
+                    tier:       item.tier_name,
+                    total:      item.subtotal,
+                    purchasedAt: new Date(order.timestamp).toLocaleString('es-CO'),
+                    method:     order.payment_method,
+                    promoter:   promoterName,
+                    stage:      tier?.stage || 'general',
                 });
             });
         });
-        const ws = XLSX.utils.json_to_sheet(rows);
-        ws['!cols'] = [{ wch: 28 }, { wch: 32 }, { wch: 10 }, { wch: 20 }, { wch: 16 }, { wch: 22 }, { wch: 16 }, { wch: 24 }, { wch: 12 }];
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Ventas');
-        XLSX.writeFile(wb, `DB_Ventas_${auditData.event.title.replace(/\s+/g, '_')}.xlsx`);
+        await exportXlsx(`DB_Ventas_${auditData.event.title.replace(/\s+/g, '_')}.xlsx`, [
+            {
+                name: 'Ventas',
+                rows,
+                columns: [
+                    { key: 'customer',    header: 'Nombre Cliente',     width: 28 },
+                    { key: 'email',       header: 'Correo Electrónico', width: 32 },
+                    { key: 'quantity',    header: 'Cantidad',           width: 10 },
+                    { key: 'tier',        header: 'Tipo Boleta',        width: 20 },
+                    { key: 'total',       header: 'Valor Total ($)',    width: 16 },
+                    { key: 'purchasedAt', header: 'Fecha Compra',       width: 22 },
+                    { key: 'method',      header: 'Medio de Pago',      width: 16 },
+                    { key: 'promoter',    header: 'Promotor',           width: 24 },
+                    { key: 'stage',       header: 'Etapa',              width: 12 },
+                ],
+            },
+        ]);
         toast.success('Base de datos exportada correctamente');
     };
 
@@ -699,7 +723,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                     </div>
                                     <div className="aspect-video rounded-xl overflow-hidden bg-black border border-white/5 relative group">
                                         {eventForm.cover_image ? (
-                                            <img src={eventForm.cover_image} className="w-full h-full object-cover opacity-80" />
+                                            <img src={eventForm.cover_image} alt="" className="w-full h-full object-cover opacity-80" loading="lazy" decoding="async" />
                                         ) : (
                                             <div className="absolute inset-0 flex flex-col items-center justify-center text-zinc-700">
                                                 <Calendar size={48} className="mb-2 opacity-20" />
@@ -710,7 +734,90 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                     <textarea value={eventForm.description} onChange={e => setEventForm({...eventForm, description: e.target.value})} className="w-full bg-black border border-white/10 p-3 rounded-xl text-white h-24" placeholder="Descripción del evento..." />
                                 </div>
                             </div>
-                            
+
+                            {/* --- METADATA: DRESS CODE + EDAD + FAQ --- */}
+                            <div className="border-t border-white/10 pt-8 mb-8">
+                                <h3 className="text-xl font-black text-white mb-6">Detalles editoriales</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                    <div>
+                                        <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Dress Code</label>
+                                        <input
+                                            value={eventForm.dress_code}
+                                            onChange={e => setEventForm({...eventForm, dress_code: e.target.value})}
+                                            className="w-full bg-black border border-white/10 p-3 rounded-xl text-white mt-1.5"
+                                            placeholder="Ej: Strict Nightlife, All Black, Casual Elegant..."
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Edad mínima</label>
+                                        <input
+                                            type="number"
+                                            min={0}
+                                            max={99}
+                                            value={eventForm.min_age}
+                                            onChange={e => setEventForm({...eventForm, min_age: parseInt(e.target.value) || 0})}
+                                            className="w-full bg-black border border-white/10 p-3 rounded-xl text-white mt-1.5"
+                                            placeholder="18"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* FAQ editor */}
+                                <div>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">FAQ del evento (opcional)</label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setEventForm({...eventForm, faq: [...eventForm.faq, { q: '', a: '' }]})}
+                                            className="text-[10px] font-black uppercase tracking-widest text-neon-purple hover:text-white transition-colors"
+                                        >
+                                            + Agregar pregunta
+                                        </button>
+                                    </div>
+                                    {eventForm.faq.length === 0 ? (
+                                        <p className="text-[10px] text-zinc-600 italic">Si dejás vacío, se muestra el FAQ genérico (cómo recibo entrada, transferencia, etc.).</p>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {eventForm.faq.map((item, idx) => (
+                                                <div key={idx} className="bg-black/40 border border-white/5 rounded-xl p-3 flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                                                    <div className="flex items-start gap-2">
+                                                        <input
+                                                            value={item.q}
+                                                            onChange={e => {
+                                                                const next = [...eventForm.faq];
+                                                                next[idx] = { ...next[idx], q: e.target.value };
+                                                                setEventForm({...eventForm, faq: next});
+                                                            }}
+                                                            className="flex-1 bg-transparent border-b border-white/15 py-1.5 text-white text-sm font-bold focus:outline-none focus:border-neon-purple"
+                                                            placeholder="Pregunta"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setEventForm({...eventForm, faq: eventForm.faq.filter((_, i) => i !== idx)})}
+                                                            className="text-red-500/60 hover:text-red-500 p-1"
+                                                            aria-label="Eliminar pregunta"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </div>
+                                                    <textarea
+                                                        value={item.a}
+                                                        onChange={e => {
+                                                            const next = [...eventForm.faq];
+                                                            next[idx] = { ...next[idx], a: e.target.value };
+                                                            setEventForm({...eventForm, faq: next});
+                                                        }}
+                                                        rows={2}
+                                                        className="w-full bg-transparent border-b border-white/10 py-1.5 text-zinc-300 text-xs font-light focus:outline-none focus:border-white/30 resize-none"
+                                                        placeholder="Respuesta"
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
                             {/* --- SECCIÓN DE ETAPAS --- */}
                             <div className="border-t border-white/10 pt-8 mb-8">
                                 <div className="flex justify-between items-center mb-6">
@@ -782,7 +889,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                         {events.filter(e => e.status === 'archived').map(event => (
                             <div key={event.id} className="group relative bg-zinc-900 rounded-[2.5rem] overflow-hidden border border-white/5 opacity-75 hover:opacity-100 transition-all">
                                 <div className="h-56 overflow-hidden relative grayscale group-hover:grayscale-0 transition-all duration-500">
-                                    <img src={event.cover_image} className="w-full h-full object-cover" alt={event.title} />
+                                    <img src={event.cover_image} className="w-full h-full object-cover" alt={event.title} loading="lazy" decoding="async" />
                                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                                         <span className="text-white font-black uppercase tracking-widest border border-white px-4 py-2 rounded-lg">Archivado</span>
                                     </div>
@@ -838,10 +945,26 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                         <label className="text-[10px] text-zinc-500 uppercase font-bold">Rol</label>
                                         <select value={staffRole} onChange={(e:any) => setStaffRole(e.target.value)} className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white uppercase font-bold text-xs">
                                             <option value="PROMOTER">Promotor</option>
+                                            <option value="BOUNCER">Bouncer (Puerta)</option>
                                             <option value="MANAGER">Manager (Gerente)</option>
                                             <option value="HEAD">Cabeza de Super Squad</option>
                                             <option value="HEAD_OF_SALES">Head of Sales (Director Global)</option>
+                                            <option value="ADMIN">Admin (Acceso total)</option>
+                                            {currentUser?.role === UserRole.SUPER_ADMIN && (
+                                                <option value="SUPER_ADMIN">Super Admin (oculto)</option>
+                                            )}
                                         </select>
+                                        {currentUser?.role === UserRole.SUPER_ADMIN && staffRole === 'SUPER_ADMIN' && (
+                                            <label className="flex items-center gap-2 mt-2 text-[10px] text-zinc-400 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={staffHidden}
+                                                    onChange={e => setStaffHidden(e.target.checked)}
+                                                    className="accent-eclipse"
+                                                />
+                                                Ocultar de listas de staff (recomendado para Super Admin)
+                                            </label>
+                                        )}
                                     </div>
 
                                     <Button onClick={handleCreateStaff} fullWidth className="bg-white text-black font-black mt-2">REGISTRAR STAFF</Button>
