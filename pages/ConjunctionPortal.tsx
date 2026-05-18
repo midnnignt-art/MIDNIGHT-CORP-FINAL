@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Moon, Sun, Music, GlassWater, Users, Sparkles } from 'lucide-react';
+import { Moon, Sun, Music, GlassWater, Users, Heart } from 'lucide-react';
 import { useMouseParallax, usePrefersReducedMotion } from '../lib/useMouseParallax';
 import { useLowEnd } from '../lib/perfMode';
 
@@ -287,13 +287,9 @@ const WingSigil: React.FC<{ color: string; opacity?: number; size?: number }> = 
 // ═════════════════════════════════════════════════════════════════════════════
 // ORNAMENT + CORNER MARKERS
 // ═════════════════════════════════════════════════════════════════════════════
-const OrnamentTop: React.FC = () => (
-  <svg viewBox="0 0 24 60" fill="none" style={{ width: 20, height: 50 }}>
-    <line x1="12" y1="2" x2="12" y2="58" stroke="#C9A961" strokeWidth="0.8" />
-    <path d="M12 18 L 16 30 L 12 42 L 8 30 Z" fill="none" stroke="#C9A961" strokeWidth="1" />
-    <path d="M12 22 L 14 30 L 12 38 L 10 30 Z" fill="#C9A961" opacity="0.6" />
-    <path d="M12 8 L 13 12 L 12 16 L 11 12 Z" fill="#C9A961" />
-    <path d="M12 44 L 13 48 L 12 52 L 11 48 Z" fill="#C9A961" />
+const TopStar: React.FC = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 0 8px rgba(201,169,97,0.8))' }}>
+    <path d="M12 2L13.5 10.5L22 12L13.5 13.5L12 22L10.5 13.5L2 12L10.5 10.5L12 2Z" fill="#C9A961" />
   </svg>
 );
 
@@ -666,7 +662,7 @@ const PlanetMidnight: React.FC<PlanetProps & { lite: boolean }> = ({ onClick, on
       >
         {/* Gradiente eclipse: muy oscuro al centro, púrpura sutil hacia el borde */}
         <div className="absolute inset-0 rounded-full" style={{
-          background: 'radial-gradient(circle at center, #0B0316 0%, #14052B 35%, #240845 65%, #3A0E66 88%, #6B1FA0 100%)',
+          background: 'radial-gradient(circle at center, #000000 0%, #05010A 40%, #1A052E 80%, #490F7C 100%)',
         }} />
 
         {!lite && (
@@ -883,59 +879,30 @@ const PlanetSolstice: React.FC<PlanetProps & { lite: boolean }> = ({ onClick, on
 };
 
 // ═════════════════════════════════════════════════════════════════════════════
-// CENTER SELECTOR — golden orb
+// CENTER SELECTOR
 // ═════════════════════════════════════════════════════════════════════════════
-const CenterSelector: React.FC = () => {
+const CenterPathSelector: React.FC = () => {
   return (
-    <div className="relative flex flex-col items-center gap-4">
-      <p className="uppercase" style={{
-        fontFamily: "'Inter', sans-serif", fontSize: 10,
-        color: '#C9A84C', letterSpacing: '0.45em', fontWeight: 500,
-      }}>
-        Universe Selector
-      </p>
+    <div className="relative flex flex-col items-center justify-center" style={{ width: 140, height: 140 }}>
+      <svg className="absolute inset-0 w-full h-full overflow-visible" viewBox="0 0 140 140">
+        <circle cx="70" cy="70" r="60" fill="none" stroke="#C9A84C" strokeWidth="1" strokeDasharray="3 4" opacity="0.6" />
+        
+        <path id="top-arc" d="M 10,70 A 60,60 0 0,1 130,70" fill="none" />
+        <text style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fill: '#C9A84C', letterSpacing: '0.4em', fontWeight: 500 }} textAnchor="middle">
+          <textPath href="#top-arc" startOffset="50%">CHOOSE</textPath>
+        </text>
 
-      <motion.div animate={{ y: [0, -3, 0], opacity: [0.6, 1, 0.6] }} transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }} aria-hidden>
-        <svg width="24" height="14" viewBox="0 0 24 14" fill="none">
-          <path d="M2 12 L 12 4 L 22 12" stroke="#D4B97A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path id="bottom-arc" d="M 10,70 A 60,60 0 0,0 130,70" fill="none" />
+        <text style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fill: '#C9A84C', letterSpacing: '0.4em', fontWeight: 500 }} textAnchor="middle">
+          <textPath href="#bottom-arc" startOffset="50%">YOUR PATH</textPath>
+        </text>
+      </svg>
+      
+      <div aria-hidden className="absolute pointer-events-none" style={{ filter: 'drop-shadow(0 0 15px rgba(201,168,76,0.8))' }}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2L13.5 10.5L22 12L13.5 13.5L12 22L10.5 13.5L2 12L10.5 10.5L12 2Z" fill="#F4D58D" />
         </svg>
-      </motion.div>
-
-      <div className="relative" style={{ width: 128, height: 128 }}>
-        <div
-          aria-hidden
-          className="absolute rounded-full pointer-events-none"
-          style={{
-            inset: -30,
-            background: 'radial-gradient(circle at center, rgba(245,217,138,0.30) 0%, rgba(201,168,76,0.13) 40%, transparent 70%)',
-            filter: 'blur(18px)',
-          }}
-        />
-        <motion.div
-          animate={{ scale: [1, 1.04, 1] }}
-          transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
-          className="rounded-full relative w-full h-full"
-          style={{
-            background: 'radial-gradient(circle at 38% 35%, #fff4d6 0%, #f5d98a 50%, #C9A84C 100%)',
-            boxShadow: `
-              0 0 50px rgba(245,217,138,0.50),
-              0 0 30px rgba(255,255,255,0.40),
-              inset -6px -6px 16px rgba(120,80,30,0.30),
-              inset 4px 4px 10px rgba(255,250,220,0.40)
-            `,
-          }}
-        >
-          <div aria-hidden className="absolute inset-0 rounded-full pointer-events-none"
-            style={{ background: 'radial-gradient(circle at 35% 28%, rgba(255,255,255,0.55) 0%, transparent 30%)' }}
-          />
-        </motion.div>
       </div>
-
-      <motion.div animate={{ y: [0, 3, 0], opacity: [0.6, 1, 0.6] }} transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }} aria-hidden>
-        <svg width="24" height="14" viewBox="0 0 24 14" fill="none">
-          <path d="M2 2 L 12 10 L 22 2" stroke="#D4B97A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </motion.div>
     </div>
   );
 };
@@ -973,10 +940,10 @@ const SectionHeader: React.FC<{ variant: 'midnight' | 'solstice' }> = ({ variant
   const isMid = variant === 'midnight';
   const Icon = isMid ? Moon : Sun;
   const lineColor  = isMid ? '#490F7C' : '#E6392F';
-  const iconColor  = isMid ? '#C9A84C' : '#E6392F';
-  const subColor   = isMid ? '#C9A84C' : '#FFB48C';
-  const titleColor = isMid ? '#F2F2F2' : '#E6392F';
-  const glowColor  = isMid ? '#490F7C' : '#E6392F';
+  const iconColor  = '#C9A84C';
+  const subColor   = '#FFFFFF';
+  const titleColor = isMid ? '#C9A84C' : '#B0241C';
+  const glowColor  = isMid ? '#C9A84C' : '#E6392F';
   const titleFont = isMid
     ? "'Cormorant Garamond', 'Cinzel', serif"
     : "'Poiret One', 'Cinzel', sans-serif";
@@ -1010,17 +977,34 @@ const SectionHeader: React.FC<{ variant: 'midnight' | 'solstice' }> = ({ variant
 
 const SectionFooter: React.FC<{ variant: 'midnight' | 'solstice' }> = ({ variant }) => {
   const isMid = variant === 'midnight';
-  const Icon = isMid ? Moon : Sun;
-  const iconColor = isMid ? '#C9A84C' : '#E6392F';
-  const textColor = isMid ? '#C9A84C' : '#FFB48C';
+  const textColor = '#FFFFFF';
   const lines = isMid ? ['Mystery. Vibes.', 'All Night Long.'] : ['Energy. Light.', 'A New Beginning.'];
   return (
-    <div className="flex items-center gap-3">
-      <Icon size={22} color={iconColor} style={{ filter: `drop-shadow(0 0 5px ${iconColor})` }} />
-      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: textColor, letterSpacing: '0.3em', textTransform: 'uppercase', lineHeight: 1.5 }}>
+    <div className="flex flex-col items-center gap-6 mt-6">
+      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: textColor, letterSpacing: '0.3em', textTransform: 'uppercase', lineHeight: 1.8, textAlign: 'center' }}>
         <div>{lines[0]}</div>
         <div>{lines[1]}</div>
       </div>
+      
+      <button
+        className="px-8 py-3 rounded-full text-[10px] uppercase tracking-[0.3em] font-semibold transition-all duration-300"
+        style={{
+          color: isMid ? '#F2F2F2' : '#F9F2D7',
+          border: `1px solid ${isMid ? '#b026ff' : '#E6392F'}`,
+          background: `rgba(${isMid ? '176,38,255' : '230,57,47'}, 0.05)`,
+          boxShadow: `0 0 15px rgba(${isMid ? '176,38,255' : '230,57,47'}, 0.2), inset 0 0 10px rgba(${isMid ? '176,38,255' : '230,57,47'}, 0.1)`,
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = `rgba(${isMid ? '176,38,255' : '230,57,47'}, 0.15)`;
+          e.currentTarget.style.boxShadow = `0 0 25px rgba(${isMid ? '176,38,255' : '230,57,47'}, 0.4), inset 0 0 15px rgba(${isMid ? '176,38,255' : '230,57,47'}, 0.3)`;
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = `rgba(${isMid ? '176,38,255' : '230,57,47'}, 0.05)`;
+          e.currentTarget.style.boxShadow = `0 0 15px rgba(${isMid ? '176,38,255' : '230,57,47'}, 0.2), inset 0 0 10px rgba(${isMid ? '176,38,255' : '230,57,47'}, 0.1)`;
+        }}
+      >
+        Explore Event
+      </button>
     </div>
   );
 };
@@ -1060,14 +1044,19 @@ export const ConjunctionPortal: React.FC<ConjunctionPortalProps> = ({ onEnterBra
         className="relative w-full overflow-hidden"
         style={{
           minHeight: '100vh',
-          background: `
-            radial-gradient(ellipse 50% 60% at 22% 50%, rgba(73,15,124,0.55) 0%, transparent 55%),
-            radial-gradient(ellipse 50% 60% at 78% 50%, rgba(230,57,47,0.32) 0%, transparent 55%),
-            radial-gradient(ellipse 30% 50% at 50% 90%, rgba(176,36,28,0.22) 0%, transparent 60%),
-            #0B0316
-          `,
+          backgroundColor: '#05020A',
         }}
       >
+        {/* Curtains of Light */}
+        <div className="absolute top-0 bottom-0 left-0 w-[60%] pointer-events-none z-[0] overflow-hidden">
+          <div className="absolute top-[-20%] left-[-40%] w-[160%] h-[140%] rounded-full opacity-60" 
+               style={{ background: 'radial-gradient(ellipse at center, rgba(122,31,168,0.35) 0%, transparent 70%)', filter: 'blur(90px)', mixBlendMode: 'screen' }} />
+        </div>
+        <div className="absolute top-0 bottom-0 right-0 w-[60%] pointer-events-none z-[0] overflow-hidden">
+          <div className="absolute top-[-20%] right-[-40%] w-[160%] h-[140%] rounded-full opacity-60" 
+               style={{ background: 'radial-gradient(ellipse at center, rgba(230,57,47,0.3) 0%, transparent 70%)', filter: 'blur(90px)', mixBlendMode: 'screen' }} />
+        </div>
+
         <Starfield lite={lite} />
         {!lite && <ShootingStars />}
         <Spotlights />
@@ -1085,20 +1074,20 @@ export const ConjunctionPortal: React.FC<ConjunctionPortalProps> = ({ onEnterBra
         >
           <div className="flex items-center gap-6 mb-4">
             <span style={{ width: 200, height: 1, background: 'linear-gradient(to right, transparent, #C9A961, transparent)' }} />
-            <OrnamentTop />
+            <TopStar />
             <span style={{ width: 200, height: 1, background: 'linear-gradient(to right, transparent, #C9A961, transparent)' }} />
           </div>
           <h2 className="uppercase" style={{
             fontFamily: "'Cinzel', serif", fontSize: 18, color: '#D4B97A',
             letterSpacing: '0.35em', fontWeight: 500, textShadow: '0 0 14px rgba(212,185,122,0.30)',
           }}>
-            Choose Your Path
+            Choose Your Night
           </h2>
           <p className="uppercase mt-2" style={{
-            fontFamily: "'Inter', sans-serif", fontSize: 11, color: '#8a7355',
+            fontFamily: "'Inter', sans-serif", fontSize: 11, color: '#FFFFFF', opacity: 0.8,
             letterSpacing: '0.4em', fontWeight: 500,
           }}>
-            Choose Your Experience
+            Two Experiences. One Unforgettable Night.
           </p>
         </motion.div>
 
@@ -1119,7 +1108,7 @@ export const ConjunctionPortal: React.FC<ConjunctionPortalProps> = ({ onEnterBra
           </motion.div>
 
           <motion.div custom={2} initial="hidden" animate="show" variants={introVariants}>
-            <CenterSelector />
+            <CenterPathSelector />
           </motion.div>
 
           <motion.div className="flex flex-col items-center" custom={3} initial="hidden" animate="show" variants={introVariants}>
@@ -1173,7 +1162,7 @@ export const ConjunctionPortal: React.FC<ConjunctionPortalProps> = ({ onEnterBra
               { icon: Music, label: 'Music' },
               { icon: GlassWater, label: 'Drinks' },
               { icon: Users, label: 'Dancing' },
-              { icon: Sparkles, label: 'Connection' },
+              { icon: Heart, label: 'Connection' },
             ].map(({ icon: Icon, label }) => (
               <div key={label} className="flex items-center gap-2 transition-colors duration-300 cursor-default group" style={{ color: '#8a7355' }}>
                 <Icon size={14} className="transition-all duration-300 group-hover:text-[#F4D58D]" />
