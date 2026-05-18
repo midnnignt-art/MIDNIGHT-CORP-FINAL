@@ -139,6 +139,18 @@ textarea {
 html, body {
   overscroll-behavior-y: contain;
   background-color: #000000;
+  /* Bloqueo de scroll horizontal — cualquier elemento decorativo absolute o con
+     transform que se salga lateralmente no debe causar que el viewport completo
+     se pueda scrollear. Resuelve "la página se rompe en celular" causado por
+     parallax / glows / títulos largos. */
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Defensiva: imágenes / videos respetan el ancho del contenedor.
+   SVGs absolute / decorativos quedan fuera para no romper layouts existentes. */
+img, video, iframe {
+  max-width: 100%;
 }
 
 /* `bg-void` se usa en muchos wrappers — lo dejamos como token de marca pero
