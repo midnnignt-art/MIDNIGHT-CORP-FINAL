@@ -42,7 +42,7 @@ interface Season {
 
 const CATEGORIES = [
   'Hospedaje',
-  'Catamarán',
+  'Lanchas + Beach Club',
   'Logística',
   'Producción / DJ',
   'Comida y bebida',

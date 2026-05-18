@@ -142,7 +142,7 @@ interface SquadGroup {
 const DEFAULT_DAYS: Omit<ProgramDay, 'id' | 'season_id'>[] = [
   { day_number: 1, title: 'Llegada',       subtitle: 'Apertura nocturna',         price: 70000,  price_cash: 70000,  price_combo: 70000,  price_monthly: 70000,  image_url: '', highlight: false },
   { day_number: 2, title: 'Día libre',     subtitle: 'Fiesta nocturna',           price: 70000,  price_cash: 70000,  price_combo: 70000,  price_monthly: 70000,  image_url: '', highlight: false },
-  { day_number: 3, title: 'Catamarán',     subtitle: '50 p · DJ · AYCD · Bahía', price: 130000, price_cash: 135000, price_combo: 130000, price_monthly: 130000, image_url: '', highlight: true  },
+  { day_number: 3, title: 'Lanchas + Beach Club',     subtitle: 'DJ · AYCD · Bahía privada', price: 130000, price_cash: 135000, price_combo: 130000, price_monthly: 130000, image_url: '', highlight: true  },
   { day_number: 4, title: 'Playa privada', subtitle: 'All you can drink',         price: 100000, price_cash: 105000, price_combo: 100000, price_monthly: 100000, image_url: '', highlight: false },
   { day_number: 5, title: 'Cierre',        subtitle: 'Última noche',              price: 70000,  price_cash: 70000,  price_combo: 70000,  price_monthly: 70000,  image_url: '', highlight: false },
 ];
@@ -2146,7 +2146,7 @@ function BoatsAdmin({ seasonId }: { seasonId: string | null }) {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-2xl uppercase mb-1" style={{ fontFamily: "'Poiret One', sans-serif", fontWeight: 300, letterSpacing: '0.04em', color: '#F9F2D7' }}>
-            Lanchas / Catamaranes
+            Lanchas + Beach Club
           </h2>
           <p className="text-[10px] uppercase" style={{ color: '#606060', letterSpacing: '0.25em', fontWeight: 500 }}>
             Inventario para el Día 3 · Combos que incluyen lancha eligen su lancha aquí
@@ -2732,12 +2732,12 @@ function PenaltiesAdmin({ season, upSeason, saveSeason, saving }: {
         </div>
       </div>
 
-      {/* Bloque 3: Penalidad Catamarán (legacy season) */}
+      {/* Bloque 3: Penalidad Día 3 — Lanchas + Beach Club */}
       <div className="space-y-4 p-5" style={card}>
-        <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.06em' }}>Catamarán (Día 3)</h2>
+        <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.06em' }}>Día 3 · Lanchas + Beach Club</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <InputRow
-            label="Cuotas en mora para perder catamarán"
+            label="Cuotas en mora para perder el Día 3"
             value={season.penalty_catamaran_at}
             onChange={v => upSeason('penalty_catamaran_at', Number(v))}
             type="number"

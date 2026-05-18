@@ -222,7 +222,7 @@ async function sendEmail({ apiKey, to, kind, schedule, reg }: SendArgs): Promise
       subject:  `Último aviso · Acceso a Solstice en riesgo`,
       eyebrow:  '🛑 Última oportunidad',
       headline: `${firstName}, tu lugar está en riesgo`,
-      body:     `Han pasado 7 días desde el vencimiento de tu cuota. Si no regularizás en las próximas 24h, tu acceso al combo queda <strong>bloqueado</strong> y perdés el Catamarán del Día 3. Escribinos por WhatsApp si necesitás más tiempo.`,
+      body:     `Han pasado 7 días desde el vencimiento de tu cuota. Si no regularizás en las próximas 24h, tu acceso al combo queda <strong>bloqueado</strong> y perdés las Lanchas + Beach Club del Día 3. Escribinos por WhatsApp si necesitás más tiempo.`,
       cta:      'Hablar con Solstice',
     },
   };

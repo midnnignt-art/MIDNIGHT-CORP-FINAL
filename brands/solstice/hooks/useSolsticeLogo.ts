@@ -3,14 +3,17 @@ import { loadSolsticeBranding, saveSolsticeBranding } from './solsticeBrandingSt
 
 const STORAGE_KEY = 'solstice_logo_url';
 const EV = 'solstice-logo-change';
+// Logo oficial servido desde /public — fallback consistente entre devices
+// cuando admin no ha subido nada o cuando localStorage está vacío.
+const DEFAULT_LOGO = '/brand-logo.png';
 
 export function useSolsticeLogo(): [string, (url: string) => void] {
   const [logoUrl, setLogoUrlState] = useState<string>(() =>
-    localStorage.getItem(STORAGE_KEY) || ''
+    localStorage.getItem(STORAGE_KEY) || DEFAULT_LOGO
   );
 
   useEffect(() => {
-    const handler = (e: CustomEvent) => setLogoUrlState(e.detail || '');
+    const handler = (e: CustomEvent) => setLogoUrlState(e.detail || DEFAULT_LOGO);
     window.addEventListener(EV, handler as EventListener);
     return () => window.removeEventListener(EV, handler as EventListener);
   }, []);
@@ -18,19 +21,22 @@ export function useSolsticeLogo(): [string, (url: string) => void] {
   useEffect(() => {
     let active = true;
     loadSolsticeBranding().then(branding => {
-      if (!active || !branding?.logo_url) return;
-      localStorage.setItem(STORAGE_KEY, branding.logo_url);
-      setLogoUrlState(branding.logo_url);
-      window.dispatchEvent(new CustomEvent(EV, { detail: branding.logo_url }));
+      if (!active) return;
+      const url = branding?.logo_url || DEFAULT_LOGO;
+      localStorage.setItem(STORAGE_KEY, url);
+      setLogoUrlState(url);
+      window.dispatchEvent(new CustomEvent(EV, { detail: url }));
     });
     return () => { active = false; };
   }, []);
 
   const setLogoUrl = useCallback((url: string) => {
-    if (url) localStorage.setItem(STORAGE_KEY, url);
-    else localStorage.removeItem(STORAGE_KEY);
-    setLogoUrlState(url);
-    window.dispatchEvent(new CustomEvent(EV, { detail: url }));
+    const final = url || DEFAULT_LOGO;
+    localStorage.setItem(STORAGE_KEY, final);
+    setLogoUrlState(final);
+    window.dispatchEvent(new CustomEvent(EV, { detail: final }));
+    // En Supabase guardamos null si el admin "borra" el logo, así otros devices
+    // también vuelven al default.
     saveSolsticeBranding({ logo_url: url || null });
   }, []);
 

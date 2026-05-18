@@ -117,7 +117,7 @@ export default function SolsticeInviteLanding({ inviteCode }: Props) {
             {data.leader_name?.split(' ')[0] || 'Un pana'}<br/>te reservó cupo
           </h1>
           <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em' }}>
-            Día 3 · Catamarán Solstice 2026
+            Día 3 · Lanchas + Beach Club · Solstice 2026
           </p>
         </motion.div>
 

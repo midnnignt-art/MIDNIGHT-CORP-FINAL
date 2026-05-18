@@ -189,7 +189,7 @@ export default function SolsticePromoLanding({ refCode }: Props) {
             Santa Marta · 2026
           </p>
           <p className="text-sm" style={{ color: '#a0a0a8', lineHeight: 1.6, maxWidth: '320px', margin: '0 auto' }}>
-            5 días · 5 universidades · Atardecer en catamarán · Lo más codiciado de Latinoamérica este verano.
+            5 días · 5 universidades · Atardecer en lancha · Beach Club privado · Lo más codiciado de Latinoamérica este verano.
           </p>
         </motion.div>
 

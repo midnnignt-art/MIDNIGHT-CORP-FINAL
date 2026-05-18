@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, Ship, Move, Check, X as XIcon, RotateCcw, Quote } from 'lucide-react';
+import { ChevronRight, Ship, Move, Check, X as XIcon, RotateCcw } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useSolsticeLogo } from '../hooks/useSolsticeLogo';
 import { useSolsticeLogoSize } from '../hooks/useSolsticeLogoSize';
@@ -346,7 +346,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
   const displayDays: Day[] = days.length ? days : [
     { day_number: 1, title: 'Llegada',       subtitle: 'Apertura nocturna',         price: 70000,  highlight: false },
     { day_number: 2, title: 'Día libre',     subtitle: 'Fiesta nocturna',           price: 70000,  highlight: false },
-    { day_number: 3, title: 'Catamarán',     subtitle: '50 p · DJ · AYCD · Bahía', price: 130000, highlight: true  },
+    { day_number: 3, title: 'Lanchas + Beach Club',     subtitle: 'DJ · AYCD · Bahía privada', price: 130000, highlight: true  },
     { day_number: 4, title: 'Playa privada', subtitle: 'All you can drink',         price: 100000, highlight: false },
     { day_number: 5, title: 'Cierre',        subtitle: 'Última noche',              price: 70000,  highlight: false },
   ];
@@ -714,7 +714,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
       {/* ── MARQUEE ── */}
       <section className="py-12 md:py-16 border-y" style={{ borderColor: 'rgba(230,57,47,0.15)' }}>
         <SolsticeMarquee
-          items={['SOLSTICE 2026', 'SANTA MARTA', 'ATARDECER PRIVADO', 'CATAMARÁN', 'UNA VEZ AL AÑO', 'SELECTED BEATS']}
+          items={['SOLSTICE 2026', 'SANTA MARTA', 'ATARDECER PRIVADO', 'LANCHAS · BEACH CLUB', 'UNA VEZ AL AÑO', 'SELECTED BEATS']}
           speedSeconds={60}
         />
       </section>
@@ -878,7 +878,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
               Combo completo: ${comboK}K
             </span>
             <span className="text-[10px] uppercase" style={{ color: `${C.gray}80`, letterSpacing: '0.08em', fontWeight: 500 }}>
-              Combo 1 (sin Catamarán): ${combo1K}K
+              Combo 1 (sin Día 3): ${combo1K}K
             </span>
             <button
               onClick={() => onNavigate('programa')}
@@ -1059,55 +1059,6 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
               </div>
               <p className="text-sm uppercase" style={{ letterSpacing: '0.08em', fontWeight: 500 }}>{step}</p>
             </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── VOCES — testimonios ── */}
-      <section className="py-24 px-4 max-w-5xl mx-auto">
-        <p className="text-center text-[10px] uppercase mb-3" style={{ letterSpacing: '0.4em', color: C.red, fontWeight: 600 }}>
-          Voces de ediciones pasadas
-        </p>
-        <h2 className="text-3xl md:text-4xl text-center mb-16 uppercase"
-          style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '-0.02em', fontWeight: 300, color: C.cream }}>
-          Lo que dicen
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {TESTIMONIALS.map((t, i) => (
-            <motion.figure
-              key={i}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-50px' }}
-              transition={{ delay: i * 0.08, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-              style={{
-                background: 'rgba(255,255,255,0.04)',
-                backdropFilter: 'blur(24px)',
-                border: '0.5px solid rgba(255,255,255,0.08)',
-                borderRadius: '20px',
-                padding: '28px 24px',
-                position: 'relative',
-              }}
-            >
-              <Quote size={18} style={{ color: C.red, opacity: 0.6, marginBottom: 12 }} />
-              <blockquote
-                style={{
-                  fontFamily: "'Archivo', sans-serif",
-                  fontWeight: 300,
-                  fontSize: '0.95rem',
-                  lineHeight: 1.55,
-                  color: C.cream,
-                  margin: 0,
-                  marginBottom: 18,
-                }}
-              >
-                "{t.quote}"
-              </blockquote>
-              <figcaption className="text-[10px] uppercase" style={{ letterSpacing: '0.15em', color: C.gray, fontWeight: 500 }}>
-                <strong style={{ color: C.cream, fontWeight: 600 }}>{t.name}</strong>
-                <span style={{ color: `${C.gray}80`, marginLeft: 8 }}>· {t.uni}</span>
-              </figcaption>
-            </motion.figure>
           ))}
         </div>
       </section>
@@ -1295,11 +1246,5 @@ const GALLERY_IMAGES = [
   'https://images.unsplash.com/photo-1502920917128-1aa500764cbd?auto=format&fit=crop&q=80&w=800',
   'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&q=80&w=800',
   'https://images.unsplash.com/photo-1533777324565-a040eb52facd?auto=format&fit=crop&q=80&w=800',
-];
-
-const TESTIMONIALS = [
-  { quote: 'El catamarán fue otra cosa. Nunca había vivido un atardecer así con mis panas.', name: 'Camila R.', uni: 'Javeriana 2025' },
-  { quote: 'La organización impecable. Pagás en cuotas, llegás, todo listo.', name: 'Daniel M.',  uni: 'Los Andes 2024' },
-  { quote: 'Fui sola y conocí a media universidad. La energía es real.',                    name: 'Mariana O.', uni: 'CESA 2025' },
 ];
 

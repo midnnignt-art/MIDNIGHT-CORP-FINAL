@@ -421,7 +421,7 @@ export default function SolsticeMiSemana() {
               </p>
               <p className="text-[10px] uppercase leading-relaxed" style={{ color: `${C.red}cc`, letterSpacing: '0.08em' }}>
                 Tienes {overdue.length} cuota{overdue.length > 1 ? 's' : ''} sin pagar.
-                Si no regularizas antes del evento puedes perder acceso al Catamarán (Día 3).
+                Si no regularizas antes del evento puedes perder acceso al Día 3 (Lanchas + Beach Club).
               </p>
             </div>
           </motion.div>
@@ -1067,7 +1067,7 @@ function InviteFriendsCard({ reg }: { reg: Registration }) {
   const firstName = (reg.customer_name || '').split(' ')[0] || 'tu pana';
   const uni       = reg.week?.university || reg.customer_university || 'Solstice';
   const url       = `${window.location.origin}/sol`;
-  const message   = `${firstName} acá 🌅 reservé mi semana en SOLSTICE 2026 (${uni}) — 5 días en Santa Marta, atardecer en catamarán, lo más bonito del año. Si querés sumarte, asegurás tu lugar con $40K: ${url}`;
+  const message   = `${firstName} acá 🌅 reservé mi semana en SOLSTICE 2026 (${uni}) — 5 días en Santa Marta, lanchas privadas + beach club, lo más bonito del año. Si querés sumarte, asegurás tu lugar con $40K: ${url}`;
   const [copied, setCopied] = useState(false);
 
   const copyLink = () => {

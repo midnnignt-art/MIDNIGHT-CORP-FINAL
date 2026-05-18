@@ -103,7 +103,7 @@ async function sendConfirmation(reg: any, boat: any) {
   const boatBlock = boat ? `
     <div style="background:linear-gradient(135deg,rgba(230,57,47,0.12) 0%,rgba(255,122,0,0.06) 100%);border:1px solid rgba(230,57,47,0.40);border-radius:20px;padding:24px 22px;margin:24px 0;">
       <p style="color:#E6392F;font-size:9px;font-weight:700;letter-spacing:4px;text-transform:uppercase;margin:0 0 12px 0;">
-        🚤 Tu lancha · ${boat.boat_name || 'Catamarán'}
+        🚤 Tu lancha · ${boat.boat_name || 'Lancha + Beach Club'}
       </p>
       ${boat.is_leader ? `
         <p style="color:#F9F2D7;font-size:13px;margin:0 0 14px 0;line-height:1.55;">

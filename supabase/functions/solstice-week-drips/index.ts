@@ -160,8 +160,8 @@ async function sendEmail({ apiKey, to, kind, reg, week }: SendArgs): Promise<boo
         <strong style="color:#E6392F;">Qué llevar:</strong>
         <ul style="color:#a0a0a8;padding-left:20px;line-height:1.8;">
           <li>Bloqueador SPF 50+ (la bahía no perdona)</li>
-          <li>Cédula original — para el QR del catamarán</li>
-          <li>Ropa para 5 noches + outfit "Día 3" (Catamarán)</li>
+          <li>Cédula original — para el QR de las lanchas</li>
+          <li>Ropa para 5 noches + outfit "Día 3" (Lanchas + Beach Club)</li>
           <li>Repelente, gafas, sombrero, traje de baño</li>
           <li>Cargador para tu pase MIDNIGHT en el celular</li>
         </ul>
@@ -210,7 +210,7 @@ async function sendEmail({ apiKey, to, kind, reg, week }: SendArgs): Promise<boo
       body:     `
         Día 1 cerrado. Esperamos que estés con buena energía para lo que viene.<br/>
         <br/>
-        <strong style="color:#E6392F;">Próximamente:</strong> mañana es el <strong>Catamarán (Día 3)</strong> — el día más esperado. Revisá tu reserva de lancha en Mi Semana y compartí el código de invitación con tus panas si todavía hay cupos.<br/>
+        <strong style="color:#E6392F;">Próximamente:</strong> mañana son las <strong>Lanchas + Beach Club (Día 3)</strong> — el día más esperado. Revisá tu reserva de lancha en Mi Semana y compartí el código de invitación con tus panas si todavía hay cupos.<br/>
         <br/>
         Si tienes preguntas, encuentras al equipo Solstice en el punto de encuentro entre 10 AM y 12 PM.
       `,

@@ -21,7 +21,7 @@ export const SOLSTICE_WEEKS_MOCK: SolsticeWeek[] = [
 export const SOLSTICE_DAYS = [
   { day: 1, title: 'Llegada',       subtitle: 'Apertura nocturna',          price: 70000  },
   { day: 2, title: 'Día libre',     subtitle: 'Fiesta nocturna',            price: 70000  },
-  { day: 3, title: 'Catamarán',     subtitle: '50 p · DJ · AYCD · Bahía',  price: 130000, highlight: true },
+  { day: 3, title: 'Lanchas + Beach Club',     subtitle: 'DJ · AYCD · Bahía privada',  price: 130000, highlight: true },
   { day: 4, title: 'Playa privada', subtitle: 'All you can drink',          price: 100000 },
   { day: 5, title: 'Cierre',        subtitle: 'Última noche',               price: 70000  },
 ];

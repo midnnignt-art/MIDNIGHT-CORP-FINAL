@@ -209,7 +209,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
   const dayTotal  = selDays.reduce((a, d) => a + (SOLSTICE_DAYS.find(x => x.day === d)?.price || 0), 0);
   const chargeNow = mode === 'full_combo' ? s.combo_total : mode === 'individual_days' ? dayTotal : s.entry_price;
   const chargeK   = Math.round(chargeNow / 1000);
-  // El día 3 (catamarán) está incluido en todos los modos salvo "días sueltos sin día 3"
+  // El día 3 (Lanchas + Beach Club) está incluido en todos los modos salvo "días sueltos sin día 3"
   const includesBoat = mode !== null && (mode !== 'individual_days' || selDays.includes(3));
 
   // Prefill auth if customer is already logged in (not staff — staff skips OTP in handleRequestOtp)
@@ -1118,7 +1118,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
             <motion.div key="s2.7" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
               <div>
                 <p className="text-[10px] uppercase mb-2" style={{ letterSpacing: '0.4em', color: C.red, fontWeight: 600 }}>
-                  Día 3 · Catamarán
+                  Día 3 · Lanchas + Beach Club
                 </p>
                 <h2 className="text-3xl md:text-4xl uppercase mb-1" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.04em', fontWeight: 300 }}>
                   ¿Lideras o te unes?
@@ -1778,7 +1778,7 @@ function ConfirmationCinematic({
             <div className="flex items-center gap-2 mb-3">
               <Ship size={16} style={{ color: '#E6392F' }} />
               <p className="text-[10px] uppercase" style={{ letterSpacing: '0.35em', color: '#E6392F', fontWeight: 600 }}>
-                Tu lancha · {boatName || 'Catamarán'}
+                Tu lancha · {boatName || 'Lancha + Beach Club'}
               </p>
             </div>
             <p className="text-xs mb-3" style={{ color: '#F9F2D7', lineHeight: 1.55 }}>

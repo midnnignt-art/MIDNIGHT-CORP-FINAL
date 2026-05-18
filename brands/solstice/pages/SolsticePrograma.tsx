@@ -36,7 +36,7 @@ const DAY_IMAGES: Record<number, string> = {
 const INCLUDED: Record<number, string[]> = {
   1: ['Bienvenida', 'Hospedaje', 'Apertura nocturna'],
   2: ['Día de playa', 'Fiesta nocturna', 'Hospedaje'],
-  3: ['Catamarán 50 personas', 'DJ en altamar', 'All You Can Drink', 'Bahía privada'],
+  3: ['Lanchas privadas', 'Beach Club exclusivo', 'DJ', 'All You Can Drink', 'Bahía privada'],
   4: ['Playa privada exclusiva', 'All You Can Drink', 'Almuerzo incluido'],
   5: ['Fiesta de cierre', 'Cena grupal', 'Last night ritual'],
 };
@@ -56,7 +56,7 @@ const DAY_ATMOSPHERE: Record<number, { eyebrow: string; gradient: string; sunCol
     sunBlur: '50px',
   },
   3: {
-    eyebrow: 'Día icónico · Catamarán',
+    eyebrow: 'Día icónico · Lanchas + Beach Club',
     gradient: 'linear-gradient(180deg, #050a18 0%, #0d2440 25%, #1a4060 50%, #6b4520 80%, #2a1108 100%)',
     sunColor: 'rgba(255,220,180,0.85)',
     sunBlur: '40px',
@@ -336,7 +336,7 @@ function DaySection({ day, index, total, onNavigate }: {
         }}
       />
 
-      {/* Highlight: partículas extra para Día 3 (Catamarán) */}
+      {/* Highlight: partículas extra para Día 3 (Lanchas + Beach Club) */}
       {day.day_number === 3 && <CatamaranSparkles />}
 
       {/* Contenido */}
@@ -536,7 +536,7 @@ function DaySection({ day, index, total, onNavigate }: {
   );
 }
 
-// ─── Catamarán: partículas extra para el día icónico ─────────────────────
+// ─── Lanchas + Beach Club: partículas extra para el día icónico ──────────
 
 function CatamaranSparkles() {
   return (
