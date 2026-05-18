@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, CheckCircle2, Clock, Loader2, RefreshCw,
   Camera, CameraOff, Users, CalendarCheck, X, ScanLine,
+  Link2, Copy, Plus, Power, Trash2,
 } from 'lucide-react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { supabase } from '../../../lib/supabase';
@@ -37,6 +38,83 @@ export default function SolsticeAdminCheckin() {
   const [scanning, setScanning] = useState(false);
   const [checkingId, setCheckingId] = useState<string | null>(null);
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+
+  // ── Bouncer links state ──────────────────────────────────────────────────
+  interface BouncerLink {
+    id: string; token: string; day_number: number;
+    boat_id: string | null; location: string | null;
+    label: string; active: boolean; created_at: string;
+  }
+  const [bouncerLinks, setBouncerLinks] = useState<BouncerLink[]>([]);
+  const [boatsCatalog, setBoatsCatalog] = useState<Array<{ id: string; name: string }>>([]);
+  const [linksOpen, setLinksOpen] = useState(false);
+  const [newLinkLabel, setNewLinkLabel] = useState('');
+  const [newLinkLocation, setNewLinkLocation] = useState('');
+  const [newLinkBoatId, setNewLinkBoatId] = useState<string>('');
+  const [creatingLink, setCreatingLink] = useState(false);
+  const [copiedToken, setCopiedToken] = useState<string | null>(null);
+
+  const loadBouncerLinks = async () => {
+    const [{ data: l }, { data: b }] = await Promise.all([
+      supabase.from('solstice_bouncer_links')
+        .select('id,token,day_number,boat_id,location,label,active,created_at')
+        .order('created_at', { ascending: false }),
+      supabase.from('solstice_boats').select('id,name').eq('status', 'active'),
+    ]);
+    setBouncerLinks(l || []);
+    setBoatsCatalog(b || []);
+  };
+  useEffect(() => { loadBouncerLinks(); }, []);
+
+  const createBouncerLink = async () => {
+    if (!newLinkLabel.trim()) { toast.error('Falta el label'); return; }
+    setCreatingLink(true);
+    // Token: 12 chars base36 con timestamp + random
+    const token = (Date.now().toString(36) + Math.random().toString(36).slice(2, 8)).toUpperCase();
+    const { error } = await supabase.from('solstice_bouncer_links').insert({
+      token,
+      day_number: day,
+      boat_id: newLinkBoatId || null,
+      location: newLinkLocation.trim() || null,
+      label: newLinkLabel.trim(),
+      active: true,
+      created_by: currentUser?.user_id,
+    });
+    if (error) {
+      toast.error(`Error: ${error.message}`);
+    } else {
+      setNewLinkLabel(''); setNewLinkLocation(''); setNewLinkBoatId('');
+      await loadBouncerLinks();
+      toast.success('Link creado');
+    }
+    setCreatingLink(false);
+  };
+
+  const toggleBouncerLink = async (id: string, currentActive: boolean) => {
+    const { error } = await supabase.from('solstice_bouncer_links')
+      .update({ active: !currentActive }).eq('id', id);
+    if (error) { toast.error(error.message); return; }
+    setBouncerLinks(prev => prev.map(l => l.id === id ? { ...l, active: !currentActive } : l));
+  };
+
+  const deleteBouncerLink = async (id: string, label: string) => {
+    if (!confirm(`¿Eliminar el link "${label}"? Los bouncers que lo tengan dejarán de poder escanear.`)) return;
+    const { error } = await supabase.from('solstice_bouncer_links').delete().eq('id', id);
+    if (error) { toast.error(error.message); return; }
+    setBouncerLinks(prev => prev.filter(l => l.id !== id));
+  };
+
+  const copyBouncerLink = (token: string) => {
+    const url = `${window.location.origin}/sol/bouncer?t=${token}`;
+    navigator.clipboard.writeText(url);
+    setCopiedToken(token);
+    setTimeout(() => setCopiedToken(null), 1800);
+  };
+
+  const linksForCurrentDay = useMemo(
+    () => bouncerLinks.filter(l => l.day_number === day),
+    [bouncerLinks, day],
+  );
 
   const load = async () => {
     setLoading(true);
@@ -470,6 +548,186 @@ export default function SolsticeAdminCheckin() {
             </span>
           </div>
         )}
+      </div>
+
+      {/* ── Bouncer Links Section ─────────────────────────────────────────── */}
+      <div className="px-8 pb-12 mt-10">
+        <button
+          onClick={() => setLinksOpen(o => !o)}
+          className="w-full flex items-center justify-between p-5 text-left transition-all"
+          style={{
+            background: 'rgba(255,255,255,0.04)',
+            border: '0.5px solid rgba(230,57,47,0.30)',
+            borderRadius: '20px',
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <Link2 size={16} style={{ color: C.red }} />
+            <div>
+              <p className="text-xs uppercase font-medium" style={{ color: C.cream, letterSpacing: '0.18em' }}>
+                Links de acceso para bouncers
+              </p>
+              <p className="text-[10px] uppercase mt-1" style={{ color: C.gray, letterSpacing: '0.12em' }}>
+                {linksForCurrentDay.filter(l => l.active).length} activos · Día {day}
+                {' · '}{bouncerLinks.length} totales
+              </p>
+            </div>
+          </div>
+          <span className="text-[10px]" style={{ color: C.gray, letterSpacing: '0.2em' }}>
+            {linksOpen ? 'OCULTAR' : 'GESTIONAR'}
+          </span>
+        </button>
+
+        <AnimatePresence>
+          {linksOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="p-5 mt-3 space-y-5"
+                style={{
+                  background: 'rgba(0,0,0,0.40)',
+                  border: '0.5px solid rgba(255,255,255,0.08)',
+                  borderRadius: '20px',
+                }}>
+
+                {/* Form para crear */}
+                <div className="space-y-3">
+                  <p className="text-[9px] uppercase" style={{ color: C.red, letterSpacing: '0.2em', fontWeight: 600 }}>
+                    Crear link para Día {day}
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    <input
+                      placeholder="Label (ej: Puerta 1 · Lancha Estrella)"
+                      value={newLinkLabel}
+                      onChange={e => setNewLinkLabel(e.target.value)}
+                      className="px-3 py-2.5 text-xs"
+                      style={{
+                        background: 'rgba(255,255,255,0.04)',
+                        border: '0.5px solid rgba(255,255,255,0.10)',
+                        borderRadius: '10px',
+                        color: C.cream,
+                      }}
+                    />
+                    <input
+                      placeholder="Ubicación (opcional: Puerta 1, Beach Club...)"
+                      value={newLinkLocation}
+                      onChange={e => setNewLinkLocation(e.target.value)}
+                      className="px-3 py-2.5 text-xs"
+                      style={{
+                        background: 'rgba(255,255,255,0.04)',
+                        border: '0.5px solid rgba(255,255,255,0.10)',
+                        borderRadius: '10px',
+                        color: C.cream,
+                      }}
+                    />
+                    <select
+                      value={newLinkBoatId}
+                      onChange={e => setNewLinkBoatId(e.target.value)}
+                      className="px-3 py-2.5 text-xs"
+                      style={{
+                        background: 'rgba(255,255,255,0.04)',
+                        border: '0.5px solid rgba(255,255,255,0.10)',
+                        borderRadius: '10px',
+                        color: C.cream,
+                      }}
+                    >
+                      <option value="">— Sin lancha específica (todos los pasajeros del día) —</option>
+                      {boatsCatalog.map(b => (
+                        <option key={b.id} value={b.id}>⛵ {b.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    onClick={createBouncerLink}
+                    disabled={creatingLink || !newLinkLabel.trim()}
+                    className="flex items-center gap-2 px-4 py-2.5 text-xs uppercase font-medium disabled:opacity-40"
+                    style={{
+                      background: 'linear-gradient(135deg, #E6392F 0%, #B0241C 100%)',
+                      color: '#fff',
+                      borderRadius: '12px',
+                      letterSpacing: '0.2em',
+                    }}
+                  >
+                    {creatingLink ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+                    Crear link
+                  </button>
+                </div>
+
+                {/* Lista de links */}
+                <div className="space-y-2 pt-3" style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)' }}>
+                  <p className="text-[9px] uppercase mb-2" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>
+                    Links existentes ({bouncerLinks.length})
+                  </p>
+                  {bouncerLinks.length === 0 && (
+                    <p className="text-[10px] py-4 text-center uppercase" style={{ color: C.gray, letterSpacing: '0.15em' }}>
+                      Sin links todavía — creá el primero arriba
+                    </p>
+                  )}
+                  {bouncerLinks.map(l => {
+                    const boatName = l.boat_id ? boatsCatalog.find(b => b.id === l.boat_id)?.name : null;
+                    return (
+                      <div
+                        key={l.id}
+                        className="p-3 flex items-center gap-3"
+                        style={{
+                          background: l.active ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.01)',
+                          border: l.active ? '0.5px solid rgba(255,255,255,0.10)' : '0.5px solid rgba(255,255,255,0.04)',
+                          borderRadius: '14px',
+                          opacity: l.active ? 1 : 0.45,
+                        }}
+                      >
+                        <span
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{
+                            background: l.active ? C.green : 'rgba(96,96,96,0.5)',
+                            boxShadow: l.active ? '0 0 6px rgba(16,185,129,0.6)' : 'none',
+                          }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium truncate" style={{ color: C.cream }}>
+                            {l.label}
+                          </p>
+                          <div className="flex flex-wrap gap-1.5 mt-1 text-[9px] uppercase" style={{ letterSpacing: '0.12em', color: C.gray }}>
+                            <span style={{ color: C.red }}>Día {l.day_number}</span>
+                            {l.location && <span>· {l.location}</span>}
+                            {boatName && <span>· ⛵ {boatName}</span>}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => copyBouncerLink(l.token)}
+                          className="p-2 transition-colors"
+                          style={{ color: copiedToken === l.token ? C.green : C.gray }}
+                          title="Copiar URL"
+                        >
+                          {copiedToken === l.token ? <CheckCircle2 size={13} /> : <Copy size={13} />}
+                        </button>
+                        <button
+                          onClick={() => toggleBouncerLink(l.id, l.active)}
+                          className="p-2"
+                          style={{ color: l.active ? C.green : C.gray }}
+                          title={l.active ? 'Desactivar' : 'Activar'}
+                        >
+                          <Power size={13} />
+                        </button>
+                        <button
+                          onClick={() => deleteBouncerLink(l.id, l.label)}
+                          className="p-2"
+                          style={{ color: 'rgba(230,57,47,0.7)' }}
+                          title="Eliminar"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

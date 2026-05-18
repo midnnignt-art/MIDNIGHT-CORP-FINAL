@@ -25,7 +25,8 @@ const CodesDiscounts  = lazy(() => import('./pages/CodesDiscounts').then(m => ({
 const SystemConfig    = lazy(() => import('./pages/SystemConfig').then(m => ({ default: m.SystemConfig })));
 
 // Code-split: rutas públicas dedicadas (no necesarias en home)
-const BouncerScanner    = lazy(() => import('./pages/BouncerScanner'));
+const BouncerScanner         = lazy(() => import('./pages/BouncerScanner'));
+const SolsticeBouncerScanner = lazy(() => import('./brands/solstice/pages/SolsticeBouncerScanner'));
 const PromoLanding      = lazy(() => import('./pages/PromoLanding'));
 const GuestListLanding  = lazy(() => import('./pages/GuestListLanding'));
 const DiscountLanding   = lazy(() => import('./pages/DiscountLanding'));
@@ -95,6 +96,7 @@ const App: React.FC = () => {
   const isHomePage     = pathname === '/' || pathname === '';
   const isSuccessPage  = pathname === '/gracias';
   const isBouncerPage  = pathname === '/bouncer';
+  const isSolsticeBouncerPage = pathname === '/sol/bouncer';
   const promoMatch     = pathname.match(/^\/promo\/([^/]+)$/);
   const glMatch        = pathname.match(/^\/gl\/([^/]+)$/);
   const discountMatch  = pathname.match(/^\/d\/([^/]+)$/);
@@ -102,7 +104,7 @@ const App: React.FC = () => {
   const solsticeInviteMatch = pathname.match(/^\/sol\/i\/([A-Za-z0-9]{4,12})$/);
   const solsticePromoMatch  = pathname.match(/^\/sol\/p\/([A-Za-z0-9_-]{2,32})$/);
   const isSolsticePublic = pathname === '/sol' || pathname === '/sol/' || pathname.startsWith('/sol/reserva');
-  const isKnownRoute   = isHomePage || isSuccessPage || isBouncerPage || !!promoMatch || !!glMatch || !!discountMatch || !!eventMatch || !!solsticeInviteMatch || !!solsticePromoMatch || isSolsticePublic;
+  const isKnownRoute   = isHomePage || isSuccessPage || isBouncerPage || isSolsticeBouncerPage || !!promoMatch || !!glMatch || !!discountMatch || !!eventMatch || !!solsticeInviteMatch || !!solsticePromoMatch || isSolsticePublic;
 
   // Una vez cargados los promotores, resolver el nombre para el toast y el staffId para el checkout
   useEffect(() => {
@@ -178,6 +180,7 @@ const App: React.FC = () => {
 
   if (isSuccessPage)   return <SuccessPage />;
   if (isBouncerPage)   return <Suspense fallback={null}><BouncerScanner /></Suspense>;
+  if (isSolsticeBouncerPage) return <Suspense fallback={null}><SolsticeBouncerScanner /></Suspense>;
   if (promoMatch)      return <Suspense fallback={null}><PromoLanding    codigo={promoMatch[1]} /></Suspense>;
   if (glMatch)         return <Suspense fallback={null}><GuestListLanding codigo={glMatch[1]} /></Suspense>;
   if (discountMatch)   return <Suspense fallback={null}><DiscountLanding  codigo={discountMatch[1]} /></Suspense>;
