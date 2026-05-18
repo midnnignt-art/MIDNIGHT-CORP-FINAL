@@ -5,10 +5,10 @@ const EV_PREFIX = 'solstice-logo-size-';
 const KEY_PREFIX = 'solstice_logo_size_';
 
 const DEFAULTS: Record<string, number> = {
-  splash:  80,
-  landing: 110,
-  drawer:  26,
-  trigger: 16,
+  splash:  220,
+  landing: 160,
+  drawer:  32,
+  trigger: 18,
 };
 
 export function useSolsticeLogoSize(context: string): [number, (px: number) => void] {

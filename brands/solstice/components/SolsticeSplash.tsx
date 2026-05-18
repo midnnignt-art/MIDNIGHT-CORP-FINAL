@@ -129,7 +129,7 @@ export default function SolsticeSplash({ onComplete }: Props) {
           <img
             src={logoUrl}
             alt="SOLSTICE"
-            style={{ height: `${logoSize}px`, maxWidth: '80vw', objectFit: 'contain', opacity: 0.92 }}
+            style={{ height: `${logoSize}px`, maxWidth: '92vw', objectFit: 'contain', opacity: 0.92 }}
           />
         ) : (
           <>
