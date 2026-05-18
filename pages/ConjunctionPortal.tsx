@@ -578,20 +578,22 @@ const PlanetMidnight: React.FC<PlanetProps & { lite: boolean }> = ({ onClick, on
   const mids = 0.3;
 
   return (
-    <motion.div
-      animate={{ y: [0, -12, 0], scale: dimmed ? 0.96 : 1, opacity: dimmed ? 0.55 : 1 }}
-      transition={{
-        y: { duration: 7, repeat: Infinity, ease: 'easeInOut' },
-        scale: { duration: 0.6, ease: [0.25, 1, 0.5, 1] },
-        opacity: { duration: 0.6 },
-      }}
-      whileHover={{ scale: dimmed ? 0.96 : 1.05 }}
-      onMouseEnter={() => onHover(true)}
-      onMouseLeave={() => onHover(false)}
-      onClick={onClick}
-      className="relative cursor-pointer"
-      style={{ width: 520, height: 520, maxWidth: '95vw', maxHeight: '60vh', transform: `translate3d(${parallaxX}px, ${parallaxY}px, 0)` }}
-    >
+    <div className="relative flex items-center justify-center shrink-0" style={{ width: 'min(80vw, 520px)', aspectRatio: '1 / 1' }}>
+      <motion.div
+        animate={{ y: [0, -12, 0], scale: dimmed ? 0.96 : 1, opacity: dimmed ? 0.55 : 1 }}
+        transition={{
+          y: { duration: 7, repeat: Infinity, ease: 'easeInOut' },
+          scale: { duration: 0.6, ease: [0.25, 1, 0.5, 1] },
+          opacity: { duration: 0.6 },
+        }}
+        whileHover={{ scale: dimmed ? 0.96 : 1.05 }}
+        onMouseEnter={() => onHover(true)}
+        onMouseLeave={() => onHover(false)}
+        onClick={onClick}
+        className="relative cursor-pointer w-full h-full flex items-center justify-center"
+      >
+        <div className="absolute flex items-center justify-center" style={{ width: 520, height: 520, transform: 'scale(calc(min(80vw, 520px) / 520))' }}>
+          <div className="relative w-full h-full" style={{ transform: `translate3d(${parallaxX}px, ${parallaxY}px, 0)` }}>
       <RingSystem variant="midnight" size={520} />
 
       {moons.map((m, i) => (
@@ -687,10 +689,12 @@ const PlanetMidnight: React.FC<PlanetProps & { lite: boolean }> = ({ onClick, on
             background: 'radial-gradient(circle at center, rgba(0,0,0,0.55) 0%, transparent 60%)',
           }}
         />
+      </div>{/* /planet body */}
 
-
-      </div>
-    </motion.div>
+          </div>
+        </div>
+      </motion.div>
+    </div>
   );
 };
 
@@ -728,20 +732,22 @@ const PlanetSolstice: React.FC<PlanetProps & { lite: boolean }> = ({ onClick, on
   const SUN_RADIUS = 160;
 
   return (
-    <motion.div
-      animate={{ y: [0, -10, 0], scale: dimmed ? 0.96 : 1, opacity: dimmed ? 0.55 : 1 }}
-      transition={{
-        y: { duration: 7, delay: 1, repeat: Infinity, ease: 'easeInOut' },
-        scale: { duration: 0.6, ease: [0.25, 1, 0.5, 1] },
-        opacity: { duration: 0.6 },
-      }}
-      whileHover={{ scale: dimmed ? 0.96 : 1.05 }}
-      onMouseEnter={() => onHover(true)}
-      onMouseLeave={() => onHover(false)}
-      onClick={onClick}
-      className="relative cursor-pointer"
-      style={{ width: 520, height: 520, maxWidth: '95vw', maxHeight: '60vh', transform: `translate3d(${parallaxX}px, ${parallaxY}px, 0)` }}
-    >
+    <div className="relative flex items-center justify-center shrink-0" style={{ width: 'min(80vw, 520px)', aspectRatio: '1 / 1' }}>
+      <motion.div
+        animate={{ y: [0, -10, 0], scale: dimmed ? 0.96 : 1, opacity: dimmed ? 0.55 : 1 }}
+        transition={{
+          y: { duration: 7, delay: 1, repeat: Infinity, ease: 'easeInOut' },
+          scale: { duration: 0.6, ease: [0.25, 1, 0.5, 1] },
+          opacity: { duration: 0.6 },
+        }}
+        whileHover={{ scale: dimmed ? 0.96 : 1.05 }}
+        onMouseEnter={() => onHover(true)}
+        onMouseLeave={() => onHover(false)}
+        onClick={onClick}
+        className="relative cursor-pointer w-full h-full flex items-center justify-center"
+      >
+        <div className="absolute flex items-center justify-center" style={{ width: 520, height: 520, transform: 'scale(calc(min(80vw, 520px) / 520))' }}>
+          <div className="relative w-full h-full" style={{ transform: `translate3d(${parallaxX}px, ${parallaxY}px, 0)` }}>
       <RingSystem variant="solstice" size={520} />
 
       {moons.map((m, i) => (
@@ -871,10 +877,12 @@ const PlanetSolstice: React.FC<PlanetProps & { lite: boolean }> = ({ onClick, on
             mixBlendMode: 'screen',
           }}
         />
+      </div>{/* /sun body */}
 
-
-      </div>
-    </motion.div>
+          </div>
+        </div>
+      </motion.div>
+    </div>
   );
 };
 
@@ -888,19 +896,19 @@ const CenterPathSelector: React.FC = () => {
         <circle cx="70" cy="70" r="60" fill="none" stroke="#C9A84C" strokeWidth="1" strokeDasharray="3 4" opacity="0.6" />
         
         <path id="top-arc" d="M 10,70 A 60,60 0 0,1 130,70" fill="none" />
-        <text style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fill: '#C9A84C', letterSpacing: '0.4em', fontWeight: 500 }} textAnchor="middle">
-          <textPath href="#top-arc" startOffset="50%">CHOOSE</textPath>
+        <text style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fill: '#B59E62', letterSpacing: '0.4em', fontWeight: 400 }} textAnchor="middle">
+          <textPath href="#top-arc" startOffset="50%">ELÍGE</textPath>
         </text>
 
         <path id="bottom-arc" d="M 10,70 A 60,60 0 0,0 130,70" fill="none" />
-        <text style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fill: '#C9A84C', letterSpacing: '0.4em', fontWeight: 500 }} textAnchor="middle">
-          <textPath href="#bottom-arc" startOffset="50%">YOUR PATH</textPath>
+        <text style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, fill: '#B59E62', letterSpacing: '0.4em', fontWeight: 400 }} textAnchor="middle">
+          <textPath href="#bottom-arc" startOffset="50%">TU CAMINO</textPath>
         </text>
       </svg>
       
-      <div aria-hidden className="absolute pointer-events-none" style={{ filter: 'drop-shadow(0 0 15px rgba(201,168,76,0.8))' }}>
+      <div aria-hidden className="absolute pointer-events-none" style={{ filter: 'drop-shadow(0 0 10px rgba(181,158,98,0.5))' }}>
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-          <path d="M12 2L13.5 10.5L22 12L13.5 13.5L12 22L10.5 13.5L2 12L10.5 10.5L12 2Z" fill="#F4D58D" />
+          <path d="M12 2L13.5 10.5L22 12L13.5 13.5L12 22L10.5 13.5L2 12L10.5 10.5L12 2Z" fill="#B59E62" />
         </svg>
       </div>
     </div>
@@ -922,8 +930,8 @@ const PremiumTitle: React.FC<{
     style={{
       fontFamily,
       fontWeight,
-      fontSize: 'clamp(3rem, 6.5vw, 5.5rem)',
-      letterSpacing: '0.12em',
+      fontSize: 'clamp(1.75rem, 8vw, 5.5rem)',
+      letterSpacing: '0.06em',
       lineHeight: 1,
       color,
       textShadow: `0 0 18px ${glowColor}cc, 0 0 48px ${glowColor}66, 0 0 90px ${glowColor}33`,
@@ -940,13 +948,11 @@ const SectionHeader: React.FC<{ variant: 'midnight' | 'solstice' }> = ({ variant
   const isMid = variant === 'midnight';
   const Icon = isMid ? Moon : Sun;
   const lineColor  = isMid ? '#490F7C' : '#E6392F';
-  const iconColor  = '#C9A84C';
+  const iconColor  = '#B59E62';
   const subColor   = '#FFFFFF';
-  const titleColor = isMid ? '#C9A84C' : '#B0241C';
-  const glowColor  = isMid ? '#C9A84C' : '#E6392F';
-  const titleFont = isMid
-    ? "'Cormorant Garamond', 'Cinzel', serif"
-    : "'Poiret One', 'Cinzel', sans-serif";
+  const titleColor = isMid ? '#B59E62' : '#B0241C';
+  const glowColor  = isMid ? '#B59E62' : '#E6392F';
+  const titleFont = "'Cormorant Garamond', 'Cinzel', serif";
   const titleWeight = 400;
 
   return (
@@ -966,7 +972,7 @@ const SectionHeader: React.FC<{ variant: 'midnight' | 'solstice' }> = ({ variant
       />
 
       <p className="uppercase mt-3 flex items-center gap-3"
-        style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: subColor, letterSpacing: '0.5em', fontWeight: 500 }}>
+        style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: subColor, letterSpacing: '0.5em', fontWeight: 400 }}>
         <span style={{ color: subColor, opacity: 0.6 }}>—</span>
         {isMid ? 'The Eclipse' : 'The Awakening'}
         <span style={{ color: subColor, opacity: 0.6 }}>—</span>
@@ -978,17 +984,18 @@ const SectionHeader: React.FC<{ variant: 'midnight' | 'solstice' }> = ({ variant
 const SectionFooter: React.FC<{ variant: 'midnight' | 'solstice' }> = ({ variant }) => {
   const isMid = variant === 'midnight';
   const textColor = '#FFFFFF';
-  const lines = isMid ? ['Mystery. Vibes.', 'All Night Long.'] : ['Energy. Light.', 'A New Beginning.'];
+  const lines = isMid ? ['Misterio. Vibras.', 'Toda la noche.'] : ['Energía. Luz.', 'Un nuevo comienzo.'];
   return (
     <div className="flex flex-col items-center gap-6 mt-6">
-      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: textColor, letterSpacing: '0.3em', textTransform: 'uppercase', lineHeight: 1.8, textAlign: 'center' }}>
+      <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: textColor, letterSpacing: '0.3em', textTransform: 'uppercase', lineHeight: 1.8, textAlign: 'center', fontWeight: 400 }}>
         <div>{lines[0]}</div>
         <div>{lines[1]}</div>
       </div>
       
       <button
-        className="px-8 py-3 rounded-full text-[10px] uppercase tracking-[0.3em] font-semibold transition-all duration-300"
+        className="px-8 py-3 rounded-full text-[10px] uppercase tracking-[0.3em] font-medium transition-all duration-300"
         style={{
+          fontFamily: "'Inter', sans-serif",
           color: isMid ? '#F2F2F2' : '#F9F2D7',
           border: `1px solid ${isMid ? '#b026ff' : '#E6392F'}`,
           background: `rgba(${isMid ? '176,38,255' : '230,57,47'}, 0.05)`,
@@ -1003,7 +1010,7 @@ const SectionFooter: React.FC<{ variant: 'midnight' | 'solstice' }> = ({ variant
           e.currentTarget.style.boxShadow = `0 0 15px rgba(${isMid ? '176,38,255' : '230,57,47'}, 0.2), inset 0 0 10px rgba(${isMid ? '176,38,255' : '230,57,47'}, 0.1)`;
         }}
       >
-        Explore Event
+        Ver Eventos
       </button>
     </div>
   );
@@ -1072,28 +1079,22 @@ export const ConjunctionPortal: React.FC<ConjunctionPortalProps> = ({ onEnterBra
           animate="show"
           variants={introVariants}
         >
-          <div className="flex items-center gap-6 mb-4">
-            <span style={{ width: 200, height: 1, background: 'linear-gradient(to right, transparent, #C9A961, transparent)' }} />
-            <TopStar />
-            <span style={{ width: 200, height: 1, background: 'linear-gradient(to right, transparent, #C9A961, transparent)' }} />
-          </div>
-          <h2 className="uppercase" style={{
-            fontFamily: "'Cinzel', serif", fontSize: 18, color: '#D4B97A',
-            letterSpacing: '0.35em', fontWeight: 500, textShadow: '0 0 14px rgba(212,185,122,0.30)',
+          <h2 className="uppercase mb-4" style={{
+            fontFamily: "'Inter', sans-serif", fontSize: 13, color: '#B59E62',
+            letterSpacing: '0.45em', fontWeight: 400, textShadow: '0 0 8px rgba(181,158,98,0.2)',
           }}>
-            Choose Your Night
+            Elige Tu Experiencia
           </h2>
-          <p className="uppercase mt-2" style={{
-            fontFamily: "'Inter', sans-serif", fontSize: 11, color: '#FFFFFF', opacity: 0.8,
-            letterSpacing: '0.4em', fontWeight: 500,
-          }}>
-            Two Experiences. One Unforgettable Night.
-          </p>
+          <div className="flex flex-col items-center opacity-70">
+            <span style={{ width: 1, height: 40, background: 'linear-gradient(to bottom, #B59E62, transparent)' }} />
+            <svg width="6" height="6" viewBox="0 0 24 24" fill="none" style={{ marginTop: -2 }}>
+              <path d="M12 2L14 10L22 12L14 14L12 22L10 14L2 12L10 10L12 2Z" fill="#B59E62" />
+            </svg>
+          </div>
         </motion.div>
 
         <div
-          className="relative z-[10] grid items-center justify-items-center px-6 md:px-10 lg:px-16 mt-10 md:mt-14"
-          style={{ gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)', minHeight: 'calc(100vh - 580px)' }}
+          className="relative z-[10] flex flex-col lg:flex-row items-center justify-center px-4 md:px-10 lg:px-16 mt-8 md:mt-14 gap-10 lg:gap-16 xl:gap-24"
         >
           <motion.div className="flex flex-col items-center" custom={1} initial="hidden" animate="show" variants={introVariants}>
             <SectionHeader variant="midnight" />
@@ -1105,6 +1106,9 @@ export const ConjunctionPortal: React.FC<ConjunctionPortalProps> = ({ onEnterBra
               parallaxY={pyPlanet}
               lite={lite}
             />
+            <div className="mt-8">
+              <SectionFooter variant="midnight" />
+            </div>
           </motion.div>
 
           <motion.div custom={2} initial="hidden" animate="show" variants={introVariants}>
@@ -1121,53 +1125,36 @@ export const ConjunctionPortal: React.FC<ConjunctionPortalProps> = ({ onEnterBra
               parallaxY={pyPlanet}
               lite={lite}
             />
+            <div className="mt-8">
+              <SectionFooter variant="solstice" />
+            </div>
           </motion.div>
         </div>
-
-        <motion.div
-          className="relative z-[10] grid mt-6 md:mt-10 px-10 md:px-20"
-          style={{ gridTemplateColumns: '1fr auto 1fr' }}
-          custom={4} initial="hidden" animate="show" variants={introVariants}
-        >
-          <div className="flex justify-center"><SectionFooter variant="midnight" /></div>
-          <div className="w-12" />
-          <div className="flex justify-center"><SectionFooter variant="solstice" /></div>
-        </motion.div>
 
         <CrowdSilhouette lite={lite} />
 
         <motion.div
-          className="absolute left-1/2 -translate-x-1/2 z-[10] flex flex-col items-center pointer-events-none"
-          style={{ bottom: '4.5%', width: 'auto' }}
+          className="relative lg:absolute lg:left-1/2 lg:-translate-x-1/2 lg:bottom-[4.5%] z-[10] flex flex-col items-center pointer-events-none mt-10 mb-12 lg:mt-0 lg:mb-0 px-4 text-center"
           custom={5} initial="hidden" animate="show" variants={introVariants}
         >
-          <p className="uppercase mb-3" style={{
-            fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#8a7355',
-            letterSpacing: '0.35em', fontWeight: 500,
+          <p className="uppercase mb-8 text-center px-4" style={{
+            fontFamily: "'Cormorant Garamond', 'Cinzel', serif", fontSize: 'clamp(12px, 2.5vw, 15px)', color: '#B59E62',
+            letterSpacing: '0.35em', fontWeight: 400, textShadow: '0 0 10px rgba(181,158,98,0.2)'
           }}>
-            Two Forces · One Night
-          </p>
-          <p className="italic mb-5" style={{
-            fontFamily: "'Cormorant Garamond', serif",
-            fontSize: 'clamp(1.5rem, 2.6vw, 2.2rem)',
-            color: '#F4D58D', fontWeight: 400,
-            textShadow: '0 0 22px rgba(244,213,141,0.45), 0 0 50px rgba(201,168,76,0.25)',
-            letterSpacing: '0.04em',
-          }}>
-            One Unforgettable Experience.
+            Una Experiencia. Dos Caminos. Recuerdos Inolvidables.
           </p>
 
-          <div className="flex items-center gap-10 md:gap-14 mt-2">
+          <div className="flex items-center gap-6 md:gap-14 mt-2 flex-wrap justify-center">
             {[
-              { icon: Music, label: 'Music' },
-              { icon: GlassWater, label: 'Drinks' },
-              { icon: Users, label: 'Dancing' },
-              { icon: Heart, label: 'Connection' },
+              { icon: Music, label: 'Música' },
+              { icon: GlassWater, label: 'Bebidas' },
+              { icon: Users, label: 'Baile' },
+              { icon: Heart, label: 'Conexión' },
             ].map(({ icon: Icon, label }) => (
               <div key={label} className="flex items-center gap-2 transition-colors duration-300 cursor-default group" style={{ color: '#8a7355' }}>
-                <Icon size={14} className="transition-all duration-300 group-hover:text-[#F4D58D]" />
-                <span className="uppercase transition-colors duration-300 group-hover:text-[#F4D58D]" style={{
-                  fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.3em', fontWeight: 500,
+                <Icon size={14} className="transition-all duration-300 group-hover:text-[#B59E62]" />
+                <span className="uppercase transition-colors duration-300 group-hover:text-[#B59E62]" style={{
+                  fontFamily: "'Inter', sans-serif", fontSize: 10, letterSpacing: '0.3em', fontWeight: 400,
                 }}>
                   {label}
                 </span>

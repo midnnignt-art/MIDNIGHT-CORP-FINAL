@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, Ship, Move, Check, X as XIcon, RotateCcw, Sun, Users, MapPin, Calendar as CalIcon, Quote } from 'lucide-react';
+import { ChevronRight, Ship, Move, Check, X as XIcon, RotateCcw, Quote } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useSolsticeLogo } from '../hooks/useSolsticeLogo';
 import { useSolsticeLogoSize } from '../hooks/useSolsticeLogoSize';
@@ -8,7 +8,6 @@ import { useSolsticeLogoLayout } from '../hooks/useSolsticeLogoLayout';
 import { useSolsticeLogoPosition } from '../hooks/useSolsticeLogoPosition';
 import SolsticeAtmosphere from '../components/SolsticeAtmosphere';
 import SolsticeMarquee from '../components/SolsticeMarquee';
-import { useCountUp } from '../hooks/useCountUp';
 
 const C = {
   bg:    '#000000',
@@ -720,23 +719,6 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
         />
       </section>
 
-      {/* ── STATS — counters scroll-triggered ── */}
-      <section className="py-24 px-4 max-w-6xl mx-auto">
-        <p className="text-center text-[10px] uppercase mb-3" style={{ letterSpacing: '0.4em', color: C.red, fontWeight: 600 }}>
-          La tradición
-        </p>
-        <h2 className="text-3xl md:text-4xl text-center mb-16 uppercase"
-          style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '-0.02em', fontWeight: 300, color: C.cream }}>
-          Hechos y números
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-10">
-          <StatBlock icon={<CalIcon />} value={3}    suffix="°"   label="Edición" />
-          <StatBlock icon={<Users />}    value={680}  suffix="+"   label="Asistentes acumulados" />
-          <StatBlock icon={<MapPin />}   value={displayWeeks.length} suffix=""   label="Universidades" />
-          <StatBlock icon={<Sun />}      value={5}    suffix=""   label="Atardeceres en 1 semana" />
-        </div>
-      </section>
-
       {/* ── SEMANAS ── */}
       <section className="py-24 px-4 max-w-7xl mx-auto">
         <p className="text-center text-[10px] uppercase mb-3" style={{ letterSpacing: '0.4em', color: C.red, fontWeight: 600 }}>
@@ -1321,26 +1303,3 @@ const TESTIMONIALS = [
   { quote: 'Fui sola y conocí a media universidad. La energía es real.',                    name: 'Mariana O.', uni: 'CESA 2025' },
 ];
 
-// Counter animado scroll-triggered
-const StatBlock: React.FC<{ icon: React.ReactNode; value: number; suffix?: string; label: string }> = ({ icon, value, suffix = '', label }) => {
-  const { value: animated, ref } = useCountUp(value, { duration: 1800 });
-  return (
-    <div ref={ref as any} className="text-center" style={{ color: '#F9F2D7' }}>
-      <div className="inline-flex items-center justify-center w-12 h-12 mb-4"
-        style={{
-          border: '0.5px solid rgba(230,57,47,0.35)',
-          borderRadius: '999px',
-          color: '#E6392F',
-        }}>
-        {icon}
-      </div>
-      <p className="text-4xl md:text-6xl mb-2 tabular-nums"
-        style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '-0.02em', fontWeight: 300 }}>
-        {animated}{suffix}
-      </p>
-      <p className="text-[10px] uppercase" style={{ letterSpacing: '0.2em', color: '#606060', fontWeight: 500 }}>
-        {label}
-      </p>
-    </div>
-  );
-};
