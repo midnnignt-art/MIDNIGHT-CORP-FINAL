@@ -200,6 +200,26 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
         }}
       />
 
+      {/* MIDNIGHT wordmark naranja — consistente en todas las pages de Solstice.
+          Fade-in junto al nav. Same look que el logo-main de MidnightApp en
+          modo solstice-preview, para que la marca se sienta unificada. */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: splash ? 0 : 1 }}
+        transition={{ duration: 1.0, delay: splash ? 0 : 0.25, ease: 'easeInOut' }}
+        className="logo-main flex flex-col items-center"
+        aria-hidden
+      >
+        <span
+          className="text-xl md:text-3xl font-black tracking-[-0.1em]"
+          style={{ color: '#E6392F' }}
+        >MIDNIGHT</span>
+        <span
+          className="text-[8px] font-light tracking-[0.8em] uppercase -mt-1 ml-1"
+          style={{ color: 'rgba(230,57,47,0.65)' }}
+        >Worldwide</span>
+      </motion.div>
+
       {/* Nav + content fade in together after splash exits — prevents nav button popping */}
       <motion.div
         initial={{ opacity: 0 }}
