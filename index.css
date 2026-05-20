@@ -22,6 +22,11 @@
   --font-serif: 'Cormorant Garamond', serif;
   --font-mono: 'JetBrains Mono', monospace;
 
+  /* Portal landing tokens (Conjunction selector) — flat geometric, matches Solstice */
+  --font-serif-celestial: 'Poiret One', sans-serif;
+  --font-sans-clean: 'Archivo', sans-serif;
+  --font-body: 'Archivo', sans-serif;
+
   /* Custom Animations & Shadows for Conjunction Portal */
   --animate-breathing: breathing-gradient 10s ease-in-out infinite alternate;
 }
@@ -227,6 +232,24 @@ a {
   15%  { opacity: 1; transform: translateX(0%)   scaleX(1);   }
   70%  { opacity: 1; transform: translateX(40vw) scaleX(1);   }
   100% { opacity: 0; transform: translateX(70vw) scaleX(0.3); }
+}
+
+/* ── Portal Landing (Conjunction selector) — Starfield twinkle ─────────────── */
+.ambient-glow {
+  filter: blur(80px);
+  pointer-events: none;
+}
+
+@keyframes portal-twinkle {
+  0%, 100% { opacity: 0.3; }
+  50%      { opacity: 1;   }
+}
+
+.portal-star {
+  position: absolute;
+  background-color: white;
+  border-radius: 9999px;
+  animation: portal-twinkle 4s infinite ease-in-out;
 }
 
 /* ── Orb Pseudo-elements for Cosmic Energy Effect ──────────────────────────── */
