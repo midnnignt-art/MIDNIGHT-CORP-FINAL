@@ -1,15 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <!-- Fondo negro app-icon. -->
   <rect width="32" height="32" rx="5" fill="#000"/>
-
-  <!-- Luna creciente grande y gorda para que se lea claro a 16x16.
-       Dos círculos del mismo radio, el segundo enmascara la zona
-       arriba-derecha del primero para dejar la silueta crema. -->
-  <defs>
-    <mask id="moon">
-      <rect width="32" height="32" fill="white"/>
-      <circle cx="22" cy="11" r="11" fill="black"/>
-    </mask>
-  </defs>
-  <circle cx="14" cy="17" r="11" fill="#f0eee6" mask="url(#moon)"/>
+  <!-- Luna creciente como path único (sin mask para máxima compatibilidad
+       con todos los navegadores como favicon). Dos arcos: el exterior es
+       la silueta de la luna (radio 11 desde 14,17); el interior es la
+       sombra que la "come" desde la derecha (radio 11 desde 22,11). -->
+  <path fill="#f0eee6"
+        d="M 12.12 6.16
+           A 11 11 0 1 0 23.88 21.84
+           A 11 11 0 0 1 12.12 6.16 Z"/>
 </svg>
