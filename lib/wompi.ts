@@ -29,7 +29,11 @@ interface CheckoutParams {
 export async function buildWompiCheckoutUrl(params: CheckoutParams): Promise<string> {
   const amountInCents = Math.round(params.amountCOP * 100);
 
-  const { data, error } = await supabase.functions.invoke('wompi-signature', {
+  // NOTA: el slug del edge function en Supabase quedó como 'swift-worker'
+  // porque se deployó vía AI Assistant que genera slugs random. El display
+  // name es 'wompi-signature' pero la URL real apunta a swift-worker. Si en
+  // el futuro se redeploya con slug limpio, cambiar este string.
+  const { data, error } = await supabase.functions.invoke('swift-worker', {
     body: {
       reference: params.reference,
       amount_in_cents: amountInCents,
