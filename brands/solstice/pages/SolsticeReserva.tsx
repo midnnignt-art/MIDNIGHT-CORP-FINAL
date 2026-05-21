@@ -12,7 +12,25 @@ import { SolsticeWeek } from '../types';
 const C = { bg: '#000', bgS: '#0d0d0d', red: '#E6392F', org: '#FF7A00', gray: '#606060', cream: '#F9F2D7' };
 
 type PaymentMode = 'auto_subscription' | 'manual_monthly' | 'individual_days' | 'full_combo';
+type ComboType   = 'full_combo' | 'individual_days';
 
+// Paso 1 — combo: qué está comprando el cliente.
+const COMBOS: { id: ComboType; label: string; sub: string; icon: React.ReactNode; badge?: string }[] = [
+  { id: 'full_combo',      label: 'Combo completo',  sub: '5 días con todo incluido (hospedaje, lancha, fiestas)', icon: <Star size={18} />,        badge: 'Más popular' },
+  { id: 'individual_days', label: 'Días sueltos',    sub: 'Elegís solo los días que querés ir',                     icon: <ListChecks size={18} /> },
+];
+
+// Paso 1.4 — forma de pago: solo aplica cuando el cliente elige combo completo.
+// (Días sueltos siempre se pagan al instante por Bold, sin cuotas posibles.)
+type PaymentMethod = 'full_combo' | 'auto_subscription' | 'manual_monthly';
+const PAYMENT_METHODS: { id: PaymentMethod; label: string; sub: string; icon: React.ReactNode; badge?: string }[] = [
+  { id: 'full_combo',        label: 'Todo de una',           sub: 'Pagás hoy, sin cuotas, sin recargos',                  icon: <Star size={18} />,     badge: 'Mejor precio' },
+  { id: 'auto_subscription', label: 'Débito automático',     sub: '$40K hoy + cargos automáticos cada mes',               icon: <Repeat size={18} />,   badge: 'Más fácil' },
+  { id: 'manual_monthly',    label: 'Mes a mes con tarjeta', sub: '$40K hoy + tarjeta guardada (te avisamos 24h antes)',  icon: <Calendar size={18} /> },
+];
+
+// Tabla legacy MODES — la dejamos para compat con código downstream (resumen,
+// step 4, etc) que lookup por id.
 const MODES: { id: PaymentMode; label: string; sub: string; icon: React.ReactNode; badge?: string }[] = [
   { id: 'auto_subscription', label: 'Débito automático',   sub: '$40K hoy + cargos automáticos cada mes',         icon: <Repeat size={18} />,    badge: 'Más fácil' },
   { id: 'manual_monthly',    label: 'Mes a mes con tarjeta', sub: '$40K hoy + tarjeta guardada (te avisamos 24h antes)', icon: <Calendar size={18} /> },
@@ -79,6 +97,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
     initialWeek ? SOLSTICE_WEEKS_MOCK.find(w => w.university === initialWeek) || null : null
   );
   const [mode, setMode]           = useState<PaymentMode | null>(null);
+  const [comboType, setComboType] = useState<ComboType | null>(null);
   const [selDays, setSelDays]     = useState<number[]>([]);
   const [name, setName]           = useState('');
   const [email, setEmail]         = useState('');
@@ -460,15 +479,20 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
     else if (step === 3)            setStep(includesBoat ? (2.7 as any) : (currentCustomer ? 2 : (2.5 as any)));
     else if (step === (2.7 as any)) setStep(currentCustomer ? 2 : (2.5 as any));
     else if (step === (2.5 as any)) setStep(2);
-    else if (step === 2)            setStep(mode === 'individual_days' ? (1.5 as any) : 1);
+    else if (step === 2)            setStep(comboType === 'individual_days' ? (1.5 as any) : (1.4 as any));
     else if (step === (1.5 as any)) setStep(1);
+    else if (step === (1.4 as any)) setStep(1);
     else if (step === 1)            setStep(0);
     else                            onBack();
   };
 
   const stepLabel = step === (2.7 as any)
     ? 'Lancha'
-    : ['Semana', 'Modalidad', 'Tus datos', '', 'Pago', '✓'][Math.min(Math.floor(step), 5)];
+    : step === (1.4 as any)
+      ? 'Forma de pago'
+      : step === (1.5 as any)
+        ? 'Días'
+        : ['Semana', 'Combo', 'Tus datos', '', 'Pago', '✓'][Math.min(Math.floor(step), 5)];
   const stepNum   = Math.min(Math.floor(step), 5);
 
   // Shared style helpers
@@ -585,21 +609,168 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
             </motion.div>
           )}
 
-          {/* STEP 1 — Modalidad de pago (rediseño conversión) */}
+          {/* STEP 1 — Combo: qué quiere comprar (full combo vs días sueltos) ──
+              Owner pidió separar la elección del combo de la forma de pago.
+              El cliente primero elige QUÉ compra, y después CÓMO paga. */}
           {step === 1 && (() => {
+            const entryK = Math.round((season?.entry_price ?? 40000) / 1000);
+            const totalK = Math.round((season?.combo_total ?? 400000) / 1000);
+            const comboMeta: Record<ComboType, { headline: string; bigPrice: string; afterPrice?: string; tags: string[] }> = {
+              full_combo: {
+                headline: '5 días con todo incluido — hospedaje, lancha, fiestas, beach club',
+                bigPrice: `$${totalK}K`,
+                afterPrice: ' total',
+                tags: [`Reservás con $${entryK}K`, 'Después: cuotas o pago de una', 'Mejor precio por día'],
+              },
+              individual_days: {
+                headline: 'Elegís solo los días que querés ir, sin compromiso de combo',
+                bigPrice: 'Desde $70K',
+                afterPrice: ' /día',
+                tags: ['Sin reserva mínima', 'Pagás solo lo que elegís', 'Cada día con su QR'],
+              },
+            };
+
+            return (
+              <motion.div key="s1" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6 pb-32">
+                <div>
+                  <p className="text-[10px] uppercase mb-2" style={{ letterSpacing: '0.4em', color: C.red, fontWeight: 600 }}>
+                    Paso 2 · ¿Qué querés comprar?
+                  </p>
+                  <h2 className="text-3xl md:text-4xl uppercase mb-1" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.04em', fontWeight: 300 }}>
+                    Elegí tu combo
+                  </h2>
+                  <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>
+                    Semana {selWeek?.university} · Después elegís cómo pagar
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  {COMBOS.map(c => {
+                    const sel = comboType === c.id;
+                    const data = comboMeta[c.id];
+                    return (
+                      <motion.button
+                        key={c.id}
+                        whileTap={{ scale: 0.995 }}
+                        onClick={() => setComboType(c.id)}
+                        className="w-full p-5 text-left relative overflow-hidden block group"
+                        style={{
+                          borderRadius: '20px',
+                          background: sel ? 'rgba(230,57,47,0.10)' : 'rgba(255,255,255,0.035)',
+                          backdropFilter: 'blur(32px) saturate(180%)',
+                          border: sel ? '0.5px solid rgba(230,57,47,0.55)' : '0.5px solid rgba(255,255,255,0.10)',
+                          boxShadow: sel ? '0 24px 50px rgba(230,57,47,0.15)' : '0 16px 36px rgba(0,0,0,0.25)',
+                          transition: 'all 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+                        }}
+                      >
+                        {c.badge && (
+                          <div className="absolute top-3 right-3 px-2.5 py-1 text-[8px] uppercase flex items-center gap-1"
+                            style={{ background: C.red, color: C.cream, letterSpacing: '0.2em', borderRadius: '999px', fontWeight: 600 }}>
+                            <span style={{ width: 5, height: 5, borderRadius: 999, background: '#fff', animation: 'pulse 2s ease-in-out infinite' }} />
+                            {c.badge}
+                          </div>
+                        )}
+
+                        <div className="flex items-start gap-4">
+                          <div className="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center"
+                            style={{ background: sel ? C.red : `${C.red}15`, color: sel ? C.cream : C.red, transition: 'all 0.3s ease' }}>
+                            {c.icon}
+                          </div>
+                          <div className="flex-1 min-w-0 pr-16">
+                            <p className="text-sm md:text-base uppercase" style={{ letterSpacing: '0.08em', fontWeight: 600, color: C.cream }}>
+                              {c.label}
+                            </p>
+                            <p className="text-[10px] md:text-[11px] mt-1" style={{ color: C.gray, letterSpacing: '0.05em' }}>
+                              {data.headline}
+                            </p>
+
+                            <div className="flex items-baseline gap-1 mt-3">
+                              <span className="text-2xl md:text-3xl tabular-nums" style={{ fontFamily: "'Poiret One', sans-serif", color: sel ? C.red : C.cream, fontWeight: 300, letterSpacing: '-0.02em' }}>
+                                {data.bigPrice}
+                              </span>
+                              {data.afterPrice && (
+                                <span className="text-[10px] md:text-xs" style={{ color: C.gray, fontWeight: 500 }}>
+                                  {data.afterPrice}
+                                </span>
+                              )}
+                            </div>
+
+                            <ul className="flex flex-wrap gap-x-3 gap-y-1 mt-3">
+                              {data.tags.map((t, i) => (
+                                <li key={i} className="text-[9px] uppercase" style={{ color: `${C.gray}cc`, letterSpacing: '0.15em', fontWeight: 500 }}>
+                                  · {t}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      </motion.button>
+                    );
+                  })}
+                </div>
+
+                {/* Sticky CTA — habilitado cuando hay combo elegido */}
+                {comboType && step === 1 && (
+                  <motion.div
+                    initial={{ y: 100, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={{ y: 100, opacity: 0 }}
+                    transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                    className="fixed bottom-0 inset-x-0 z-30 px-4 pb-5 pt-4"
+                    style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.98) 0%, rgba(0,0,0,0.85) 70%, transparent 100%)', backdropFilter: 'blur(20px)' }}
+                  >
+                    <div className="max-w-2xl mx-auto flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[9px] uppercase" style={{ letterSpacing: '0.3em', color: C.gray, fontWeight: 500 }}>
+                          Combo elegido
+                        </p>
+                        <p className="text-base md:text-lg uppercase" style={{ color: C.cream, fontWeight: 500, letterSpacing: '0.05em' }}>
+                          {COMBOS.find(c => c.id === comboType)?.label}
+                        </p>
+                      </div>
+                      <motion.button
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => {
+                          if (comboType === 'individual_days') {
+                            setMode('individual_days');
+                            setStep(1.5 as any);
+                          } else {
+                            // Limpiar mode si veníamos de un cambio de combo
+                            if (mode === 'individual_days') setMode(null);
+                            setStep(1.4 as any);
+                          }
+                        }}
+                        className="flex-shrink-0 px-7 py-4 text-sm uppercase flex items-center gap-3"
+                        style={{ background: C.red, color: '#fff', letterSpacing: '0.2em', borderRadius: '999px', fontWeight: 600, boxShadow: '0 12px 32px rgba(230,57,47,0.45)' }}
+                      >
+                        {comboType === 'individual_days' ? 'Elegir días' : 'Cómo pagar'}
+                        <ChevronRight size={16} />
+                      </motion.button>
+                    </div>
+                  </motion.div>
+                )}
+              </motion.div>
+            );
+          })()}
+
+          {/* STEP 1.4 — Forma de pago (solo si eligió combo completo) ─────────
+              Aquí van las 3 opciones de timing de pago: todo de una, débito
+              automático, mes a mes con tarjeta. Individual_days nunca llega
+              acá porque cada día es one-shot. */}
+          {step === (1.4 as any) && comboType === 'full_combo' && (() => {
             const entryK = Math.round((season?.entry_price ?? 40000) / 1000);
             const totalK = Math.round((season?.combo_total ?? 400000) / 1000);
             const cuotas = effectiveInstallments;
             const cuotaK = Math.round((totalK * 1000) / cuotas / 1000);
             const discountTodoUna = 50; // ahorro $K si paga todo de una
-            const meta: Record<PaymentMode, {
+            const meta: Record<PaymentMethod, {
               headline: string;
               bigPrice: string;
               afterPrice?: string;
               ahorro?: string;
               tags?: string[];
-              cobro: string;     // cómo se cobra realmente
-              respaldo: string;  // garantía / qué pasa si no pagás
+              cobro: string;
+              respaldo: string;
             }> = {
               auto_subscription: {
                 headline: `${entryK}K hoy + ${cuotas} cuotas de ${cuotaK}K`,
@@ -617,14 +788,6 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                 cobro:    `Guardamos tu tarjeta de forma segura. Te avisamos 24h antes de cada cobro y se ejecuta automático al día siguiente.`,
                 respaldo: 'Podés posponer 1 cuota hasta 7 días sin costo. Devolución del adelanto solo dentro de los primeros 15 días desde la compra.',
               },
-              individual_days: {
-                headline: 'Cada día se paga 100% online al elegirlo',
-                bigPrice: 'Desde $70K',
-                afterPrice: ' / día',
-                tags: ['Sin compromiso de combo', 'QR por día comprado'],
-                cobro:    `Cada día se paga al instante por Bold. No hay cuotas en esta modalidad.`,
-                respaldo: 'Tenés 15 días desde la compra para arrepentirte y pedir devolución del adelanto. Después: no reembolsable.',
-              },
               full_combo: {
                 headline: `Pagás hoy y te olvidás`,
                 bigPrice: `$${totalK - discountTodoUna}K`,
@@ -635,24 +798,24 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                 respaldo: 'Tenés 15 días desde la compra para arrepentirte y recibir devolución completa. Después de 15 días: no reembolsable.',
               },
             };
-            const recommended: PaymentMode = 'auto_subscription';
+            const recommended: PaymentMethod = 'auto_subscription';
 
             return (
-              <motion.div key="s1" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6 pb-32">
+              <motion.div key="s1.4" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6 pb-32">
                 <div>
                   <p className="text-[10px] uppercase mb-2" style={{ letterSpacing: '0.4em', color: C.red, fontWeight: 600 }}>
-                    Paso 2 · Modalidad
+                    Paso 3 · Forma de pago
                   </p>
                   <h2 className="text-3xl md:text-4xl uppercase mb-1" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.04em', fontWeight: 300 }}>
                     ¿Cómo te queda mejor pagar?
                   </h2>
                   <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>
-                    Semana {selWeek?.university} · Reserva hoy con <strong style={{ color: C.red }}>${entryK}K</strong> y elige cómo seguir
+                    Combo completo · Reserva hoy con <strong style={{ color: C.red }}>${entryK}K</strong> y elige cómo seguir
                   </p>
                 </div>
 
                 <div className="space-y-3">
-                  {MODES.map(m => {
+                  {PAYMENT_METHODS.map(m => {
                     const sel = mode === m.id;
                     const isRec = m.id === recommended;
                     const isBestPrice = m.id === 'full_combo';
@@ -814,8 +977,8 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                   </span>
                 </div>
 
-                {/* Sticky CTA bottom — solo en step 1 (modalidad), oculto en otros steps */}
-                {mode && step === 1 && (
+                {/* Sticky CTA bottom — solo en step 1.4 (forma de pago) */}
+                {mode && step === (1.4 as any) && (
                   <motion.div
                     initial={{ y: 100, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
@@ -830,15 +993,15 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                     <div className="max-w-2xl mx-auto flex items-center gap-3">
                       <div className="flex-1 min-w-0">
                         <p className="text-[9px] uppercase" style={{ letterSpacing: '0.3em', color: C.gray, fontWeight: 500 }}>
-                          Reservás hoy con
+                          {mode === 'full_combo' ? 'Pagás hoy' : 'Reservás hoy con'}
                         </p>
                         <p className="text-xl md:text-2xl tabular-nums" style={{ fontFamily: "'Poiret One', sans-serif", color: C.cream, fontWeight: 300 }}>
-                          ${entryK}.000 <span className="text-[10px] uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>COP</span>
+                          ${chargeK}K <span className="text-[10px] uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>COP</span>
                         </p>
                       </div>
                       <motion.button
                         whileTap={{ scale: 0.97 }}
-                        onClick={() => setStep(mode === 'individual_days' ? (1.5 as any) : 2)}
+                        onClick={() => setStep(2)}
                         className="flex-shrink-0 px-7 py-4 text-sm uppercase flex items-center gap-3"
                         style={{
                           background: C.red,
@@ -1259,16 +1422,52 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                               Recién reservada
                             </motion.div>
                           )}
-                          <div className="flex items-start gap-4">
-                            {b.image_url ? (
-                              <img src={b.image_url} alt={b.name} className="w-16 h-16 object-cover flex-shrink-0"
-                                style={{ borderRadius: '14px' }} />
-                            ) : (
-                              <div className="w-16 h-16 flex-shrink-0 flex items-center justify-center"
-                                style={{ borderRadius: '14px', background: `${C.red}15`, color: C.red }}>
-                                <Ship size={26} />
+                          {/* Galería horizontal — el cliente puede deslizar para ver
+                              todas las fotos ANTES de elegir la lancha. */}
+                          {(() => {
+                            const photos: string[] = (Array.isArray(b.gallery) && b.gallery.length > 0)
+                              ? b.gallery
+                              : (b.image_url ? [b.image_url] : []);
+                            if (photos.length === 0) {
+                              return (
+                                <div className="w-full h-32 mb-4 flex items-center justify-center"
+                                  style={{ borderRadius: '14px', background: `${C.red}10`, color: C.red, border: '0.5px solid rgba(230,57,47,0.20)' }}>
+                                  <Ship size={32} />
+                                </div>
+                              );
+                            }
+                            return (
+                              <div
+                                className="flex gap-2 mb-4 overflow-x-auto pb-1 -mx-1 px-1"
+                                style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
+                                onClick={e => e.stopPropagation()}
+                              >
+                                {photos.map((url, i) => (
+                                  <img
+                                    key={`${url}-${i}`}
+                                    src={url}
+                                    alt={`${b.name} foto ${i+1}`}
+                                    loading="lazy"
+                                    className="object-cover flex-shrink-0"
+                                    style={{
+                                      width: photos.length === 1 ? '100%' : '70%',
+                                      maxWidth: '320px',
+                                      aspectRatio: '4 / 3',
+                                      borderRadius: '14px',
+                                      scrollSnapAlign: 'start',
+                                    }}
+                                  />
+                                ))}
+                                {photos.length > 1 && (
+                                  <div className="flex items-center justify-center flex-shrink-0 px-3 text-[9px] uppercase"
+                                    style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>
+                                    {photos.length} fotos →
+                                  </div>
+                                )}
                               </div>
-                            )}
+                            );
+                          })()}
+                          <div className="flex items-start gap-4">
                             <div className="flex-1 min-w-0">
                               <p className="text-sm md:text-base uppercase" style={{ letterSpacing: '0.08em', fontWeight: 600, color: C.cream }}>
                                 {b.name}

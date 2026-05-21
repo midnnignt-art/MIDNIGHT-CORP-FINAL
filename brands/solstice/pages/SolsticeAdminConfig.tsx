@@ -2070,6 +2070,7 @@ interface Boat {
   season_id: string | null;
   name: string;
   image_url: string | null;
+  gallery: string[];          // URLs en orden, la primera es la portada
   capacity: number;
   price_per_person: number;
   description: string | null;
@@ -2103,6 +2104,7 @@ function BoatsAdmin({ seasonId }: { seasonId: string | null }) {
       description: '',
       status: 'active' as const,
       sort_order: boats.length,
+      gallery: [],
     };
     const { data, error } = await supabase.from('solstice_boats').insert(newBoat).select().single();
     if (error) { toast.error('No se pudo crear la lancha'); return; }
@@ -2119,6 +2121,7 @@ function BoatsAdmin({ seasonId }: { seasonId: string | null }) {
     const { error } = await supabase.from('solstice_boats').update({
       name: boat.name,
       image_url: boat.image_url,
+      gallery: boat.gallery ?? [],
       capacity: boat.capacity,
       price_per_person: boat.price_per_person,
       description: boat.description,
@@ -2202,6 +2205,53 @@ function BoatCard({ boat, saving, onChange, onSave, onDelete }: {
   onSave: () => void;
   onDelete: () => void;
 }) {
+  const gallery = boat.gallery ?? [];
+  // Cover: primera foto de galería, si no hay caemos a image_url legacy
+  const cover = gallery[0] || boat.image_url || null;
+
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    try {
+      const uploads = await Promise.all(Array.from(files).map(async (file) => {
+        const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+        const rand = Math.random().toString(36).substring(2, 10);
+        const path = `solstice/boats/${boat.id}/${Date.now()}-${rand}.${ext}`;
+        const { error: upErr } = await supabase.storage.from('assets').upload(path, file, {
+          contentType: file.type || 'image/jpeg',
+          upsert: false,
+        });
+        if (upErr) throw upErr;
+        const { data } = supabase.storage.from('assets').getPublicUrl(path);
+        return data.publicUrl;
+      }));
+      const newGallery = [...gallery, ...uploads];
+      onChange({ gallery: newGallery, image_url: boat.image_url || uploads[0] });
+      toast.success(`${uploads.length} ${uploads.length === 1 ? 'foto subida' : 'fotos subidas'} · acordate de guardar`);
+    } catch (err: any) {
+      toast.error('Error al subir: ' + (err?.message || 'desconocido'));
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const removePhoto = (idx: number) => {
+    const newGallery = gallery.filter((_, i) => i !== idx);
+    onChange({ gallery: newGallery });
+  };
+
+  const moveToCover = (idx: number) => {
+    if (idx === 0) return;
+    const newGallery = [...gallery];
+    const [moved] = newGallery.splice(idx, 1);
+    newGallery.unshift(moved);
+    onChange({ gallery: newGallery });
+  };
+
   return (
     <div
       className="p-5"
@@ -2214,8 +2264,8 @@ function BoatCard({ boat, saving, onChange, onSave, onDelete }: {
     >
       <div className="grid grid-cols-1 md:grid-cols-[140px_1fr] gap-5">
         <div className="aspect-square rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.10)' }}>
-          {boat.image_url ? (
-            <img src={boat.image_url} alt={boat.name} className="w-full h-full object-cover" />
+          {cover ? (
+            <img src={cover} alt={boat.name} className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center"><Ship size={24} style={{ color: '#606060' }} /></div>
           )}
@@ -2224,7 +2274,91 @@ function BoatCard({ boat, saving, onChange, onSave, onDelete }: {
         <div className="space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <SolInput label="Nombre"          value={boat.name}              onChange={v => onChange({ name: v })} />
-            <SolInput label="URL imagen"      value={boat.image_url ?? ''}   onChange={v => onChange({ image_url: v || null })} placeholder="https://..." />
+            <SolInput label="URL imagen portada (legacy)" value={boat.image_url ?? ''} onChange={v => onChange({ image_url: v || null })} placeholder="opcional — se usa si no hay galería" />
+          </div>
+
+          {/* ── Galería de fotos ────────────────────────────────────────── */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-[9px] uppercase" style={{ letterSpacing: '0.25em', color: '#606060', fontWeight: 600 }}>
+                Galería · {gallery.length} {gallery.length === 1 ? 'foto' : 'fotos'}
+              </label>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[9px] uppercase"
+                style={{
+                  background: 'rgba(230,57,47,0.15)',
+                  border: '0.5px solid rgba(230,57,47,0.45)',
+                  borderRadius: '999px',
+                  color: '#F9F2D7',
+                  letterSpacing: '0.2em',
+                  fontWeight: 600,
+                  cursor: uploading ? 'wait' : 'pointer',
+                  opacity: uploading ? 0.5 : 1,
+                }}
+              >
+                {uploading ? <><Loader2 size={10} className="animate-spin" /> Subiendo…</> : <><Plus size={10} /> Subir fotos</>}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                hidden
+                onChange={e => handleFiles(e.target.files)}
+              />
+            </div>
+            {gallery.length === 0 ? (
+              <div className="py-6 text-center text-[10px] uppercase" style={{
+                border: '0.5px dashed rgba(255,255,255,0.10)',
+                borderRadius: '12px',
+                color: '#606060',
+                letterSpacing: '0.2em',
+                fontWeight: 500,
+              }}>
+                Sin fotos · podés subir varias a la vez
+              </div>
+            ) : (
+              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                {gallery.map((url, idx) => (
+                  <div key={url} className="relative group aspect-square rounded-lg overflow-hidden"
+                    style={{ border: idx === 0 ? '1px solid rgba(230,57,47,0.55)' : '0.5px solid rgba(255,255,255,0.10)' }}>
+                    <img src={url} alt={`Foto ${idx+1}`} className="w-full h-full object-cover" />
+                    {idx === 0 && (
+                      <span className="absolute top-1 left-1 px-1.5 py-0.5 text-[7px] uppercase"
+                        style={{ background: 'rgba(230,57,47,0.85)', color: '#fff', borderRadius: '4px', letterSpacing: '0.15em', fontWeight: 700 }}>
+                        Portada
+                      </span>
+                    )}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1"
+                      style={{ background: 'rgba(0,0,0,0.6)' }}>
+                      {idx !== 0 && (
+                        <button
+                          type="button"
+                          onClick={() => moveToCover(idx)}
+                          title="Poner como portada"
+                          className="p-1.5 rounded-full"
+                          style={{ background: 'rgba(255,255,255,0.15)', color: '#fff' }}
+                        >
+                          <Star size={11} />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removePhoto(idx)}
+                        title="Eliminar"
+                        className="p-1.5 rounded-full"
+                        style={{ background: 'rgba(230,57,47,0.85)', color: '#fff' }}
+                      >
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <SolInput label="Capacidad" type="number" value={String(boat.capacity)}         onChange={v => onChange({ capacity: Number(v) })} />

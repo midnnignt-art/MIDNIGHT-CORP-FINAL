@@ -317,8 +317,12 @@ export default function SolsticeVentasDashboard({ role }: Props) {
       const { data: s } = await supabase.from('solstice_seasons').select('*').eq('status', 'open').single();
       if (s) setSeason(s as Season);
 
-      // Enrich solstice_sellers with profile/team/squad data
-      const { data: ss } = await supabase.from('solstice_sellers').select('*');
+      // Enrich solstice_sellers with profile/team/squad data.
+      // Sellers ven solo su propia fila — los managers/admins necesitan ver
+      // a todos para armar el árbol del equipo.
+      let ssQuery = supabase.from('solstice_sellers').select('*');
+      if (isSeller) ssQuery = ssQuery.eq('user_id', currentUser.user_id);
+      const { data: ss } = await ssQuery;
       const richSellers: RichSeller[] = (ss || []).map((sl: any) => {
         const profile = promoters.find(p => p.user_id === sl.user_id) as any;
         const team    = storeTeams.find(t => t.id === sl.sales_team_id);

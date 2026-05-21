@@ -147,6 +147,37 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
     requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
   }, [page, reservaWeek]);
 
+  // ── Permission guard: si el rol actual no permite la página actual, lo
+  // mandamos al landing. Mantiene en sync el menú visible (filtrado por
+  // rol en SolsticeNav) con el render real — un seller que llegue a una
+  // admin-page por URL stale o cambio de rol queda fuera.
+  const PAGE_ROLES: Record<SolsticePage, ('admin'|'manager'|'seller'|'buyer')[]> = {
+    landing:               ['admin','manager','seller','buyer'],
+    programa:              ['admin','manager','seller','buyer'],
+    reserva:               ['admin','manager','seller','buyer'],
+    'admin-config':        ['admin'],
+    'admin-sellers':       ['admin','manager'],
+    'admin-finance':       ['admin'],
+    'admin-cobros':        ['admin'],
+    'admin-proyecciones':  ['admin'],
+    'admin-codes':         ['admin'],
+    'admin-accounting':    ['admin'],
+    'admin-top-clients':   ['admin','manager'],
+    'admin-boats':         ['admin','manager'],
+    'admin-lodgings':      ['admin','manager'],
+    'check-in':            ['admin','manager'],
+    seller:                ['seller'],
+    manager:               ['manager'],
+    buyer:                 ['buyer'],
+  };
+  useEffect(() => {
+    const allowed = PAGE_ROLES[page];
+    if (allowed && !allowed.includes(role)) {
+      setPage('landing');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, role]);
+
   const handleNavigate = (target: string) => {
     if (target === 'home') { onExit(); return; }
     if (target.startsWith('reserva:')) {
