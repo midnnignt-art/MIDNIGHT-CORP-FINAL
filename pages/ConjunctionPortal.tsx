@@ -60,7 +60,7 @@ export const ConjunctionPortal: React.FC<ConjunctionPortalProps> = ({ onEnterBra
 
         <div className="flex flex-col items-center justify-center pointer-events-none">
           <span className="text-indigo-400 text-xs mb-1.5 opacity-90">🌙</span>
-          <span className="text-lg sm:text-2xl font-serif-celestial tracking-[0.45em] font-bold text-white text-center pl-[0.45em]">
+          <span className="text-xl sm:text-3xl font-sans tracking-[-0.07em] font-black text-white text-center">
             MIDNIGHT
           </span>
           <div className="flex items-center gap-3 w-56 sm:w-64 mt-2">
@@ -103,7 +103,7 @@ export const ConjunctionPortal: React.FC<ConjunctionPortalProps> = ({ onEnterBra
               >
                 <div className="flex flex-col items-center select-none pointer-events-none mb-2">
                   <span className="text-indigo-400/80 text-xs mb-1">🌙</span>
-                  <h2 className="font-serif-celestial text-3xl sm:text-4xl text-white tracking-[0.3em] font-bold pl-[0.3em]">
+                  <h2 className="font-sans text-4xl sm:text-5xl text-white tracking-[-0.07em] font-black">
                     MIDNIGHT
                   </h2>
                   <span className="text-[9px] font-sans-clean tracking-[0.3em] text-[#818cf8] uppercase mt-1">
@@ -144,7 +144,7 @@ export const ConjunctionPortal: React.FC<ConjunctionPortalProps> = ({ onEnterBra
               >
                 <div className="flex flex-col items-center select-none pointer-events-none mb-2">
                   <span className="text-orange-400/80 text-xs mb-1">☀️</span>
-                  <h2 className="font-serif-celestial text-3xl sm:text-4xl text-white tracking-[0.3em] font-bold pl-[0.3em]">
+                  <h2 className="font-sans text-4xl sm:text-5xl text-white tracking-[-0.07em] font-black">
                     SOLSTICE
                   </h2>
                   <span className="text-[9px] font-sans-clean tracking-[0.3em] text-orange-500 uppercase mt-1">

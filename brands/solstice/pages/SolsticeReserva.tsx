@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, ChevronRight, Loader2, Shield, CreditCard, CheckCircle2,
-  Ship, Zap, Calendar, Banknote, Repeat, ListChecks, Star
+  Ship, Zap, Calendar, Repeat, ListChecks, Star
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useStore } from '../../../context/StoreContext';
@@ -11,12 +11,11 @@ import { SolsticeWeek } from '../types';
 
 const C = { bg: '#000', bgS: '#0d0d0d', red: '#E6392F', org: '#FF7A00', gray: '#606060', cream: '#F9F2D7' };
 
-type PaymentMode = 'auto_subscription' | 'manual_monthly' | 'cash_to_seller' | 'individual_days' | 'full_combo';
+type PaymentMode = 'auto_subscription' | 'manual_monthly' | 'individual_days' | 'full_combo';
 
 const MODES: { id: PaymentMode; label: string; sub: string; icon: React.ReactNode; badge?: string }[] = [
   { id: 'auto_subscription', label: 'Débito automático',   sub: '$40K hoy + cargos automáticos cada mes',         icon: <Repeat size={18} />,    badge: 'Más fácil' },
   { id: 'manual_monthly',    label: 'Mes a mes con tarjeta', sub: '$40K hoy + tarjeta guardada (te avisamos 24h antes)', icon: <Calendar size={18} /> },
-  { id: 'cash_to_seller',    label: 'Combo en efectivo',     sub: 'Pagás todo el combo al promotor el día 1',     icon: <Banknote size={18} /> },
   { id: 'individual_days',   label: 'Días sueltos prepagos', sub: 'Comprás solo los días que querés, 100% online', icon: <ListChecks size={18} /> },
   { id: 'full_combo',        label: 'Todo de una',           sub: 'Pagás hoy, sin cuotas, sin recargos',           icon: <Star size={18} />,     badge: 'Mejor precio' },
 ];
@@ -209,6 +208,21 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
   const dayTotal  = selDays.reduce((a, d) => a + (SOLSTICE_DAYS.find(x => x.day === d)?.price || 0), 0);
   const chargeNow = mode === 'full_combo' ? s.combo_total : mode === 'individual_days' ? dayTotal : s.entry_price;
   const chargeK   = Math.round(chargeNow / 1000);
+
+  // ── Cuotas dinámicas según meses hasta el evento ─────────────────────────
+  // Regla del owner: "si estamos a 4 meses que sea el pago inicial y tres
+  // cuotas más" → installments = monthsUntilEvent - 1, cap al máximo de la
+  // season. Si el evento está a menos de 2 meses, no se ofrecen cuotas
+  // (el mes restante alcanza solo para el pago inicial).
+  const monthsUntilEvent = (() => {
+    if (!selWeek?.start_date) return s.installments;
+    const start = new Date(selWeek.start_date);
+    const now   = new Date();
+    const months = (start.getFullYear() - now.getFullYear()) * 12
+                 + (start.getMonth() - now.getMonth());
+    return Math.max(1, months);
+  })();
+  const effectiveInstallments = Math.max(1, Math.min(s.installments, monthsUntilEvent - 1));
   // El día 3 (Lanchas + Beach Club) está incluido en todos los modos salvo "días sueltos sin día 3"
   const includesBoat = mode !== null && (mode !== 'individual_days' || selDays.includes(3));
 
@@ -328,7 +342,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
         status:                  'reserved',
         total_amount:            mode === 'full_combo' ? s.combo_total : mode === 'individual_days' ? dayTotal : s.combo_total,
         amount_paid:             0,
-        installments_remaining:  mode === 'full_combo' || mode === 'individual_days' ? 0 : s.installments,
+        installments_remaining:  mode === 'full_combo' || mode === 'individual_days' ? 0 : effectiveInstallments,
         days_purchased:          mode === 'individual_days' ? selDays : null,
         bold_order_id:           orderNum,
         ref_code:                refCode || null,
@@ -341,8 +355,8 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
       if (error) throw new Error(error.message);
 
       if (mode !== 'full_combo' && mode !== 'individual_days') {
-        const cuota = Math.round(s.combo_total / s.installments);
-        const schedules = Array.from({ length: s.installments }, (_, i) => ({
+        const cuota = Math.round(s.combo_total / effectiveInstallments);
+        const schedules = Array.from({ length: effectiveInstallments }, (_, i) => ({
           registration_id:    reg.id,
           installment_number: i + 1,
           amount:             cuota,
@@ -575,7 +589,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
           {step === 1 && (() => {
             const entryK = Math.round((season?.entry_price ?? 40000) / 1000);
             const totalK = Math.round((season?.combo_total ?? 400000) / 1000);
-            const cuotas = season?.installments ?? 5;
+            const cuotas = effectiveInstallments;
             const cuotaK = Math.round((totalK * 1000) / cuotas / 1000);
             const discountTodoUna = 50; // ahorro $K si paga todo de una
             const meta: Record<PaymentMode, {
@@ -593,7 +607,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                 afterPrice: `/mes · ${cuotas}× automático`,
                 tags: ['Cero olvidos', 'Sin recargos por mora'],
                 cobro:    `Autorizás cargo automático. Bold cobra $${cuotaK}K en tu tarjeta el día 5 de cada mes.`,
-                respaldo: 'Si la tarjeta no tiene fondos, te damos 7 días para regularizar antes de suspender acceso.',
+                respaldo: 'Si la tarjeta no tiene fondos, 7 días de gracia. Devolución del adelanto solo dentro de los primeros 15 días desde la compra.',
               },
               manual_monthly: {
                 headline: `${entryK}K hoy + tarjeta guardada`,
@@ -601,15 +615,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                 afterPrice: `/mes · aviso 24h antes`,
                 tags: ['Avisamos por WhatsApp', 'Movés la fecha 1× si necesitás'],
                 cobro:    `Guardamos tu tarjeta de forma segura. Te avisamos 24h antes de cada cobro y se ejecuta automático al día siguiente.`,
-                respaldo: 'Podés posponer 1 cuota hasta 7 días sin costo. Más de 7 días = 5% recargo y review de tu lugar.',
-              },
-              cash_to_seller: {
-                headline: `Combo completo en efectivo · 1 sola entrega`,
-                bigPrice: `$${totalK}K`,
-                afterPrice: ` total`,
-                tags: ['Sin cuotas', 'Pago confirmado en BD con QR del promotor'],
-                cobro:    `Pagás el monto total en efectivo al promotor el día 1 del programa (Día Llegada). Te entrega QR de confirmación.`,
-                respaldo: 'Sin pago confirmado en BD = sin acceso al programa. La reserva con $40K se pierde si no se completa el día 1.',
+                respaldo: 'Podés posponer 1 cuota hasta 7 días sin costo. Devolución del adelanto solo dentro de los primeros 15 días desde la compra.',
               },
               individual_days: {
                 headline: 'Cada día se paga 100% online al elegirlo',
@@ -617,7 +623,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                 afterPrice: ' / día',
                 tags: ['Sin compromiso de combo', 'QR por día comprado'],
                 cobro:    `Cada día se paga al instante por Bold. No hay cuotas en esta modalidad.`,
-                respaldo: 'Los días son finales — sin reembolsos por inasistencia, pero podés transferirlos a un amigo.',
+                respaldo: 'Tenés 15 días desde la compra para arrepentirte y pedir devolución del adelanto. Después: no reembolsable.',
               },
               full_combo: {
                 headline: `Pagás hoy y te olvidás`,
@@ -626,7 +632,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                 ahorro: `Ahorras $${discountTodoUna}K vs cuotas`,
                 tags: ['Sin pagos pendientes', 'Lock-in del precio del fase 1'],
                 cobro:    `1 sola transacción por Bold con tu tarjeta o transferencia. Quedás cerrado en minutos.`,
-                respaldo: 'Cero riesgo de mora · Cero recargos · 100% reembolsable hasta 14 días antes del evento.',
+                respaldo: 'Tenés 15 días desde la compra para arrepentirte y recibir devolución completa. Después de 15 días: no reembolsable.',
               },
             };
             const recommended: PaymentMode = 'auto_subscription';
@@ -804,7 +810,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                   </span>
                   <span style={{ color: `${C.gray}40` }}>·</span>
                   <span className="text-[9px] uppercase" style={{ color: `${C.gray}cc`, letterSpacing: '0.2em', fontWeight: 500 }}>
-                    Cancela antes del 1er pago sin costo
+                    15 días para arrepentirte
                   </span>
                 </div>
 
@@ -1415,9 +1421,20 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                 </div>
                 {mode !== 'full_combo' && mode !== 'individual_days' && (
                   <p className="text-[9px] uppercase text-center" style={{ color: C.gray, fontWeight: 500 }}>
-                    + {s.installments} cuotas de ${Math.round(s.combo_total / s.installments / 1000)}K/mes
+                    + {effectiveInstallments} cuotas de ${Math.round(s.combo_total / effectiveInstallments / 1000)}K/mes
                   </p>
                 )}
+
+                {/* Disclaimer de política de reembolso — visible antes de pagar */}
+                <div className="mt-4 pt-4" style={{ borderTop: '0.5px solid rgba(255,255,255,0.08)' }}>
+                  <p className="text-[9px] uppercase mb-1.5" style={{ letterSpacing: '0.3em', color: C.red, fontWeight: 600 }}>
+                    Política de reembolso
+                  </p>
+                  <p className="text-[10px] leading-relaxed" style={{ color: `${C.gray}dd` }}>
+                    Tenés <strong style={{ color: C.cream }}>15 días</strong> desde la compra para arrepentirte y pedir devolución del adelanto.
+                    Pasados los 15 días, <strong style={{ color: C.cream }}>ninguna compra es reembolsable</strong> — aplica a todas las modalidades.
+                  </p>
+                </div>
               </div>
               <button onClick={handleCreateRegistration} disabled={processing}
                 style={{
@@ -1520,7 +1537,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
               name={name}
               modalityLabel={MODES.find(m => m.id === mode)?.label || ''}
               orderNum={pendingOrderNum ?? '—'}
-              installmentAmountK={Math.round(s.combo_total / (s.installments || 1) / 1000)}
+              installmentAmountK={Math.round(s.combo_total / (effectiveInstallments || 1) / 1000)}
               showInstallments={mode !== 'full_combo' && mode !== 'individual_days'}
               boatInviteCode={boatChoice === 'lead' ? boatInviteCode : null}
               boatName={selectedBoatId ? boats.find(b => b.id === selectedBoatId)?.name : undefined}
