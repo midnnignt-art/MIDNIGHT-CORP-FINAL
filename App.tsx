@@ -224,11 +224,17 @@ const App: React.FC = () => {
       {!isPortal && (
         <div className="logo-main flex flex-col items-center">
           <span
-            className="text-xl md:text-3xl font-black tracking-[-0.1em]"
-            style={{ color: isSolstice ? '#E6392F' : 'white', transition: 'color 0.6s ease' }}
+            className="text-2xl md:text-4xl tracking-[-0.02em]"
+            style={{
+              color: isSolstice ? '#E6392F' : 'white',
+              transition: 'color 0.6s ease',
+              fontFamily: "'Anton', 'Archivo Black', system-ui, sans-serif",
+              fontWeight: 400,
+              lineHeight: 1,
+            }}
           >MIDNIGHT</span>
           <span
-            className="text-[8px] font-light tracking-[0.8em] uppercase -mt-1 ml-1"
+            className="text-[8px] font-light tracking-[0.8em] uppercase mt-0.5 ml-1"
             style={{ color: isSolstice ? 'rgba(230,57,47,0.65)' : 'rgba(255,255,255,0.7)', transition: 'color 0.6s ease' }}
           >Worldwide</span>
         </div>
