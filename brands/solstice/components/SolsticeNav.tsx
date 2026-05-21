@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Sun, LayoutDashboard, Users, Settings, DollarSign, LogOut, ChevronRight, AlertCircle, ScanLine, BookOpen, Trophy, Ship, BedDouble, TrendingUp, Tag, FileSpreadsheet } from 'lucide-react';
+import { X, Sun, LayoutDashboard, Users, Settings, DollarSign, LogOut, ChevronRight, AlertCircle, ScanLine, BookOpen, Trophy, Ship, BedDouble, TrendingUp, Tag, FileSpreadsheet, Percent } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSolsticeLogo } from '../hooks/useSolsticeLogo';
 import { useSolsticeLogoSize } from '../hooks/useSolsticeLogoSize';
@@ -15,6 +15,7 @@ export type SolsticePage =
   | 'admin-proyecciones'
   | 'admin-codes'
   | 'admin-accounting'
+  | 'admin-utilidades'
   | 'admin-top-clients'
   | 'admin-boats'
   | 'admin-lodgings'
@@ -48,6 +49,7 @@ const NAV_ITEMS: { page: SolsticePage; label: string; icon: React.ReactNode; rol
   { page: 'admin-proyecciones', label: 'Proyecciones', icon: <TrendingUp size={15} />, roles: ['admin'] },
   { page: 'admin-codes',  label: 'Códigos',        icon: <Tag size={15} />,           roles: ['admin'] },
   { page: 'admin-accounting', label: 'Contabilidad', icon: <FileSpreadsheet size={15} />, roles: ['admin'] },
+  { page: 'admin-utilidades', label: 'Utilidades',   icon: <Percent size={15} />,         roles: ['admin'] },
   { page: 'admin-top-clients', label: 'Top clientes', icon: <Trophy size={15} />,    roles: ['admin','manager'] },
   { page: 'admin-boats',  label: 'Lanchas activas', icon: <Ship size={15} />,        roles: ['admin','manager'] },
   { page: 'admin-lodgings', label: 'Hospedaje',    icon: <BedDouble size={15} />,    roles: ['admin','manager'] },

@@ -19,6 +19,7 @@ import SolsticeAdminLodgingReservations from './pages/SolsticeAdminLodgingReserv
 import SolsticeProyecciones from './pages/SolsticeProyecciones';
 import SolsticeCodigosDescuentos from './pages/SolsticeCodigosDescuentos';
 import SolsticeContabilidad from './pages/SolsticeContabilidad';
+import SolsticeUtilidades from './pages/SolsticeUtilidades';
 import { DUAL_COMMAND_ENABLED } from './featureFlags';
 import { UserRole } from '../../types';
 import { MouseTrail } from '../../components/MouseTrail';
@@ -162,6 +163,7 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
     'admin-proyecciones':  ['admin'],
     'admin-codes':         ['admin'],
     'admin-accounting':    ['admin'],
+    'admin-utilidades':    ['admin'],
     'admin-top-clients':   ['admin','manager'],
     'admin-boats':         ['admin','manager'],
     'admin-lodgings':      ['admin','manager'],
@@ -318,6 +320,7 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
         {page === 'admin-proyecciones' && <SolsticeProyecciones />}
         {page === 'admin-codes'        && <SolsticeCodigosDescuentos />}
         {page === 'admin-accounting'   && <SolsticeContabilidad />}
+        {page === 'admin-utilidades'   && <SolsticeUtilidades />}
         {page === 'admin-top-clients' && <SolsticeTopClients />}
         {page === 'admin-boats'   && <SolsticeAdminBoatReservations />}
         {page === 'admin-lodgings' && <SolsticeAdminLodgingReservations />}
