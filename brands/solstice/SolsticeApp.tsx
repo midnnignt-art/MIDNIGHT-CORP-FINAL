@@ -211,16 +211,11 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
         aria-hidden
       >
         <span
-          className="text-2xl md:text-4xl tracking-[-0.02em]"
-          style={{
-            color: '#E6392F',
-            fontFamily: "'Anton', 'Archivo Black', system-ui, sans-serif",
-            fontWeight: 400,
-            lineHeight: 1,
-          }}
+          className="text-xl md:text-3xl font-black tracking-[-0.1em]"
+          style={{ color: '#E6392F' }}
         >MIDNIGHT</span>
         <span
-          className="text-[8px] font-light tracking-[0.8em] uppercase mt-0.5 ml-1"
+          className="text-[8px] font-light tracking-[0.8em] uppercase -mt-1 ml-1"
           style={{ color: 'rgba(230,57,47,0.65)' }}
         >Worldwide</span>
       </motion.div>
