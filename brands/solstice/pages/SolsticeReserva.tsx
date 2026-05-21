@@ -5,6 +5,7 @@ import {
   Ship, Zap, Calendar, Repeat, ListChecks, Star
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
+import { buildWompiCheckoutUrl } from '../../../lib/wompi';
 import { useStore } from '../../../context/StoreContext';
 import { SOLSTICE_SEASON_MOCK, SOLSTICE_WEEKS_MOCK, SOLSTICE_DAYS } from '../constants';
 import { SolsticeWeek } from '../types';
@@ -366,6 +367,10 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
         bold_order_id:           orderNum,
         ref_code:                refCode || null,
         seller_id:               sellerId,
+        // one-shot via Wompi; las cuotas (auto/manual) cobran por Bold cuando
+        // se ejecuten en su día. Si en el futuro Bold pasa también one-shot,
+        // este campo permite trackear ambos por separado en utilidades.
+        payment_provider:        (mode === 'full_combo' || mode === 'individual_days') ? 'wompi' : 'bold',
       };
 
       const { data: reg, error } = await supabase
@@ -446,6 +451,32 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
       console.warn('Solstice DB fallback — mock order:', fallback, err.message);
     } finally {
       setProcessing(false);
+    }
+  };
+
+  // ── Wompi one-shot redirect ──────────────────────────────────────────────
+  // Para modos full_combo + individual_days redirigimos al Web Checkout de
+  // Wompi. El webhook (wompi-webhook edge function) marca la registration
+  // como 'active' cuando vuelve el evento APPROVED. La URL de retorno cae
+  // en /gracias?id=...&reference=...&status=APPROVED.
+  const [wompiError, setWompiError] = useState<string | null>(null);
+  const handleWompiCheckout = async () => {
+    if (!pendingOrderNum) return;
+    setSimulating(true);
+    setWompiError(null);
+    try {
+      const url = await buildWompiCheckoutUrl({
+        reference:        pendingOrderNum,
+        amountCOP:        chargeNow,
+        customerEmail:    email,
+        customerFullName: name,
+        customerPhone:    phone.replace(/[^0-9+]/g, '').replace(/^\+/, ''),
+        redirectUrl:      `${window.location.origin}/gracias`,
+      });
+      window.location.href = url;
+    } catch (err: any) {
+      setWompiError(err?.message || 'Error al iniciar Wompi');
+      setSimulating(false);
     }
   };
 
@@ -1657,8 +1688,10 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
             </motion.div>
           )}
 
-          {/* STEP 4 — TEST: Simular pago */}
-          {step === 4 && (
+          {/* STEP 4 — Pago real (Wompi para one-shot, simulado para cuotas) */}
+          {step === 4 && (() => {
+            const isOneShot = mode === 'full_combo' || mode === 'individual_days';
+            return (
             <motion.div key="s4" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-8 text-center">
               <div className="p-8 space-y-8" style={{
                 borderRadius: '28px',
@@ -1667,17 +1700,29 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                 border: payStatus === 'paid' ? '0.5px solid rgba(16,185,129,0.50)' : '0.5px solid rgba(255,255,255,0.10)',
                 boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
               }}>
-                {/* Test mode badge */}
-                <div className="inline-flex items-center gap-2 px-3 py-1"
-                  style={{ background: '#FF7A0018', border: '0.5px solid #FF7A0040', borderRadius: '999px' }}>
-                  <Zap size={10} style={{ color: '#FF7A00' }} />
-                  <span className="text-[9px] uppercase" style={{ color: '#FF7A00', letterSpacing: '0.3em', fontWeight: 500 }}>
-                    Modo prueba
-                  </span>
-                </div>
+                {/* Provider badge */}
+                {isOneShot ? (
+                  <div className="inline-flex items-center gap-2 px-3 py-1"
+                    style={{ background: 'rgba(16,185,129,0.10)', border: '0.5px solid rgba(16,185,129,0.40)', borderRadius: '999px' }}>
+                    <Shield size={10} style={{ color: '#10b981' }} />
+                    <span className="text-[9px] uppercase" style={{ color: '#10b981', letterSpacing: '0.3em', fontWeight: 600 }}>
+                      Pago seguro · Wompi
+                    </span>
+                  </div>
+                ) : (
+                  <div className="inline-flex items-center gap-2 px-3 py-1"
+                    style={{ background: '#FF7A0018', border: '0.5px solid #FF7A0040', borderRadius: '999px' }}>
+                    <Zap size={10} style={{ color: '#FF7A00' }} />
+                    <span className="text-[9px] uppercase" style={{ color: '#FF7A00', letterSpacing: '0.3em', fontWeight: 500 }}>
+                      Pago de cuotas — confirmación
+                    </span>
+                  </div>
+                )}
 
                 <div>
-                  <p className="text-[10px] uppercase mb-2" style={{ color: C.gray, letterSpacing: '0.3em', fontWeight: 500 }}>Total a pagar</p>
+                  <p className="text-[10px] uppercase mb-2" style={{ color: C.gray, letterSpacing: '0.3em', fontWeight: 500 }}>
+                    {isOneShot ? 'Total a pagar ahora' : 'Reserva hoy con'}
+                  </p>
                   <p className="text-5xl" style={{ color: C.cream, fontWeight: 300 }}>${chargeK}K</p>
                   <p className="text-[10px] uppercase mt-2" style={{ color: C.gray, letterSpacing: '0.15em', fontWeight: 500 }}>
                     {MODES.find(m => m.id === mode)?.label}
@@ -1691,9 +1736,40 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                   <div className="space-y-3">
                     <CheckCircle2 size={36} className="mx-auto" style={{ color: '#10b981' }} />
                     <p className="text-[10px] uppercase animate-pulse" style={{ color: '#10b981', letterSpacing: '0.2em', fontWeight: 500 }}>
-                      ¡Pago registrado! Preparando confirmación...
+                      ¡Pago registrado! Preparando confirmación…
                     </p>
                   </div>
+                ) : isOneShot ? (
+                  <>
+                    <button
+                      onClick={handleWompiCheckout}
+                      disabled={simulating}
+                      style={{
+                        ...primaryBtnStyle,
+                        padding: '20px 16px',
+                        opacity: simulating ? 0.35 : 1,
+                      }}
+                      onMouseEnter={e => {
+                        if (!simulating) {
+                          (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
+                          (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 8px 24px rgba(230,57,47,0.20)';
+                        }
+                      }}
+                      onMouseLeave={e => {
+                        (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
+                        (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none';
+                      }}
+                    >
+                      {simulating
+                        ? <><Loader2 className="animate-spin" size={18} /> Redirigiendo a Wompi…</>
+                        : <><CreditCard size={16} /> Pagar ${chargeK}K con Wompi</>}
+                    </button>
+                    {wompiError && (
+                      <p className="text-[10px]" style={{ color: C.red, letterSpacing: '0.1em' }}>
+                        · {wompiError}
+                      </p>
+                    )}
+                  </>
                 ) : (
                   <button
                     onClick={handleTestPayment}
@@ -1703,29 +1779,22 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                       padding: '20px 16px',
                       opacity: simulating ? 0.35 : 1,
                     }}
-                    onMouseEnter={e => {
-                      if (!simulating) {
-                        (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
-                        (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 8px 24px rgba(230,57,47,0.20)';
-                      }
-                    }}
-                    onMouseLeave={e => {
-                      (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
-                      (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none';
-                    }}
                   >
                     {simulating
                       ? <Loader2 className="animate-spin" size={18} />
-                      : <><CreditCard size={16} /> Simular pago ${chargeK}K ✓</>}
+                      : <><CreditCard size={16} /> Confirmar reserva ${chargeK}K</>}
                   </button>
                 )}
               </div>
 
               <p className="text-[9px] uppercase" style={{ color: `${C.gray}50`, letterSpacing: '0.2em', fontWeight: 500 }}>
-                Cualquier método cuenta como pago exitoso en modo prueba
+                {isOneShot
+                  ? 'Te redirigimos a Wompi · vuelves automáticamente al finalizar'
+                  : 'La primera cuota se cobra al volver. Las siguientes se procesan mes a mes'}
               </p>
             </motion.div>
-          )}
+            );
+          })()}
 
           {/* STEP 5 — Confirmación */}
           {step === 5 && (

@@ -32,7 +32,13 @@ export const SuccessPage: React.FC = () => {
   const isSolstice = useMemo(() => {
     if (typeof window === 'undefined') return false;
     const p = new URLSearchParams(window.location.search);
-    return p.get('solstice') === '1' || !!p.get('schedule') || !!p.get('registration');
+    const ref = p.get('reference') || '';
+    // Wompi vuelve con ?id=...&reference=SOL-XXXX&status=APPROVED — la
+    // referencia que empieza con SOL- nos dice que fue checkout Solstice.
+    return p.get('solstice') === '1'
+        || !!p.get('schedule')
+        || !!p.get('registration')
+        || ref.startsWith('SOL-');
   }, []);
 
   if (isSolstice) {

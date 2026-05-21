@@ -29,6 +29,9 @@ export default function SolsticeSuccess() {
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
   const scheduleId = params.get('schedule');
   const registrationParam = params.get('registration');
+  // Wompi vuelve con ?id=<wompi_tx>&reference=SOL-XXX&status=APPROVED|DECLINED|...
+  const wompiRef    = params.get('reference');
+  const wompiStatus = (params.get('status') || '').toUpperCase();
 
   const [state, setState]       = useState<FetchState>('loading');
   const [schedule, setSchedule] = useState<SchedulePaid | null>(null);
@@ -106,6 +109,31 @@ export default function SolsticeSuccess() {
             setReg(r as any);
             setState(r.status === 'active' ? 'ready' : 'pending');
           }
+        } else if (wompiRef) {
+          // Llegamos desde Wompi Web Checkout → lookup por bold_order_id (legacy)
+          if (wompiStatus === 'DECLINED' || wompiStatus === 'VOIDED' || wompiStatus === 'ERROR') {
+            if (!cancelled) setState('error');
+            return;
+          }
+          const { data: r } = await supabase
+            .from('solstice_registrations')
+            .select('customer_name, customer_email, customer_university, order_number, amount_paid, total_amount, installments_remaining, status')
+            .eq('bold_order_id', wompiRef)
+            .maybeSingle();
+          if (!r) {
+            if (!cancelled) setState('error');
+            return;
+          }
+          if (r.status !== 'active' && pollCount < 6) {
+            pollCount++;
+            if (!cancelled) setPolls(pollCount);
+            setTimeout(fetchOnce, 3000);
+            return;
+          }
+          if (!cancelled) {
+            setReg(r as any);
+            setState(r.status === 'active' ? 'ready' : 'pending');
+          }
         } else {
           if (!cancelled) setState('ready');
         }
@@ -116,7 +144,7 @@ export default function SolsticeSuccess() {
 
     fetchOnce();
     return () => { cancelled = true; };
-  }, [scheduleId, registrationParam]);
+  }, [scheduleId, registrationParam, wompiRef, wompiStatus]);
 
   const firstName = (reg?.customer_name || '').split(' ')[0] || '¡Listo!';
   const amtK = schedule ? Math.round(schedule.amount / 1000) : 0;
