@@ -7,9 +7,12 @@ export type BrandSelection = 'midnight' | 'solstice' | null;
 
 interface ConjunctionPortalProps {
   onEnterBrand: (brand: 'midnight' | 'solstice') => void;
+  /** Si false, el planeta SOLSTICE no se renderiza y MIDNIGHT queda centrado.
+   *  Owner activa esto desde admin cuando Solstice salga al mercado. */
+  showSolstice?: boolean;
 }
 
-export const ConjunctionPortal: React.FC<ConjunctionPortalProps> = ({ onEnterBrand }) => {
+export const ConjunctionPortal: React.FC<ConjunctionPortalProps> = ({ onEnterBrand, showSolstice = true }) => {
   const [hoveredSide, setHoveredSide] = useState<'midnight' | 'solstice' | null>(null);
   const [selected, setSelected] = useState<'midnight' | 'solstice' | null>(null);
 
@@ -88,12 +91,16 @@ export const ConjunctionPortal: React.FC<ConjunctionPortalProps> = ({ onEnterBra
           >
             <div className="text-center mb-10 select-none pointer-events-none px-4 max-w-lg">
               <p className="text-[10px] sm:text-[11.5px] font-sans-clean tracking-[0.35em] text-zinc-400 uppercase leading-relaxed">
-                DOS EXPERIENCIAS. UN MISMO UNIVERSO.
+                {showSolstice ? 'DOS EXPERIENCIAS. UN MISMO UNIVERSO.' : 'BIENVENIDO AL UNIVERSO.'}
               </p>
               <div className="w-8 h-[1px] bg-zinc-800/80 mx-auto mt-4" />
             </div>
 
-            <div className="w-full max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 lg:divide-x lg:divide-zinc-900/50 gap-16 lg:gap-0 justify-center items-center">
+            <div className={
+              showSolstice
+                ? "w-full max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 lg:divide-x lg:divide-zinc-900/50 gap-16 lg:gap-0 justify-center items-center"
+                : "w-full max-w-2xl mx-auto px-6 flex justify-center items-center"
+            }>
               {/* MIDNIGHT */}
               <div
                 className="flex flex-col items-center justify-center text-center px-4 lg:px-12 relative cursor-pointer"
@@ -135,51 +142,54 @@ export const ConjunctionPortal: React.FC<ConjunctionPortalProps> = ({ onEnterBra
                 </div>
               </div>
 
-              {/* SOLSTICE */}
-              <div
-                className="flex flex-col items-center justify-center text-center px-4 lg:px-12 relative cursor-pointer"
-                onMouseEnter={() => setHoveredSide('solstice')}
-                onMouseLeave={() => setHoveredSide(null)}
-                onClick={() => handleSelect('solstice')}
-              >
-                <div className="flex flex-col items-center select-none pointer-events-none mb-2">
-                  <span className="text-orange-400/80 text-xs mb-1">☀️</span>
-                  <h2 className="font-sans text-4xl sm:text-5xl text-white tracking-[-0.07em] font-black">
-                    SOLSTICE
-                  </h2>
-                  <span className="text-[9px] font-sans-clean tracking-[0.3em] text-orange-500 uppercase mt-1">
-                    — THE AWAKENING —
-                  </span>
-                </div>
+              {/* SOLSTICE — solo visible cuando el feature flag está ON (o el
+                  usuario es admin, gestionado en App.tsx via showSolstice prop) */}
+              {showSolstice && (
+                <div
+                  className="flex flex-col items-center justify-center text-center px-4 lg:px-12 relative cursor-pointer"
+                  onMouseEnter={() => setHoveredSide('solstice')}
+                  onMouseLeave={() => setHoveredSide(null)}
+                  onClick={() => handleSelect('solstice')}
+                >
+                  <div className="flex flex-col items-center select-none pointer-events-none mb-2">
+                    <span className="text-orange-400/80 text-xs mb-1">☀️</span>
+                    <h2 className="font-sans text-4xl sm:text-5xl text-white tracking-[-0.07em] font-black">
+                      SOLSTICE
+                    </h2>
+                    <span className="text-[9px] font-sans-clean tracking-[0.3em] text-orange-500 uppercase mt-1">
+                      — THE AWAKENING —
+                    </span>
+                  </div>
 
-                <div className="relative z-10 my-4">
-                  <PlanetOrb type="solstice" isActive={false} isHovered={hoveredSide === 'solstice'} />
-                </div>
+                  <div className="relative z-10 my-4">
+                    <PlanetOrb type="solstice" isActive={false} isHovered={hoveredSide === 'solstice'} />
+                  </div>
 
-                <div className="space-y-1 mt-2 select-none pointer-events-none">
-                  <p className="text-[11px] font-sans-clean tracking-[0.25em] text-zinc-400 uppercase">ENERGÍA. LUZ.</p>
-                  <p className="text-[11px] font-sans-clean tracking-[0.25em] text-zinc-400 uppercase">UN NUEVO COMIENZO.</p>
-                </div>
+                  <div className="space-y-1 mt-2 select-none pointer-events-none">
+                    <p className="text-[11px] font-sans-clean tracking-[0.25em] text-zinc-400 uppercase">ENERGÍA. LUZ.</p>
+                    <p className="text-[11px] font-sans-clean tracking-[0.25em] text-zinc-400 uppercase">UN NUEVO COMIENZO.</p>
+                  </div>
 
-                <div className="mt-8">
-                  <button
-                    type="button"
-                    className={`px-8 py-3 rounded-full border text-[10px] font-sans-clean font-semibold tracking-[0.2em] transition-all duration-300 flex items-center justify-center gap-2 ${
-                      hoveredSide === 'solstice'
-                        ? 'bg-orange-950/20 text-white border-orange-400/80 shadow-[0_0_15px_rgba(249,115,22,0.25)] scale-[1.02]'
-                        : 'bg-zinc-950/30 text-zinc-400 border-zinc-800/60'
-                    }`}
-                  >
-                    <span>ENTRAR A SOLSTICE</span>
-                    <span className="font-mono text-xs">→</span>
-                  </button>
+                  <div className="mt-8">
+                    <button
+                      type="button"
+                      className={`px-8 py-3 rounded-full border text-[10px] font-sans-clean font-semibold tracking-[0.2em] transition-all duration-300 flex items-center justify-center gap-2 ${
+                        hoveredSide === 'solstice'
+                          ? 'bg-orange-950/20 text-white border-orange-400/80 shadow-[0_0_15px_rgba(249,115,22,0.25)] scale-[1.02]'
+                          : 'bg-zinc-950/30 text-zinc-400 border-zinc-800/60'
+                      }`}
+                    >
+                      <span>ENTRAR A SOLSTICE</span>
+                      <span className="font-mono text-xs">→</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             <div className="text-center mt-12 py-4 select-none pointer-events-none">
               <p className="text-[9.5px] font-sans-clean tracking-[0.4em] text-zinc-500 uppercase">
-                ELIGE TU EXPERIENCIA
+                {showSolstice ? 'ELIGE TU EXPERIENCIA' : 'ENTRA AL UNIVERSO'}
               </p>
               <div className="h-10 w-[0.5px] bg-gradient-to-b from-zinc-700 to-transparent mx-auto mt-4 relative">
                 <span className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-2 text-[8px] text-zinc-600 animate-pulse">

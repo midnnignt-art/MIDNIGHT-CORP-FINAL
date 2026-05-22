@@ -14,6 +14,7 @@ import TicketWallet from './components/TicketWallet';
 import { ToastContainer } from './components/ToastContainer';
 import { Tag, X as XIcon } from 'lucide-react';
 import { ConjunctionPortal } from './pages/ConjunctionPortal';
+import { useSolsticeVisibility } from './lib/useSolsticeVisibility';
 
 // Code-split: páginas admin (cargan solo cuando se navega a ellas)
 const Dashboard       = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
@@ -44,6 +45,12 @@ const App: React.FC = () => {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isMagicOpen, setIsMagicOpen] = useState(false);
+
+  // Feature flag para mostrar el planeta SOLSTICE en el portal. Mientras la
+  // sub-marca no esté lista para el mercado, solo admins pueden verlo.
+  // Se activa desde admin (system-config) cuando salga al público.
+  const [solsticePublicVisible] = useSolsticeVisibility();
+  const showSolsticeInPortal = solsticePublicVisible || isAdminLevel(currentUser?.role);
 
   // Discount banner — shown when user arrived via a discount link
   const [discountBanner, setDiscountBanner] = useState<{ pct: number; label: string; tierName: string; eventId: string } | null>(() => {
@@ -279,6 +286,7 @@ const App: React.FC = () => {
       <main>
         {currentPage === 'portal' && (
           <ConjunctionPortal
+            showSolstice={showSolsticeInPortal}
             onEnterBrand={(brand) => {
               if (brand === 'midnight') setCurrentPage('home');
               // Solstice → ruta pública /sol con su propio splash de marca

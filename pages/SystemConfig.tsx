@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useStore } from '../context/StoreContext';
+import { useSolsticeVisibility } from '../lib/useSolsticeVisibility';
 
 const motion = _motion as any;
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
@@ -38,6 +39,9 @@ export const SystemConfig: React.FC = () => {
         </p>
       </div>
 
+      {/* Visibilidad pública de marcas — toggle global */}
+      <BrandVisibilityPanel />
+
       <div className="flex items-center gap-2 border-b border-moonlight/10 -mx-2 px-2 overflow-x-auto">
         <TabButton active={tab === 'features'} onClick={() => setTab('features')} icon={<Activity size={14} />}>
           Estado de Features
@@ -53,6 +57,63 @@ export const SystemConfig: React.FC = () => {
       {tab === 'features' && <FeaturesTab />}
       {tab === 'monitoring' && <MonitoringTab />}
       {tab === 'audit' && <AuditTab />}
+    </div>
+  );
+};
+
+// ── Visibilidad pública de marcas ───────────────────────────────────────────
+// Toggle global para activar/desactivar el planeta SOLSTICE en el portal.
+// Mientras esté OFF, solo admins ven Solstice. Cuando esté ON, todo el público.
+
+const BrandVisibilityPanel: React.FC = () => {
+  const [solsticeVisible, setSolsticeVisible] = useSolsticeVisibility();
+  const [saving, setSaving] = useState(false);
+
+  const toggle = async () => {
+    setSaving(true);
+    try {
+      await setSolsticeVisible(!solsticeVisible);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="rounded-2xl border border-moonlight/10 bg-moonlight/[0.02] p-5 md:p-6">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-bold tracking-[0.35em] text-moonlight/40 uppercase mb-1.5">
+            Visibilidad pública · Solstice
+          </p>
+          <h3 className="text-base md:text-lg font-black tracking-tight text-moonlight">
+            {solsticeVisible ? 'Solstice es público' : 'Solstice está oculto al público'}
+          </h3>
+          <p className="text-moonlight/50 text-xs font-light mt-1 max-w-xl">
+            {solsticeVisible
+              ? 'El planeta SOLSTICE aparece en el portal junto a MIDNIGHT — cualquier visitante puede entrar.'
+              : 'El planeta SOLSTICE no se muestra a visitantes. Solo los admins lo ven y pueden entrar. Activá cuando salgan al mercado.'}
+          </p>
+        </div>
+
+        <button
+          onClick={toggle}
+          disabled={saving}
+          className="flex-shrink-0 inline-flex items-center gap-2 px-5 py-2.5 text-[10px] font-black uppercase tracking-[0.25em] rounded-full border transition-colors"
+          style={{
+            background: solsticeVisible ? 'rgba(16,185,129,0.18)' : 'rgba(230,57,47,0.12)',
+            borderColor:  solsticeVisible ? 'rgba(16,185,129,0.55)' : 'rgba(230,57,47,0.45)',
+            color: solsticeVisible ? '#86efac' : '#fca5a5',
+            opacity: saving ? 0.5 : 1,
+          }}
+        >
+          <span style={{
+            width: 8, height: 8, borderRadius: 999,
+            background: solsticeVisible ? '#10b981' : '#E6392F',
+            boxShadow: `0 0 8px ${solsticeVisible ? '#10b981' : '#E6392F'}`,
+          }} />
+          {saving ? 'Guardando…' : solsticeVisible ? 'Apagar' : 'Activar Solstice'}
+        </button>
+      </div>
     </div>
   );
 };
