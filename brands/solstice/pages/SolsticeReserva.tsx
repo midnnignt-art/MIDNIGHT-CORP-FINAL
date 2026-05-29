@@ -144,7 +144,11 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
   //   - individual_days → solo si selDays incluye 3
   const [boats, setBoats]                       = useState<any[]>([]);
   const [selectedBoatId, setSelectedBoatId]     = useState<string | null>(null);
-  const [boatChoice, setBoatChoice]             = useState<'lead' | 'join' | null>(initialInviteCode ? 'join' : null);
+  // Todos son líder por default. Solo los que llegan por link de invitación
+  // (initialInviteCode) entran como invitados — ese flujo se auto-valida.
+  const [boatChoice, setBoatChoice]             = useState<'lead' | 'join'>(initialInviteCode ? 'join' : 'lead');
+  const [joinLeaderName, setJoinLeaderName]     = useState<string | null>(null);
+  const [joinValidating, setJoinValidating]     = useState(false);
   const [joinInviteCode, setJoinInviteCode]     = useState(initialInviteCode || '');
   const [joinError, setJoinError]               = useState('');
   const [boatInviteCode, setBoatInviteCode]     = useState<string | null>(null);
@@ -294,13 +298,17 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
   };
 
   // ── Validar invite_code y unirse a lancha existente ──────────────────────
-  const handleValidateInviteCode = async () => {
+  // Ya NO hay input manual de código — esto solo corre cuando alguien llega
+  // por el link de invitación del líder (initialInviteCode). Valida y deja
+  // listo el join; el usuario sigue su flujo normal (datos → pago).
+  const handleValidateInviteCode = async (opts?: { advance?: boolean }) => {
     setJoinError('');
     const code = joinInviteCode.trim().toUpperCase();
     if (code.length < 4) {
       setJoinError('Código demasiado corto');
-      return;
+      return false;
     }
+    setJoinValidating(true);
     try {
       const { data, error } = await supabase
         .from('solstice_boat_reservations')
@@ -308,26 +316,39 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
         .ilike('invite_code', code)
         .maybeSingle();
       if (error || !data) {
-        setJoinError('Código no encontrado');
-        return;
+        setJoinError('Link de invitación no encontrado');
+        return false;
       }
       if (data.status === 'full' || data.slots_claimed >= data.total_capacity) {
         setJoinError('Esta lancha ya está llena');
-        return;
+        return false;
       }
       if (data.status === 'cancelled' || data.status === 'closed') {
         setJoinError('Esta reserva ya no está activa');
-        return;
+        return false;
       }
       // Válido → guardar para usar en handleCreateRegistration
       setBoatReservationId(data.id);
       setSelectedBoatId(data.boat_id);
       setBoatInviteCode(code);
-      setStep(3);
+      setJoinLeaderName(data.leader_name || null);
+      if (opts?.advance) setStep(3);
+      return true;
     } catch (err: any) {
-      setJoinError('Error validando código');
+      setJoinError('Error validando el link de invitación');
+      return false;
+    } finally {
+      setJoinValidating(false);
     }
   };
+
+  // Auto-validar cuando se llega por link de invitación
+  useEffect(() => {
+    if (initialInviteCode && boatChoice === 'join' && !boatReservationId) {
+      handleValidateInviteCode();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialInviteCode]);
 
   const handleCreateRegistration = async () => {
     setProcessing(true);
@@ -343,9 +364,18 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
       const refCode = sessionStorage.getItem('ms_ref_code');
       let sellerId: string | null = null;
       if (refCode) {
-        const { data: promoterRow } = await supabase
-          .from('promoters').select('user_id').ilike('code', refCode).maybeSingle();
-        sellerId = promoterRow?.user_id || null;
+        // El link del vendedor (/sol/p/CODE) usa solstice_sellers.ref_code,
+        // así que buscamos PRIMERO ahí. Fallback a promoters.code para compat
+        // con links viejos de la marca MIDNIGHT.
+        const { data: sellerRow } = await supabase
+          .from('solstice_sellers').select('user_id').ilike('ref_code', refCode).maybeSingle();
+        if (sellerRow?.user_id) {
+          sellerId = sellerRow.user_id;
+        } else {
+          const { data: promoterRow } = await supabase
+            .from('promoters').select('user_id').ilike('code', refCode).maybeSingle();
+          sellerId = promoterRow?.user_id || null;
+        }
         await supabase.from('solstice_referral_clicks').insert({ ref_code: refCode, converted: true }).then(() => {});
       }
 
@@ -1313,7 +1343,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
             </motion.div>
           )}
 
-          {/* STEP 2.7 — Escoge tu lancha (sistema líder/invitado) */}
+          {/* STEP 2.7 — Escoge tu lancha (líder elige; invitado llega por link) */}
           {step === (2.7 as any) && (
             <motion.div key="s2.7" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
               <div>
@@ -1321,59 +1351,46 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                   Día 3 · Lanchas + Beach Club
                 </p>
                 <h2 className="text-3xl md:text-4xl uppercase mb-1" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.04em', fontWeight: 300 }}>
-                  ¿Lideras o te unes?
+                  {boatChoice === 'join' ? 'Te unís a una lancha' : 'Elegí tu lancha'}
                 </h2>
                 <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>
-                  Cada lancha tiene cupos limitados. El líder elige + invita panas.
+                  {boatChoice === 'join'
+                    ? 'Llegaste por un link de invitación · ya quedás en esa lancha'
+                    : 'Elegí tu lancha y al pagar te damos un link para invitar a tus panas'}
                 </p>
               </div>
 
-              {/* Toggle Lead vs Join */}
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => { setBoatChoice('lead'); setJoinError(''); }}
-                  className="p-4 text-left"
-                  style={{
-                    borderRadius: '20px',
-                    background: boatChoice === 'lead' ? 'rgba(230,57,47,0.10)' : 'rgba(255,255,255,0.035)',
-                    backdropFilter: 'blur(32px) saturate(180%)',
-                    border: boatChoice === 'lead' ? '0.5px solid rgba(230,57,47,0.55)' : '0.5px solid rgba(255,255,255,0.10)',
-                    transition: 'all 0.3s ease',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <Ship size={18} style={{ color: boatChoice === 'lead' ? C.red : C.gray, marginBottom: 8 }} />
-                  <p className="text-xs uppercase" style={{ color: C.cream, letterSpacing: '0.1em', fontWeight: 600 }}>
-                    Lidero
-                  </p>
-                  <p className="text-[10px] mt-1" style={{ color: C.gray }}>
-                    Escojo la lancha + invito panas
-                  </p>
-                </button>
+              {/* Invitado por link: card de confirmación (sin selección manual) */}
+              {boatChoice === 'join' && (
+                <div className="space-y-3">
+                  {joinValidating ? (
+                    <div className="p-6 text-center" style={{ borderRadius: '20px', background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.08)' }}>
+                      <Loader2 className="animate-spin mx-auto mb-2" size={20} style={{ color: C.red }} />
+                      <p className="text-[10px] uppercase" style={{ color: C.gray, letterSpacing: '0.2em' }}>Validando invitación…</p>
+                    </div>
+                  ) : joinError ? (
+                    <div className="p-6 text-center" style={{ borderRadius: '20px', background: 'rgba(230,57,47,0.08)', border: '0.5px solid rgba(230,57,47,0.30)' }}>
+                      <p className="text-xs uppercase" style={{ color: C.red, letterSpacing: '0.15em', fontWeight: 600 }}>{joinError}</p>
+                      <p className="text-[10px] mt-2" style={{ color: `${C.gray}cc` }}>Pedile al líder que te reenvíe el link.</p>
+                    </div>
+                  ) : boatReservationId ? (
+                    <div className="p-6" style={{ borderRadius: '20px', background: 'rgba(230,57,47,0.08)', border: '0.5px solid rgba(230,57,47,0.40)' }}>
+                      <div className="flex items-center gap-3 mb-2">
+                        <CheckCircle2 size={20} style={{ color: C.red }} />
+                        <p className="text-sm uppercase" style={{ color: C.cream, letterSpacing: '0.1em', fontWeight: 600 }}>
+                          Invitación válida
+                        </p>
+                      </div>
+                      <p className="text-xs" style={{ color: C.gray, lineHeight: 1.6 }}>
+                        Te unís a la lancha {joinLeaderName ? <>de <strong style={{ color: C.cream }}>{joinLeaderName}</strong></> : 'de tu pana'} · <strong style={{ color: C.cream }}>{boats.find(b => b.id === selectedBoatId)?.name || 'Lancha'}</strong>.
+                        Continuá para completar tus datos y pago.
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+              )}
 
-                <button
-                  onClick={() => { setBoatChoice('join'); setSelectedBoatId(null); }}
-                  className="p-4 text-left"
-                  style={{
-                    borderRadius: '20px',
-                    background: boatChoice === 'join' ? 'rgba(230,57,47,0.10)' : 'rgba(255,255,255,0.035)',
-                    backdropFilter: 'blur(32px) saturate(180%)',
-                    border: boatChoice === 'join' ? '0.5px solid rgba(230,57,47,0.55)' : '0.5px solid rgba(255,255,255,0.10)',
-                    transition: 'all 0.3s ease',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <CheckCircle2 size={18} style={{ color: boatChoice === 'join' ? C.red : C.gray, marginBottom: 8 }} />
-                  <p className="text-xs uppercase" style={{ color: C.cream, letterSpacing: '0.1em', fontWeight: 600 }}>
-                    Me uno
-                  </p>
-                  <p className="text-[10px] mt-1" style={{ color: C.gray }}>
-                    Tengo un código de invitación
-                  </p>
-                </button>
-              </div>
-
-              {/* Lead: catálogo de lanchas */}
+              {/* Líder: catálogo de lanchas */}
               {boatChoice === 'lead' && (
                 <div className="space-y-3">
                   {boats.length === 0 ? (
@@ -1544,57 +1561,25 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                 </div>
               )}
 
-              {/* Join: input de invite_code */}
-              {boatChoice === 'join' && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-[9px] uppercase block mb-1.5" style={{ letterSpacing: '0.25em', color: joinError ? C.red : C.gray, fontWeight: 600 }}>
-                      Código de invitación
-                    </label>
-                    <input
-                      value={joinInviteCode}
-                      onChange={e => { setJoinInviteCode(e.target.value.toUpperCase()); setJoinError(''); }}
-                      placeholder="EJ: AB12CD"
-                      maxLength={10}
-                      style={{
-                        ...inputStyle,
-                        textAlign: 'center',
-                        fontSize: '22px',
-                        letterSpacing: '0.4em',
-                        fontWeight: 600,
-                        borderColor: joinError ? 'rgba(230,57,47,0.55)' : 'rgba(255,255,255,0.10)',
-                      }}
-                    />
-                    {joinError && (
-                      <p className="text-[10px] mt-1.5" style={{ color: C.red, fontWeight: 500 }}>
-                        · {joinError}
-                      </p>
-                    )}
-                  </div>
-                  <p className="text-[10px]" style={{ color: `${C.gray}cc`, lineHeight: 1.6 }}>
-                    Te lo manda quien reservó la lancha. Si todavía no lo tienes, pásate a "Lidero" y la armas tú.
-                  </p>
-                </div>
-              )}
-
               {/* Continuar */}
               <button
                 onClick={() => {
-                  if (boatChoice === 'lead') {
-                    if (!selectedBoatId) return;
-                    setStep(3);
-                  } else if (boatChoice === 'join') {
-                    handleValidateInviteCode();
+                  if (boatChoice === 'join') {
+                    if (boatReservationId) setStep(3);
+                    return;
                   }
+                  if (!selectedBoatId) return;
+                  setStep(3);
                 }}
-                disabled={!boatChoice || (boatChoice === 'lead' && !selectedBoatId)}
+                disabled={boatChoice === 'join' ? !boatReservationId : !selectedBoatId}
                 style={{
                   ...primaryBtnStyle,
                   padding: '18px 16px',
-                  opacity: (!boatChoice || (boatChoice === 'lead' && !selectedBoatId)) ? 0.35 : 1,
+                  opacity: (boatChoice === 'join' ? !boatReservationId : !selectedBoatId) ? 0.35 : 1,
                 }}
                 onMouseEnter={e => {
-                  if (boatChoice && !(boatChoice === 'lead' && !selectedBoatId)) {
+                  const ok = boatChoice === 'join' ? !!boatReservationId : !!selectedBoatId;
+                  if (ok) {
                     (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
                     (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 12px 28px rgba(230,57,47,0.30)';
                   }
@@ -1604,7 +1589,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                   (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none';
                 }}
               >
-                {boatChoice === 'join' ? 'Validar código' : 'Continuar al resumen'} <ChevronRight size={16} />
+                Continuar al resumen <ChevronRight size={16} />
               </button>
             </motion.div>
           )}
@@ -2067,7 +2052,7 @@ function ConfirmationCinematic({
               </p>
             </div>
             <p className="text-xs mb-3" style={{ color: '#F9F2D7', lineHeight: 1.55 }}>
-              Eres <strong>líder</strong>. Comparte este código con tus panas para que se sumen a tu lancha:
+              Eres <strong>líder</strong>. Mandales este <strong>link</strong> a tus panas — al abrirlo quedan automáticamente en tu lancha, sin códigos:
             </p>
 
             <div
@@ -2075,21 +2060,22 @@ function ConfirmationCinematic({
                 background: 'rgba(0,0,0,0.45)',
                 border: '0.5px dashed rgba(230,57,47,0.45)',
                 borderRadius: '14px',
-                padding: '18px 16px',
+                padding: '14px 16px',
                 textAlign: 'center',
                 marginBottom: '14px',
               }}
             >
               <p
-                className="font-mono"
+                className="font-mono break-all"
                 style={{
-                  fontSize: '32px',
+                  fontSize: '13px',
                   color: '#F9F2D7',
-                  letterSpacing: '0.5em',
-                  fontWeight: 600,
+                  letterSpacing: '0.02em',
+                  fontWeight: 500,
+                  lineHeight: 1.5,
                 }}
               >
-                {boatInviteCode}
+                {`${window.location.origin}/sol/i/${boatInviteCode}`}
               </p>
             </div>
 
@@ -2097,7 +2083,7 @@ function ConfirmationCinematic({
               <button
                 onClick={() => {
                   const url = `${window.location.origin}/sol/i/${boatInviteCode}`;
-                  const msg = `Ya reservé lancha para Solstice 🌅 Únete con mi código: ${boatInviteCode}\n${url}`;
+                  const msg = `Ya reservé lancha para Solstice 🌅 Únete a mi lancha con este link:\n${url}`;
                   window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
                 }}
                 style={{
@@ -2113,7 +2099,7 @@ function ConfirmationCinematic({
                   cursor: 'pointer',
                 }}
               >
-                💬 WhatsApp
+                💬 Enviar por WhatsApp
               </button>
               <button
                 onClick={() => {
