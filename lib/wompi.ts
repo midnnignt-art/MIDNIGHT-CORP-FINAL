@@ -7,7 +7,9 @@
 
 import { supabase } from './supabase';
 
-export const WOMPI_PUBLIC_KEY = 'ziawXYPuvGeOFmI69btsm3qjuGpfm0Qy';
+// Llave pública en formato completo `pub_prod_<token>` — así la espera Wompi
+// en el query param `public-key`. Sin el prefijo, el checkout rechaza la URL.
+export const WOMPI_PUBLIC_KEY = 'pub_prod_ziawXYPuvGeOFmI69btsm3qjuGpfm0Qy';
 
 // Web Checkout — base URL. Wompi mantiene este endpoint para flujos hosted.
 const WOMPI_CHECKOUT_URL = 'https://checkout.wompi.co/p/';
