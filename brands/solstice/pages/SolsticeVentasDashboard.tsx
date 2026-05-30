@@ -1480,7 +1480,7 @@ function Legend({ color, label, dashed }: { color: string; label: string; dashed
 function SolsticeRecruitModal({ open, onClose, onCreated }: {
   open: boolean; onClose: () => void; onCreated: () => void;
 }) {
-  const [step, setStep]   = useState<'form' | 'enable'>('form');
+  const [step, setStep]   = useState<'form' | 'enable' | 'done'>('form');
   const [email, setEmail] = useState('');
   const [name, setName]   = useState('');
   const [code, setCode]   = useState('');
@@ -1488,11 +1488,14 @@ function SolsticeRecruitModal({ open, onClose, onCreated }: {
   const [loading, setLoading] = useState(false);
   const [existing, setExisting] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [createdSeller, setCreatedSeller] = useState<{ name: string; refCode: string; phone: string | null } | null>(null);
+  const [linkCopiedTick, setLinkCopiedTick] = useState(false);
 
   useEffect(() => {
     if (!open) {
       setStep('form'); setEmail(''); setName(''); setCode(''); setPhone('');
       setExisting(null); setError(null); setLoading(false);
+      setCreatedSeller(null); setLinkCopiedTick(false);
     }
   }, [open]);
 
@@ -1527,12 +1530,14 @@ function SolsticeRecruitModal({ open, onClose, onCreated }: {
     if (!name || !code) { setError('Nombre y código requeridos'); return; }
     setLoading(true); setError(null);
     try {
+      const cleanCode = code.toUpperCase().replace(/\W/g, '');
+
       // 1. Insert en promoters (Midnight base)
       const { data: prom, error: pErr } = await supabase
         .from('promoters')
         .insert({
           name, email: email.toLowerCase().trim(),
-          code: code.toUpperCase().replace(/\W/g, ''),
+          code: cleanCode,
           phone: phone || null,
           role: 'PROMOTER',
         })
@@ -1540,21 +1545,24 @@ function SolsticeRecruitModal({ open, onClose, onCreated }: {
         .single();
       if (pErr) throw new Error('No se pudo crear en Midnight: ' + pErr.message);
 
-      // 2. Habilitar en solstice_sellers
+      // 2. Habilitar en solstice_sellers — el ref_code es lo que usa el link
+      // de venta /sol/p/CODE para atribuir compras al vendedor.
       const { data: season } = await supabase
         .from('solstice_seasons').select('id').eq('status', 'open').maybeSingle();
 
       const { error: sErr } = await supabase.from('solstice_sellers').insert({
         user_id: prom.user_id,
         season_id: season?.id ?? null,
-        ref_code: code.toUpperCase().replace(/\W/g, ''),
+        ref_code: cleanCode,
         status: 'active',
       });
       if (sErr) throw new Error('No se pudo habilitar en Solstice: ' + sErr.message);
 
-      toast.success(`${name} creado y habilitado en Solstice`);
+      // 3. Mostrar al admin el link listo para enviarle al vendedor
+      setCreatedSeller({ name, refCode: cleanCode, phone: phone || null });
+      setStep('done');
+      toast.success(`${name} creado · link listo para enviar`);
       onCreated();
-      onClose();
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -1566,19 +1574,19 @@ function SolsticeRecruitModal({ open, onClose, onCreated }: {
     if (!existing) return;
     setLoading(true); setError(null);
     try {
-      // Verificar si ya está habilitado
+      let finalRefCode = existing.code as string;
+
+      // Verificar si ya está habilitado en Solstice
       const { data: already } = await supabase
         .from('solstice_sellers')
-        .select('id, status')
+        .select('id, status, ref_code')
         .eq('user_id', existing.user_id)
         .maybeSingle();
 
       if (already) {
-        if (already.status === 'active') {
-          toast.success('Ya estaba habilitado activamente');
-        } else {
+        finalRefCode = already.ref_code || existing.code;
+        if (already.status !== 'active') {
           await supabase.from('solstice_sellers').update({ status: 'active' }).eq('id', already.id);
-          toast.success('Reactivado en Solstice');
         }
       } else {
         const { data: season } = await supabase
@@ -1590,10 +1598,12 @@ function SolsticeRecruitModal({ open, onClose, onCreated }: {
           status: 'active',
         });
         if (sErr) throw new Error(sErr.message);
-        toast.success(`${existing.name} habilitado en Solstice`);
       }
+
+      setCreatedSeller({ name: existing.name, refCode: finalRefCode, phone: existing.phone || null });
+      setStep('done');
+      toast.success(`${existing.name} habilitado · link listo`);
       onCreated();
-      onClose();
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -1734,6 +1744,110 @@ function SolsticeRecruitModal({ open, onClose, onCreated }: {
             </div>
           </>
         )}
+
+        {step === 'done' && createdSeller && (() => {
+          const link = `${window.location.origin}/sol/p/${createdSeller.refCode}`;
+          const msg = `¡Listo! Tu link de ventas para SOLSTICE 2026 es:\n${link}\n\nMandalo a quien quieras invitar. Cada venta que llegue por ese link te queda contada automáticamente. 🌅`;
+          // Limpiamos el phone para wa.me (solo dígitos, sin +)
+          const waNum = (createdSeller.phone || '').replace(/[^0-9]/g, '');
+          const waUrl = waNum
+            ? `https://wa.me/${waNum}?text=${encodeURIComponent(msg)}`
+            : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+          return (
+            <>
+              <div className="p-4" style={{
+                background: 'rgba(16,185,129,0.10)',
+                border: '0.5px solid rgba(16,185,129,0.35)',
+                borderRadius: '14px',
+              }}>
+                <div className="flex items-center gap-2 mb-1">
+                  <CheckCircle2 size={14} style={{ color: '#10b981' }} />
+                  <p className="text-[10px] uppercase" style={{ color: '#10b981', letterSpacing: '0.25em', fontWeight: 600 }}>
+                    Vendedor habilitado
+                  </p>
+                </div>
+                <p className="text-sm" style={{ color: C.cream, fontWeight: 600 }}>{createdSeller.name}</p>
+                <p className="text-[10px] mt-1" style={{ color: C.gray }}>
+                  Código: <span className="font-mono">{createdSeller.refCode}</span>
+                </p>
+              </div>
+
+              <div>
+                <p className="text-[10px] uppercase mb-2" style={{ letterSpacing: '0.3em', color: C.red, fontWeight: 600 }}>
+                  Su link de ventas
+                </p>
+                <div style={{
+                  background: 'rgba(0,0,0,0.5)',
+                  border: '0.5px dashed rgba(230,57,47,0.45)',
+                  borderRadius: '14px',
+                  padding: '14px 16px',
+                  textAlign: 'center',
+                }}>
+                  <p className="font-mono break-all" style={{ fontSize: '13px', color: C.cream, lineHeight: 1.5 }}>
+                    {link}
+                  </p>
+                </div>
+                <p className="text-[10px] mt-2" style={{ color: C.gray, lineHeight: 1.5 }}>
+                  Mandáselo por WhatsApp. Cuando un cliente abra este link y compre, la venta se cuenta para {createdSeller.name.split(' ')[0]}.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  onClick={() => window.open(waUrl, '_blank', 'noopener')}
+                  className="py-3 text-[10px] uppercase flex items-center justify-center gap-2"
+                  style={{
+                    background: 'rgba(16,185,129,0.18)',
+                    border: '0.5px solid rgba(16,185,129,0.55)',
+                    color: '#86efac',
+                    letterSpacing: '0.2em',
+                    borderRadius: '999px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  💬 {waNum ? `Mandar a ${createdSeller.name.split(' ')[0]}` : 'WhatsApp'}
+                </button>
+                <button
+                  onClick={() => {
+                    navigator.clipboard?.writeText(link);
+                    setLinkCopiedTick(true);
+                    setTimeout(() => setLinkCopiedTick(false), 1500);
+                  }}
+                  className="py-3 text-[10px] uppercase flex items-center justify-center gap-2"
+                  style={{
+                    background: linkCopiedTick ? 'rgba(16,185,129,0.18)' : 'rgba(255,255,255,0.06)',
+                    border: linkCopiedTick ? '0.5px solid rgba(16,185,129,0.55)' : '0.5px solid rgba(255,255,255,0.18)',
+                    color: linkCopiedTick ? '#86efac' : C.cream,
+                    letterSpacing: '0.2em',
+                    borderRadius: '999px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  {linkCopiedTick ? <><Check size={11} /> Copiado</> : <><Copy size={11} /> Copiar link</>}
+                </button>
+              </div>
+
+              <button
+                onClick={onClose}
+                className="w-full py-3 text-[10px] uppercase"
+                style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '0.5px solid rgba(255,255,255,0.12)',
+                  color: C.gray,
+                  letterSpacing: '0.25em',
+                  borderRadius: '999px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Listo
+              </button>
+            </>
+          );
+        })()}
       </motion.div>
     </AnimatePresence>
   );
