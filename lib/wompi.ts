@@ -5,8 +5,6 @@
 // La firma de integridad SIEMPRE se pide al edge function wompi-signature
 // y nunca se computa en el browser.
 
-import { supabase } from './supabase';
-
 // Llave pública en formato completo `pub_prod_<token>` — así la espera Wompi
 // en el query param `public-key`. Sin el prefijo, el checkout rechaza la URL.
 export const WOMPI_PUBLIC_KEY = 'pub_prod_ziawXYPuvGeOFmI69btsm3qjuGpfm0Qy';
@@ -23,30 +21,53 @@ interface CheckoutParams {
   redirectUrl: string;     // donde Wompi vuelve al cliente tras pagar
 }
 
+// El slug del edge function en Supabase quedó como 'swift-worker' (se deployó
+// vía AI Assistant que genera slugs random; los slugs no se pueden renombrar).
+const SIGNATURE_FN_SLUG = 'swift-worker';
+
 /**
  * Pide la firma de integridad al edge function y devuelve la URL completa
  * de Wompi Web Checkout lista para hacer window.location.href = url.
  * Convierte COP → cents y arma todos los query params requeridos.
+ *
+ * Usa fetch directo (no supabase.functions.invoke) porque el SDK a veces
+ * tira FunctionsFetchError ("Failed to send a request") por quirks de
+ * headers/cliente aunque el endpoint responda bien. fetch directo al
+ * endpoint REST de funciones es más predecible.
  */
 export async function buildWompiCheckoutUrl(params: CheckoutParams): Promise<string> {
   const amountInCents = Math.round(params.amountCOP * 100);
 
-  // NOTA: el slug del edge function en Supabase quedó como 'swift-worker'
-  // porque se deployó vía AI Assistant que genera slugs random. El display
-  // name es 'wompi-signature' pero la URL real apunta a swift-worker. Si en
-  // el futuro se redeploya con slug limpio, cambiar este string.
-  const { data, error } = await supabase.functions.invoke('swift-worker', {
-    body: {
-      reference: params.reference,
-      amount_in_cents: amountInCents,
-      currency: 'COP',
-    },
-  });
+  const supabaseUrl  = import.meta.env.VITE_SUPABASE_URL as string;
+  const supabaseAnon = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+  const endpoint = `${supabaseUrl}/functions/v1/${SIGNATURE_FN_SLUG}`;
 
-  if (error) throw new Error(`Firma Wompi falló: ${error.message}`);
-  if ((data as any)?.error) throw new Error(String((data as any).error));
+  let data: any;
+  try {
+    const resp = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: supabaseAnon,
+        Authorization: `Bearer ${supabaseAnon}`,
+      },
+      body: JSON.stringify({
+        reference: params.reference,
+        amount_in_cents: amountInCents,
+        currency: 'COP',
+      }),
+    });
+    if (!resp.ok) {
+      throw new Error(`Servidor de firma respondió ${resp.status}`);
+    }
+    data = await resp.json();
+  } catch (err: any) {
+    throw new Error(`Firma Wompi falló: ${err?.message || 'sin conexión al servidor de firma'}`);
+  }
 
-  const sig = (data as any).integritySignature as string;
+  if (data?.error) throw new Error(String(data.error));
+
+  const sig = data.integritySignature as string;
   if (!sig) throw new Error('Firma Wompi vacía');
 
   const qs = new URLSearchParams({
