@@ -147,9 +147,15 @@ html, body {
   /* Bloqueo de scroll horizontal — cualquier elemento decorativo absolute o con
      transform que se salga lateralmente no debe causar que el viewport completo
      se pueda scrollear. Resuelve "la página se rompe en celular" causado por
-     parallax / glows / títulos largos. */
-  overflow-x: hidden;
-  max-width: 100vw;
+     parallax / glows / títulos largos.
+
+     IMPORTANTE: usamos `overflow-x: clip` y NO `overflow-x: hidden`. `hidden`
+     en el elemento html convierte al documento en un scroll-container anidado,
+     lo que ROMPE el scroll vertical y los `position: sticky` (ej. el número
+     gigante del programa). `clip` recorta el desborde horizontal sin crear
+     scroll-container, así el scroll vertical y sticky siguen funcionando.
+     Tampoco usamos max-width: 100vw porque interactúa mal con el clip. */
+  overflow-x: clip;
 }
 
 /* Defensiva: imágenes / videos respetan el ancho del contenedor.
