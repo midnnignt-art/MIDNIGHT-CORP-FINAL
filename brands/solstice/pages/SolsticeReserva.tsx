@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, ChevronRight, Loader2, Shield, CreditCard, CheckCircle2,
-  Ship, Zap, Calendar, Repeat, ListChecks, Star
+  Ship, Calendar, Repeat, ListChecks, Star
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { buildWompiCheckoutUrl } from '../../../lib/wompi';
@@ -1685,24 +1685,14 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                 border: payStatus === 'paid' ? '0.5px solid rgba(16,185,129,0.50)' : '0.5px solid rgba(255,255,255,0.10)',
                 boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
               }}>
-                {/* Provider badge */}
-                {isOneShot ? (
-                  <div className="inline-flex items-center gap-2 px-3 py-1"
-                    style={{ background: 'rgba(16,185,129,0.10)', border: '0.5px solid rgba(16,185,129,0.40)', borderRadius: '999px' }}>
-                    <Shield size={10} style={{ color: '#10b981' }} />
-                    <span className="text-[9px] uppercase" style={{ color: '#10b981', letterSpacing: '0.3em', fontWeight: 600 }}>
-                      Pago seguro · Wompi
-                    </span>
-                  </div>
-                ) : (
-                  <div className="inline-flex items-center gap-2 px-3 py-1"
-                    style={{ background: '#FF7A0018', border: '0.5px solid #FF7A0040', borderRadius: '999px' }}>
-                    <Zap size={10} style={{ color: '#FF7A00' }} />
-                    <span className="text-[9px] uppercase" style={{ color: '#FF7A00', letterSpacing: '0.3em', fontWeight: 500 }}>
-                      Pago de cuotas — confirmación
-                    </span>
-                  </div>
-                )}
+                {/* Provider badge — siempre Wompi (el pago de hoy se cobra ahí) */}
+                <div className="inline-flex items-center gap-2 px-3 py-1"
+                  style={{ background: 'rgba(16,185,129,0.10)', border: '0.5px solid rgba(16,185,129,0.40)', borderRadius: '999px' }}>
+                  <Shield size={10} style={{ color: '#10b981' }} />
+                  <span className="text-[9px] uppercase" style={{ color: '#10b981', letterSpacing: '0.3em', fontWeight: 600 }}>
+                    Pago seguro · Wompi
+                  </span>
+                </div>
 
                 <div>
                   <p className="text-[10px] uppercase mb-2" style={{ color: C.gray, letterSpacing: '0.3em', fontWeight: 500 }}>
@@ -1724,8 +1714,12 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                       ¡Pago registrado! Preparando confirmación…
                     </p>
                   </div>
-                ) : isOneShot ? (
+                ) : (
                   <>
+                    {/* TODOS los modos cobran el pago de HOY por Wompi:
+                        - full_combo / días sueltos → monto total
+                        - cuotas (auto/manual) → el adelanto ($40K); las cuotas
+                          siguientes quedan agendadas en payment_schedules */}
                     <button
                       onClick={handleWompiCheckout}
                       disabled={simulating}
@@ -1755,27 +1749,13 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                       </p>
                     )}
                   </>
-                ) : (
-                  <button
-                    onClick={handleTestPayment}
-                    disabled={simulating}
-                    style={{
-                      ...primaryBtnStyle,
-                      padding: '20px 16px',
-                      opacity: simulating ? 0.35 : 1,
-                    }}
-                  >
-                    {simulating
-                      ? <Loader2 className="animate-spin" size={18} />
-                      : <><CreditCard size={16} /> Confirmar reserva ${chargeK}K</>}
-                  </button>
                 )}
               </div>
 
               <p className="text-[9px] uppercase" style={{ color: `${C.gray}50`, letterSpacing: '0.2em', fontWeight: 500 }}>
                 {isOneShot
                   ? 'Te redirigimos a Wompi · vuelves automáticamente al finalizar'
-                  : 'La primera cuota se cobra al volver. Las siguientes se procesan mes a mes'}
+                  : `Hoy pagas el adelanto de $${chargeK}K por Wompi · las cuotas se cobran mes a mes`}
               </p>
             </motion.div>
             );

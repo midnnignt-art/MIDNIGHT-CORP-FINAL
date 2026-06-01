@@ -99,6 +99,10 @@ Deno.serve(async (req) => {
     const reference: string = tx?.reference ?? '';
     const txStatus: string = String(tx?.status ?? '').toUpperCase(); // APPROVED, DECLINED, VOIDED, ERROR
     const wompiTxId: string = tx?.id ?? null;
+    // Monto REALMENTE cobrado por Wompi (en cents → pesos). Para one-shot es
+    // el total; para cuotas es solo el adelanto ($40K). Usar esto evita
+    // marcar amount_paid = total cuando solo se pagó el adelanto.
+    const amountPaidCOP: number = tx?.amount_in_cents ? Math.round(Number(tx.amount_in_cents) / 100) : 0;
 
     if (!reference) {
       return new Response(JSON.stringify({ error: 'No reference' }), {
@@ -139,7 +143,10 @@ Deno.serve(async (req) => {
       // Update — idempotente (si ya está activa con el mismo monto, no duplicamos)
       const patch: any = { status: newStatus };
       if (newStatus === 'active') {
-        patch.amount_paid = reg.total_amount;
+        // Para one-shot (full_combo/individual_days) el monto cobrado ES el
+        // total. Para cuotas es el adelanto — usamos el monto real de Wompi.
+        const oneShot = reg.payment_mode === 'full_combo' || reg.payment_mode === 'individual_days';
+        patch.amount_paid = oneShot ? reg.total_amount : (amountPaidCOP || 0);
         patch.wompi_transaction_id = wompiTxId;
       }
       const { error: upErr } = await supabase
