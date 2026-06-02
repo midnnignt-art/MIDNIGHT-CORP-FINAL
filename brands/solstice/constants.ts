@@ -6,7 +6,7 @@ export const SOLSTICE_SEASON_MOCK: SolsticeSeason = {
   status: 'open',
   tagline: 'SELECTED BEATS. PRIVATE SUNSET.',
   entry_price: 40000,
-  combo_total: 400000,
+  combo_total: 150000,
   installments: 5,
   commission_pct: 10,
   manager_commission_pct: 3,

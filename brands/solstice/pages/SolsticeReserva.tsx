@@ -229,9 +229,36 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
   }, [weeks]);
 
   const s       = season ?? SOLSTICE_SEASON_MOCK;
+
+  // ── Modelo de precios (owner, jun 2026) ──────────────────────────────────
+  //  • Combo de fiestas (full_combo) = combo_total (150k). NO incluye lancha.
+  //  • Días sueltos (individual_days) = suma de días elegidos. El día 3 ya
+  //    trae la lancha en su precio (130k), por eso NO se suma boatPart.
+  //  • Lancha: se SUMA aparte solo en el combo (130k = price_per_person).
+  //  • Ticket service = 6.6% sobre el subtotal, SUMADO al cliente.
+  //  • Cuotas: solo para el combo. Días sueltos siempre se pagan de una.
+  const TICKET_SERVICE_PCT = 0.066;
+
+  // El "paquete" se define por comboType (combo de fiestas vs días sueltos),
+  // independiente de la forma de pago (mode = todo de una / cuotas).
+  const isCombo = comboType === 'full_combo';
+
+  // El día 3 (Lanchas + Beach Club) está incluido en el combo; en días sueltos
+  // solo si lo eligieron explícitamente.
+  const includesBoat = isCombo || (comboType === 'individual_days' && selDays.includes(3));
+
   const dayTotal  = selDays.reduce((a, d) => a + (SOLSTICE_DAYS.find(x => x.day === d)?.price || 0), 0);
-  const chargeNow = mode === 'full_combo' ? s.combo_total : mode === 'individual_days' ? dayTotal : s.entry_price;
-  const chargeK   = Math.round(chargeNow / 1000);
+  const selectedBoat = selectedBoatId ? boats.find(b => b.id === selectedBoatId) : null;
+  // La parte de la lancha solo se cobra aparte en el combo (en días sueltos
+  // el día 3 ya la incluye en su precio).
+  const boatPart  = (isCombo && includesBoat && selectedBoat)
+    ? (selectedBoat.price_per_person || 0)
+    : 0;
+
+  // Subtotal (lo que vale el paquete antes del ticket service)
+  const subtotal      = (isCombo ? s.combo_total : dayTotal) + boatPart;
+  const ticketService = Math.round(subtotal * TICKET_SERVICE_PCT);
+  const grandTotal    = subtotal + ticketService;
 
   // ── Cuotas dinámicas según meses hasta el evento ─────────────────────────
   // Regla del owner: "si estamos a 4 meses que sea el pago inicial y tres
@@ -247,8 +274,16 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
     return Math.max(1, months);
   })();
   const effectiveInstallments = Math.max(1, Math.min(s.installments, monthsUntilEvent - 1));
-  // El día 3 (Lanchas + Beach Club) está incluido en todos los modos salvo "días sueltos sin día 3"
-  const includesBoat = mode !== null && (mode !== 'individual_days' || selDays.includes(3));
+
+  // Pago de HOY:
+  //  • full_combo (todo de una): el grand total con ticket service
+  //  • cuotas (auto/manual): solo el adelanto (entry_price, 40k)
+  //  • individual_days: el grand total (sin cuotas)
+  const isInstallmentMode = mode === 'auto_subscription' || mode === 'manual_monthly';
+  const chargeNow = isInstallmentMode ? s.entry_price : grandTotal;
+  const chargeK   = Math.round(chargeNow / 1000);
+  // Monto que se reparte en cuotas (el resto después del adelanto)
+  const installmentBase = Math.max(0, grandTotal - s.entry_price);
 
   // Prefill auth if customer is already logged in (not staff — staff skips OTP in handleRequestOtp)
   useEffect(() => {
@@ -390,17 +425,16 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
         customer_university:     uni || selWeek?.university,
         payment_mode:            mode,
         status:                  'reserved',
-        total_amount:            mode === 'full_combo' ? s.combo_total : mode === 'individual_days' ? dayTotal : s.combo_total,
+        // total_amount = grand total CON ticket service (lo que el cliente paga)
+        total_amount:            grandTotal,
         amount_paid:             0,
-        installments_remaining:  mode === 'full_combo' || mode === 'individual_days' ? 0 : effectiveInstallments,
-        days_purchased:          mode === 'individual_days' ? selDays : null,
+        installments_remaining:  isInstallmentMode ? effectiveInstallments : 0,
+        days_purchased:          comboType === 'individual_days' ? selDays : null,
         bold_order_id:           orderNum,
         ref_code:                refCode || null,
         seller_id:               sellerId,
-        // one-shot via Wompi; las cuotas (auto/manual) cobran por Bold cuando
-        // se ejecuten en su día. Si en el futuro Bold pasa también one-shot,
-        // este campo permite trackear ambos por separado en utilidades.
-        payment_provider:        (mode === 'full_combo' || mode === 'individual_days') ? 'wompi' : 'bold',
+        // El pago de hoy (adelanto o total) siempre va por Wompi.
+        payment_provider:        'wompi',
       };
 
       const { data: reg, error } = await supabase
@@ -408,8 +442,9 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
 
       if (error) throw new Error(error.message);
 
-      if (mode !== 'full_combo' && mode !== 'individual_days') {
-        const cuota = Math.round(s.combo_total / effectiveInstallments);
+      if (isInstallmentMode) {
+        // Las cuotas reparten el RESTO (grandTotal − adelanto) sobre los meses.
+        const cuota = Math.round(installmentBase / effectiveInstallments);
         const schedules = Array.from({ length: effectiveInstallments }, (_, i) => ({
           registration_id:    reg.id,
           installment_number: i + 1,
@@ -534,15 +569,18 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
     }
   };
 
+  // Orden nuevo (owner jun 2026): combo(1) → lancha(2.7) → forma de pago(1.4)
+  // → datos(2) → otp(2.5) → resumen(3) → pago(4) → confirmación(5).
+  // Días sueltos saltan forma de pago (sin cuotas).
   const goBack = () => {
     if      (step === 5)            onBack();
     else if (step === 4)            setStep(3);
-    else if (step === 3)            setStep(includesBoat ? (2.7 as any) : (currentCustomer ? 2 : (2.5 as any)));
-    else if (step === (2.7 as any)) setStep(currentCustomer ? 2 : (2.5 as any));
+    else if (step === 3)            setStep(currentCustomer ? 2 : (2.5 as any));
     else if (step === (2.5 as any)) setStep(2);
-    else if (step === 2)            setStep(comboType === 'individual_days' ? (1.5 as any) : (1.4 as any));
+    else if (step === 2)            setStep(isCombo ? (1.4 as any) : (includesBoat ? (2.7 as any) : (1.5 as any)));
+    else if (step === (1.4 as any)) setStep(2.7 as any);                 // forma de pago viene tras lancha
+    else if (step === (2.7 as any)) setStep(isCombo ? 1 : (1.5 as any)); // lancha viene tras combo/días
     else if (step === (1.5 as any)) setStep(1);
-    else if (step === (1.4 as any)) setStep(1);
     else if (step === 1)            setStep(0);
     else                            onBack();
   };
@@ -796,15 +834,15 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                             setMode('individual_days');
                             setStep(1.5 as any);
                           } else {
-                            // Limpiar mode si veníamos de un cambio de combo
+                            // Combo: primero elige lancha, después forma de pago.
                             if (mode === 'individual_days') setMode(null);
-                            setStep(1.4 as any);
+                            setStep(2.7 as any);
                           }
                         }}
                         className="flex-shrink-0 px-7 py-4 text-sm uppercase flex items-center gap-3"
                         style={{ background: C.red, color: '#fff', letterSpacing: '0.2em', borderRadius: '999px', fontWeight: 600, boxShadow: '0 12px 32px rgba(230,57,47,0.45)' }}
                       >
-                        {comboType === 'individual_days' ? 'Elegir días' : 'Cómo pagar'}
+                        {comboType === 'individual_days' ? 'Elegir días' : 'Elegir lancha'}
                         <ChevronRight size={16} />
                       </motion.button>
                     </div>
@@ -820,10 +858,10 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
               acá porque cada día es one-shot. */}
           {step === (1.4 as any) && comboType === 'full_combo' && (() => {
             const entryK = Math.round((season?.entry_price ?? 40000) / 1000);
-            const totalK = Math.round((season?.combo_total ?? 400000) / 1000);
+            // Total con lancha + ticket service 6.6% (lo que realmente paga)
+            const totalK = Math.round(grandTotal / 1000);
             const cuotas = effectiveInstallments;
-            const cuotaK = Math.round((totalK * 1000) / cuotas / 1000);
-            const discountTodoUna = 50; // ahorro $K si paga todo de una
+            const cuotaK = Math.round(installmentBase / cuotas / 1000);
             const meta: Record<PaymentMethod, {
               headline: string;
               bigPrice: string;
@@ -838,7 +876,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                 bigPrice: `$${cuotaK}K`,
                 afterPrice: `/mes · ${cuotas}× automático`,
                 tags: ['Cero olvidos', 'Sin recargos por mora'],
-                cobro:    `Autorizás cargo automático. Bold cobra $${cuotaK}K en tu tarjeta el día 5 de cada mes.`,
+                cobro:    `Hoy pagás $${entryK}K por Wompi. Las ${cuotas} cuotas de $${cuotaK}K se cobran cada mes.`,
                 respaldo: 'Si la tarjeta no tiene fondos, 7 días de gracia. Devolución del adelanto solo dentro de los primeros 15 días desde la compra.',
               },
               manual_monthly: {
@@ -846,16 +884,15 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                 bigPrice: `$${cuotaK}K`,
                 afterPrice: `/mes · aviso 24h antes`,
                 tags: ['Avisamos por WhatsApp', 'Movés la fecha 1× si necesitás'],
-                cobro:    `Guardamos tu tarjeta de forma segura. Te avisamos 24h antes de cada cobro y se ejecuta automático al día siguiente.`,
+                cobro:    `Hoy pagás $${entryK}K por Wompi. Te avisamos 24h antes de cada cuota de $${cuotaK}K.`,
                 respaldo: 'Podés posponer 1 cuota hasta 7 días sin costo. Devolución del adelanto solo dentro de los primeros 15 días desde la compra.',
               },
               full_combo: {
                 headline: `Pagás hoy y te olvidás`,
-                bigPrice: `$${totalK - discountTodoUna}K`,
+                bigPrice: `$${totalK}K`,
                 afterPrice: ` total`,
-                ahorro: `Ahorras $${discountTodoUna}K vs cuotas`,
-                tags: ['Sin pagos pendientes', 'Lock-in del precio del fase 1'],
-                cobro:    `1 sola transacción por Bold con tu tarjeta o transferencia. Quedás cerrado en minutos.`,
+                tags: ['Sin pagos pendientes', 'Una sola transacción'],
+                cobro:    `1 sola transacción por Wompi con tu tarjeta o transferencia. Quedás cerrado en minutos.`,
                 respaldo: 'Tenés 15 días desde la compra para arrepentirte y recibir devolución completa. Después de 15 días: no reembolsable.',
               },
             };
@@ -1145,7 +1182,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                 </div>
               )}
               <button
-                onClick={() => setStep(2)}
+                onClick={() => setStep(includesBoat ? (2.7 as any) : 2)}
                 disabled={selDays.length === 0}
                 style={{
                   ...primaryBtnStyle,
@@ -1561,15 +1598,12 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                 </div>
               )}
 
-              {/* Continuar */}
+              {/* Continuar — combo va a forma de pago; días sueltos a datos */}
               <button
                 onClick={() => {
-                  if (boatChoice === 'join') {
-                    if (boatReservationId) setStep(3);
-                    return;
-                  }
-                  if (!selectedBoatId) return;
-                  setStep(3);
+                  const ready = boatChoice === 'join' ? !!boatReservationId : !!selectedBoatId;
+                  if (!ready) return;
+                  setStep(isCombo ? (1.4 as any) : 2);
                 }}
                 disabled={boatChoice === 'join' ? !boatReservationId : !selectedBoatId}
                 style={{
@@ -1589,7 +1623,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                   (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none';
                 }}
               >
-                Continuar al resumen <ChevronRight size={16} />
+                {isCombo ? 'Cómo pagar' : 'Continuar al resumen'} <ChevronRight size={16} />
               </button>
             </motion.div>
           )}
@@ -1608,19 +1642,20 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                 border: '0.5px solid rgba(255,255,255,0.10)',
                 boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
               }}>
+                {/* Datos informativos */}
                 {([
                   ['Semana',    selWeek?.university],
                   ['Modalidad', MODES.find(m => m.id === mode)?.label],
                   ['Nombre',    name],
                   ['Email',     email],
-                  mode === 'individual_days' ? ['Días', selDays.map(d => `Día ${d}`).join(', ')] : null,
+                  comboType === 'individual_days' ? ['Días', selDays.map(d => `Día ${d}`).join(', ')] : null,
                   includesBoat && selectedBoatId
                     ? ['Lancha', boats.find(b => b.id === selectedBoatId)?.name || 'Seleccionada']
                     : null,
                   includesBoat && boatChoice === 'lead'
-                    ? ['Rol lancha', 'Líder (te damos código para invitar)']
+                    ? ['Rol lancha', 'Líder (te damos link para invitar)']
                     : includesBoat && boatChoice === 'join'
-                    ? ['Rol lancha', `Invitado · ${boatInviteCode || ''}`]
+                    ? ['Rol lancha', 'Invitado']
                     : null,
                 ] as ([string, string | undefined] | null)[])
                   .filter((x): x is [string, string | undefined] => Boolean(x))
@@ -1630,13 +1665,39 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                       <span style={{ color: C.cream }}>{v}</span>
                     </div>
                   ))}
-                <div className="pt-4 mt-2 flex justify-between items-center" style={{ borderTop: '0.5px solid rgba(255,255,255,0.10)' }}>
-                  <span className="text-sm uppercase" style={{ color: C.gray, fontWeight: 500 }}>Pago hoy</span>
+
+                {/* ── Desglose de precio ──────────────────────────────────── */}
+                <div className="pt-4 mt-2 space-y-2" style={{ borderTop: '0.5px solid rgba(255,255,255,0.10)' }}>
+                  <div className="flex justify-between text-xs uppercase" style={{ letterSpacing: '0.1em', fontWeight: 500 }}>
+                    <span style={{ color: C.gray }}>{isCombo ? 'Combo de fiestas' : `Días sueltos (${selDays.length})`}</span>
+                    <span style={{ color: C.cream }}>${Math.round((isCombo ? s.combo_total : dayTotal) / 1000)}K</span>
+                  </div>
+                  {boatPart > 0 && (
+                    <div className="flex justify-between text-xs uppercase" style={{ letterSpacing: '0.1em', fontWeight: 500 }}>
+                      <span style={{ color: C.gray }}>Lancha (tu parte)</span>
+                      <span style={{ color: C.cream }}>${Math.round(boatPart / 1000)}K</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-xs uppercase" style={{ letterSpacing: '0.1em', fontWeight: 500 }}>
+                    <span style={{ color: C.gray }}>Ticket service (6.6%)</span>
+                    <span style={{ color: C.cream }}>${Math.round(ticketService / 1000)}K</span>
+                  </div>
+                  <div className="flex justify-between items-center pt-2" style={{ borderTop: '0.5px solid rgba(255,255,255,0.08)' }}>
+                    <span className="text-xs uppercase" style={{ color: C.cream, fontWeight: 600, letterSpacing: '0.1em' }}>Total</span>
+                    <span className="text-xl" style={{ color: C.cream, fontWeight: 400 }}>${Math.round(grandTotal / 1000)}K</span>
+                  </div>
+                </div>
+
+                {/* Pago de hoy */}
+                <div className="pt-3 mt-1 flex justify-between items-center" style={{ borderTop: '0.5px solid rgba(255,255,255,0.10)' }}>
+                  <span className="text-sm uppercase" style={{ color: C.gray, fontWeight: 500 }}>
+                    {isInstallmentMode ? 'Adelanto hoy' : 'Pago hoy'}
+                  </span>
                   <span className="text-3xl" style={{ color: C.red, fontWeight: 300 }}>${chargeK}K</span>
                 </div>
-                {mode !== 'full_combo' && mode !== 'individual_days' && (
+                {isInstallmentMode && (
                   <p className="text-[9px] uppercase text-center" style={{ color: C.gray, fontWeight: 500 }}>
-                    + {effectiveInstallments} cuotas de ${Math.round(s.combo_total / effectiveInstallments / 1000)}K/mes
+                    + {effectiveInstallments} cuotas de ${Math.round(installmentBase / effectiveInstallments / 1000)}K/mes
                   </p>
                 )}
 
@@ -1770,8 +1831,8 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
               name={name}
               modalityLabel={MODES.find(m => m.id === mode)?.label || ''}
               orderNum={pendingOrderNum ?? '—'}
-              installmentAmountK={Math.round(s.combo_total / (effectiveInstallments || 1) / 1000)}
-              showInstallments={mode !== 'full_combo' && mode !== 'individual_days'}
+              installmentAmountK={Math.round(installmentBase / (effectiveInstallments || 1) / 1000)}
+              showInstallments={isInstallmentMode}
               boatInviteCode={boatChoice === 'lead' ? boatInviteCode : null}
               boatName={selectedBoatId ? boats.find(b => b.id === selectedBoatId)?.name : undefined}
               registrationId={pendingRegId}

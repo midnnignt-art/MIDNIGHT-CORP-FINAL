@@ -15,9 +15,10 @@ const DEFAULT_PROVIDER_FEES: Record<ProviderKey, { pct: number; fixed: number; l
   bold:  { pct: 3.50, fixed: 900,  label: 'Bold'  },
 };
 
-// El owner pidió un fee de plataforma del 5% que se descuenta del bruto
-// que recibe Midnight (el cliente NO ve este fee — paga el precio nominal).
-const PLATFORM_FEE_PCT = 5;
+// Ticket service: 6.6% SUMADO al cliente (lo paga encima del paquete).
+// Está INCLUIDO en total_amount/amount_paid, así que para sacarlo del bruto
+// cobrado usamos: service = cobrado − cobrado / 1.066.
+const PLATFORM_FEE_PCT = 6.6;
 
 const C = { red: '#E6392F', cream: '#F9F2D7', gray: '#606060', green: '#10b981', amber: '#FFB48C' };
 
@@ -120,14 +121,14 @@ export default function SolsticeUtilidades() {
       if (!byProvider[prov].mode.includes(r.payment_mode)) byProvider[prov].mode.push(r.payment_mode);
     }
 
-    // Sumar también schedules pagados (cuotas adicionales tras el adelanto)
-    // ASUMIMOS que el provider de las cuotas es 'bold' (auto/manual usan Bold).
+    // Sumar también schedules pagados (cuotas adicionales tras el adelanto).
+    // Todas las cuotas se cobran por Wompi.
     const paidSchedules = schedules.filter(sc => sc.status === 'paid');
     for (const sc of paidSchedules) {
-      if (!byProvider.bold) byProvider.bold = { gross: 0, tx: 0, mode: [] };
-      byProvider.bold.gross += sc.amount;
-      byProvider.bold.tx += 1;
-      if (!byProvider.bold.mode.includes('cuota')) byProvider.bold.mode.push('cuota');
+      if (!byProvider.wompi) byProvider.wompi = { gross: 0, tx: 0, mode: [] };
+      byProvider.wompi.gross += sc.amount;
+      byProvider.wompi.tx += 1;
+      if (!byProvider.wompi.mode.includes('cuota')) byProvider.wompi.mode.push('cuota');
     }
 
     // Fees de pasarela por proveedor
@@ -139,27 +140,29 @@ export default function SolsticeUtilidades() {
 
     const totalGatewayFees = gatewayFees.reduce((acc, g) => acc + g.fee, 0);
 
-    // Fee plataforma 5% sobre todo lo cobrado (no lo vendido — solo si entró plata)
-    const platformFee = cobrado * (PLATFORM_FEE_PCT / 100);
+    // Ticket service (6.6%) — está INCLUIDO en lo cobrado. Lo extraemos:
+    // total = paquete * 1.066 → service = total − total/1.066
+    const platformFee = cobrado - (cobrado / (1 + PLATFORM_FEE_PCT / 100));
 
-    // Neto para Midnight = lo cobrado - fees pasarela - fee plataforma
-    const netoMidnight = cobrado - totalGatewayFees - platformFee;
+    // Utilidad de la tiquetera = ticket service cobrado − fees de pasarela.
+    // (El paquete en sí cubre costos del evento; el margen de la plataforma
+    // es el ticket service neto de lo que se lleva Wompi.)
+    const netoMidnight = platformFee - totalGatewayFees;
 
     // Proyección si TODO lo vendido se cobra
     const projectedGatewayFees = (() => {
-      // Asumir distribución similar de providers para el pendiente
-      if (cobrado === 0) return 0;
+      if (cobrado === 0) return totalGatewayFees;
       const avgFeePct = totalGatewayFees / cobrado;
-      return pendiente * avgFeePct;
+      return pendiente * avgFeePct + totalGatewayFees;
     })();
-    const projectedPlatformFee = vendido * (PLATFORM_FEE_PCT / 100);
-    const projectedNet = vendido - projectedGatewayFees - totalGatewayFees - projectedPlatformFee;
+    const projectedPlatformFee = vendido - (vendido / (1 + PLATFORM_FEE_PCT / 100));
+    const projectedNet = projectedPlatformFee - projectedGatewayFees;
 
     return {
       vendido, cobrado, pendiente,
       gatewayFees, totalGatewayFees,
       platformFee, netoMidnight,
-      projectedNet, projectedPlatformFee, projectedGatewayFees: projectedGatewayFees + totalGatewayFees,
+      projectedNet, projectedPlatformFee, projectedGatewayFees,
       activeCount: active.length,
     };
   }, [filtered, schedules, fees]);
@@ -297,34 +300,34 @@ export default function SolsticeUtilidades() {
 
         <div className="my-4" style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)' }} />
 
-        {/* Platform fee */}
+        {/* Ticket service revenue */}
         <div className="flex items-center justify-between py-3">
           <div className="flex items-center gap-3">
-            <Percent size={14} style={{ color: C.amber }} />
+            <Percent size={14} style={{ color: C.green }} />
             <div>
               <p className="text-xs uppercase" style={{ letterSpacing: '0.2em', fontWeight: 600 }}>
-                Fee plataforma · {PLATFORM_FEE_PCT}%
+                Ticket service · {PLATFORM_FEE_PCT}%
               </p>
               <p className="text-[10px]" style={{ color: C.gray }}>
-                Descuento aplicado al bruto a Midnight cada vez
+                Cargo de servicio sumado al cliente (incluido en lo cobrado)
               </p>
             </div>
           </div>
-          <p className="text-base tabular-nums" style={{ color: C.red, fontWeight: 500 }}>
-            -${fmt(m.platformFee)}
+          <p className="text-base tabular-nums" style={{ color: C.green, fontWeight: 500 }}>
+            +${fmt(m.platformFee)}
           </p>
         </div>
 
         <div className="my-4" style={{ borderTop: `0.5px solid ${C.red}55` }} />
 
-        {/* Net */}
+        {/* Net — utilidad de la tiquetera */}
         <div className="flex items-center justify-between py-2">
           <div>
             <p className="text-sm uppercase" style={{ letterSpacing: '0.2em', fontWeight: 600, color: C.cream }}>
-              Neto a Midnight
+              Utilidad tiquetera
             </p>
             <p className="text-[10px]" style={{ color: C.gray }}>
-              Después de fees pasarela + 5% plataforma
+              Ticket service cobrado − fees de pasarela
             </p>
           </div>
           <p className="text-2xl md:text-3xl tabular-nums" style={{ color: C.green, fontWeight: 300, fontFamily: "'Poiret One', sans-serif" }}>
