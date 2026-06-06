@@ -823,6 +823,38 @@ export default function SolsticeVentasDashboard({ role }: Props) {
                                         </button>
                                         {expandedSeller === sl.user_id && (
                                           <div className="pl-16 pr-5 pb-3 pt-1 space-y-1.5">
+                                            {/* Link de venta del vendedor — el admin lo copia y se lo manda */}
+                                            {sl.ref_code && (
+                                              <div className="flex items-center gap-2 px-3 py-2 mb-1"
+                                                style={{ background: 'rgba(230,57,47,0.08)', border: '0.5px solid rgba(230,57,47,0.30)', borderRadius: '14px' }}>
+                                                <Globe size={12} style={{ color: C.red, flexShrink: 0 }} />
+                                                <span className="text-[9px] flex-1 truncate font-mono" style={{ color: C.cream }}>
+                                                  /sol/p/{sl.ref_code}
+                                                </span>
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const link = `${window.location.origin}/sol/p/${sl.ref_code}`;
+                                                    navigator.clipboard?.writeText(link);
+                                                    toast.success(`Link de ${sl.name.split(' ')[0]} copiado`);
+                                                  }}
+                                                  className="flex items-center gap-1 px-3 py-1.5 text-[9px] uppercase"
+                                                  style={{ background: 'rgba(230,57,47,0.25)', border: '0.5px solid rgba(230,57,47,0.50)', color: C.cream, borderRadius: '999px', fontWeight: 600, letterSpacing: '0.1em', cursor: 'pointer' }}>
+                                                  <Copy size={10} /> Copiar
+                                                </button>
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const link = `${window.location.origin}/sol/p/${sl.ref_code}`;
+                                                    const msg = `¡Tu link de ventas SOLSTICE 2026! 🌅\n${link}\n\nMandalo a tus contactos — cada compra por ese link te queda contada.`;
+                                                    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
+                                                  }}
+                                                  className="flex items-center gap-1 px-3 py-1.5 text-[9px] uppercase"
+                                                  style={{ background: 'rgba(16,185,129,0.18)', border: '0.5px solid rgba(16,185,129,0.45)', color: '#86efac', borderRadius: '999px', fontWeight: 600, letterSpacing: '0.1em', cursor: 'pointer' }}>
+                                                  <Share2 size={10} /> WA
+                                                </button>
+                                              </div>
+                                            )}
                                             {sl.regs.length === 0
                                               ? <p className="text-[9px] uppercase" style={{ color: C.gray }}>Sin compras en este período</p>
                                               : sl.regs.map(r => (
