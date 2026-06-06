@@ -1075,6 +1075,63 @@ export default function SolsticeVentasDashboard({ role }: Props) {
 
       <div className="px-8 py-8 space-y-10 max-w-5xl">
 
+        {/* ── TU LANDING PAGE — prominente, lo primero que ve el vendedor ──
+            El vendedor copia este link y lo manda. Cada compra que llegue por
+            él se le cuenta automáticamente (sin que el cliente ponga código). */}
+        {mySeller?.ref_code && (
+          <div className="p-5 md:p-6" style={{
+            borderRadius: '24px',
+            background: 'linear-gradient(135deg, rgba(230,57,47,0.12) 0%, rgba(255,122,0,0.05) 100%)',
+            border: '0.5px solid rgba(230,57,47,0.40)',
+          }}>
+            <div className="flex items-center gap-2 mb-3">
+              <Globe size={15} style={{ color: C.red }} />
+              <p className="text-[10px] uppercase" style={{ color: C.red, letterSpacing: '0.35em', fontWeight: 600 }}>
+                Tu landing page de ventas
+              </p>
+            </div>
+            <p className="text-xs mb-4" style={{ color: `${C.cream}cc`, lineHeight: 1.5 }}>
+              Mandá este link a tus contactos. Cuando alguien entra y compra, la venta
+              <strong style={{ color: C.cream }}> se te cuenta automáticamente</strong> — sin códigos.
+            </p>
+            <div className="flex items-center gap-3 px-4 py-3 mb-3" style={{
+              background: 'rgba(0,0,0,0.45)',
+              border: '0.5px dashed rgba(230,57,47,0.40)',
+              borderRadius: '14px',
+            }}>
+              <span className="text-xs flex-1 break-all font-mono" style={{ color: C.cream }}>{referralLink}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <button onClick={copyLink}
+                className="flex items-center justify-center gap-2 px-3 py-3 text-[10px] uppercase"
+                style={{
+                  background: linkCopied ? C.green : 'rgba(230,57,47,0.22)',
+                  border: `0.5px solid ${linkCopied ? C.green : 'rgba(230,57,47,0.50)'}`,
+                  color: C.cream, borderRadius: '999px', fontWeight: 600, letterSpacing: '0.15em',
+                  transition: 'all 0.3s ease', cursor: 'pointer',
+                }}>
+                {linkCopied ? <Check size={13} /> : <Copy size={13} />} {linkCopied ? 'Copiado' : 'Copiar'}
+              </button>
+              <button onClick={shareWhatsApp}
+                className="flex items-center justify-center gap-2 px-3 py-3 text-[10px] uppercase"
+                style={{
+                  background: 'rgba(16,185,129,0.18)', border: '0.5px solid rgba(16,185,129,0.45)',
+                  color: '#86efac', borderRadius: '999px', fontWeight: 600, letterSpacing: '0.15em', cursor: 'pointer',
+                }}>
+                <Share2 size={13} /> WhatsApp
+              </button>
+              <button onClick={() => window.open(referralLink, '_blank', 'noopener')}
+                className="flex items-center justify-center gap-2 px-3 py-3 text-[10px] uppercase"
+                style={{
+                  background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.15)',
+                  color: C.cream, borderRadius: '999px', fontWeight: 600, letterSpacing: '0.15em', cursor: 'pointer',
+                }}>
+                <Globe size={13} /> Ver
+              </button>
+            </div>
+          </div>
+        )}
+
         <DateBar value={dateFilter} onChange={setDateFilter} />
 
         {/* KPIs */}
@@ -1095,49 +1152,6 @@ export default function SolsticeVentasDashboard({ role }: Props) {
             <p className="text-xs uppercase" style={{ color: C.red, letterSpacing: '0.15em', fontWeight: 500 }}>
               {myStats.inMora} comprador{myStats.inMora > 1 ? 'es' : ''} con cuota vencida
             </p>
-          </div>
-        )}
-
-        {/* Referral link */}
-        {mySeller?.ref_code && (
-          <div className="space-y-3">
-            <p className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>Tu link de referidos</p>
-            <div className="flex flex-col md:flex-row gap-3">
-              <div className="flex-1 flex items-center gap-3 px-4 py-3"
-                style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '0.5px solid rgba(255,255,255,0.08)',
-                  borderRadius: '999px',
-                }}>
-                <Globe size={14} style={{ color: C.red }} />
-                <span className="text-xs flex-1 truncate font-mono">{referralLink}</span>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={copyLink}
-                  className="flex items-center gap-2 px-5 py-3 text-xs uppercase tracking-widest"
-                  style={{
-                    background: linkCopied ? C.green : C.red,
-                    color: C.cream,
-                    borderRadius: '999px',
-                    fontWeight: 500,
-                    transition: 'all 0.3s ease',
-                  }}>
-                  {linkCopied ? <Check size={13} /> : <Copy size={13} />} {linkCopied ? 'Copiado' : 'Copiar'}
-                </button>
-                <button onClick={shareWhatsApp}
-                  className="flex items-center gap-2 px-5 py-3 text-xs uppercase tracking-widest"
-                  style={{
-                    background: 'rgba(255,255,255,0.06)',
-                    border: '0.5px solid rgba(255,255,255,0.12)',
-                    color: C.cream,
-                    borderRadius: '999px',
-                    fontWeight: 500,
-                    transition: 'all 0.3s ease',
-                  }}>
-                  <Share2 size={13} /> WA
-                </button>
-              </div>
-            </div>
           </div>
         )}
 
