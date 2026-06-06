@@ -164,6 +164,22 @@ img, video, iframe {
   max-width: 100%;
 }
 
+/* ── Fix de parpadeo negro en mobile (iOS Safari) ─────────────────────────
+   `backdrop-filter: blur` provoca que iOS pinte rectángulos negros mientras
+   se hace scroll con momentum — no puede componer el blur a tiempo. En las
+   pantallas de Solstice el fondo es negro sólido, así que el blur no difumina
+   nada visible: solo causa el glitch. En dispositivos táctiles lo desactivamos
+   (el look se mantiene casi idéntico) y dejamos un fondo sólido de respaldo
+   para que las cards no queden invisibles. En desktop (pointer fino) el blur
+   se conserva. */
+@media (pointer: coarse) {
+  [style*="backdrop-filter"],
+  [class*="backdrop-blur"] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
 /* `bg-void` se usa en muchos wrappers — lo dejamos como token de marca pero
    sobrescribimos el fondo crudo a negro puro para evitar manchas en
    overscroll. Las cards que usan bg-void/40 o bg-midnight/30 siguen con

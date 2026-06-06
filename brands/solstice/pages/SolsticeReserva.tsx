@@ -1025,10 +1025,11 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                           </motion.div>
                         )}
 
-                        {/* Indicador de selección animado */}
+                        {/* Indicador de selección — glow estático (sin layoutId
+                            para evitar layout-animations que parpadean al hacer
+                            scroll en iOS) */}
                         {sel && (
-                          <motion.div
-                            layoutId="modality-glow"
+                          <div
                             className="absolute inset-0 pointer-events-none"
                             style={{
                               borderRadius: '20px',
