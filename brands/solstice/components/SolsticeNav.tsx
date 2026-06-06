@@ -42,18 +42,21 @@ const C = {
 const NAV_ITEMS: { page: SolsticePage; label: string; icon: React.ReactNode; roles: string[] }[] = [
   { page: 'landing',       label: 'Vitrina',      icon: <Sun size={15} />,           roles: ['admin','seller','manager','buyer'] },
   { page: 'programa',      label: 'Programa',     icon: <BookOpen size={15} />,      roles: ['admin','seller','manager','buyer'] },
+  // Todo lo operativo (config, finanzas, lanchas, hospedaje, check-in, top
+  // clients, etc) es SOLO admin/super-admin. El manager ve solo su equipo;
+  // el vendedor solo su dashboard. (Alcance definido por el owner, jun 2026.)
   { page: 'admin-config',  label: 'Configuración',icon: <Settings size={15} />,      roles: ['admin'] },
-  { page: 'admin-sellers', label: 'Equipo ventas',icon: <Users size={15} />,         roles: ['admin','manager'] },
+  { page: 'admin-sellers', label: 'Equipo ventas',icon: <Users size={15} />,         roles: ['admin'] },
   { page: 'admin-finance', label: 'Finanzas',     icon: <DollarSign size={15} />,    roles: ['admin'] },
   { page: 'admin-cobros', label: 'Cobros',        icon: <AlertCircle size={15} />,   roles: ['admin'] },
   { page: 'admin-proyecciones', label: 'Proyecciones', icon: <TrendingUp size={15} />, roles: ['admin'] },
   { page: 'admin-codes',  label: 'Códigos',        icon: <Tag size={15} />,           roles: ['admin'] },
   { page: 'admin-accounting', label: 'Contabilidad', icon: <FileSpreadsheet size={15} />, roles: ['admin'] },
   { page: 'admin-utilidades', label: 'Utilidades',   icon: <Percent size={15} />,         roles: ['admin'] },
-  { page: 'admin-top-clients', label: 'Top clientes', icon: <Trophy size={15} />,    roles: ['admin','manager'] },
-  { page: 'admin-boats',  label: 'Lanchas activas', icon: <Ship size={15} />,        roles: ['admin','manager'] },
-  { page: 'admin-lodgings', label: 'Hospedaje',    icon: <BedDouble size={15} />,    roles: ['admin','manager'] },
-  { page: 'check-in',    label: 'Check-in',      icon: <ScanLine size={15} />,      roles: ['admin','manager'] },
+  { page: 'admin-top-clients', label: 'Top clientes', icon: <Trophy size={15} />,    roles: ['admin'] },
+  { page: 'admin-boats',  label: 'Lanchas activas', icon: <Ship size={15} />,        roles: ['admin'] },
+  { page: 'admin-lodgings', label: 'Hospedaje',    icon: <BedDouble size={15} />,    roles: ['admin'] },
+  { page: 'check-in',    label: 'Check-in',      icon: <ScanLine size={15} />,      roles: ['admin'] },
   { page: 'seller',        label: 'Mi dashboard', icon: <LayoutDashboard size={15} />,roles: ['seller'] },
   { page: 'manager',       label: 'Mi equipo',    icon: <Users size={15} />,         roles: ['manager'] },
   { page: 'buyer',         label: 'Mi semana',    icon: <LayoutDashboard size={15} />,roles: ['buyer'] },
