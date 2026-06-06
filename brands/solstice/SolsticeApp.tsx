@@ -44,8 +44,12 @@ function ComingSoon({ title }: { title: string }) {
 }
 
 function solsticeRole(userRole: UserRole): 'admin' | 'seller' | 'manager' | 'buyer' {
-  if (userRole === UserRole.ADMIN || userRole === UserRole.SUPER_ADMIN) return 'admin';
-  if (userRole === UserRole.MANAGER) return 'manager';
+  // Mapeo de los 5 roles del Excel a las 4 vistas de Solstice:
+  //  SUPER_ADMIN + HEAD_OF_SALES → 'admin' (todo global)
+  //  MANAGER (Gerente) + HEAD (Cabeza) → 'manager' (scope a su equipo/subordinados)
+  //  PROMOTER → 'seller' (solo lo propio)
+  if (userRole === UserRole.ADMIN || userRole === UserRole.SUPER_ADMIN || userRole === UserRole.HEAD_OF_SALES) return 'admin';
+  if (userRole === UserRole.MANAGER || userRole === UserRole.HEAD) return 'manager';
   if (userRole === UserRole.PROMOTER) return 'seller';
   return 'buyer';
 }
