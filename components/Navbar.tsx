@@ -167,13 +167,16 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
     {/* UNIFIED NAVIGATION MENU OVERLAY (Minimalist Floating) */}
     {menuOpen && (
         <div className="fixed inset-0 z-[90] flex justify-end p-4 md:p-8 pointer-events-none">
-            {/* Backdrop for closing */}
-            <div 
-                className="fixed inset-0 bg-black/40 backdrop-blur-sm pointer-events-auto animate-in fade-in duration-500"
+            {/* Backdrop for closing — más oscuro para que el menú no se mezcle
+                con el contenido en mobile (donde no hay backdrop-blur) */}
+            <div
+                className="fixed inset-0 bg-black/80 backdrop-blur-sm pointer-events-auto animate-in fade-in duration-500"
                 onClick={() => setMenuOpen(false)}
             ></div>
 
-            <div className="relative w-full max-w-[280px] h-fit bg-void/60 backdrop-blur-3xl border border-white/5 rounded-[1.5rem] shadow-[0_30px_60px_rgba(0,0,0,0.8)] pointer-events-auto flex flex-col overflow-hidden animate-in slide-in-from-right-5 fade-in duration-700">
+            {/* Drawer con fondo casi sólido (bg-void/98) para no depender del
+                backdrop-blur, que está desactivado en mobile por el fix de flicker. */}
+            <div className="relative w-full max-w-[280px] h-fit bg-[#0B0316]/98 backdrop-blur-3xl border border-white/10 rounded-[1.5rem] shadow-[0_30px_60px_rgba(0,0,0,0.8)] pointer-events-auto flex flex-col overflow-hidden animate-in slide-in-from-right-5 fade-in duration-700">
                 <div className="flex justify-between items-center p-5 border-b border-white/5">
                      <div className="flex flex-col">
                         <span className="text-base font-black tracking-tighter text-white">MIDNIGHT</span>

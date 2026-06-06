@@ -103,7 +103,7 @@ export default function SolsticeNav({ currentPage, onNavigate, onExit, role }: P
           <>
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[190] bg-black/60 backdrop-blur-sm"
+              className="fixed inset-0 z-[190] bg-black/80 backdrop-blur-sm"
               onClick={() => setOpen(false)}
             />
             <motion.div
@@ -113,7 +113,9 @@ export default function SolsticeNav({ currentPage, onNavigate, onExit, role }: P
               transition={{ type: 'spring', damping: 28, stiffness: 300 }}
               className="fixed top-0 right-0 bottom-0 z-[200] flex flex-col w-72"
               style={{
-                background: 'rgba(10,0,0,0.85)',
+                // Fondo casi sólido — no depende del backdrop-blur (desactivado
+                // en mobile por el fix de flicker), así el menú no se mezcla.
+                background: 'rgba(8,0,0,0.985)',
                 backdropFilter: 'blur(40px) saturate(160%)',
                 borderLeft: '0.5px solid rgba(255,255,255,0.10)',
                 borderRadius: '32px 0 0 32px',
