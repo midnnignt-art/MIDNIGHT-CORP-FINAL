@@ -1089,19 +1089,29 @@ export default function SolsticeVentasDashboard({ role }: Props) {
 
   return (
     <div style={{ background: C.bg, minHeight: '100vh', color: C.cream, fontFamily: "'Archivo', sans-serif" }}>
-      <div className="px-8 pt-10 pb-6" style={{ borderBottom: '0.5px solid rgba(255,255,255,0.08)' }}>
-        <p className="text-[9px] uppercase mb-1" style={{ color: C.red, fontWeight: 500, letterSpacing: '0.4em' }}>
-          {isSeller ? 'Mi Dashboard' : 'Dashboard · Gerente'}
-        </p>
-        <h1 className="text-3xl uppercase" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.1em', fontWeight: 300 }}>
-          {isSeller ? 'Mis Ventas' : 'Vista Equipo'}
-        </h1>
-        {mySeller && (
-          <p className="text-xs uppercase mt-1" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>
-            {season?.name || 'SOLSTICE 2026'}
-            {mySeller.team_name  && ` · ${mySeller.team_name}`}
-            {mySeller.squad_name && ` · ${mySeller.squad_name}`}
+      <div className="px-8 pt-10 pb-6 flex items-start justify-between gap-4" style={{ borderBottom: '0.5px solid rgba(255,255,255,0.08)' }}>
+        <div>
+          <p className="text-[9px] uppercase mb-1" style={{ color: C.red, fontWeight: 500, letterSpacing: '0.4em' }}>
+            {isSeller ? 'Mi Dashboard' : 'Dashboard · Gerente'}
           </p>
+          <h1 className="text-3xl uppercase" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.1em', fontWeight: 300 }}>
+            {isSeller ? 'Mis Ventas' : 'Vista Equipo'}
+          </h1>
+          {mySeller && (
+            <p className="text-xs uppercase mt-1" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>
+              {season?.name || 'SOLSTICE 2026'}
+              {mySeller.team_name  && ` · ${mySeller.team_name}`}
+              {mySeller.squad_name && ` · ${mySeller.squad_name}`}
+            </p>
+          )}
+        </div>
+        {/* Reclutar — el gerente puede crear promotores que quedan en su squad */}
+        {isManager && (
+          <button onClick={() => setRecruitOpen(true)}
+            className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2.5 text-[10px] uppercase"
+            style={{ background: 'rgba(230,57,47,0.22)', border: '0.5px solid rgba(230,57,47,0.50)', color: C.cream, borderRadius: '999px', fontWeight: 600, letterSpacing: '0.2em', cursor: 'pointer' }}>
+            <UserPlus size={13} /> Reclutar
+          </button>
         )}
       </div>
 
@@ -1188,10 +1198,15 @@ export default function SolsticeVentasDashboard({ role }: Props) {
         )}
 
         {/* Manager: team table */}
+        {/* Sales Intelligence del squad — manager ve el pulso de su equipo */}
+        {isManager && (
+          <SalesIntelChart regs={dateRegs} />
+        )}
+
         {isManager && teamSellers.length > 0 && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <p className="text-xs uppercase" style={{ color: C.gray, fontWeight: 300, letterSpacing: '-0.02em' }}>Mi equipo</p>
+              <p className="text-xs uppercase" style={{ color: C.gray, fontWeight: 300, letterSpacing: '-0.02em' }}>Ranking de mi equipo</p>
               <button onClick={() => exportCsv(allRegs)}
                 className="flex items-center gap-2 text-[10px] uppercase tracking-widest px-4 py-2"
                 style={{
@@ -1219,16 +1234,22 @@ export default function SolsticeVentasDashboard({ role }: Props) {
                 <div className="col-span-2 text-right">Pagado</div>
                 <div className="col-span-2 text-right">Comisión</div>
               </div>
-              {teamSellers.map(sl => {
+              {[...teamSellers]
+                .map(sl => ({ sl, paid: dateRegs.filter(r => r.seller_id === sl.user_id).reduce((a,r)=>a+r.amount_paid,0) }))
+                .sort((a, b) => b.paid - a.paid)   // ranking: mayor venta primero
+                .map(({ sl }, rankIdx) => {
                 const slRegs = dateRegs.filter(r => r.seller_id === sl.user_id);
                 const slPaid = slRegs.reduce((a,r)=>a+r.amount_paid,0);
                 return (
                   <button key={sl.user_id} onClick={() => setSellerFilter(v => v===sl.user_id?'all':sl.user_id)}
                     className="w-full grid grid-cols-12 px-5 py-3 items-center text-left hover:bg-white/3 transition-colors"
                     style={{ borderBottom: '0.5px solid rgba(255,255,255,0.05)', background: sellerFilter===sl.user_id?'rgba(230,57,47,0.08)':'transparent' }}>
-                    <div className="col-span-4">
-                      <p className="text-xs uppercase truncate" style={{ color: sellerFilter===sl.user_id?C.red:C.cream, fontWeight: 500 }}>{sl.name}</p>
-                      <p className="text-[9px] font-mono" style={{ color: C.gray }}>{sl.ref_code}</p>
+                    <div className="col-span-4 flex items-center gap-2">
+                      <span className="text-[10px] tabular-nums flex-shrink-0" style={{ color: rankIdx===0?C.red:C.gray, fontWeight: 700, width: 16 }}>{rankIdx+1}</span>
+                      <div className="min-w-0">
+                        <p className="text-xs uppercase truncate" style={{ color: sellerFilter===sl.user_id?C.red:C.cream, fontWeight: 500 }}>{sl.name}</p>
+                        <p className="text-[9px] font-mono" style={{ color: C.gray }}>{sl.ref_code}</p>
+                      </div>
                     </div>
                     <div className="col-span-2 text-right text-xs" style={{ fontWeight: 500 }}>{slRegs.length}</div>
                     <div className="col-span-2 text-right text-xs" style={{ color: C.gray }}>
@@ -1322,6 +1343,11 @@ export default function SolsticeVentasDashboard({ role }: Props) {
       </div>
 
       <CashModal />
+      {/* Reclutar — montado también en la vista gerente. El promotor creado
+          queda automáticamente en el squad del gerente (mySeller.team_id). */}
+      {isManager && (
+        <SolsticeRecruitModal open={recruitOpen} onClose={() => setRecruitOpen(false)} onCreated={load} defaultTeamId={mySeller?.team_id ?? null} />
+      )}
     </div>
   );
 }
@@ -1523,8 +1549,8 @@ function Legend({ color, label, dashed }: { color: string; label: string; dashed
 // 3. Si existe → solo lo agrega a solstice_sellers (habilita para vender Solstice)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function SolsticeRecruitModal({ open, onClose, onCreated }: {
-  open: boolean; onClose: () => void; onCreated: () => void;
+function SolsticeRecruitModal({ open, onClose, onCreated, defaultTeamId }: {
+  open: boolean; onClose: () => void; onCreated: () => void; defaultTeamId?: string | null;
 }) {
   const [step, setStep]   = useState<'form' | 'enable' | 'done'>('form');
   const [email, setEmail] = useState('');
@@ -1601,6 +1627,8 @@ function SolsticeRecruitModal({ open, onClose, onCreated }: {
         season_id: season?.id ?? null,
         ref_code: cleanCode,
         status: 'active',
+        // Si lo recluta un gerente, queda automáticamente en SU squad.
+        sales_team_id: defaultTeamId ?? null,
       });
       if (sErr) throw new Error('No se pudo habilitar en Solstice: ' + sErr.message);
 
