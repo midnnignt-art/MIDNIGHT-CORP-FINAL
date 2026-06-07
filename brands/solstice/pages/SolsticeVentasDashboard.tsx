@@ -4,7 +4,7 @@ import {
   Copy, Share2, Check, Users, ChevronDown, ChevronUp,
   AlertTriangle, Banknote, Download, Loader2, CheckCircle2,
   Clock, X, Globe, BarChart2, UserCheck, Trophy, Calendar,
-  Building2, Layers, User, UserPlus, Mail,
+  Building2, Layers, User, UserPlus, Mail, Eye,
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useStore } from '../../../context/StoreContext';
@@ -304,6 +304,7 @@ export default function SolsticeVentasDashboard({ role }: Props) {
   const [expandedReg,    setExpandedReg]    = useState<string | null>(null);
   const [sellerFilter,   setSellerFilter]   = useState<string>('all');
   const [linkCopied,     setLinkCopied]     = useState(false);
+  const [linkViews,      setLinkViews]      = useState<number | null>(null);
 
   // Cash modal
   const [cashModal,    setCashModal]    = useState<Registration | null>(null);
@@ -388,6 +389,22 @@ export default function SolsticeVentasDashboard({ role }: Props) {
   }, [currentUser, isSeller, isManager, promoters, storeTeams, storeSquads]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Contador de vistas del link de venta (Excel: "Vistas Landing Page").
+  useEffect(() => {
+    const code = mySeller?.ref_code;
+    if (!code) { setLinkViews(null); return; }
+    let cancelled = false;
+    (async () => {
+      const { count } = await supabase
+        .from('solstice_referral_clicks')
+        .select('id', { count: 'exact', head: true })
+        .eq('ref_code', code)
+        .eq('converted', false);
+      if (!cancelled) setLinkViews(count ?? 0);
+    })();
+    return () => { cancelled = true; };
+  }, [mySeller?.ref_code]);
 
   // ── Derived data ───────────────────────────────────────────────────────────
   const dateRegs = useMemo(() => applyDateFilter(allRegs, dateFilter), [allRegs, dateFilter]);
@@ -1137,11 +1154,19 @@ export default function SolsticeVentasDashboard({ role }: Props) {
             background: 'linear-gradient(135deg, rgba(230,57,47,0.12) 0%, rgba(255,122,0,0.05) 100%)',
             border: '0.5px solid rgba(230,57,47,0.40)',
           }}>
-            <div className="flex items-center gap-2 mb-3">
-              <Globe size={15} style={{ color: C.red }} />
-              <p className="text-[10px] uppercase" style={{ color: C.red, letterSpacing: '0.35em', fontWeight: 600 }}>
-                Tu landing page de ventas
-              </p>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-2">
+                <Globe size={15} style={{ color: C.red }} />
+                <p className="text-[10px] uppercase" style={{ color: C.red, letterSpacing: '0.35em', fontWeight: 600 }}>
+                  Tu landing page de ventas
+                </p>
+              </div>
+              {linkViews !== null && (
+                <span className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] uppercase"
+                  style={{ background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '999px', color: C.cream, letterSpacing: '0.1em', fontWeight: 600 }}>
+                  <Eye size={11} /> {linkViews} {linkViews === 1 ? 'vista' : 'vistas'}
+                </span>
+              )}
             </div>
             <p className="text-xs mb-4" style={{ color: `${C.cream}cc`, lineHeight: 1.5 }}>
               Mandá este link a tus contactos. Cuando alguien entra y compra, la venta

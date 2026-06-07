@@ -28,6 +28,14 @@ export default function SolsticePromoLanding({ refCode }: Props) {
     const code = refCode.toUpperCase();
     sessionStorage.setItem('ms_ref_code', code);
 
+    // Registrar la vista del landing del vendedor (contador de vistas).
+    // RPC SECURITY DEFINER → funciona para visitantes anónimos. Una vez por
+    // sesión para no inflar el conteo con recargas.
+    if (!sessionStorage.getItem(`ms_viewed_${code}`)) {
+      sessionStorage.setItem(`ms_viewed_${code}`, '1');
+      supabase.rpc('solstice_register_view', { p_ref_code: code }).then(() => {}, () => {});
+    }
+
     async function load() {
       try {
         const { data: seller } = await supabase
