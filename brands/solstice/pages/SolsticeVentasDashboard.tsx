@@ -79,7 +79,14 @@ function stats(regs: Registration[], comPct: number) {
   const com        = paid * comPct;
   const pending    = regs.reduce((a, r) => a + (r.total_amount - r.amount_paid), 0);
   const comPending = pending * comPct;
-  return { count, paid, organic, commission, digital, cash, inMora, com, comPending };
+  // Liquidación maestra (Excel): efectivo recibido por el vendedor vs comisión.
+  //  cashCollected = plata en efectivo que el vendedor cobró de su mano
+  //  saldo > 0 → el vendedor debe entregar a la empresa
+  //  saldo < 0 → la empresa le debe comisión al vendedor (caso típico hoy,
+  //              que todo es digital por Wompi y no hay efectivo a la mano)
+  const cashCollected = regs.filter(r => r.payment_mode === 'cash_to_seller').reduce((a, r) => a + r.amount_paid, 0);
+  const liquidacion   = cashCollected - com;
+  return { count, paid, organic, commission, digital, cash, inMora, com, comPending, cashCollected, liquidacion };
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -1218,6 +1225,42 @@ export default function SolsticeVentasDashboard({ role }: Props) {
           <KpiCard label="Pagado"     value={fmtK(myStats.paid)}         sub="acumulado" color={C.red} />
           <KpiCard label="Comisión"   value={fmtK(myStats.com)}          sub={`${season?.commission_pct||10}%`} color={C.green} />
           <KpiCard label="Pendiente"  value={fmtK(myStats.comPending)}   sub="cuotas futuras" />
+        </div>
+
+        {/* ── Liquidación maestra (Excel) — cruce efectivo vs comisión ──── */}
+        <div className="p-5 md:p-6" style={{
+          borderRadius: '24px',
+          background: 'rgba(255,255,255,0.025)',
+          border: '0.5px solid rgba(255,255,255,0.10)',
+        }}>
+          <p className="text-[10px] uppercase mb-4" style={{ letterSpacing: '0.35em', color: C.red, fontWeight: 600 }}>
+            Liquidación {isSeller ? 'mía' : 'del equipo'}
+          </p>
+          <div className="space-y-2.5">
+            <div className="flex justify-between text-xs uppercase" style={{ letterSpacing: '0.1em', fontWeight: 500 }}>
+              <span style={{ color: C.gray }}>Efectivo recibido (a la mano)</span>
+              <span style={{ color: C.cream }}>{fmtK(myStats.cashCollected)}</span>
+            </div>
+            <div className="flex justify-between text-xs uppercase" style={{ letterSpacing: '0.1em', fontWeight: 500 }}>
+              <span style={{ color: C.gray }}>Comisión generada</span>
+              <span style={{ color: C.green }}>{fmtK(myStats.com)}</span>
+            </div>
+            <div className="flex justify-between items-center pt-3" style={{ borderTop: `0.5px solid ${C.red}44` }}>
+              <div>
+                <p className="text-sm uppercase" style={{ color: C.cream, fontWeight: 600, letterSpacing: '0.1em' }}>
+                  {myStats.liquidacion > 0 ? 'Debés entregar' : 'Te deben'}
+                </p>
+                <p className="text-[10px]" style={{ color: C.gray }}>
+                  {myStats.liquidacion > 0
+                    ? 'Efectivo recibido − comisión'
+                    : 'La empresa te paga tu comisión (todo digital)'}
+                </p>
+              </div>
+              <span className="text-2xl tabular-nums" style={{ color: myStats.liquidacion > 0 ? C.red : C.green, fontWeight: 300, fontFamily: "'Poiret One', sans-serif" }}>
+                {fmtK(Math.abs(myStats.liquidacion))}
+              </span>
+            </div>
+          </div>
         </div>
         {myStats.inMora > 0 && (
           <div className="flex items-center gap-3 px-5 py-3"
