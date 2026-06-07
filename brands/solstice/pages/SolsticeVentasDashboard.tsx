@@ -350,7 +350,21 @@ export default function SolsticeVentasDashboard({ role }: Props) {
       });
       setSellers(richSellers);
 
-      const myRich = richSellers.find(sl => sl.user_id === currentUser.user_id) || null;
+      let myRich = richSellers.find(sl => sl.user_id === currentUser.user_id) || null;
+
+      // Auto-provisión del ref_code: si el vendedor está habilitado en
+      // solstice_sellers pero sin código, lo generamos al vuelo para que
+      // siempre tenga su link. (No crea la fila si no existe — eso es
+      // habilitación del admin.)
+      if (isSeller && myRich && !myRich.ref_code) {
+        const base = (myRich.name || 'SOL').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || 'SOL';
+        const gen = `SOL-${base}-${Math.floor(100 + Math.random() * 900)}`;
+        const { error: genErr } = await supabase
+          .from('solstice_sellers')
+          .update({ ref_code: gen })
+          .eq('user_id', currentUser.user_id);
+        if (!genErr) myRich = { ...myRich, ref_code: gen };
+      }
       setMySeller(myRich);
 
       // Scope registrations query
@@ -1155,6 +1169,28 @@ export default function SolsticeVentasDashboard({ role }: Props) {
         {/* ── TU LANDING PAGE — prominente, lo primero que ve el vendedor ──
             El vendedor copia este link y lo manda. Cada compra que llegue por
             él se le cuenta automáticamente (sin que el cliente ponga código). */}
+        {/* Vendedor sin link: o no está habilitado en Solstice, o le falta el
+            ref_code. Mostramos un aviso claro en vez de no mostrar nada. */}
+        {isSeller && !loading && !mySeller?.ref_code && (
+          <div className="p-5 md:p-6" style={{
+            borderRadius: '24px',
+            background: 'rgba(255,180,140,0.06)',
+            border: '0.5px solid rgba(255,180,140,0.35)',
+          }}>
+            <div className="flex items-center gap-2 mb-2">
+              <Globe size={15} style={{ color: '#FFB48C' }} />
+              <p className="text-[10px] uppercase" style={{ color: '#FFB48C', letterSpacing: '0.35em', fontWeight: 600 }}>
+                Tu link de ventas
+              </p>
+            </div>
+            <p className="text-xs" style={{ color: `${C.cream}cc`, lineHeight: 1.5 }}>
+              Tu cuenta todavía no está habilitada para vender Solstice (o te falta el código).
+              Pedile a un administrador que te active en <strong style={{ color: C.cream }}>Configuración → Vendedores</strong>.
+              Apenas te habiliten, tu link aparece acá.
+            </p>
+          </div>
+        )}
+
         {mySeller?.ref_code && (
           <div className="p-5 md:p-6" style={{
             borderRadius: '24px',
