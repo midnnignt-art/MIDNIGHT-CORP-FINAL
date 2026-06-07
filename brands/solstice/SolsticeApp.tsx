@@ -163,12 +163,12 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
     'admin-config':        ['admin'],
     'admin-sellers':       ['admin'],
     'admin-finance':       ['admin'],
-    'admin-cobros':        ['admin'],
+    'admin-cobros':        ['admin','manager','seller'],
     'admin-proyecciones':  ['admin'],
     'admin-codes':         ['admin'],
     'admin-accounting':    ['admin'],
     'admin-utilidades':    ['admin'],
-    'admin-top-clients':   ['admin'],
+    'admin-top-clients':   ['admin','manager','seller'],
     'admin-boats':         ['admin'],
     'admin-lodgings':      ['admin'],
     'check-in':            ['admin'],
@@ -320,12 +320,12 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
         {page === 'admin-config'  && <SolsticeAdminConfig />}
         {page === 'admin-sellers' && <SolsticeVentasDashboard role="admin" />}
         {page === 'admin-finance' && <SolsticeAdminFinance />}
-        {page === 'admin-cobros'  && <SolsticeAdminCobros />}
+        {page === 'admin-cobros'  && <SolsticeAdminCobros role={role} />}
         {page === 'admin-proyecciones' && <SolsticeProyecciones />}
         {page === 'admin-codes'        && <SolsticeCodigosDescuentos />}
         {page === 'admin-accounting'   && <SolsticeContabilidad />}
         {page === 'admin-utilidades'   && <SolsticeUtilidades />}
-        {page === 'admin-top-clients' && <SolsticeTopClients />}
+        {page === 'admin-top-clients' && <SolsticeTopClients role={role} />}
         {page === 'admin-boats'   && <SolsticeAdminBoatReservations />}
         {page === 'admin-lodgings' && <SolsticeAdminLodgingReservations />}
         {page === 'check-in'      && <SolsticeAdminCheckin />}

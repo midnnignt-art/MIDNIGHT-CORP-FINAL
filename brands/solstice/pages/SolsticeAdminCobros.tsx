@@ -7,6 +7,7 @@ import {
 import { supabase } from '../../../lib/supabase';
 import { useStore } from '../../../context/StoreContext';
 import { toast } from '../../../lib/toast';
+import { useSolsticeScope, SolsticeScopeRole } from '../hooks/useSolsticeScope';
 
 const C = {
   bg: '#000', bgS: '#0d0d0d', bgT: '#111',
@@ -35,8 +36,9 @@ interface EnrichedReg extends Registration {
 const fmt = (n: number) => `$${Math.round(n).toLocaleString('es-CO')}`;
 const fmtK = (n: number) => `$${Math.round(n / 1000)}K`;
 
-export default function SolsticeAdminCobros() {
+export default function SolsticeAdminCobros({ role = 'admin' }: { role?: SolsticeScopeRole }) {
   const { currentUser, promoters } = useStore();
+  const scopeIds = useSolsticeScope(role);   // null = todos; [] o lista = filtrar
   const [regs, setRegs]       = useState<EnrichedReg[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch]   = useState('');
@@ -116,6 +118,8 @@ export default function SolsticeAdminCobros() {
 
   const morosos = useMemo(() => {
     return regs
+      // Scope por rol: manager ve su squad, promotor solo sus clientes.
+      .filter(r => scopeIds === null || (scopeIds !== undefined && r.seller_id !== null && scopeIds.includes(r.seller_id)))
       .filter(r => r.overdueSchedules.length > 0)
       .filter(r => uniFilter === 'all' || r.customer_university === uniFilter)
       .filter(r => {
@@ -128,16 +132,18 @@ export default function SolsticeAdminCobros() {
         );
       })
       .sort((a, b) => b.totalOverdue - a.totalOverdue);
-  }, [regs, uniFilter, search]);
+  }, [regs, uniFilter, search, scopeIds]);
 
   const stats = useMemo(() => {
-    const all = regs.filter(r => r.overdueSchedules.length > 0);
+    const all = regs
+      .filter(r => scopeIds === null || (scopeIds !== undefined && r.seller_id !== null && scopeIds.includes(r.seller_id)))
+      .filter(r => r.overdueSchedules.length > 0);
     return {
       count: all.length,
       total: all.reduce((a, r) => a + r.totalOverdue, 0),
       cuotas: all.reduce((a, r) => a + r.overdueSchedules.length, 0),
     };
-  }, [regs]);
+  }, [regs, scopeIds]);
 
   const markPaid = async (sch: Schedule, reg: EnrichedReg) => {
     if (!currentUser) return;

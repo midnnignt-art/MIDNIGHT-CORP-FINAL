@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Trophy, Ship, BedDouble, Users, Search, Loader2 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
+import { useSolsticeScope, SolsticeScopeRole } from '../hooks/useSolsticeScope';
 
 const C = { bg: '#000', red: '#E6392F', gray: '#606060', cream: '#F9F2D7' };
 
@@ -17,21 +18,28 @@ interface SolsticeClient {
   payment_modes: string[];
 }
 
-export default function SolsticeTopClients() {
+export default function SolsticeTopClients({ role = 'admin' }: { role?: SolsticeScopeRole }) {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<SolsticeClient[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortKey, setSortKey] = useState<'totalSpent' | 'invitedCount' | 'amountPaid'>('totalSpent');
+  const scopeIds = useSolsticeScope(role);   // null = todos; lista = filtrar por seller
 
   useEffect(() => {
+    if (scopeIds === undefined) return;   // esperar a resolver el scope del manager
+    const ids: string[] | null = scopeIds; // narrowed (ya no undefined)
     document.body.style.backgroundColor = '#000';
     document.documentElement.style.backgroundColor = '#000';
     async function load() {
       try {
-        // Registrations
-        const { data: regs } = await supabase
+        // Registrations — incluye seller_id para poder filtrar por rol
+        const { data: regsRaw } = await supabase
           .from('solstice_registrations')
-          .select('id, customer_name, customer_email, customer_university, total_amount, amount_paid, payment_mode, status');
+          .select('id, customer_name, customer_email, customer_university, total_amount, amount_paid, payment_mode, status, seller_id');
+        // Scope: manager ve su squad, promotor solo sus clientes
+        const regs = (regsRaw || []).filter(
+          r => ids === null || (r.seller_id !== null && ids.includes(r.seller_id))
+        );
 
         // Boat reservations (leaders)
         const { data: boatRes } = await supabase
@@ -44,7 +52,7 @@ export default function SolsticeTopClients() {
           .select('customer_email');
 
         const map: Record<string, SolsticeClient> = {};
-        (regs || []).forEach(r => {
+        regs.forEach(r => {
           const email = (r.customer_email || '').toLowerCase().trim();
           if (!email) return;
           if (!map[email]) {
@@ -92,7 +100,7 @@ export default function SolsticeTopClients() {
       }
     }
     load();
-  }, []);
+  }, [scopeIds]);
 
   const filtered = useMemo(() => {
     const q = searchTerm.toLowerCase().trim();
