@@ -1382,7 +1382,8 @@ export default function SolsticeVentasDashboard({ role }: Props) {
       {/* Reclutar — montado también en la vista gerente. El promotor creado
           queda automáticamente en el squad del gerente (mySeller.team_id). */}
       {isManager && (
-        <SolsticeRecruitModal open={recruitOpen} onClose={() => setRecruitOpen(false)} onCreated={load} defaultTeamId={mySeller?.team_id ?? null} />
+        <SolsticeRecruitModal open={recruitOpen} onClose={() => setRecruitOpen(false)} onCreated={load}
+          defaultTeamId={mySeller?.team_id ?? null} creatorRole={isHead ? 'head' : 'manager'} />
       )}
     </div>
   );
@@ -1585,9 +1586,22 @@ function Legend({ color, label, dashed }: { color: string; label: string; dashed
 // 3. Si existe → solo lo agrega a solstice_sellers (habilita para vender Solstice)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function SolsticeRecruitModal({ open, onClose, onCreated, defaultTeamId }: {
+function SolsticeRecruitModal({ open, onClose, onCreated, defaultTeamId, creatorRole = 'admin' }: {
   open: boolean; onClose: () => void; onCreated: () => void; defaultTeamId?: string | null;
+  creatorRole?: 'admin' | 'head' | 'manager';
 }) {
+  // Qué roles puede crear cada nivel (Excel — hoja TIPOS DE USUARIOS):
+  //  manager (Gerente) → solo Promotores (a su squad)
+  //  head (Cabeza)     → Gerentes
+  //  admin/head_sales  → Promotores, Gerentes y Cabezas
+  const ALLOWED: Record<string, { value: string; label: string }[]> = {
+    manager: [{ value: 'PROMOTER', label: 'Promotor' }],
+    head:    [{ value: 'MANAGER', label: 'Gerente' }],
+    admin:   [{ value: 'PROMOTER', label: 'Promotor' }, { value: 'MANAGER', label: 'Gerente' }, { value: 'HEAD', label: 'Cabeza' }],
+  };
+  const allowedRoles = ALLOWED[creatorRole] || ALLOWED.admin;
+  const [newRole, setNewRole] = useState<string>(allowedRoles[0].value);
+
   const [step, setStep]   = useState<'form' | 'enable' | 'done'>('form');
   const [email, setEmail] = useState('');
   const [name, setName]   = useState('');
@@ -1604,7 +1618,9 @@ function SolsticeRecruitModal({ open, onClose, onCreated, defaultTeamId }: {
       setStep('form'); setEmail(''); setName(''); setCode(''); setPhone('');
       setExisting(null); setError(null); setLoading(false);
       setCreatedSeller(null); setLinkCopiedTick(false);
+      setNewRole(allowedRoles[0].value);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const checkEmail = async () => {
@@ -1640,14 +1656,15 @@ function SolsticeRecruitModal({ open, onClose, onCreated, defaultTeamId }: {
     try {
       const cleanCode = code.toUpperCase().replace(/\W/g, '');
 
-      // 1. Insert en promoters (Midnight base)
+      // 1. Insert en promoters (Midnight base) con el rol elegido según
+      //    quién recluta (manager→Promotor, head→Gerente, admin→cualquiera).
       const { data: prom, error: pErr } = await supabase
         .from('promoters')
         .insert({
           name, email: email.toLowerCase().trim(),
           code: cleanCode,
           phone: phone || null,
-          role: 'PROMOTER',
+          role: newRole,
         })
         .select()
         .single();
@@ -1658,12 +1675,14 @@ function SolsticeRecruitModal({ open, onClose, onCreated, defaultTeamId }: {
       const { data: season } = await supabase
         .from('solstice_seasons').select('id').eq('status', 'open').maybeSingle();
 
+      const solsticeRoleMap: Record<string, string> = { PROMOTER: 'seller', MANAGER: 'manager', HEAD: 'head' };
       const { error: sErr } = await supabase.from('solstice_sellers').insert({
         user_id: prom.user_id,
         season_id: season?.id ?? null,
         ref_code: cleanCode,
         status: 'active',
-        // Si lo recluta un gerente, queda automáticamente en SU squad.
+        role: solsticeRoleMap[newRole] || 'seller',
+        // Si lo recluta un gerente, el promotor queda automáticamente en SU squad.
         sales_team_id: defaultTeamId ?? null,
       });
       if (sErr) throw new Error('No se pudo habilitar en Solstice: ' + sErr.message);
@@ -1765,6 +1784,29 @@ function SolsticeRecruitModal({ open, onClose, onCreated, defaultTeamId }: {
 
             {existing === null && email && !loading ? (
               <>
+                {/* Selector de tipo de cuenta — solo si el reclutador puede
+                    crear más de un rol (admin). Manager/head tienen 1 fijo. */}
+                {allowedRoles.length > 1 && (
+                  <div>
+                    <label className="text-[9px] uppercase block mb-1.5" style={{ letterSpacing: '0.25em', color: '#606060', fontWeight: 600 }}>
+                      Tipo de cuenta
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {allowedRoles.map(r => (
+                        <button key={r.value} type="button" onClick={() => setNewRole(r.value)}
+                          className="py-2.5 text-[10px] uppercase"
+                          style={{
+                            background: newRole === r.value ? 'rgba(230,57,47,0.22)' : 'rgba(255,255,255,0.04)',
+                            border: `0.5px solid ${newRole === r.value ? 'rgba(230,57,47,0.55)' : 'rgba(255,255,255,0.10)'}`,
+                            color: newRole === r.value ? C.cream : C.gray,
+                            borderRadius: '999px', fontWeight: 600, letterSpacing: '0.1em', cursor: 'pointer',
+                          }}>
+                          {r.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <SolRecruitField label="Nombre completo" value={name} onChange={setName} placeholder="María Pérez" />
                 <div className="grid grid-cols-2 gap-3">
                   <SolRecruitField label="Código (ref)" value={code} onChange={v => setCode(v.toUpperCase().replace(/\W/g, ''))} placeholder="MARIA" />
