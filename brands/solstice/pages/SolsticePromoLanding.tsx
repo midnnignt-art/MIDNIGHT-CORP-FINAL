@@ -20,6 +20,7 @@ export default function SolsticePromoLanding({ refCode }: Props) {
   const [loading, setLoading] = useState(true);
   const [promoter, setPromoter] = useState<Promoter | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sellerDiscount, setSellerDiscount] = useState(0);
 
   useEffect(() => {
     document.body.style.backgroundColor = '#000';
@@ -40,7 +41,7 @@ export default function SolsticePromoLanding({ refCode }: Props) {
       try {
         const { data: seller } = await supabase
           .from('solstice_sellers')
-          .select('user_id, ref_code')
+          .select('user_id, ref_code, discount_pct')
           .ilike('ref_code', code)
           .maybeSingle();
         if (!seller) {
@@ -48,6 +49,16 @@ export default function SolsticePromoLanding({ refCode }: Props) {
           setLoading(false);
           return;
         }
+
+        // Descuento del vendedor: lo guardamos para que el checkout lo aplique
+        // automáticamente a quien compre por este link.
+        const discount = Number((seller as any).discount_pct) || 0;
+        if (discount > 0) {
+          sessionStorage.setItem('ms_seller_discount', String(discount));
+        } else {
+          sessionStorage.removeItem('ms_seller_discount');
+        }
+        setSellerDiscount(discount);
         const { data: profile } = await supabase
           .from('promoters')
           .select('name')
@@ -199,6 +210,17 @@ export default function SolsticePromoLanding({ refCode }: Props) {
           <p className="text-sm" style={{ color: '#a0a0a8', lineHeight: 1.6, maxWidth: '320px', margin: '0 auto' }}>
             5 días · 5 universidades · Atardecer en lancha · Beach Club privado · Lo más codiciado de Latinoamérica este verano.
           </p>
+
+          {/* Gancho de descuento del vendedor */}
+          {sellerDiscount > 0 && (
+            <div className="inline-flex items-center gap-2 mt-6 px-4 py-2"
+              style={{ background: 'rgba(16,185,129,0.15)', border: '0.5px solid rgba(16,185,129,0.45)', borderRadius: '999px' }}>
+              <span className="text-base" style={{ color: '#86efac', fontWeight: 700 }}>−{sellerDiscount}%</span>
+              <span className="text-[11px] uppercase" style={{ color: '#86efac', letterSpacing: '0.2em', fontWeight: 600 }}>
+                de descuento con {firstName}
+              </span>
+            </div>
+          )}
         </motion.div>
 
         {/* Promoter card */}

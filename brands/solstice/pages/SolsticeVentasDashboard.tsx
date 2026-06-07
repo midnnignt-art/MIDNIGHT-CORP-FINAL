@@ -4,7 +4,7 @@ import {
   Copy, Share2, Check, Users, ChevronDown, ChevronUp,
   AlertTriangle, Banknote, Download, Loader2, CheckCircle2,
   Clock, X, Globe, BarChart2, UserCheck, Trophy, Calendar,
-  Building2, Layers, User, UserPlus, Mail, Eye,
+  Building2, Layers, User, UserPlus, Mail, Eye, Tag,
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useStore } from '../../../context/StoreContext';
@@ -44,6 +44,7 @@ interface RichSeller {
   user_id: string; name: string; ref_code: string;
   team_id: string | null; team_name: string | null;
   squad_id: string | null; squad_name: string | null;
+  discount_pct: number;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -346,6 +347,7 @@ export default function SolsticeVentasDashboard({ role }: Props) {
           team_name:  team?.name || null,
           squad_id:   squad?.id || null,
           squad_name: squad?.name || null,
+          discount_pct: Number(sl.discount_pct) || 0,
         };
       });
       setSellers(richSellers);
@@ -904,6 +906,8 @@ export default function SolsticeVentasDashboard({ role }: Props) {
                                                 </button>
                                               </div>
                                             )}
+                                            {/* Descuento del vendedor — aplica a quien compre por su link */}
+                                            <SellerDiscountControl userId={sl.user_id} name={sl.name} initial={sl.discount_pct} />
                                             {sl.regs.length === 0
                                               ? <p className="text-[9px] uppercase" style={{ color: C.gray }}>Sin compras en este período</p>
                                               : sl.regs.map(r => (
@@ -1464,6 +1468,48 @@ export default function SolsticeVentasDashboard({ role }: Props) {
         <SolsticeRecruitModal open={recruitOpen} onClose={() => setRecruitOpen(false)} onCreated={load}
           defaultTeamId={mySeller?.team_id ?? null} creatorRole={isHead ? 'head' : 'manager'} />
       )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SellerDiscountControl — el admin define el % de descuento del vendedor.
+// Aplica automáticamente a quien compre por su link /sol/p/CODE.
+// ─────────────────────────────────────────────────────────────────────────────
+function SellerDiscountControl({ userId, name, initial }: { userId: string; name: string; initial: number }) {
+  const [val, setVal]     = useState(String(initial || 0));
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    const pct = Math.max(0, Math.min(100, Number(val) || 0));
+    setSaving(true);
+    const { error } = await supabase.from('solstice_sellers')
+      .update({ discount_pct: pct }).eq('user_id', userId);
+    setSaving(false);
+    if (error) toast.error('No se pudo guardar el descuento');
+    else { setVal(String(pct)); toast.success(`Descuento de ${name.split(' ')[0]}: ${pct}%`); }
+  };
+
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 mb-1"
+      style={{ background: 'rgba(16,185,129,0.06)', border: '0.5px solid rgba(16,185,129,0.25)', borderRadius: '14px' }}>
+      <Tag size={12} style={{ color: '#86efac', flexShrink: 0 }} />
+      <span className="text-[9px] uppercase flex-1" style={{ color: '#86efac', letterSpacing: '0.15em', fontWeight: 600 }}>
+        Descuento de su link
+      </span>
+      <input
+        type="number" min={0} max={100} value={val}
+        onClick={e => e.stopPropagation()}
+        onChange={e => setVal(e.target.value)}
+        className="text-xs text-right font-mono"
+        style={{ width: 48, background: 'rgba(0,0,0,0.4)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '8px', color: '#F9F2D7', padding: '4px 6px', outline: 'none' }}
+      />
+      <span className="text-[10px]" style={{ color: '#86efac' }}>%</span>
+      <button onClick={(e) => { e.stopPropagation(); save(); }} disabled={saving}
+        className="px-3 py-1.5 text-[9px] uppercase"
+        style={{ background: 'rgba(16,185,129,0.20)', border: '0.5px solid rgba(16,185,129,0.45)', color: '#86efac', borderRadius: '999px', fontWeight: 600, letterSpacing: '0.1em', cursor: 'pointer' }}>
+        {saving ? '…' : 'Guardar'}
+      </button>
     </div>
   );
 }

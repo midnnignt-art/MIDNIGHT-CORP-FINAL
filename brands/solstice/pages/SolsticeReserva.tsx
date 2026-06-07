@@ -255,8 +255,18 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
     ? (selectedBoat.price_per_person || 0)
     : 0;
 
-  // Subtotal (lo que vale el paquete antes del ticket service)
-  const subtotal      = (isCombo ? s.combo_total : dayTotal) + boatPart;
+  // Descuento del vendedor: si el cliente llegó por un link /sol/p/CODE de un
+  // vendedor con descuento, se aplica automáticamente al paquete.
+  const sellerDiscountPct = (() => {
+    try { return Number(sessionStorage.getItem('ms_seller_discount')) || 0; }
+    catch { return 0; }
+  })();
+
+  // Paquete base (combo o días + lancha), luego descuento del vendedor, luego
+  // ticket service 6.6% sobre lo ya descontado.
+  const packageBase   = (isCombo ? s.combo_total : dayTotal) + boatPart;
+  const discountAmount = Math.round(packageBase * sellerDiscountPct / 100);
+  const subtotal      = packageBase - discountAmount;
   const ticketService = Math.round(subtotal * TICKET_SERVICE_PCT);
   const grandTotal    = subtotal + ticketService;
 
@@ -1677,6 +1687,12 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                     <div className="flex justify-between text-xs uppercase" style={{ letterSpacing: '0.1em', fontWeight: 500 }}>
                       <span style={{ color: C.gray }}>Lancha (tu parte)</span>
                       <span style={{ color: C.cream }}>${Math.round(boatPart / 1000)}K</span>
+                    </div>
+                  )}
+                  {discountAmount > 0 && (
+                    <div className="flex justify-between text-xs uppercase" style={{ letterSpacing: '0.1em', fontWeight: 600 }}>
+                      <span style={{ color: '#86efac' }}>Descuento ({sellerDiscountPct}%)</span>
+                      <span style={{ color: '#86efac' }}>−${Math.round(discountAmount / 1000)}K</span>
                     </div>
                   )}
                   <div className="flex justify-between text-xs uppercase" style={{ letterSpacing: '0.1em', fontWeight: 500 }}>
