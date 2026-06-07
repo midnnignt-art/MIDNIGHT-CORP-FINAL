@@ -354,18 +354,42 @@ export default function SolsticeVentasDashboard({ role }: Props) {
 
       let myRich = richSellers.find(sl => sl.user_id === currentUser.user_id) || null;
 
-      // Auto-provisión del ref_code: si el vendedor está habilitado en
-      // solstice_sellers pero sin código, lo generamos al vuelo para que
-      // siempre tenga su link. (No crea la fila si no existe — eso es
-      // habilitación del admin.)
-      if (isSeller && myRich && !myRich.ref_code) {
-        const base = (myRich.name || 'SOL').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || 'SOL';
-        const gen = `SOL-${base}-${Math.floor(100 + Math.random() * 900)}`;
-        const { error: genErr } = await supabase
-          .from('solstice_sellers')
-          .update({ ref_code: gen })
-          .eq('user_id', currentUser.user_id);
-        if (!genErr) myRich = { ...myRich, ref_code: gen };
+      // Auto-activación del vendedor: cualquier promotor que entre a su
+      // dashboard de Solstice queda habilitado automáticamente con su link,
+      // SIN que el admin tenga que activarlo. (Decisión del owner: "el admin
+      // nunca lo va a activar".)
+      if (isSeller && currentUser.user_id) {
+        const genName = (myRich?.name || currentUser.name || 'SOL').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || 'SOL';
+        const gen = `SOL-${genName}-${Math.floor(100 + Math.random() * 900)}`;
+
+        if (!myRich) {
+          // No tenía fila → crearla (auto-habilitación)
+          const { data: openSeason } = await supabase
+            .from('solstice_seasons').select('id').eq('status', 'open').maybeSingle();
+          const { error: insErr } = await supabase.from('solstice_sellers').insert({
+            user_id:   currentUser.user_id,
+            season_id: openSeason?.id ?? null,
+            ref_code:  gen,
+            status:    'active',
+            role:      'seller',
+          });
+          if (!insErr) {
+            myRich = {
+              user_id: currentUser.user_id,
+              name: currentUser.name || 'Yo',
+              ref_code: gen,
+              team_id: null, team_name: null, squad_id: null, squad_name: null,
+              discount_pct: 0,
+            };
+          }
+        } else if (!myRich.ref_code) {
+          // Tenía fila pero sin código → generarlo
+          const { error: genErr } = await supabase
+            .from('solstice_sellers')
+            .update({ ref_code: gen })
+            .eq('user_id', currentUser.user_id);
+          if (!genErr) myRich = { ...myRich, ref_code: gen };
+        }
       }
       setMySeller(myRich);
 
