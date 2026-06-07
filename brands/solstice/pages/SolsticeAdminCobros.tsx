@@ -224,7 +224,10 @@ export default function SolsticeAdminCobros({ role = 'admin' }: { role?: Solstic
             Gestión de clientes con pagos vencidos · actualización automática al cargar
           </p>
         </div>
-        <RunCronButton onComplete={load} />
+        {/* Recordatorios automáticos masivos: SOLO admin (Excel). Manager y
+            promotor pueden mandar recordatorio manual por cliente, pero no
+            disparar el job masivo. */}
+        {role === 'admin' && <RunCronButton onComplete={load} />}
       </div>
 
       {/* KPI strip */}
