@@ -43,13 +43,15 @@ function ComingSoon({ title }: { title: string }) {
   );
 }
 
-function solsticeRole(userRole: UserRole): 'admin' | 'seller' | 'manager' | 'buyer' {
-  // Mapeo de los 5 roles del Excel a las 4 vistas de Solstice:
+function solsticeRole(userRole: UserRole): 'admin' | 'seller' | 'manager' | 'head' | 'buyer' {
+  // Mapeo de los 5 roles del Excel a las vistas de Solstice:
   //  SUPER_ADMIN + HEAD_OF_SALES → 'admin' (todo global)
-  //  MANAGER (Gerente) + HEAD (Cabeza) → 'manager' (scope a su equipo/subordinados)
+  //  HEAD (Cabeza) → 'head' (ve su super-squad: varios squads)
+  //  MANAGER (Gerente) → 'manager' (su squad)
   //  PROMOTER → 'seller' (solo lo propio)
   if (userRole === UserRole.ADMIN || userRole === UserRole.SUPER_ADMIN || userRole === UserRole.HEAD_OF_SALES) return 'admin';
-  if (userRole === UserRole.MANAGER || userRole === UserRole.HEAD) return 'manager';
+  if (userRole === UserRole.HEAD) return 'head';
+  if (userRole === UserRole.MANAGER) return 'manager';
   if (userRole === UserRole.PROMOTER) return 'seller';
   return 'buyer';
 }
@@ -156,24 +158,24 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
   // mandamos al landing. Mantiene en sync el menú visible (filtrado por
   // rol en SolsticeNav) con el render real — un seller que llegue a una
   // admin-page por URL stale o cambio de rol queda fuera.
-  const PAGE_ROLES: Record<SolsticePage, ('admin'|'manager'|'seller'|'buyer')[]> = {
-    landing:               ['admin','manager','seller','buyer'],
-    programa:              ['admin','manager','seller','buyer'],
-    reserva:               ['admin','manager','seller','buyer'],
+  const PAGE_ROLES: Record<SolsticePage, ('admin'|'manager'|'head'|'seller'|'buyer')[]> = {
+    landing:               ['admin','manager','head','seller','buyer'],
+    programa:              ['admin','manager','head','seller','buyer'],
+    reserva:               ['admin','manager','head','seller','buyer'],
     'admin-config':        ['admin'],
     'admin-sellers':       ['admin'],
     'admin-finance':       ['admin'],
-    'admin-cobros':        ['admin','manager','seller'],
+    'admin-cobros':        ['admin','manager','head','seller'],
     'admin-proyecciones':  ['admin'],
     'admin-codes':         ['admin'],
     'admin-accounting':    ['admin'],
     'admin-utilidades':    ['admin'],
-    'admin-top-clients':   ['admin','manager','seller'],
+    'admin-top-clients':   ['admin','manager','head','seller'],
     'admin-boats':         ['admin'],
     'admin-lodgings':      ['admin'],
     'check-in':            ['admin'],
     seller:                ['seller'],
-    manager:               ['manager'],
+    manager:               ['manager','head'],
     buyer:                 ['buyer'],
   };
   useEffect(() => {
@@ -330,7 +332,7 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
         {page === 'admin-lodgings' && <SolsticeAdminLodgingReservations />}
         {page === 'check-in'      && <SolsticeAdminCheckin />}
         {page === 'seller'        && <SolsticeVentasDashboard role="seller" />}
-        {page === 'manager'       && <SolsticeVentasDashboard role="manager" />}
+        {page === 'manager'       && <SolsticeVentasDashboard role={role === 'head' ? 'head' : 'manager'} />}
         {page === 'buyer'         && <SolsticeMiSemana />}
       </motion.div>
     </div>

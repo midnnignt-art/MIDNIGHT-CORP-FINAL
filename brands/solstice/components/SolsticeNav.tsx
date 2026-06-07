@@ -28,7 +28,7 @@ interface Props {
   currentPage: SolsticePage;
   onNavigate: (page: SolsticePage) => void;
   onExit: () => void;
-  role: 'admin' | 'seller' | 'manager' | 'buyer';
+  role: 'admin' | 'seller' | 'manager' | 'head' | 'buyer';
 }
 
 const C = {
@@ -40,8 +40,8 @@ const C = {
 };
 
 const NAV_ITEMS: { page: SolsticePage; label: string; icon: React.ReactNode; roles: string[] }[] = [
-  { page: 'landing',       label: 'Vitrina',      icon: <Sun size={15} />,           roles: ['admin','seller','manager','buyer'] },
-  { page: 'programa',      label: 'Programa',     icon: <BookOpen size={15} />,      roles: ['admin','seller','manager','buyer'] },
+  { page: 'landing',       label: 'Vitrina',      icon: <Sun size={15} />,           roles: ['admin','seller','manager','head','buyer'] },
+  { page: 'programa',      label: 'Programa',     icon: <BookOpen size={15} />,      roles: ['admin','seller','manager','head','buyer'] },
   // Todo lo operativo (config, finanzas, lanchas, hospedaje, check-in, top
   // clients, etc) es SOLO admin/super-admin. El manager ve solo su equipo;
   // el vendedor solo su dashboard. (Alcance definido por el owner, jun 2026.)
@@ -55,11 +55,11 @@ const NAV_ITEMS: { page: SolsticePage; label: string; icon: React.ReactNode; rol
   { page: 'admin-boats',  label: 'Lanchas activas', icon: <Ship size={15} />,        roles: ['admin'] },
   { page: 'admin-lodgings', label: 'Hospedaje',    icon: <BedDouble size={15} />,    roles: ['admin'] },
   { page: 'check-in',    label: 'Check-in',      icon: <ScanLine size={15} />,      roles: ['admin'] },
-  // Cobros y Top Clientes: scopeados por rol (manager=su squad, promotor=propio)
-  { page: 'admin-cobros', label: 'Cobros',        icon: <AlertCircle size={15} />,   roles: ['admin','manager','seller'] },
-  { page: 'admin-top-clients', label: 'Top clientes', icon: <Trophy size={15} />,    roles: ['admin','manager','seller'] },
+  // Cobros y Top Clientes: scopeados por rol (head=super-squad, manager=squad, promotor=propio)
+  { page: 'admin-cobros', label: 'Cobros',        icon: <AlertCircle size={15} />,   roles: ['admin','manager','head','seller'] },
+  { page: 'admin-top-clients', label: 'Top clientes', icon: <Trophy size={15} />,    roles: ['admin','manager','head','seller'] },
   { page: 'seller',        label: 'Mi dashboard', icon: <LayoutDashboard size={15} />,roles: ['seller'] },
-  { page: 'manager',       label: 'Mi equipo',    icon: <Users size={15} />,         roles: ['manager'] },
+  { page: 'manager',       label: 'Mi equipo',    icon: <Users size={15} />,         roles: ['manager','head'] },
   { page: 'buyer',         label: 'Mi semana',    icon: <LayoutDashboard size={15} />,roles: ['buyer'] },
 ];
 

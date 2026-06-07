@@ -276,13 +276,16 @@ function BuyerRow({
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-interface Props { role: 'seller' | 'manager' | 'admin' }
+interface Props { role: 'seller' | 'manager' | 'admin' | 'head' }
 
 export default function SolsticeVentasDashboard({ role }: Props) {
   const { currentUser, promoters, teams: storeTeams, superSquads: storeSquads } = useStore();
   const isAdmin   = role === 'admin';
   const isSeller  = role === 'seller';
-  const isManager = role === 'manager';
+  const isHead    = role === 'head';                 // Cabeza — ve su super-squad
+  // La Cabeza usa la misma vista de equipo que el gerente, pero con scope
+  // ampliado a TODOS los squads de su super-squad.
+  const isManager = role === 'manager' || isHead;
 
   const [season,  setSeason]  = useState<Season | null>(null);
   const [allRegs, setAllRegs] = useState<Registration[]>([]);
@@ -346,6 +349,14 @@ export default function SolsticeVentasDashboard({ role }: Props) {
       let q = supabase.from('solstice_registrations').select('*').order('created_at', { ascending: false });
       if (isSeller) {
         q = q.eq('seller_id', currentUser.user_id);
+      } else if (isHead) {
+        // Cabeza: todos los squads de su super-squad → todos sus sellers.
+        const mySquadIds = storeSquads.filter(sq => (sq as any).head_id === currentUser.user_id).map(sq => sq.id);
+        const myTeamIds  = storeTeams.filter(t => (t as any).super_squad_id && mySquadIds.includes((t as any).super_squad_id)).map(t => t.id);
+        const headSellers = richSellers.filter(sl => sl.team_id && myTeamIds.includes(sl.team_id));
+        const ids = headSellers.map(sl => sl.user_id);
+        q = q.in('seller_id', ids.length ? ids : ['00000000-0000-0000-0000-000000000000']);
+        setTeamSellers(headSellers);
       } else if (isManager && myRich?.team_id) {
         const teamMemberIds = richSellers.filter(sl => sl.team_id === myRich.team_id).map(sl => sl.user_id);
         if (teamMemberIds.length) {
@@ -1092,10 +1103,10 @@ export default function SolsticeVentasDashboard({ role }: Props) {
       <div className="px-8 pt-10 pb-6 flex items-start justify-between gap-4" style={{ borderBottom: '0.5px solid rgba(255,255,255,0.08)' }}>
         <div>
           <p className="text-[9px] uppercase mb-1" style={{ color: C.red, fontWeight: 500, letterSpacing: '0.4em' }}>
-            {isSeller ? 'Mi Dashboard' : 'Dashboard · Gerente'}
+            {isSeller ? 'Mi Dashboard' : isHead ? 'Dashboard · Cabeza' : 'Dashboard · Gerente'}
           </p>
           <h1 className="text-3xl uppercase" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.1em', fontWeight: 300 }}>
-            {isSeller ? 'Mis Ventas' : 'Vista Equipo'}
+            {isSeller ? 'Mis Ventas' : isHead ? 'Mi Super Squad' : 'Vista Equipo'}
           </h1>
           {mySeller && (
             <p className="text-xs uppercase mt-1" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>
