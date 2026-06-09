@@ -324,9 +324,11 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
     }
     setAuthError('');
 
-    // Staff testing: skip OTP so it doesn't wipe the admin session
+    // Staff testing: skip OTP so it doesn't wipe the admin session.
+    // La lancha ya se eligió ANTES de los datos (nuevo orden), así que desde
+    // datos vamos directo al resumen (3) — NO de vuelta a la lancha (2.7).
     if (currentUser) {
-      setStep(includesBoat ? (2.7 as any) : 3);
+      setStep(3);
       return;
     }
 
@@ -348,7 +350,8 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
     setAuthLoading(true); setAuthError('');
     const ok = await verifyOtpUnified(email, otp);
     setAuthLoading(false);
-    if (ok) setStep(includesBoat ? (2.7 as any) : 3);
+    // Tras verificar OTP → resumen. La lancha ya se eligió antes de los datos.
+    if (ok) setStep(3);
     else setAuthError('Código incorrecto o expirado.');
   };
 
