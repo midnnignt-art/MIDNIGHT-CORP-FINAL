@@ -1418,13 +1418,19 @@ export default function SolsticeVentasDashboard({ role }: Props) {
         {/* Sales Intelligence del squad — manager ve el pulso de su equipo.
             Solo si HAY datos (recharts crashea con dataset vacío) — igual que
             la vista admin. Aislado además en ErrorBoundary por si acaso. */}
-        {isManager && dateRegs.length > 0 && (
+        {isManager && (dateRegs.length > 0 ? (
           <ErrorBoundary fallback={null}>
             <SalesIntelChart regs={dateRegs} />
           </ErrorBoundary>
-        )}
+        ) : (
+          <div className="p-6 text-center" style={{ borderRadius: '24px', background: 'rgba(255,255,255,0.025)', border: '0.5px solid rgba(255,255,255,0.08)' }}>
+            <BarChart2 size={24} className="mx-auto mb-2 opacity-30" style={{ color: C.red }} />
+            <p className="text-[10px] uppercase" style={{ color: C.gray, letterSpacing: '0.25em', fontWeight: 600 }}>Sales Intelligence</p>
+            <p className="text-[10px] mt-1" style={{ color: `${C.gray}aa` }}>Cuando tu equipo empiece a vender, verás acá las tendencias de los últimos 30 días.</p>
+          </div>
+        ))}
 
-        {isManager && teamSellers.length > 0 && (
+        {isManager && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-xs uppercase" style={{ color: C.gray, fontWeight: 300, letterSpacing: '-0.02em' }}>Ranking de mi equipo</p>
@@ -1455,6 +1461,13 @@ export default function SolsticeVentasDashboard({ role }: Props) {
                 <div className="col-span-2 text-right">Pagado</div>
                 <div className="col-span-2 text-right">Comisión</div>
               </div>
+              {teamSellers.length === 0 && (
+                <div className="px-5 py-8 text-center">
+                  <Users size={22} className="mx-auto mb-2 opacity-30" style={{ color: C.red }} />
+                  <p className="text-[11px]" style={{ color: C.cream, fontWeight: 500 }}>Tu squad todavía no tiene vendedores</p>
+                  <p className="text-[10px] mt-1" style={{ color: C.gray }}>Usá el botón <span style={{ color: C.red }}>Reclutar</span> de arriba para sumar promotores. Apenas vendan, vas a ver acá su ranking.</p>
+                </div>
+              )}
               {[...teamSellers]
                 .map(sl => ({ sl, paid: dateRegs.filter(r => r.seller_id === sl.user_id).reduce((a,r)=>a+r.amount_paid,0) }))
                 .sort((a, b) => b.paid - a.paid)   // ranking: mayor venta primero
