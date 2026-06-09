@@ -28,23 +28,17 @@ export default function SolsticePromoLanding({ refCode }: Props) {
 
     (async () => {
       try {
-        const { data: seller } = await supabase
-          .from('solstice_sellers')
-          .select('user_id, ref_code, discount_pct')
-          .ilike('ref_code', code)
-          .maybeSingle();
-
+        // El visitante es ANÓNIMO y no puede leer solstice_sellers (RLS), así
+        // que usamos un RPC SECURITY DEFINER que devuelve solo lo público.
+        const { data } = await supabase.rpc('solstice_seller_public_info', { p_ref_code: code });
+        const seller = Array.isArray(data) ? data[0] : data;
         if (seller) {
           // Descuento → el checkout lo aplica a quien compre por este link.
-          const discount = Number((seller as any).discount_pct) || 0;
+          const discount = Number(seller.discount_pct) || 0;
           if (discount > 0) sessionStorage.setItem('ms_seller_discount', String(discount));
           else sessionStorage.removeItem('ms_seller_discount');
-
           // Nombre del promotor → banner "Atendido por X" en la vitrina.
-          // El nombre vive en profiles.full_name (id = user_id).
-          const { data: profile } = await supabase
-            .from('profiles').select('full_name').eq('id', seller.user_id).maybeSingle();
-          sessionStorage.setItem('ms_ref_name', profile?.full_name || 'tu promotor');
+          sessionStorage.setItem('ms_ref_name', (seller.name || '').trim() || 'tu promotor');
         }
       } catch { /* igual redirigimos; la atribución se resuelve en checkout */ }
 
