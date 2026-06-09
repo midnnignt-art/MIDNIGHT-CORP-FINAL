@@ -354,11 +354,12 @@ export default function SolsticeVentasDashboard({ role }: Props) {
 
       let myRich = richSellers.find(sl => sl.user_id === currentUser.user_id) || null;
 
-      // Auto-activación del vendedor: cualquier promotor que entre a su
-      // dashboard de Solstice queda habilitado automáticamente con su link,
-      // SIN que el admin tenga que activarlo. (Decisión del owner: "el admin
-      // nunca lo va a activar".)
-      if (isSeller && currentUser.user_id) {
+      // Auto-activación: cualquiera que venda (promotor, gerente o cabeza)
+      // que entre a su dashboard de Solstice queda habilitado automáticamente
+      // con su link, SIN que el admin tenga que activarlo. (Decisión del
+      // owner: "el admin nunca lo va a activar".)
+      if ((isSeller || isManager) && currentUser.user_id) {
+        const selfRole = isHead ? 'head' : isManager ? 'manager' : 'seller';
         const genName = (myRich?.name || currentUser.name || 'SOL').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || 'SOL';
         const gen = `SOL-${genName}-${Math.floor(100 + Math.random() * 900)}`;
 
@@ -371,7 +372,7 @@ export default function SolsticeVentasDashboard({ role }: Props) {
             season_id: openSeason?.id ?? null,
             ref_code:  gen,
             status:    'active',
-            role:      'seller',
+            role:      selfRole,
           });
           if (!insErr) {
             myRich = {
