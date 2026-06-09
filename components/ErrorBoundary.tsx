@@ -7,6 +7,9 @@ interface State {
 
 interface Props {
   children: React.ReactNode;
+  // Si se pasa, se renderiza en vez de la pantalla completa de error. Útil
+  // para aislar una sección (ej. un gráfico) sin tumbar toda la página.
+  fallback?: React.ReactNode;
 }
 
 export class ErrorBoundary extends React.Component<Props, State> {
@@ -25,6 +28,9 @@ export class ErrorBoundary extends React.Component<Props, State> {
   };
 
   render() {
+    if (this.state.hasError && this.props.fallback !== undefined) {
+      return this.props.fallback;
+    }
     if (!this.state.hasError) return this.props.children;
 
     return (

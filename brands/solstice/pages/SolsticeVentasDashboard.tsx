@@ -9,6 +9,7 @@ import {
 import { supabase } from '../../../lib/supabase';
 import { useStore } from '../../../context/StoreContext';
 import { toast } from '../../../lib/toast';
+import { ErrorBoundary } from '../../../components/ErrorBoundary';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis,
   CartesianGrid, Tooltip,
@@ -1342,9 +1343,13 @@ export default function SolsticeVentasDashboard({ role }: Props) {
         )}
 
         {/* Manager: team table */}
-        {/* Sales Intelligence del squad — manager ve el pulso de su equipo */}
-        {isManager && (
-          <SalesIntelChart regs={dateRegs} />
+        {/* Sales Intelligence del squad — manager ve el pulso de su equipo.
+            Solo si HAY datos (recharts crashea con dataset vacío) — igual que
+            la vista admin. Aislado además en ErrorBoundary por si acaso. */}
+        {isManager && dateRegs.length > 0 && (
+          <ErrorBoundary fallback={null}>
+            <SalesIntelChart regs={dateRegs} />
+          </ErrorBoundary>
         )}
 
         {isManager && teamSellers.length > 0 && (
