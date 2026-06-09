@@ -505,6 +505,17 @@ export default function SolsticeVentasDashboard({ role }: Props) {
     return { squadNodes, noSquadTeams, organicRegs, sellerNodes };
   }, [isAdmin, sellers, dateRegs, comPct, storeTeams, storeSquads]);
 
+  // Stats de la vista seller/manager. IMPORTANTE: definidos ACÁ (antes de
+  // cualquier return condicional como `if (loading)` o `if (isAdmin)`) para
+  // no violar las reglas de hooks (React error #310). Antes estaban más abajo,
+  // después de los early returns, y cuando el rol/loading cambiaba el número
+  // de hooks variaba → crash.
+  const myStats = useMemo(() => stats(filteredRegs, comPct), [filteredRegs, comPct]);
+  const buyerRegs = useMemo(() => {
+    if (sellerFilter === 'all') return dateRegs;
+    return dateRegs.filter(r => r.seller_id === sellerFilter);
+  }, [dateRegs, sellerFilter]);
+
   // ── Cash modal ─────────────────────────────────────────────────────────────
   const openCashModal = (reg: Registration) => {
     setCashSchedule(reg.schedules?.find(s => s.status === 'pending' || s.status === 'overdue') || null);
@@ -1159,12 +1170,6 @@ export default function SolsticeVentasDashboard({ role }: Props) {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // SELLER / MANAGER VIEW
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  const myStats = useMemo(() => stats(filteredRegs, comPct), [filteredRegs, comPct]);
-  const buyerRegs = useMemo(() => {
-    if (sellerFilter === 'all') return dateRegs;
-    return dateRegs.filter(r => r.seller_id === sellerFilter);
-  }, [dateRegs, sellerFilter]);
 
   return (
     <div style={{ background: C.bg, minHeight: '100vh', color: C.cream, fontFamily: "'Archivo', sans-serif" }}>
