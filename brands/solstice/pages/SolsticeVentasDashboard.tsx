@@ -4,7 +4,7 @@ import {
   Copy, Share2, Check, Users, ChevronDown, ChevronUp,
   AlertTriangle, Banknote, Download, Loader2, CheckCircle2,
   Clock, X, Globe, BarChart2, UserCheck, Trophy, Calendar,
-  Building2, Layers, User, UserPlus, Mail, Eye, Tag,
+  Building2, Layers, User, UserPlus, Mail, Eye, Tag, MessageCircle,
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useStore } from '../../../context/StoreContext';
@@ -169,13 +169,25 @@ function DateBar({ value, onChange }: { value: DateFilter; onChange: (v: DateFil
 // ── Buyer row (shared) ────────────────────────────────────────────────────────
 
 function BuyerRow({
-  reg, expanded, onToggle, onCash, showSeller,
+  reg, expanded, onToggle, onCash, showSeller, comPct = 0,
 }: {
   reg: Registration; expanded: boolean; onToggle: () => void;
-  onCash: (r: Registration) => void; showSeller?: boolean;
+  onCash: (r: Registration) => void; showSeller?: boolean; comPct?: number;
 }) {
   const next      = reg.schedules?.find(s => s.status === 'pending' || s.status === 'overdue');
   const hasOverdue = reg.schedules?.some(s => s.status === 'overdue');
+  // Comisión que el vendedor gana por ESTA venta (sobre lo pagado).
+  const myCommission = Math.round((reg.amount_paid || 0) * comPct);
+  const pendingCommission = Math.round(Math.max(0, (reg.total_amount || 0) - (reg.amount_paid || 0)) * comPct);
+
+  const waCobro = () => {
+    const phone = (reg.customer_phone || '').replace(/[^0-9]/g, '');
+    const monto = next ? fmtK(next.amount) : '';
+    const msg = `¡Hola ${reg.customer_name?.split(' ')[0] || ''}! Te recuerdo tu reserva de SOLSTICE 2026 (orden ${reg.order_number}).`
+      + (next ? ` Tenés una cuota de ${monto} ${hasOverdue ? 'VENCIDA' : 'próxima a vencer'}. Te paso el link de pago para que la dejes al día. 🌅` : ' ¡Gracias por tu compra! 🌅');
+    const url = phone ? `https://wa.me/57${phone}?text=${encodeURIComponent(msg)}` : '';
+    if (url) window.open(url, '_blank', 'noopener');
+  };
 
   return (
     <div style={{ borderBottom: '0.5px solid rgba(255,255,255,0.05)' }}>
@@ -242,6 +254,30 @@ function BuyerRow({
                   </div>
                 ))}
               </div>
+
+              {/* Comisión del vendedor por esta venta */}
+              {comPct > 0 && (
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 px-3 py-2"
+                  style={{ background: 'rgba(16,185,129,0.06)', border: '0.5px solid rgba(16,185,129,0.22)', borderRadius: '12px' }}>
+                  <span className="text-[9px] uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 600 }}>Tu comisión</span>
+                  <span className="text-xs" style={{ color: C.green, fontWeight: 600 }}>{fmtK(myCommission)} <span style={{ color: C.gray, fontWeight: 400 }}>ganada</span></span>
+                  {pendingCommission > 0 && (
+                    <span className="text-xs" style={{ color: C.gray }}>+ {fmtK(pendingCommission)} <span style={{ fontWeight: 400 }}>cuando complete cuotas</span></span>
+                  )}
+                </div>
+              )}
+
+              {/* Contactar al cliente por WhatsApp (seguimiento / cobro) */}
+              {reg.customer_phone && (
+                <button onClick={waCobro}
+                  className="flex items-center gap-2 px-5 py-2.5 text-xs uppercase tracking-widest"
+                  style={{
+                    background: 'rgba(16,185,129,0.18)', border: '0.5px solid rgba(16,185,129,0.45)',
+                    color: '#86efac', borderRadius: '999px', fontWeight: 600, letterSpacing: '0.15em', cursor: 'pointer',
+                  }}>
+                  <MessageCircle size={13} /> {hasOverdue ? 'Cobrar cuota vencida' : next ? 'Recordar cuota' : 'Escribir al cliente'}
+                </button>
+              )}
               {reg.schedules && reg.schedules.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {reg.schedules.map(sc => (
@@ -1149,7 +1185,7 @@ export default function SolsticeVentasDashboard({ role }: Props) {
                   overflow: 'hidden',
                 }}>
                   {filteredRegs.map(reg => (
-                    <BuyerRow key={reg.id} reg={reg} showSeller
+                    <BuyerRow key={reg.id} reg={reg} showSeller comPct={comPct}
                       expanded={expandedReg === reg.id}
                       onToggle={() => setExpandedReg(v => v === reg.id ? null : reg.id)}
                       onCash={openCashModal}
@@ -1297,6 +1333,37 @@ export default function SolsticeVentasDashboard({ role }: Props) {
           <KpiCard label="Comisión"   value={fmtK(myStats.com)}          sub={`${season?.commission_pct||10}%`} color={C.green} />
           <KpiCard label="Pendiente"  value={fmtK(myStats.comPending)}   sub="cuotas futuras" />
         </div>
+
+        {/* ── Meta de temporada — avance del vendedor/equipo hacia el objetivo ── */}
+        {(() => {
+          // Objetivo de reservas: viene de la season (sales_goal) o default 15.
+          const goal = Number((season as any)?.sales_goal) || (isSeller ? 15 : 60);
+          const done = myStats.count;
+          const pct = Math.min(100, Math.round((done / goal) * 100));
+          const reached = done >= goal;
+          return (
+            <div className="p-5 md:p-6" style={{
+              borderRadius: '24px',
+              background: reached ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.025)',
+              border: `0.5px solid ${reached ? 'rgba(16,185,129,0.35)' : 'rgba(255,255,255,0.10)'}`,
+            }}>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[10px] uppercase" style={{ letterSpacing: '0.35em', color: reached ? C.green : C.red, fontWeight: 600 }}>
+                  {isSeller ? 'Mi meta de temporada' : 'Meta del equipo'}
+                </p>
+                <p className="text-xs" style={{ color: reached ? C.green : C.cream, fontWeight: 600 }}>
+                  {done} / {goal} {reached ? '· ¡cumplida! 🎉' : 'reservas'}
+                </p>
+              </div>
+              <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                <div style={{ width: `${pct}%`, height: '100%', background: reached ? C.green : C.red, borderRadius: '999px', transition: 'width 0.8s cubic-bezier(0.16,1,0.3,1)' }} />
+              </div>
+              <p className="text-[10px] uppercase mt-2" style={{ color: C.gray, letterSpacing: '0.1em', fontWeight: 500 }}>
+                {reached ? 'Superaste tu objetivo' : `${pct}% · te faltan ${Math.max(0, goal - done)} para la meta`}
+              </p>
+            </div>
+          );
+        })()}
 
         {/* ── Liquidación maestra (Excel) — cruce efectivo vs comisión ──── */}
         <div className="p-5 md:p-6" style={{
@@ -1453,7 +1520,7 @@ export default function SolsticeVentasDashboard({ role }: Props) {
               overflow: 'hidden',
             }}>
               {buyerRegs.map(reg => (
-                <BuyerRow key={reg.id} reg={reg}
+                <BuyerRow key={reg.id} reg={reg} comPct={comPct}
                   expanded={expandedReg === reg.id}
                   onToggle={() => setExpandedReg(v => v===reg.id?null:reg.id)}
                   onCash={openCashModal}
