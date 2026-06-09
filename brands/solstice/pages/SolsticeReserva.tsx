@@ -249,6 +249,16 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
 
   const dayTotal  = selDays.reduce((a, d) => a + (SOLSTICE_DAYS.find(x => x.day === d)?.price || 0), 0);
   const selectedBoat = selectedBoatId ? boats.find(b => b.id === selectedBoatId) : null;
+
+  // ¿Hay alguna lancha con cupo? Si TODAS están llenas, el cliente igual debe
+  // poder avanzar al pago (el equipo le asigna lancha después) — si no, se
+  // queda bloqueado y se pierde la venta.
+  const anyBoatAvailable = boats.some(b => {
+    const claimed = boatOccupancy[b.id] || 0;
+    const available = Math.max(0, (b.capacity || 0) - claimed);
+    return b.status !== 'sold_out' && available > 0;
+  });
+  const allBoatsFull = boats.length > 0 && !anyBoatAvailable;
   // La parte de la lancha solo se cobra aparte en el combo (en días sueltos
   // el día 3 ya la incluye en su precio).
   const boatPart  = (isCombo && includesBoat && selectedBoat)
@@ -1438,6 +1448,22 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                 </div>
               )}
 
+              {/* Aviso: todas las lanchas llenas → igual se puede avanzar */}
+              {boatChoice === 'lead' && allBoatsFull && (
+                <div className="p-5 mb-1" style={{ borderRadius: '20px', background: 'rgba(255,180,140,0.08)', border: '0.5px solid rgba(255,180,140,0.40)' }}>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Ship size={15} style={{ color: '#FFB48C' }} />
+                    <p className="text-[10px] uppercase" style={{ color: '#FFB48C', letterSpacing: '0.25em', fontWeight: 600 }}>
+                      Lanchas con cupo agotado
+                    </p>
+                  </div>
+                  <p className="text-xs" style={{ color: `${C.cream}cc`, lineHeight: 1.5 }}>
+                    Por ahora todas las lanchas están llenas, pero podés continuar y completar tu compra.
+                    <strong style={{ color: C.cream }}> El equipo te asigna lancha</strong> apenas se abra un cupo o se sume una nueva.
+                  </p>
+                </div>
+              )}
+
               {/* Líder: catálogo de lanchas */}
               {boatChoice === 'lead' && (
                 <div className="space-y-3">
@@ -1609,22 +1635,26 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                 </div>
               )}
 
-              {/* Continuar — combo va a forma de pago; días sueltos a datos */}
+              {/* Continuar — combo va a forma de pago; días sueltos a datos.
+                  Si todas las lanchas están llenas (lead), se puede avanzar sin
+                  selección (el equipo asigna después) para no bloquear la venta. */}
+              {(() => {
+                const canAdvanceLead = !!selectedBoatId || (boats.length === 0) || allBoatsFull;
+                const ready = boatChoice === 'join' ? !!boatReservationId : canAdvanceLead;
+                return (
               <button
                 onClick={() => {
-                  const ready = boatChoice === 'join' ? !!boatReservationId : !!selectedBoatId;
                   if (!ready) return;
                   setStep(isCombo ? (1.4 as any) : 2);
                 }}
-                disabled={boatChoice === 'join' ? !boatReservationId : !selectedBoatId}
+                disabled={!ready}
                 style={{
                   ...primaryBtnStyle,
                   padding: '18px 16px',
-                  opacity: (boatChoice === 'join' ? !boatReservationId : !selectedBoatId) ? 0.35 : 1,
+                  opacity: ready ? 1 : 0.35,
                 }}
                 onMouseEnter={e => {
-                  const ok = boatChoice === 'join' ? !!boatReservationId : !!selectedBoatId;
-                  if (ok) {
+                  if (ready) {
                     (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
                     (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 12px 28px rgba(230,57,47,0.30)';
                   }
@@ -1636,6 +1666,8 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
               >
                 {isCombo ? 'Cómo pagar' : 'Continuar al resumen'} <ChevronRight size={16} />
               </button>
+                );
+              })()}
             </motion.div>
           )}
 
