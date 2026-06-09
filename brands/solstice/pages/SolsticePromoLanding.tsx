@@ -41,9 +41,10 @@ export default function SolsticePromoLanding({ refCode }: Props) {
           else sessionStorage.removeItem('ms_seller_discount');
 
           // Nombre del promotor → banner "Atendido por X" en la vitrina.
+          // El nombre vive en profiles.full_name (id = user_id).
           const { data: profile } = await supabase
-            .from('promoters').select('name').eq('user_id', seller.user_id).maybeSingle();
-          sessionStorage.setItem('ms_ref_name', profile?.name || '');
+            .from('profiles').select('full_name').eq('id', seller.user_id).maybeSingle();
+          sessionStorage.setItem('ms_ref_name', profile?.full_name || 'tu promotor');
         }
       } catch { /* igual redirigimos; la atribución se resuelve en checkout */ }
 
