@@ -74,6 +74,22 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
   const [refName, setRefName] = useState<string>(() => {
     try { return sessionStorage.getItem('ms_ref_name') || ''; } catch { return ''; }
   });
+  // Re-leer por si el sessionStorage se pobló justo después del montaje
+  // (timing del redirect desde /sol/p/CODE).
+  useEffect(() => {
+    if (refName) return;
+    let tries = 0;
+    const iv = setInterval(() => {
+      tries++;
+      try {
+        const v = sessionStorage.getItem('ms_ref_name');
+        if (v) { setRefName(v); clearInterval(iv); }
+      } catch {}
+      if (tries > 10) clearInterval(iv);
+    }, 300);
+    return () => clearInterval(iv);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [inviteCode] = useState<string | undefined>(initialInviteCode);
 
   const [commandPlatform, setCommandPlatform] = useState<'solstice' | 'midnight' | null>(
@@ -316,8 +332,9 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
         )}
 
         {/* Banner "Atendido por X" — si el cliente llegó por un link de vendedor.
-            Mismo patrón que el banner de Midnight. Solo en la vitrina. */}
-        {refName && !splash && (page === 'landing' || page === 'programa') && (
+            Mismo patrón que el banner de Midnight. En vitrina, programa y reserva
+            (no en dashboards de staff). */}
+        {refName && !splash && (page === 'landing' || page === 'programa' || page === 'reserva') && (
           <div className="fixed left-1/2 -translate-x-1/2 z-[170] flex items-center gap-2.5 px-4 py-2 rounded-full"
             style={{
               top: 'calc(4.5rem + env(safe-area-inset-top, 0px))',
