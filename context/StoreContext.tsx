@@ -323,7 +323,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return false;
     };
 
-    const logout = async () => { setCurrentUser(null); localStorage.removeItem('midnight_user_id'); };
+    const logout = async () => {
+        setCurrentUser(null);
+        setCurrentCustomer(null);
+        localStorage.removeItem('midnight_user_id');
+        // Cerrar también la sesión de Supabase Auth. Sin esto, onAuthStateChange
+        // vuelve a detectar la sesión activa y re-loguea al staff al instante
+        // (no se podía salir de la cuenta).
+        try { await supabase.auth.signOut(); } catch { /* sesión ya cerrada */ }
+    };
 
     // Verifica OTP y detecta automáticamente si es staff o cliente
     const verifyOtpUnified = async (email: string, token: string): Promise<boolean> => {
