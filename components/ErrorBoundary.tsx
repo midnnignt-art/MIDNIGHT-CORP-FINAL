@@ -79,12 +79,30 @@ export class ErrorBoundary extends React.Component<Props, State> {
             fontSize: 14,
             lineHeight: 1.6,
             color: 'rgba(255,255,255,0.7)',
-            margin: '0 0 28px',
+            margin: '0 0 16px',
           }}
         >
           Algo no se cargó como esperábamos. Tu información está segura — solo
           necesitamos volver a empezar.
         </p>
+
+        {/* Detalle del error visible — ayuda a diagnosticar en mobile donde no
+            se puede ver la consola. */}
+        {this.state.error && (
+          <p
+            style={{
+              maxWidth: 340,
+              fontSize: 11,
+              lineHeight: 1.5,
+              color: 'rgba(255,120,120,0.85)',
+              fontFamily: 'monospace',
+              margin: '0 0 28px',
+              wordBreak: 'break-word',
+            }}
+          >
+            {String(this.state.error?.message || this.state.error).slice(0, 300)}
+          </p>
+        )}
 
         <button
           onClick={this.handleReload}

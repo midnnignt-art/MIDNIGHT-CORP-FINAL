@@ -49,8 +49,10 @@ const App: React.FC = () => {
   // Feature flag para mostrar el planeta SOLSTICE en el portal. Mientras la
   // sub-marca no esté lista para el mercado, solo admins pueden verlo.
   // Se activa desde admin (system-config) cuando salga al público.
+  // En desarrollo local (import.meta.env.DEV) siempre se muestra para poder
+  // probar Solstice con todos los roles; en producción NO afecta (DEV=false).
   const [solsticePublicVisible] = useSolsticeVisibility();
-  const showSolsticeInPortal = solsticePublicVisible || isAdminLevel(currentUser?.role);
+  const showSolsticeInPortal = solsticePublicVisible || isAdminLevel(currentUser?.role) || import.meta.env.DEV;
 
   // Discount banner — shown when user arrived via a discount link
   const [discountBanner, setDiscountBanner] = useState<{ pct: number; label: string; tierName: string; eventId: string } | null>(() => {

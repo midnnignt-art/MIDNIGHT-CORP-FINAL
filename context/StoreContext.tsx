@@ -120,9 +120,32 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             })
             .subscribe();
 
-        const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+        const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
             if (session?.user) {
-                setCurrentCustomer(session.user);
+                // IMPORTANTE: NO hacer queries async DENTRO del callback de
+                // onAuthStateChange — Supabase se deadlockea (el cliente espera
+                // que el callback termine). Diferimos con setTimeout(0).
+                const sessionUser = session.user;
+                const email = (sessionUser.email || '').toLowerCase().trim();
+                setTimeout(async () => {
+                    try {
+                        // Detectar si el email es STAFF (existe en profiles) o CLIENTE.
+                        const { data: profile } = await supabase
+                            .from('profiles').select('*').eq('email', email).maybeSingle();
+                        if (profile) {
+                            setCurrentUser({
+                                user_id: profile.id, name: profile.full_name, email: profile.email,
+                                code: profile.code, role: profile.role,
+                                total_sales: profile.total_sales, total_commission_earned: profile.total_commission_earned,
+                                is_hidden: profile.is_hidden || false,
+                            });
+                            localStorage.setItem('midnight_user_id', profile.id);
+                            setCurrentCustomer(null);
+                            return;
+                        }
+                    } catch { /* si falla la query, tratar como cliente */ }
+                    setCurrentCustomer(sessionUser);
+                }, 0);
             } else {
                 setCurrentCustomer(null);
             }
