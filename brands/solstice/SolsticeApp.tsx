@@ -69,6 +69,11 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
   const [splash, setSplash] = useState(!initialInviteCode);
   const [page, setPage] = useState<SolsticePage>(initialInviteCode ? 'reserva' : 'landing');
   const [reservaWeek, setReservaWeek] = useState<string | undefined>(undefined);
+  // Nombre del promotor que atiende (si el cliente llegó por un link /sol/p/CODE).
+  // Se muestra como banner "Atendido por X" en la vitrina, igual que Midnight.
+  const [refName, setRefName] = useState<string>(() => {
+    try { return sessionStorage.getItem('ms_ref_name') || ''; } catch { return ''; }
+  });
   const [inviteCode] = useState<string | undefined>(initialInviteCode);
 
   const [commandPlatform, setCommandPlatform] = useState<'solstice' | 'midnight' | null>(
@@ -308,6 +313,28 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
               Volver
             </span>
           </button>
+        )}
+
+        {/* Banner "Atendido por X" — si el cliente llegó por un link de vendedor.
+            Mismo patrón que el banner de Midnight. Solo en la vitrina. */}
+        {refName && !splash && (page === 'landing' || page === 'programa') && (
+          <div className="fixed left-1/2 -translate-x-1/2 z-[170] flex items-center gap-2.5 px-4 py-2 rounded-full"
+            style={{
+              top: 'calc(4.5rem + env(safe-area-inset-top, 0px))',
+              background: 'rgba(10,0,0,0.85)',
+              backdropFilter: 'blur(20px) saturate(160%)',
+              border: '0.5px solid rgba(230,57,47,0.45)',
+              maxWidth: '90vw',
+            }}>
+            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#E6392F', boxShadow: '0 0 8px #E6392F' }} />
+            <p className="text-[10px] uppercase truncate" style={{ color: '#F9F2D7', letterSpacing: '0.15em', fontWeight: 500 }}>
+              Atendido por <strong style={{ color: '#fff' }}>{refName}</strong>
+            </p>
+            <button onClick={() => { try { sessionStorage.removeItem('ms_ref_name'); } catch {} setRefName(''); }}
+              className="flex-shrink-0 text-white/30 hover:text-white/60 transition-colors" aria-label="Cerrar">
+              <ChevronLeft size={12} style={{ transform: 'rotate(45deg)' }} />
+            </button>
+          </div>
         )}
 
         {page === 'landing'       && <SolsticeLanding onNavigate={handleNavigate} isAdmin={isAdmin} />}
