@@ -1565,7 +1565,6 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                               <div
                                 className="flex gap-2 mb-4 overflow-x-auto pb-1 -mx-1 px-1"
                                 style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
-                                onClick={e => e.stopPropagation()}
                               >
                                 {photos.map((url, i) => (
                                   <img
