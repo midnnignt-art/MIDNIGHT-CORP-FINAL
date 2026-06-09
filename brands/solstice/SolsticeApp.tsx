@@ -23,7 +23,7 @@ import SolsticeUtilidades from './pages/SolsticeUtilidades';
 import { DUAL_COMMAND_ENABLED } from './featureFlags';
 import { UserRole } from '../../types';
 import { MouseTrail } from '../../components/MouseTrail';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, CheckCircle2, X as XIcon } from 'lucide-react';
 
 interface Props {
   onExit: () => void;
@@ -331,27 +331,35 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
           </button>
         )}
 
-        {/* Banner "Atendido por X" — si el cliente llegó por un link de vendedor.
-            Mismo patrón que el banner de Midnight. En vitrina, programa y reserva
-            (no en dashboards de staff). */}
+        {/* Banner "INVITACIÓN APLICADA · Atendido por X" — mismo diseño que el
+            banner de Midnight (card con ícono check + 2 líneas), con el rojo de
+            Solstice. En vitrina, programa y reserva (no en dashboards). */}
         {refName && !splash && (page === 'landing' || page === 'programa' || page === 'reserva') && (
-          <div className="fixed left-1/2 -translate-x-1/2 z-[170] flex items-center gap-3.5 px-7 py-4 rounded-full"
-            style={{
-              top: 'calc(4.5rem + env(safe-area-inset-top, 0px))',
-              background: 'rgba(10,0,0,0.88)',
-              backdropFilter: 'blur(20px) saturate(160%)',
-              border: '0.5px solid rgba(230,57,47,0.55)',
-              boxShadow: '0 12px 36px rgba(230,57,47,0.28)',
-              maxWidth: '94vw',
-            }}>
-            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: '#E6392F', boxShadow: '0 0 12px #E6392F', animation: 'pulse 2s ease-in-out infinite' }} />
-            <p className="text-sm md:text-base uppercase truncate" style={{ color: '#F9F2D7', letterSpacing: '0.18em', fontWeight: 500 }}>
-              Atendido por <strong style={{ color: '#fff', fontWeight: 700 }}>{refName}</strong>
-            </p>
-            <button onClick={() => { try { sessionStorage.removeItem('ms_ref_name'); } catch {} setRefName(''); }}
-              className="flex-shrink-0 text-white/35 hover:text-white/70 transition-colors text-lg leading-none" aria-label="Cerrar">
-              ×
-            </button>
+          <div className="fixed left-1/2 -translate-x-1/2 z-[170] w-full max-w-md px-4"
+            style={{ top: 'calc(4.5rem + env(safe-area-inset-top, 0px))' }}>
+            <div className="flex items-center gap-4 px-5 py-4 rounded-2xl"
+              style={{
+                background: 'rgba(230,57,47,0.13)',
+                border: '0.5px solid rgba(230,57,47,0.35)',
+                backdropFilter: 'blur(20px) saturate(160%)',
+                boxShadow: '0 0 50px rgba(230,57,47,0.20)',
+              }}>
+              <div className="flex-shrink-0 p-2.5 rounded-full" style={{ background: 'rgba(230,57,47,0.32)' }}>
+                <CheckCircle2 className="w-5 h-5" style={{ color: '#F9F2D7' }} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] uppercase mb-1" style={{ color: 'rgba(249,242,215,0.45)', letterSpacing: '0.3em', fontWeight: 700 }}>
+                  Invitación aplicada
+                </p>
+                <p className="text-sm truncate" style={{ color: '#F9F2D7', letterSpacing: '0.02em', fontWeight: 300 }}>
+                  Atendido por <strong style={{ fontWeight: 800 }}>{refName.toUpperCase()}</strong>
+                </p>
+              </div>
+              <button onClick={() => { try { sessionStorage.removeItem('ms_ref_name'); } catch {} setRefName(''); }}
+                className="flex-shrink-0 text-white/30 hover:text-white/60 transition-colors" aria-label="Cerrar">
+                <XIcon size={16} />
+              </button>
+            </div>
           </div>
         )}
 
