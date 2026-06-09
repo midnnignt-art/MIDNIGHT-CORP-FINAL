@@ -4,42 +4,35 @@ import { supabase } from './supabase';
 // ─── Feature flag: Solstice visibility en el Conjunction Portal ───────────
 // Mientras Solstice no esté listo para mercado, solo admins pueden ver el
 // planeta SOLSTICE. El público general ve solo MIDNIGHT centrado.
-// El flag se persiste en Supabase Storage (bucket assets, path
-// 'config/solstice_visibility.json') para que se sincronice entre devices
-// del owner sin necesidad de tabla nueva. Localstorage queda como cache.
+//
+// El flag se persiste en la tabla `solstice_config` (key 'public_visible')
+// con LECTURA PÚBLICA, para que cualquier visitante anónimo sepa si Solstice
+// está activo. Antes estaba en Storage y no sincronizaba bien entre
+// dispositivos (a veces el planeta no le salía a la gente). localStorage
+// queda como cache para el primer paint.
 
 const STORAGE_KEY = 'midnight_solstice_public_visible';
-const REMOTE_PATH = 'config/solstice_visibility.json';
+const CONFIG_KEY = 'public_visible';
 
 export function useSolsticeVisibility(): [boolean, (next: boolean) => Promise<void>] {
   const initial = (() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw === 'true';
-    } catch {
-      return false;
-    }
+    try { return localStorage.getItem(STORAGE_KEY) === 'true'; } catch { return false; }
   })();
 
   const [visible, setVisible] = useState<boolean>(initial);
 
-  // Cargar valor remoto al montar (sobrescribe cache local)
+  // Cargar el valor real de la tabla al montar (sobrescribe el cache local).
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const { data } = await supabase.storage.from('assets').download(REMOTE_PATH);
-        if (!data || cancelled) return;
-        const text = await data.text();
-        const json = JSON.parse(text);
-        const remoteValue = !!json.solstice_public_visible;
-        if (!cancelled) {
-          setVisible(remoteValue);
-          localStorage.setItem(STORAGE_KEY, String(remoteValue));
-        }
-      } catch {
-        // Si el archivo no existe todavía, el default es false (oculto).
-      }
+        const { data } = await supabase
+          .from('solstice_config').select('value').eq('key', CONFIG_KEY).maybeSingle();
+        if (cancelled || !data) return;
+        const remoteValue = data.value === true || data.value === 'true';
+        setVisible(remoteValue);
+        try { localStorage.setItem(STORAGE_KEY, String(remoteValue)); } catch {}
+      } catch { /* sin remoto, queda el cache local */ }
     })();
     return () => { cancelled = true; };
   }, []);
@@ -56,15 +49,15 @@ export function useSolsticeVisibility(): [boolean, (next: boolean) => Promise<vo
 
   const update = async (next: boolean) => {
     setVisible(next);
-    localStorage.setItem(STORAGE_KEY, String(next));
+    try { localStorage.setItem(STORAGE_KEY, String(next)); } catch {}
     window.dispatchEvent(new CustomEvent('solstice-visibility-change', { detail: next }));
     try {
-      const blob = new Blob([JSON.stringify({ solstice_public_visible: next, updated_at: new Date().toISOString() })], {
-        type: 'application/json',
-      });
-      await supabase.storage.from('assets').upload(REMOTE_PATH, blob, { upsert: true });
+      await supabase.from('solstice_config').upsert(
+        { key: CONFIG_KEY, value: next, updated_at: new Date().toISOString() },
+        { onConflict: 'key' }
+      );
     } catch (err: any) {
-      console.warn('No se pudo persistir solstice_visibility en Storage:', err?.message);
+      console.warn('No se pudo persistir solstice_config:', err?.message);
     }
   };
 
