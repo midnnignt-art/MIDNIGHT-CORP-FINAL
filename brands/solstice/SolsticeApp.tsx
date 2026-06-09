@@ -335,21 +335,22 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
             Mismo patrón que el banner de Midnight. En vitrina, programa y reserva
             (no en dashboards de staff). */}
         {refName && !splash && (page === 'landing' || page === 'programa' || page === 'reserva') && (
-          <div className="fixed left-1/2 -translate-x-1/2 z-[170] flex items-center gap-2.5 px-4 py-2 rounded-full"
+          <div className="fixed left-1/2 -translate-x-1/2 z-[170] flex items-center gap-3.5 px-7 py-4 rounded-full"
             style={{
               top: 'calc(4.5rem + env(safe-area-inset-top, 0px))',
-              background: 'rgba(10,0,0,0.85)',
+              background: 'rgba(10,0,0,0.88)',
               backdropFilter: 'blur(20px) saturate(160%)',
-              border: '0.5px solid rgba(230,57,47,0.45)',
-              maxWidth: '90vw',
+              border: '0.5px solid rgba(230,57,47,0.55)',
+              boxShadow: '0 12px 36px rgba(230,57,47,0.28)',
+              maxWidth: '94vw',
             }}>
-            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#E6392F', boxShadow: '0 0 8px #E6392F' }} />
-            <p className="text-[10px] uppercase truncate" style={{ color: '#F9F2D7', letterSpacing: '0.15em', fontWeight: 500 }}>
-              Atendido por <strong style={{ color: '#fff' }}>{refName}</strong>
+            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: '#E6392F', boxShadow: '0 0 12px #E6392F', animation: 'pulse 2s ease-in-out infinite' }} />
+            <p className="text-sm md:text-base uppercase truncate" style={{ color: '#F9F2D7', letterSpacing: '0.18em', fontWeight: 500 }}>
+              Atendido por <strong style={{ color: '#fff', fontWeight: 700 }}>{refName}</strong>
             </p>
             <button onClick={() => { try { sessionStorage.removeItem('ms_ref_name'); } catch {} setRefName(''); }}
-              className="flex-shrink-0 text-white/30 hover:text-white/60 transition-colors" aria-label="Cerrar">
-              <ChevronLeft size={12} style={{ transform: 'rotate(45deg)' }} />
+              className="flex-shrink-0 text-white/35 hover:text-white/70 transition-colors text-lg leading-none" aria-label="Cerrar">
+              ×
             </button>
           </div>
         )}
