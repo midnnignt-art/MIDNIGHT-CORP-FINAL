@@ -134,6 +134,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
   const [otp, setOtp]             = useState('');
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError]     = useState('');
+  const [reserveError, setReserveError] = useState<string | null>(null);
   const [processing, setProcessing]   = useState(false);
   const [pendingOrderNum, setPendingOrderNum] = useState<string | null>(null);
   const [pendingRegId, setPendingRegId]       = useState<string | null>(null);
@@ -410,6 +411,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
 
   const handleCreateRegistration = async () => {
     setProcessing(true);
+    setReserveError(null);
     try {
       const orderNum = genOrderNumber();
       const today = new Date();
@@ -420,63 +422,47 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
         .from('solstice_weeks').select('id').eq('university', selWeek?.university || '').single();
 
       const refCode = sessionStorage.getItem('ms_ref_code');
-      let sellerId: string | null = null;
-      if (refCode) {
-        // El link del vendedor (/sol/p/CODE) usa solstice_sellers.ref_code,
-        // así que buscamos PRIMERO ahí. Fallback a promoters.code para compat
-        // con links viejos de la marca MIDNIGHT.
-        const { data: sellerRow } = await supabase
-          .from('solstice_sellers').select('user_id').ilike('ref_code', refCode).maybeSingle();
-        if (sellerRow?.user_id) {
-          sellerId = sellerRow.user_id;
-        } else {
-          const { data: promoterRow } = await supabase
-            .from('promoters').select('user_id').ilike('code', refCode).maybeSingle();
-          sellerId = promoterRow?.user_id || null;
-        }
-        await supabase.from('solstice_referral_clicks').insert({ ref_code: refCode, converted: true }).then(() => {});
-      }
 
-      const regPayload: any = {
-        order_number:            orderNum,
-        season_id:               seasonData?.id || null,
-        week_id:                 weekData?.id || null,
-        user_id:                 currentCustomer?.id || null,
-        customer_name:           name,
-        customer_email:          email,
-        customer_phone:          phone,
-        customer_university:     uni || selWeek?.university,
-        payment_mode:            mode,
-        status:                  'reserved',
-        // total_amount = grand total CON ticket service (lo que el cliente paga)
-        total_amount:            grandTotal,
-        amount_paid:             0,
-        installments_remaining:  isInstallmentMode ? effectiveInstallments : 0,
-        days_purchased:          comboType === 'individual_days' ? selDays : null,
-        bold_order_id:           orderNum,
-        ref_code:                refCode || null,
-        seller_id:               sellerId,
-        // El pago de hoy (adelanto o total) siempre va por Wompi.
-        payment_provider:        'wompi',
-      };
+      // Cuotas (solo en modo cuotas): reparten el RESTO (grandTotal − adelanto)
+      // sobre los meses. Se mandan dentro del payload del RPC.
+      const schedules = isInstallmentMode
+        ? Array.from({ length: effectiveInstallments }, (_, i) => ({
+            installment_number: i + 1,
+            amount:             Math.round(installmentBase / effectiveInstallments),
+            due_date:           addMonths(today, i + 1),
+          }))
+        : [];
 
-      const { data: reg, error } = await supabase
-        .from('solstice_registrations').insert(regPayload).select().single();
+      // La reserva se crea con un RPC SECURITY DEFINER. Esto es CRÍTICO: el
+      // comprador suele ser anónimo (no lo obligamos a loguearse) y la RLS
+      // bloqueaba el insert directo → la venta se perdía en silencio. El RPC
+      // graba registration + cuotas + click de referido, y resuelve la
+      // atribución al vendedor del lado servidor (anon no puede leer
+      // solstice_sellers). Devuelve { id, order_number, seller_id }.
+      const { data: rpcRes, error } = await supabase.rpc('solstice_create_reservation', {
+        payload: {
+          order_number:           orderNum,
+          season_id:              seasonData?.id || null,
+          week_id:                weekData?.id || null,
+          user_id:                currentCustomer?.id || null,
+          customer_name:          name,
+          customer_email:         email,
+          customer_phone:         phone,
+          customer_university:    uni || selWeek?.university,
+          payment_mode:           mode,
+          // total_amount = grand total CON ticket service (lo que paga el cliente)
+          total_amount:           grandTotal,
+          installments_remaining: isInstallmentMode ? effectiveInstallments : 0,
+          days_purchased:         comboType === 'individual_days' ? selDays : null,
+          ref_code:               refCode || null,
+          payment_provider:       'wompi',
+          schedules,
+        },
+      });
 
       if (error) throw new Error(error.message);
-
-      if (isInstallmentMode) {
-        // Las cuotas reparten el RESTO (grandTotal − adelanto) sobre los meses.
-        const cuota = Math.round(installmentBase / effectiveInstallments);
-        const schedules = Array.from({ length: effectiveInstallments }, (_, i) => ({
-          registration_id:    reg.id,
-          installment_number: i + 1,
-          amount:             cuota,
-          due_date:           addMonths(today, i + 1),
-          status:             'pending',
-        }));
-        await supabase.from('solstice_payment_schedules').insert(schedules);
-      }
+      if (!rpcRes?.id) throw new Error('La reserva no devolvió un ID');
+      const reg = { id: rpcRes.id as string };
 
       // ── Lancha: crear reservation + passenger ─────────────────────────
       if (includesBoat && selectedBoatId) {
@@ -532,11 +518,12 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
       setPendingRegId(reg.id);
       setStep(4);
     } catch (err: any) {
-      // DB not yet migrated — skip DB and go straight to test payment step
-      const fallback = genOrderNumber();
-      setPendingOrderNum(fallback);
-      setStep(4);
-      console.warn('Solstice DB fallback — mock order:', fallback, err.message);
+      // CRÍTICO: si la reserva no se guardó, NO avanzamos al pago. Antes acá se
+      // fingía éxito con una orden falsa y la venta se perdía en silencio (el
+      // cliente podía hasta pagar sin que quedara registrado). Mostramos el
+      // error y dejamos al usuario reintentar.
+      console.error('Solstice: falló crear la reserva:', err?.message);
+      setReserveError('No pudimos guardar tu reserva. Revisá tu conexión e intentá de nuevo en un momento.');
     } finally {
       setProcessing(false);
     }
@@ -1782,6 +1769,11 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
               >
                 {processing ? <Loader2 className="animate-spin" /> : <><Shield size={16} /> Ir a pagar ${chargeK}K</>}
               </button>
+              {reserveError && (
+                <p className="text-xs text-center mt-3" style={{ color: C.red, fontWeight: 500, lineHeight: 1.5 }}>
+                  {reserveError}
+                </p>
+              )}
             </motion.div>
           )}
 
