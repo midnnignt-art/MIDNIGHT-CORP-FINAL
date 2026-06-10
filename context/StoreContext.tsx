@@ -60,6 +60,7 @@ interface StoreContextType {
     createSuperSquad: (name: string, headId: string) => Promise<void>;
     deleteSuperSquad: (id: string) => Promise<void>;
     assignTeamToSuperSquad: (teamId: string, superSquadId: string | null) => Promise<void>;
+    assignSuperSquadHeadOfSales: (superSquadId: string, headOfSalesId: string | null) => Promise<void>;
     upsertPromoterPayout: (eventId: string, managerId: string, promoterId: string, amountPerTicket: number) => Promise<void>;
     fetchData: () => Promise<void>;
 }
@@ -1089,6 +1090,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         await fetchData();
     };
 
+    // Asignar (o quitar) el Head of Sales que supervisa un super-squad. Define
+    // el scope del dashboard del Head of Sales (ve solo sus super-squads).
+    const assignSuperSquadHeadOfSales = async (superSquadId: string, headOfSalesId: string | null) => {
+        const { error } = await supabase.from('super_squads').update({ head_of_sales_id: headOfSalesId }).eq('id', superSquadId);
+        if (error) throw error;
+        await fetchData();
+    };
+
     const upsertPromoterPayout = async (eventId: string, managerId: string, promoterId: string, amountPerTicket: number) => {
         const { error } = await supabase.from('promoter_payouts').upsert({
             event_id: eventId,
@@ -1231,7 +1240,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             addStaff, updateStaff, deleteStaff, createTeam, updateStaffTeam, deleteTeam, createOrder, clearDatabase,
             addEventCost, deleteEventCost, updateCostStatus, updateCostActual, updateGallery, validateTicket, validarYQuemarTicket,
             addAccountingMovement, deleteAccountingMovement, addSettlement, deleteSettlement, transferTicket,
-            createSuperSquad, deleteSuperSquad, assignTeamToSuperSquad, upsertPromoterPayout, fetchData
+            createSuperSquad, deleteSuperSquad, assignTeamToSuperSquad, assignSuperSquadHeadOfSales, upsertPromoterPayout, fetchData
         }}>
             {children}
         </StoreContext.Provider>

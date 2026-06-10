@@ -116,18 +116,30 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   const isAdmin = isAdminLevel(currentUser.role);
   const isBouncer = currentUser.role === UserRole.BOUNCER || isAdmin;
 
-  // Director global de ventas (HEAD_OF_SALES) o Admin → ve absolutamente todo
-  const isGlobalHead = isAdmin || currentUser.role === UserRole.HEAD_OF_SALES;
+  // Solo SUPER_ADMIN/ADMIN ve absolutamente todo. El HEAD_OF_SALES ya NO es
+  // global: ve solo los super-squads que tiene asignados (head_of_sales_id).
+  const isGlobalHead = isAdmin;
 
-  // Cabeza de super squad (HEAD) → ve solo su super squad
+  // Head of Sales → ve los super-squads asignados a él (pueden ser varios).
+  const isHeadOfSales = currentUser.role === UserRole.HEAD_OF_SALES;
+  // Cabeza de super squad (HEAD) → ve solo su super squad.
   const isSuperSquadHead = currentUser.role === UserRole.HEAD;
+  // Ambos ven scopeados por super-squad (no global).
+  const isScopedHead = isHeadOfSales || isSuperSquadHead;
 
-  // Super squad que este usuario encabeza (solo aplica para HEAD)
-  const myHeadSuperSquad = isSuperSquadHead
-    ? superSquads.find(ss => ss.head_id === currentUser.user_id)
-    : null;
+  // Super-squads que supervisa este usuario:
+  //  - Cabeza (HEAD): el que encabeza (head_id).
+  //  - Head of Sales: todos los asignados a él (head_of_sales_id).
+  const myScopeSuperSquads = isSuperSquadHead
+    ? superSquads.filter(ss => ss.head_id === currentUser.user_id)
+    : isHeadOfSales
+      ? superSquads.filter(ss => ss.head_of_sales_id === currentUser.user_id)
+      : [];
+  const myScopeSuperSquadIds = myScopeSuperSquads.map(ss => ss.id);
+  // Compat: primer super-squad, para etiquetas que esperan uno solo.
+  const myHeadSuperSquad = myScopeSuperSquads[0] || null;
 
-  const isHead = isGlobalHead || isSuperSquadHead;
+  const isHead = isGlobalHead || isScopedHead;
   const isManager = currentUser.role === UserRole.MANAGER || isHead;
 
   const myTeam = teams.find(t => t.manager_id === currentUser.user_id);
@@ -136,14 +148,14 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   // Qué equipos puede ver este usuario
   const myScopeTeams = isGlobalHead
     ? teams
-    : isSuperSquadHead && myHeadSuperSquad
-      ? teams.filter(t => t.super_squad_id === myHeadSuperSquad.id)
+    : isScopedHead
+      ? teams.filter(t => t.super_squad_id && myScopeSuperSquadIds.includes(t.super_squad_id))
       : myTeam ? [myTeam] : [];
 
   // IDs de promotores que puede ver este usuario
   const myScopeMemberIds: string[] = isGlobalHead
     ? promoters.map(p => p.user_id)
-    : isSuperSquadHead
+    : isScopedHead
       ? [...new Set([currentUser.user_id, ...myScopeTeams.flatMap(t => [t.manager_id, ...t.members_ids])])]
       : myTeam
         ? [myTeam.manager_id, ...myTeam.members_ids]
@@ -157,7 +169,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   // Equipos que puede reclutar/gestionar
   const recruitableTeams = isGlobalHead
     ? teams
-    : isSuperSquadHead
+    : isScopedHead
       ? myScopeTeams
       : myTeam ? [myTeam] : [];
 
@@ -578,9 +590,13 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
         );
         label = isGlobalHead
             ? "Global (Red Completa)"
-            : myHeadSuperSquad
-              ? `Super Squad: ${myHeadSuperSquad.name}`
-              : "Mi Cabeza (sin super squad asignado)";
+            : isHeadOfSales
+              ? (myScopeSuperSquads.length
+                  ? `Head of Sales · ${myScopeSuperSquads.length} super-squad${myScopeSuperSquads.length > 1 ? 's' : ''}`
+                  : "Head of Sales (sin super-squads asignados)")
+              : myHeadSuperSquad
+                ? `Super Squad: ${myHeadSuperSquad.name}`
+                : "Mi Cabeza (sin super squad asignado)";
     } else if (isManager) {
         const teamMemberIds = myTeam ? [currentUser.user_id, ...myTeam.members_ids] : [currentUser.user_id];
         scopeOrders = orders.filter(o => o.status === 'completed' && o.payment_method !== 'guest_list' && o.staff_id && teamMemberIds.includes(o.staff_id));
@@ -811,7 +827,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6 mb-8 md:mb-12">
         <div>
           <h1 className="text-2xl md:text-5xl font-black text-white tracking-tighter">
-            {isAdmin ? 'MIDNIGHT COMMAND' : isGlobalHead ? 'CENTRAL DE VENTAS' : isSuperSquadHead ? 'MI SUPER SQUAD' : isManager ? 'MI SQUAD' : 'PORTAL STAFF'}
+            {isAdmin ? 'MIDNIGHT COMMAND' : isHeadOfSales ? 'CENTRAL DE VENTAS' : isSuperSquadHead ? 'MI SUPER SQUAD' : isManager ? 'MI SQUAD' : 'PORTAL STAFF'}
           </h1>
           <div className="flex items-center gap-3 mt-2">
               <span className={`w-2 h-2 rounded-full animate-pulse ${isAdmin ? 'bg-neon-purple' : 'bg-emerald-500'}`}></span>
@@ -1573,7 +1589,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                                               return !dbTeam?.super_squad_id;
                                           });
 
-                                          const showGrouping = isGlobalHead && superSquadGroups.length > 0;
+                                          const showGrouping = (isGlobalHead || isHeadOfSales) && superSquadGroups.length > 0;
 
                                           const renderVirtualRow = (team: NonNullable<typeof organicTeam>) => (
                                               <tr key={team.id} className={`hover:bg-white/[0.02] transition-colors ${team.id === 'virtual_organic' ? 'bg-neon-purple/5 border-l-4 border-l-neon-purple border-t border-neon-purple/10' : 'bg-zinc-800/20 border-l-4 border-l-amber-500 border-t border-amber-500/10'}`}>

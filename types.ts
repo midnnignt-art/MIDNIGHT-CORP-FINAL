@@ -156,6 +156,8 @@ export interface SuperSquad {
   id: string;
   name: string;
   head_id: string;
+  // Head of Sales que supervisa este super-squad (scope de su dashboard).
+  head_of_sales_id?: string | null;
   created_at: string;
 }
 

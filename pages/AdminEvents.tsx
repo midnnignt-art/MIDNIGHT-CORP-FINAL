@@ -24,7 +24,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
     const {
         events, addEvent, updateEvent, archiveEvent, restoreEvent, hardDeleteEvent, setEventStatus, getEventTiers,
         promoters, addStaff, updateStaff, deleteStaff, teams, createTeam, updateStaffTeam, deleteTeam,
-        superSquads, createSuperSquad, deleteSuperSquad, assignTeamToSuperSquad,
+        superSquads, createSuperSquad, deleteSuperSquad, assignTeamToSuperSquad, assignSuperSquadHeadOfSales,
         orders, dbStatus, clearDatabase, fetchData, currentUser,
     } = useStore();
     
@@ -1069,6 +1069,23 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                                             <button onClick={() => { setEditingSuperSquad(ss); setEditSsName(ss.name); setEditSsHeadId(ss.head_id); }} className="text-zinc-500 hover:text-white transition-colors"><Pencil className="w-4 h-4" /></button>
                                                             <button onClick={async () => { if (confirm('¿Eliminar Super Squad?')) await deleteSuperSquad(ss.id); }} className="text-zinc-700 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
                                                         </div>
+                                                    </div>
+                                                    {/* Head of Sales que supervisa este super-squad (define su scope) */}
+                                                    <div className="mt-3">
+                                                        <label className="text-[9px] uppercase tracking-wide text-zinc-600 block mb-1">Head of Sales</label>
+                                                        <select
+                                                            value={(ss as any).head_of_sales_id || ''}
+                                                            onChange={async (e) => {
+                                                                try { await assignSuperSquadHeadOfSales(ss.id, e.target.value || null); toast.success('Head of Sales actualizado'); }
+                                                                catch (err: any) { toast.error(err?.message || 'Error'); }
+                                                            }}
+                                                            className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white"
+                                                        >
+                                                            <option value="">— Sin Head of Sales —</option>
+                                                            {promoters.filter(p => p.role === UserRole.HEAD_OF_SALES).map(p => (
+                                                                <option key={p.user_id} value={p.user_id}>{p.name}</option>
+                                                            ))}
+                                                        </select>
                                                     </div>
                                                     <div className="mt-3 pt-3 border-t border-white/5 flex flex-wrap gap-1">
                                                         {linkedTeams.length === 0
