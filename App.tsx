@@ -115,6 +115,19 @@ const App: React.FC = () => {
   const isSolsticePublic = pathname === '/sol' || pathname === '/sol/' || pathname.startsWith('/sol/reserva');
   const isKnownRoute   = isHomePage || isSuccessPage || isBouncerPage || isSolsticeBouncerPage || !!promoMatch || !!glMatch || !!discountMatch || !!eventMatch || !!solsticeInviteMatch || !!solsticePromoMatch || isSolsticePublic;
 
+  // Conteo de vistas del link: incrementar apenas hay un ?ref=, SIN depender de
+  // que la lista de promotores esté cargada en el cliente. Un visitante anónimo
+  // (el caso normal de un link) NO tiene `promoters` cargado por RLS, así que el
+  // increment de abajo nunca corría. El RPC matchea el code server-side. Una sola
+  // vez por sesión para no inflar el conteo en cada render/navegación.
+  useEffect(() => {
+    if (!pendingRef) return;
+    const key = `ms_viewed_ref_${pendingRef}`;
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, '1');
+    supabase.rpc('increment_link_views', { p_code: pendingRef }).then(() => {}, () => {});
+  }, [pendingRef]);
+
   // Una vez cargados los promotores, resolver el nombre para el toast y el staffId para el checkout
   useEffect(() => {
     if (!pendingRef || promoters.length === 0) return;
@@ -124,7 +137,6 @@ const App: React.FC = () => {
       setReferralStaffId(promoter.user_id);
       localStorage.setItem('midnight_referral_code', pendingRef);
       localStorage.setItem('midnight_referral_code_id', promoter.user_id);
-      supabase.rpc('increment_link_views', { p_code: pendingRef }).then(() => {});
       setReferralToast({ show: true, name: promoter.name });
       setTimeout(() => setReferralToast({ show: false, name: '' }), 5000);
     }

@@ -1096,7 +1096,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             promoter_id: promoterId,
             amount_per_ticket: amountPerTicket,
             updated_at: new Date().toISOString()
-        }, { onConflict: 'event_id,manager_id,promoter_id' });
+        // El constraint único real es (event_id, promoter_id) — un pago por
+        // promotor por evento. Con 3 columnas el upsert fallaba (42P10) y el
+        // valor se "reiniciaba" porque nunca se guardaba.
+        }, { onConflict: 'event_id,promoter_id' });
         if (error) throw error;
         await fetchData();
     };

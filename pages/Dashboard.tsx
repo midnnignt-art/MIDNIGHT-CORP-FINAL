@@ -1246,9 +1246,15 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
       {isHead && (() => {
         // All completed orders
         const allCompleted = orders.filter(o => o.status === 'completed');
+        // Scope por rol: una CABEZA (super-squad head) ve SOLO su super-squad;
+        // SUPER_ADMIN y HEAD_OF_SALES (isGlobalHead) ven global. Antes esta
+        // sección ignoraba el scope y le mostraba TODO a las cabezas.
+        const scopeCompleted = isGlobalHead
+          ? allCompleted
+          : allCompleted.filter(o => o.staff_id && myScopeMemberIds.includes(o.staff_id));
 
-        // ── 1. Squad performance (global, no event filter) ──────────────────
-        const squadStats = teams.map(team => {
+        // ── 1. Squad performance ────────────────────────────────────────────
+        const squadStats = myScopeTeams.map(team => {
           const memberIds = [team.manager_id, ...team.members_ids];
           const tOrders = allCompleted.filter(o => o.staff_id && memberIds.includes(o.staff_id));
           const revenue = tOrders.reduce((s, o) => s + o.total, 0);
@@ -1268,7 +1274,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
 
         // ── 2. Top clients (by total spend) ─────────────────────────────────
         const clientMap: Record<string, { name: string; email: string; spend: number; count: number }> = {};
-        allCompleted.forEach(o => {
+        scopeCompleted.forEach(o => {
           const key = o.customer_email?.toLowerCase() || 'anon';
           if (!clientMap[key]) clientMap[key] = { name: o.customer_name || key, email: key, spend: 0, count: 0 };
           clientMap[key].spend += o.total;
@@ -1277,15 +1283,15 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
         const topClients = Object.values(clientMap).sort((a, b) => b.spend - a.spend).slice(0, 5);
 
         // ── 3. Channel mix & payment methods ────────────────────────────────
-        const totalRevenue = allCompleted.reduce((s, o) => s + o.total, 0) || 1;
-        const digitalRev = allCompleted.filter(o => o.payment_method !== 'cash').reduce((s, o) => s + o.total, 0);
+        const totalRevenue = scopeCompleted.reduce((s, o) => s + o.total, 0) || 1;
+        const digitalRev = scopeCompleted.filter(o => o.payment_method !== 'cash').reduce((s, o) => s + o.total, 0);
         const cashRev = totalRevenue - digitalRev;
         const digitalPct = Math.round((digitalRev / totalRevenue) * 100);
         const cashPct = 100 - digitalPct;
 
         // ── 4. Top selling days ──────────────────────────────────────────────
         const dayMap: Record<number, number> = {0:0,1:0,2:0,3:0,4:0,5:0,6:0};
-        allCompleted.forEach(o => {
+        scopeCompleted.forEach(o => {
           const d = new Date(o.timestamp).getDay();
           dayMap[d] += o.total;
         });
