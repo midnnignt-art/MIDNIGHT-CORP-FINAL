@@ -255,8 +255,21 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
   // solo si lo eligieron explícitamente.
   const includesBoat = isCombo || (comboType === 'individual_days' && selDays.includes(3));
 
-  const dayTotal  = selDays.reduce((a, d) => a + (SOLSTICE_DAYS.find(x => x.day === d)?.price || 0), 0);
   const selectedBoat = selectedBoatId ? boats.find(b => b.id === selectedBoatId) : null;
+  // Precio "desde": la lancha más barata (para mostrar antes de que elija una).
+  const cheapestBoatPrice = (() => {
+    const prices = boats.map(b => b.price_per_person || 0).filter(p => p > 0);
+    return prices.length ? Math.min(...prices) : 0;
+  })();
+  // En DÍAS SUELTOS el Día 3 (lanchas) cuesta el precio por persona de la lancha
+  // ELEGIDA (cada lancha tiene su precio), no un fijo. Si aún no elige, "desde"
+  // la más barata. En combo el día 3 va en el combo y la lancha se suma aparte.
+  const dayTotal  = selDays.reduce((a, d) => {
+    if (comboType === 'individual_days' && d === 3) {
+      return a + (selectedBoat?.price_per_person ?? cheapestBoatPrice);
+    }
+    return a + (SOLSTICE_DAYS.find(x => x.day === d)?.price || 0);
+  }, 0);
 
   // ¿Hay alguna lancha con cupo? Si TODAS están llenas, el cliente igual debe
   // poder avanzar al pago (el equipo le asigna lancha después) — si no, se
@@ -1211,7 +1224,9 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                         <p className="text-[10px]" style={{ color: C.gray }}>{day.subtitle}</p>
                       </div>
                       <p className="text-sm" style={{ color: selected ? C.red : C.gray, fontWeight: 500 }}>
-                        ${Math.round(day.price / 1000)}K
+                        {day.day === 3
+                          ? `desde $${Math.round((cheapestBoatPrice || day.price) / 1000)}K`
+                          : `$${Math.round(day.price / 1000)}K`}
                       </p>
                     </button>
                   );
