@@ -37,6 +37,20 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   const [debtImagePreview, setDebtImagePreview] = useState<string | null>(null);
   const [debtPreviewFull, setDebtPreviewFull] = useState<string | null>(null);
   const [debtUploadLoading, setDebtUploadLoading] = useState(false);
+
+  // Conteo de vistas en VIVO del propio link. currentUser.link_views se carga al
+  // iniciar sesión y queda viejo; esto trae el número actual de la BD al abrir el
+  // dashboard, así el vendedor ve sus vistas reales (no las del login).
+  const [myLiveViews, setMyLiveViews] = useState<number | null>(null);
+  useEffect(() => {
+    if (!currentUser?.user_id) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.from('profiles').select('link_views').eq('id', currentUser.user_id).maybeSingle();
+      if (!cancelled && data) setMyLiveViews((data as any).link_views || 0);
+    })();
+    return () => { cancelled = true; };
+  }, [currentUser?.user_id]);
   const [debtUploadProgress, setDebtUploadProgress] = useState('');
   const debtFileRef = useRef<HTMLInputElement>(null);
   const [showManualSale, setShowManualSale] = useState(false);
@@ -882,7 +896,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                   <p className="text-xs text-zinc-400 font-mono truncate flex-1 min-w-0">{referralLink}</p>
                   <div className="flex items-center gap-1.5 flex-shrink-0 bg-white/5 rounded-lg px-2.5 py-1.5">
                       <Eye size={12} className="text-white/40" />
-                      <span className="text-xs font-black text-white/60 tabular-nums">{(currentUser.link_views || 0).toLocaleString('es-CO')}</span>
+                      <span className="text-xs font-black text-white/60 tabular-nums">{(myLiveViews ?? currentUser.link_views ?? 0).toLocaleString('es-CO')}</span>
                   </div>
               </div>
               <div className="flex gap-2 w-full">

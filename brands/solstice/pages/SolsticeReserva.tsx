@@ -93,7 +93,9 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
   }, []);
 
   // ── State ──
-  const [step, setStep]       = useState<number>(initialWeek ? 1 : 0);
+  // Invitado por link de lancha: arranca directo en datos (2) — su semana/combo
+  // se heredan del líder en la auto-validación, no los elige.
+  const [step, setStep]       = useState<number>(initialInviteCode ? 2 : (initialWeek ? 1 : 0));
   const [selWeek, setSelWeek] = useState<SolsticeWeek | null>(
     initialWeek ? SOLSTICE_WEEKS_MOCK.find(w => w.university === initialWeek) || null : null
   );
@@ -154,6 +156,11 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
   const [joinError, setJoinError]               = useState('');
   const [boatInviteCode, setBoatInviteCode]     = useState<string | null>(null);
   const [boatReservationId, setBoatReservationId] = useState<string | null>(null);
+  // Invitado: hereda la semana y el precio de la lancha del líder. Así NO elige
+  // semana/combo de nuevo (evita que se una a una semana distinta a su grupo).
+  const [inheritedUniversity, setInheritedUniversity] = useState<string | null>(null);
+  const [invitePricePerPerson, setInvitePricePerPerson] = useState<number | null>(null);
+  const isInvitee = boatChoice === 'join' && !!boatReservationId;
   const [payStatus, setPayStatus] = useState<'pending' | 'paid'>('pending');
   const [simulating, setSimulating] = useState(false);
 
@@ -275,7 +282,11 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
 
   // Paquete base (combo o días + lancha), luego descuento del vendedor, luego
   // ticket service 6.6% sobre lo ya descontado.
-  const packageBase   = (isCombo ? s.combo_total : dayTotal) + boatPart;
+  // El INVITADO paga el precio por persona de la lancha a la que lo invitaron
+  // (no el combo ni los días) — el mismo precio que vio en la invitación.
+  const packageBase   = isInvitee
+    ? (invitePricePerPerson ?? selectedBoat?.price_per_person ?? 0)
+    : (isCombo ? s.combo_total : dayTotal) + boatPart;
   const discountAmount = Math.round(packageBase * sellerDiscountPct / 100);
   const subtotal      = packageBase - discountAmount;
   const ticketService = Math.round(subtotal * TICKET_SERVICE_PCT);
@@ -371,7 +382,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
     try {
       const { data, error } = await supabase
         .from('solstice_boat_reservations')
-        .select('id, boat_id, status, slots_claimed, total_capacity, leader_name')
+        .select('id, boat_id, status, slots_claimed, total_capacity, leader_name, leader_registration_id')
         .ilike('invite_code', code)
         .maybeSingle();
       if (error || !data) {
@@ -391,7 +402,29 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
       setSelectedBoatId(data.boat_id);
       setBoatInviteCode(code);
       setJoinLeaderName(data.leader_name || null);
-      if (opts?.advance) setStep(3);
+
+      // HEREDAR el contexto del líder para que el invitado NO elija semana/combo
+      // de nuevo (evita el desorden de unirse a otra semana). El invitado compra
+      // el cupo de ESA lancha: semana del líder, día 3, precio de la lancha.
+      const [boatRow, leaderReg] = await Promise.all([
+        supabase.from('solstice_boats').select('price_per_person').eq('id', data.boat_id).maybeSingle(),
+        data.leader_registration_id
+          ? supabase.from('solstice_registrations').select('customer_university').eq('id', data.leader_registration_id).maybeSingle()
+          : Promise.resolve({ data: null } as any),
+      ]);
+      const leaderUni = leaderReg?.data?.customer_university || null;
+      if (leaderUni) {
+        setInheritedUniversity(leaderUni);
+        const w = weeks.find(x => x.university === leaderUni) || SOLSTICE_WEEKS_MOCK.find(x => x.university === leaderUni);
+        if (w) setSelWeek(w);
+      }
+      setInvitePricePerPerson(boatRow?.data?.price_per_person ?? null);
+      // El invitado compra el día 3 (lancha + beach club) de la lancha del líder.
+      setComboType('individual_days');
+      setSelDays([3]);
+      setMode('individual_days');
+      // Saltar selección de semana/combo/lancha → directo a sus datos.
+      setStep(opts?.advance ? 3 : 2);
       return true;
     } catch (err: any) {
       setJoinError('Error validando el link de invitación');
@@ -408,6 +441,16 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialInviteCode]);
+
+  // Respaldo: si la semana del líder se resolvió antes de que cargaran las
+  // semanas reales, fijar selWeek apenas estén disponibles.
+  useEffect(() => {
+    if (inheritedUniversity && weeks.length && (!selWeek || selWeek.university !== inheritedUniversity)) {
+      const w = weeks.find(x => x.university === inheritedUniversity);
+      if (w) setSelWeek(w);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inheritedUniversity, weeks]);
 
   const handleCreateRegistration = async () => {
     setProcessing(true);
@@ -587,6 +630,9 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
     else if (step === 4)            setStep(3);
     else if (step === 3)            setStep(currentCustomer ? 2 : (2.5 as any));
     else if (step === (2.5 as any)) setStep(2);
+    // El invitado heredó semana/combo/lancha: no hay pasos previos a sus datos,
+    // así que "atrás" desde datos sale de la reserva (vuelve a la invitación).
+    else if (step === 2 && isInvitee) onBack();
     else if (step === 2)            setStep(isCombo ? (1.4 as any) : (includesBoat ? (2.7 as any) : (1.5 as any)));
     else if (step === (1.4 as any)) setStep(2.7 as any);                 // forma de pago viene tras lancha
     else if (step === (2.7 as any)) setStep(isCombo ? 1 : (1.5 as any)); // lancha viene tras combo/días
