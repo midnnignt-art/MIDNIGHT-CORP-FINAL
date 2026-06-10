@@ -159,6 +159,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
   // Invitado: hereda la semana y el precio de la lancha del líder. Así NO elige
   // semana/combo de nuevo (evita que se una a una semana distinta a su grupo).
   const [inheritedUniversity, setInheritedUniversity] = useState<string | null>(null);
+  const [inheritedWeekId, setInheritedWeekId] = useState<string | null>(null);
   const [invitePricePerPerson, setInvitePricePerPerson] = useState<number | null>(null);
   const isInvitee = boatChoice === 'join' && !!boatReservationId;
   const [payStatus, setPayStatus] = useState<'pending' | 'paid'>('pending');
@@ -419,18 +420,25 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
       // HEREDAR el contexto del líder para que el invitado NO elija semana/combo
       // de nuevo (evita el desorden de unirse a otra semana). El invitado compra
       // el cupo de ESA lancha: semana del líder, día 3, precio de la lancha.
-      const [boatRow, leaderReg] = await Promise.all([
+      // La semana del líder vive en solstice_registrations, que el INVITADO
+      // (anónimo) NO puede leer por RLS. Por eso usamos un RPC SECURITY DEFINER
+      // que devuelve la semana del líder a partir del invite_code.
+      const [boatRow, leaderInfo] = await Promise.all([
         supabase.from('solstice_boats').select('price_per_person').eq('id', data.boat_id).maybeSingle(),
-        data.leader_registration_id
-          ? supabase.from('solstice_registrations').select('customer_university').eq('id', data.leader_registration_id).maybeSingle()
-          : Promise.resolve({ data: null } as any),
+        supabase.rpc('solstice_invite_leader_info', { p_invite_code: code }),
       ]);
-      const leaderUni = leaderReg?.data?.customer_university || null;
-      if (leaderUni) {
-        setInheritedUniversity(leaderUni);
-        const w = weeks.find(x => x.university === leaderUni) || SOLSTICE_WEEKS_MOCK.find(x => x.university === leaderUni);
-        if (w) setSelWeek(w);
-      }
+      const info = (leaderInfo?.data as any) || {};
+      const leaderWeekId = info.leader_week_id || null;
+      const leaderUni = info.leader_university || null;
+      if (leaderUni) setInheritedUniversity(leaderUni);
+      if (leaderWeekId) setInheritedWeekId(leaderWeekId);
+      // Match por week_id (robusto); si las semanas aún no cargaron, el useEffect
+      // de respaldo lo fija. Fallback a universidad por las dudas.
+      const w =
+        (leaderWeekId ? weeks.find(x => x.id === leaderWeekId) : null) ||
+        (leaderUni ? (weeks.find(x => x.university === leaderUni) || SOLSTICE_WEEKS_MOCK.find(x => x.university === leaderUni)) : null) ||
+        null;
+      if (w) setSelWeek(w);
       setInvitePricePerPerson(boatRow?.data?.price_per_person ?? null);
       // El invitado compra el día 3 (lancha + beach club) de la lancha del líder.
       setComboType('individual_days');
@@ -456,14 +464,16 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
   }, [initialInviteCode]);
 
   // Respaldo: si la semana del líder se resolvió antes de que cargaran las
-  // semanas reales, fijar selWeek apenas estén disponibles.
+  // semanas reales, fijar selWeek apenas estén disponibles (por week_id o uni).
   useEffect(() => {
-    if (inheritedUniversity && weeks.length && (!selWeek || selWeek.university !== inheritedUniversity)) {
-      const w = weeks.find(x => x.university === inheritedUniversity);
-      if (w) setSelWeek(w);
-    }
+    if (!weeks.length) return;
+    if (selWeek && (selWeek.id === inheritedWeekId || selWeek.university === inheritedUniversity)) return;
+    const w =
+      (inheritedWeekId ? weeks.find(x => x.id === inheritedWeekId) : null) ||
+      (inheritedUniversity ? weeks.find(x => x.university === inheritedUniversity) : null);
+    if (w) setSelWeek(w);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inheritedUniversity, weeks]);
+  }, [inheritedUniversity, inheritedWeekId, weeks]);
 
   const handleCreateRegistration = async () => {
     setProcessing(true);
