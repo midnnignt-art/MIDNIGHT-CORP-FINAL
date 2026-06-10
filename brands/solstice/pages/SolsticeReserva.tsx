@@ -22,7 +22,7 @@ const COMBOS: { id: ComboType; label: string; sub: string; icon: React.ReactNode
 ];
 
 // Paso 1.4 — forma de pago: solo aplica cuando el cliente elige combo completo.
-// (Días sueltos siempre se pagan al instante por Bold, sin cuotas posibles.)
+// (Días sueltos siempre se pagan al instante por Wompi, sin cuotas posibles.)
 type PaymentMethod = 'full_combo' | 'auto_subscription' | 'manual_monthly';
 const PAYMENT_METHODS: { id: PaymentMethod; label: string; sub: string; icon: React.ReactNode; badge?: string }[] = [
   { id: 'full_combo',        label: 'Todo de una',           sub: 'Pagás hoy, sin cuotas, sin recargos',                  icon: <Star size={18} />,     badge: 'Mejor precio' },
@@ -742,8 +742,13 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
               </div>
               <div className="space-y-4">
                 {weeks.map(week => {
-                  const pct  = (week.reserved / week.capacity) * 100;
-                  const left = week.capacity - week.reserved;
+                  // Blindar contra NaN: capacity/reserved pueden venir null o como
+                  // string desde la BD → "NaN cupos disponibles" en pantalla.
+                  const cap  = Number(week.capacity) || 0;
+                  const res  = Number(week.reserved) || 0;
+                  const pct  = cap > 0 ? Math.min(100, (res / cap) * 100) : 0;
+                  const left = Math.max(0, cap - res);
+                  const hasCap = cap > 0;
                   return (
                     <button key={week.id} onClick={() => { setSelWeek(week); setStep(1); }}
                       className="w-full p-6 text-left"
@@ -766,7 +771,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                     >
                       <div className="flex justify-between items-start mb-3">
                         <h3 className="text-xl uppercase" style={{ fontFamily: "'Poiret One', sans-serif", fontWeight: 300 }}>{week.university}</h3>
-                        <span className="text-[9px] uppercase" style={{ color: C.gray, letterSpacing: '0.15em', fontWeight: 500 }}>{week.reserved}/{week.capacity}</span>
+                        {hasCap && <span className="text-[9px] uppercase" style={{ color: C.gray, letterSpacing: '0.15em', fontWeight: 500 }}>{res}/{cap}</span>}
                       </div>
                       <p className="text-xs uppercase mb-4" style={{ color: C.gray, letterSpacing: '0.15em', fontWeight: 500 }}>
                         {new Date(week.start_date).toLocaleDateString('es-CO', { month: 'short', day: 'numeric' })} — {new Date(week.end_date).toLocaleDateString('es-CO', { month: 'short', day: 'numeric' })}
@@ -775,8 +780,8 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                       <div className="w-full mb-1" style={{ height: '2px', background: `${C.gray}20`, borderRadius: '999px' }}>
                         <div style={{ width: `${pct}%`, height: '100%', background: C.red, borderRadius: '999px', transition: 'width 0.8s' }} />
                       </div>
-                      <p className="text-[9px] uppercase" style={{ color: left <= 20 ? C.red : C.gray, letterSpacing: '0.1em', fontWeight: 500 }}>
-                        {left <= 20 ? `¡Solo ${left} cupos!` : `${left} cupos disponibles`}
+                      <p className="text-[9px] uppercase" style={{ color: hasCap && left <= 20 ? C.red : C.gray, letterSpacing: '0.1em', fontWeight: 500 }}>
+                        {!hasCap ? 'Cupos disponibles' : left <= 20 ? `¡Solo ${left} cupos!` : `${left} cupos disponibles`}
                       </p>
                     </button>
                   );
@@ -939,6 +944,12 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
             const totalK = Math.round(grandTotal / 1000);
             const cuotas = effectiveInstallments;
             const cuotaK = Math.round(installmentBase / cuotas / 1000);
+            // Nombre del mes para el timeline de cuotas (mes actual + i).
+            const monthName = (i: number) => {
+              const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + i);
+              const s = d.toLocaleDateString('es-CO', { month: 'long' });
+              return s.charAt(0).toUpperCase() + s.slice(1);
+            };
             const meta: Record<PaymentMethod, {
               headline: string;
               bigPrice: string;
@@ -1080,24 +1091,40 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                             className="overflow-hidden mt-4"
                           >
                             <div className="pt-4 border-t" style={{ borderColor: 'rgba(230,57,47,0.25)' }}>
-                              <div className="space-y-3">
-                                <div className="flex gap-3">
-                                  <span className="text-[9px] uppercase flex-shrink-0 mt-0.5" style={{ color: C.red, letterSpacing: '0.25em', fontWeight: 600, minWidth: '64px' }}>
-                                    Cobro
-                                  </span>
-                                  <p className="text-[11px] leading-relaxed" style={{ color: C.cream, fontWeight: 400 }}>
-                                    {data.cobro}
+                              {(m.id === 'auto_subscription' || m.id === 'manual_monthly') ? (
+                                <>
+                                  <p className="text-[9px] uppercase mb-3" style={{ color: C.red, letterSpacing: '0.25em', fontWeight: 600 }}>
+                                    Tu plan de pago
                                   </p>
-                                </div>
-                                <div className="flex gap-3">
-                                  <span className="text-[9px] uppercase flex-shrink-0 mt-0.5" style={{ color: C.red, letterSpacing: '0.25em', fontWeight: 600, minWidth: '64px' }}>
-                                    Respaldo
-                                  </span>
-                                  <p className="text-[11px] leading-relaxed" style={{ color: `${C.gray}dd`, fontWeight: 400 }}>
-                                    {data.respaldo}
+                                  <div className="space-y-2.5">
+                                    {[{ label: 'Hoy', note: 'Reserva', amount: entryK },
+                                      ...Array.from({ length: cuotas }, (_, i) => ({ label: monthName(i + 1), note: '', amount: cuotaK }))
+                                    ].map((row, i) => (
+                                      <div key={i} className="flex items-center gap-3">
+                                        <span className="flex-shrink-0 rounded-full" style={{ width: 7, height: 7, background: i === 0 ? C.red : `${C.red}55` }} />
+                                        <span className="text-[11px] uppercase flex-1" style={{ color: i === 0 ? C.cream : `${C.cream}cc`, letterSpacing: '0.1em', fontWeight: 500 }}>
+                                          {row.label}{row.note ? ` · ${row.note}` : ''}
+                                        </span>
+                                        <span className="text-sm tabular-nums" style={{ color: i === 0 ? C.red : C.cream, fontWeight: 600 }}>
+                                          ${row.amount}K
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  <p className="text-[10px] leading-relaxed mt-3" style={{ color: `${C.gray}dd` }}>
+                                    {m.id === 'auto_subscription'
+                                      ? 'Se cobra solo cada mes con tu tarjeta. Te avisamos antes.'
+                                      : 'Te avisamos por WhatsApp 24h antes de cada cuota. Movés la fecha 1× si necesitás.'}
                                   </p>
-                                </div>
-                              </div>
+                                </>
+                              ) : (
+                                <p className="text-[11px] leading-relaxed" style={{ color: C.cream, fontWeight: 400 }}>
+                                  {data.cobro}
+                                </p>
+                              )}
+                              <p className="text-[10px] leading-relaxed mt-3" style={{ color: `${C.gray}aa` }}>
+                                {data.respaldo}
+                              </p>
                             </div>
                           </motion.div>
                         )}
@@ -1132,16 +1159,16 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                     Cómo aseguramos tu lugar
                   </p>
                   <ul className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <GarantiaItem step="1" title="Reserva validada" desc={`Tu $${entryK}K se cobra vía Bold con firma cifrada. El lugar queda bloqueado solo si el pago aprueba.`} />
-                    <GarantiaItem step="2" title="Tarjeta autorizada" desc="En modalidades de cuotas, autorizás cobros automáticos. Sin autorización, no se confirma." />
-                    <GarantiaItem step="3" title="Recordatorios reales" desc="WhatsApp 24h antes de cada pago + email. Si la tarjeta no tiene fondos, 7 días de gracia." />
+                    <GarantiaItem step="1" title="Pago seguro" desc={`Tu $${entryK}K se cobra por Wompi. El cupo queda bloqueado apenas aprueba.`} />
+                    <GarantiaItem step="2" title="Sin sorpresas" desc="Ves tu plan de pago completo antes de confirmar. Vos elegís cómo pagar." />
+                    <GarantiaItem step="3" title="Te avisamos" desc="Recordatorio por WhatsApp antes de cada cuota. 7 días de gracia si hace falta." />
                   </ul>
                 </div>
 
                 {/* Trust strip */}
                 <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 pt-2">
                   <span className="text-[9px] uppercase" style={{ color: `${C.gray}cc`, letterSpacing: '0.2em', fontWeight: 500 }}>
-                    🔒 Pago seguro · Bold
+                    🔒 Pago seguro · Wompi
                   </span>
                   <span style={{ color: `${C.gray}40` }}>·</span>
                   <span className="text-[9px] uppercase" style={{ color: `${C.gray}cc`, letterSpacing: '0.2em', fontWeight: 500 }}>
@@ -1699,7 +1726,9 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
               {(() => {
                 const canAdvanceLead = !!selectedBoatId || (boats.length === 0) || allBoatsFull;
                 const ready = boatChoice === 'join' ? !!boatReservationId : canAdvanceLead;
+                const selBoatName = boats.find(b => b.id === selectedBoatId)?.name;
                 return (
+              <div style={{ position: 'sticky', bottom: 0, zIndex: 20, paddingTop: '20px', paddingBottom: '10px', marginTop: '4px', background: 'linear-gradient(to top, #0a0000 62%, rgba(10,0,0,0))' }}>
               <button
                 onClick={() => {
                   if (!ready) return;
@@ -1722,8 +1751,11 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                   (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none';
                 }}
               >
-                {isCombo ? 'Cómo pagar' : 'Continuar al resumen'} <ChevronRight size={16} />
+                {selBoatName && boatChoice === 'lead'
+                  ? `Continuar con ${selBoatName}`
+                  : (isCombo ? 'Cómo pagar' : 'Continuar al resumen')} <ChevronRight size={16} />
               </button>
+              </div>
                 );
               })()}
             </motion.div>
