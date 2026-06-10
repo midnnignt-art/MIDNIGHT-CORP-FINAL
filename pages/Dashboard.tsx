@@ -147,6 +147,21 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
       ? myScopeTeams
       : myTeam ? [myTeam] : [];
 
+  // ── Comisión del PROMOTOR (modelo nuevo, definido por el manager) ────────
+  // La comisión del promotor = (pago por boleta que fija el manager en "Editar
+  // pago") × (boletas vendidas). El pago sale de promoter_payouts; si el manager
+  // no lo editó, cae al mínimo configurado del evento (commission_promoter_min).
+  // Esto REEMPLAZA el o.commission_amount viejo (que quedaba fijo al crear la
+  // orden) en todos los dashboards, para que editar el pago afecte las cuentas.
+  const tierMinForEvent = (eventId?: string | null): number =>
+    tiers.find(t => t.event_id === eventId)?.commission_promoter_min ?? 0;
+  const promoterPayoutPerTicket = (eventId?: string | null, promoterId?: string | null): number => {
+    const pp = promoterPayouts.find(p => p.event_id === eventId && p.promoter_id === promoterId);
+    return pp?.amount_per_ticket ?? tierMinForEvent(eventId);
+  };
+  const promoterCommission = (o: (typeof orders)[number]): number =>
+    promoterPayoutPerTicket(o.event_id, o.staff_id) * o.items.reduce((s, i) => s + i.quantity, 0);
+
   // Staff disponible para vincular (sin equipo asignado)
   const availableStaffToLink = promoters.filter(p => !p.sales_team_id && !isAdminLevel(p.role));
 
@@ -276,7 +291,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
           const totalQty = digitalQty + cashQty;
           
           // CRITICAL FIX: If forceNoCommission (Admin/System) is true, commission is 0.
-          const totalCommission = forceNoCommission ? 0 : subsetOrders.reduce((acc, o) => acc + o.commission_amount, 0);
+          const totalCommission = forceNoCommission ? 0 : subsetOrders.reduce((acc, o) => acc + promoterCommission(o), 0);
           
           // LIQUIDACIÓN REAL: Efectivo Recaudado - Comisiones Totales
           const netLiquidation = cashGross - totalCommission;
@@ -454,7 +469,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
       }), { digitalQty: 0, digitalGross: 0, cashQty: 0, cashGross: 0, totalCommission: 0, netLiquidation: 0 });
 
       return { allTeams: teamStats, stages, grandTotals };
-  }, [orders, teams, myScopeTeams, myScopePromoters, promoters, isHead, isGlobalHead, selectedEventFilter, tiers]);
+  }, [orders, teams, myScopeTeams, myScopePromoters, promoters, isHead, isGlobalHead, selectedEventFilter, tiers, promoterPayouts]);
 
   // --- LOGICA RANKING GENERAL ---
   const generalRankingData = useMemo(() => {
@@ -485,7 +500,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
               const teamOrders = filteredOrders.filter(o => o.staff_id && memberIds.includes(o.staff_id));
               const ticketsSold = teamOrders.reduce((acc, o) => acc + o.items.reduce((sum, i) => sum + i.quantity, 0), 0);
               const revenue = teamOrders.reduce((acc, o) => acc + o.total, 0);
-              const commission = teamOrders.reduce((acc, o) => acc + o.commission_amount, 0);
+              const commission = teamOrders.reduce((acc, o) => acc + promoterCommission(o), 0);
 
               return {
                   user_id: team.id, // Use team ID as key
@@ -506,7 +521,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
               const myOrders = filteredOrders.filter(o => o.staff_id === p.user_id);
               const ticketsSold = myOrders.reduce((acc, o) => acc + o.items.reduce((sum, i) => sum + i.quantity, 0), 0);
               const revenue = myOrders.reduce((acc, o) => acc + o.total, 0);
-              const commission = myOrders.reduce((acc, o) => acc + o.commission_amount, 0);
+              const commission = myOrders.reduce((acc, o) => acc + promoterCommission(o), 0);
               
               return {
                   ...p,
@@ -519,7 +534,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
 
           return stats;
       }
-  }, [orders, myScopePromoters, myScopeTeams, selectedEventFilter, rankingDateStart, rankingDateEnd, rankingViewMode]);
+  }, [orders, myScopePromoters, myScopeTeams, selectedEventFilter, rankingDateStart, rankingDateEnd, rankingViewMode, promoterPayouts, tiers]);
 
 
   // --- CÁLCULO DE MÉTRICAS (KPIs) - SIEMPRE SINCRONIZADO CON TABLA ---
@@ -572,14 +587,14 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
 
     const commissions = scopeOrders.reduce((acc, o) => {
         if (!o.staff_id || adminIds.includes(o.staff_id)) return acc;
-        return acc + o.commission_amount;
+        return acc + promoterCommission(o);
     }, 0);
 
     const cashSales = scopeOrders.filter(o => o.payment_method === 'cash').reduce((acc, o) => acc + o.total, 0);
     const netToSend = cashSales - commissions;
 
     return { kpiSales: sales, kpiCommissions: commissions, kpiNetToSend: netToSend, scopeLabel: label };
-  }, [orders, currentUser, myScopeMemberIds, isHead, isGlobalHead, isManager, myTeam, myHeadSuperSquad, promoters, selectedEventFilter, globalLiquidationData]);
+  }, [orders, currentUser, myScopeMemberIds, isHead, isGlobalHead, isManager, myTeam, myHeadSuperSquad, promoters, selectedEventFilter, globalLiquidationData, promoterPayouts, tiers]);
 
   const updateCart = (tierId: string, qty: number) => {
       if (qty === 0) {
@@ -997,7 +1012,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
           if (!ev) return null;
           const evOrders = myOrders.filter(o => o.event_id === eid);
           const dineroAEnviar = evOrders.reduce((s, o) => s + (o.net_amount || 0), 0);
-          const comisiones = evOrders.reduce((s, o) => s + (o.commission_amount || 0), 0);
+          const comisiones = evOrders.reduce((s, o) => s + promoterCommission(o), 0);
           const settList = settlements.filter(s => s.event_id === eid && s.promoter_id === currentUser.user_id);
           const yaEnviado = settList.reduce((s, se) => s + se.amount_sent, 0);
           const deuda = dineroAEnviar - yaEnviado;
@@ -1261,7 +1276,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
           const tickets = tOrders.reduce((s, o) => s + o.items.reduce((a, i) => a + i.quantity, 0), 0);
           const cash = tOrders.filter(o => o.payment_method === 'cash').reduce((s, o) => s + o.total, 0);
           const digital = revenue - cash;
-          const commissions = tOrders.reduce((s, o) => s + o.commission_amount, 0);
+          const commissions = tOrders.reduce((s, o) => s + promoterCommission(o), 0);
           return {
             id: team.id, name: team.name,
             manager: promoters.find(p => p.user_id === team.manager_id)?.name || '—',
@@ -1695,7 +1710,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                           const digitalGross = digitalOrders.reduce((acc, o) => acc + o.total, 0);
                           const cashQty = cashOrders.reduce((acc, o) => acc + o.items.reduce((sum, i) => sum + i.quantity, 0), 0);
                           const cashGross = cashOrders.reduce((acc, o) => acc + o.total, 0);
-                          const totalCommission = subsetOrders.reduce((acc, o) => acc + o.commission_amount, 0);
+                          const totalCommission = subsetOrders.reduce((acc, o) => acc + promoterCommission(o), 0);
                           const netLiquidation = cashGross - totalCommission;
                           return { digitalQty, digitalGross, cashQty, cashGross, totalCommission, netLiquidation };
                       };
@@ -1819,7 +1834,9 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
                                               });
                                           });
 
-                                          const payout = promoterPayouts.find(pp => pp.event_id === selectedEventFilter && pp.manager_id === currentUser.user_id && pp.promoter_id === p.user_id);
+                                          // Buscar por (evento, promotor) — el constraint único real. Antes
+                                          // filtraba además por manager_id y podía no encontrar la fila.
+                                          const payout = promoterPayouts.find(pp => pp.event_id === selectedEventFilter && pp.promoter_id === p.user_id);
                                           const payoutPerTicket = payout?.amount_per_ticket ?? (eventTiers[0]?.commission_promoter_min ?? 0);
                                           const promoterPayTotal = payoutPerTicket * tickets;
                                           const diff = commManagerTotal - promoterPayTotal;
