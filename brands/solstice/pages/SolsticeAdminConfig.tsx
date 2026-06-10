@@ -283,6 +283,51 @@ function DaySelector({ selected, onChange, days }: {
 
 // ── Logo upload helper ─────────────────────────────────────────────────────────
 
+// Procesa una imagen ANTES de subirla: la decodifica, la achica a máx 1920px y
+// la re-exporta como JPEG. Esto (1) convierte el HEIC del iPhone a un formato que
+// TODOS los navegadores muestran (Android/Chrome NO renderizan HEIC), y (2) baja
+// el peso de fotos de 12-15MB a unos cientos de KB (subida más rápida y confiable
+// en datos móviles). Si algo falla, devuelve el archivo original para no bloquear.
+async function processImageForUpload(file: File): Promise<{ blob: Blob; contentType: string; ext: string }> {
+  try {
+    const dataUrl: string = await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result as string);
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+    const img: HTMLImageElement = await new Promise((resolve, reject) => {
+      // OJO: usamos createElement, no `new Image()`, porque `Image` está
+      // importado de lucide-react (el ícono) y shadowea el constructor del DOM.
+      const i = document.createElement('img');
+      i.onload = () => resolve(i);
+      i.onerror = reject;
+      i.src = dataUrl;
+    });
+    const MAX = 1920;
+    let width = img.naturalWidth || img.width;
+    let height = img.naturalHeight || img.height;
+    if (width > MAX || height > MAX) {
+      const scale = MAX / Math.max(width, height);
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('sin contexto canvas');
+    ctx.drawImage(img, 0, 0, width, height);
+    const blob: Blob | null = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
+    if (!blob) throw new Error('toBlob devolvió null');
+    return { blob, contentType: 'image/jpeg', ext: 'jpg' };
+  } catch {
+    // Fallback: subir el archivo original tal cual (mejor algo que nada).
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    return { blob: file, contentType: file.type || 'image/jpeg', ext };
+  }
+}
+
 async function uploadLogoImage(file: File): Promise<string> {
   const ext = file.name.split('.').pop();
   const path = `solstice/brand/logo-${Date.now()}.${ext}`;
@@ -303,9 +348,9 @@ async function uploadLogoImage(file: File): Promise<string> {
 // ── Image upload helper (Supabase Storage) ─────────────────────────────────────
 
 async function uploadDayImage(file: File, dayNumber: number): Promise<string | null> {
-  const ext = file.name.split('.').pop();
+  const { blob, contentType, ext } = await processImageForUpload(file);
   const path = `solstice/days/dia-${dayNumber}-${Date.now()}.${ext}`;
-  const { error } = await supabase.storage.from('assets').upload(path, file, { upsert: true });
+  const { error } = await supabase.storage.from('assets').upload(path, blob, { upsert: true, contentType });
   if (error) {
     // Storage bucket might not exist — return null, user can paste URL manually
     console.warn('Storage upload failed:', error.message);
@@ -2217,11 +2262,11 @@ function BoatCard({ boat, saving, onChange, onSave, onDelete }: {
     setUploading(true);
     try {
       const uploads = await Promise.all(Array.from(files).map(async (file) => {
-        const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+        const { blob, contentType, ext } = await processImageForUpload(file);
         const rand = Math.random().toString(36).substring(2, 10);
         const path = `solstice/boats/${boat.id}/${Date.now()}-${rand}.${ext}`;
-        const { error: upErr } = await supabase.storage.from('assets').upload(path, file, {
-          contentType: file.type || 'image/jpeg',
+        const { error: upErr } = await supabase.storage.from('assets').upload(path, blob, {
+          contentType,
           upsert: false,
         });
         if (upErr) throw upErr;
