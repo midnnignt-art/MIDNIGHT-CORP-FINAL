@@ -644,10 +644,12 @@ export default function SolsticeAdminConfig() {
         day_number:    day.day_number,
         title:         day.title || `Día ${day.day_number}`,
         subtitle:      toStrOrNull(day.subtitle),
+        // Un solo precio por día (individual). Los demás campos se igualan al
+        // precio para no romper lógica vieja que aún los lea.
         price:         toInt(day.price),
-        price_cash:    toIntOrNull(day.price_cash),
-        price_combo:   toIntOrNull(day.price_combo),
-        price_monthly: toIntOrNull(day.price_monthly),
+        price_cash:    toInt(day.price),
+        price_combo:   toInt(day.price),
+        price_monthly: toInt(day.price),
         image_url:     toStrOrNull(day.image_url),
         highlight:     day.highlight,
       };
@@ -958,12 +960,9 @@ export default function SolsticeAdminConfig() {
                     {/* Header */}
                     <div className="grid grid-cols-12 px-3 py-1.5 text-[8px] uppercase tracking-widest"
                       style={{ color: C.gray, borderBottom: '0.5px solid rgba(255,255,255,0.08)', fontWeight: 500, letterSpacing: '0.06em' }}>
-                      <div className="col-span-3">Día</div>
-                      <div className="col-span-2 text-center">Digital</div>
-                      <div className="col-span-2 text-center">Efectivo</div>
-                      <div className="col-span-2 text-center">Aporte combo</div>
-                      <div className="col-span-2 text-center">Aporte mensual</div>
-                      <div className="col-span-1 text-right">★</div>
+                      <div className="col-span-6">Día</div>
+                      <div className="col-span-4 text-center">Precio por día</div>
+                      <div className="col-span-2 text-right">★</div>
                     </div>
                     {days.map((day, idx) => (
                       <div key={day.day_number}
@@ -974,7 +973,7 @@ export default function SolsticeAdminConfig() {
                           borderRadius: '16px',
                         }}>
                         {/* Name + subtitle */}
-                        <div className="col-span-3">
+                        <div className="col-span-6">
                           <input value={day.title} onChange={e => upDay(idx, 'title', e.target.value)}
                             className="w-full bg-transparent text-xs font-medium uppercase outline-none mb-0.5"
                             style={{ color: day.highlight ? C.red : C.cream }}
@@ -984,31 +983,29 @@ export default function SolsticeAdminConfig() {
                             className="w-full bg-transparent text-[9px] outline-none"
                             style={{ color: C.gray }} placeholder="subtítulo" />
                         </div>
-                        {/* Prices */}
-                        {(['price', 'price_cash', 'price_combo', 'price_monthly'] as const).map(field => (
-                          <div key={field} className="col-span-2">
-                            <div className="flex items-center gap-1 px-2 py-1.5"
-                              style={{
-                                background: 'rgba(255,255,255,0.04)',
-                                border: '0.5px solid rgba(255,255,255,0.08)',
-                                borderRadius: '14px',
-                                transition: 'all 0.3s ease',
-                              }}>
-                              <span className="text-[9px] shrink-0" style={{ color: C.gray }}>$</span>
-                              <input
-                                type="number"
-                                value={day[field] || ''}
-                                onChange={e => upDay(idx, field, e.target.value)}
-                                className="w-full bg-transparent text-xs outline-none text-right"
-                                style={{ color: C.cream }}
-                                onFocus={e => { (e.currentTarget.parentElement as HTMLElement).style.borderColor = 'rgba(230,57,47,0.55)'; }}
-                                onBlur={e => { (e.currentTarget.parentElement as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)'; }}
-                              />
-                            </div>
+                        {/* Un solo precio por día (individual) */}
+                        <div className="col-span-4">
+                          <div className="flex items-center gap-1 px-3 py-1.5"
+                            style={{
+                              background: 'rgba(255,255,255,0.04)',
+                              border: '0.5px solid rgba(255,255,255,0.08)',
+                              borderRadius: '14px',
+                              transition: 'all 0.3s ease',
+                            }}>
+                            <span className="text-[9px] shrink-0" style={{ color: C.gray }}>$</span>
+                            <input
+                              type="number"
+                              value={day.price || ''}
+                              onChange={e => upDay(idx, 'price', e.target.value)}
+                              className="w-full bg-transparent text-xs outline-none text-right"
+                              style={{ color: C.cream }}
+                              onFocus={e => { (e.currentTarget.parentElement as HTMLElement).style.borderColor = 'rgba(230,57,47,0.55)'; }}
+                              onBlur={e => { (e.currentTarget.parentElement as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)'; }}
+                            />
                           </div>
-                        ))}
+                        </div>
                         {/* Highlight toggle */}
-                        <div className="col-span-1 flex justify-end">
+                        <div className="col-span-2 flex justify-end">
                           <button onClick={() => upDay(idx, 'highlight', !day.highlight)}
                             title={day.highlight ? 'Quitar destacado' : 'Destacar'}
                             style={{ transition: 'all 0.3s ease' }}>
