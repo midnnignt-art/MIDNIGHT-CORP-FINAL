@@ -114,7 +114,7 @@ export default function SolsticeInviteLanding({ inviteCode }: Props) {
             Te invitaron a una lancha
           </p>
           <h1 className="text-3xl md:text-4xl uppercase mb-2" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.04em', fontWeight: 300, lineHeight: 1.1 }}>
-            {data.leader_name?.split(' ')[0] || 'Un pana'}<br/>te reservó cupo
+            {data.leader_name?.split(' ')[0] || 'Un amigo'}<br/>te reservó cupo
           </h1>
           <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em' }}>
             Día 3 · Lanchas + Beach Club · Solstice 2026

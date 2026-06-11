@@ -795,7 +795,7 @@ export default function SolsticeMiSemana() {
           </div>
         )}
 
-        {/* ── Invitar a panas — sharing viral con mensaje pre-armado ── */}
+        {/* ── Invitar a amigos — sharing viral con mensaje pre-armado ── */}
         <InviteFriendsCard reg={reg} />
 
         {/* ── Plan de pagos ── */}
@@ -1062,9 +1062,9 @@ function calcTime(startDate: string) {
   };
 }
 
-// ── Invitar a panas: tarjeta de share viral en MiSemana ──────────────────
+// ── Invitar a amigos: tarjeta de share viral en MiSemana ──────────────────
 function InviteFriendsCard({ reg }: { reg: Registration }) {
-  const firstName = (reg.customer_name || '').split(' ')[0] || 'tu pana';
+  const firstName = (reg.customer_name || '').split(' ')[0] || 'tu amigo';
   const uni       = reg.week?.university || reg.customer_university || 'Solstice';
   const url       = `${window.location.origin}/sol`;
   const message   = `${firstName} acá 🌅 reservé mi semana en SOLSTICE 2026 (${uni}) — 5 días en Santa Marta, lanchas privadas + beach club, lo más bonito del año. Si querés sumarte, asegurás tu lugar con $40K: ${url}`;
@@ -1097,7 +1097,7 @@ function InviteFriendsCard({ reg }: { reg: Registration }) {
   return (
     <div className="space-y-3">
       <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.08em', fontWeight: 500 }}>
-        Invitá a tus panas
+        Invitá a tus amigos
       </p>
       <div
         className="relative overflow-hidden p-6"
@@ -1142,7 +1142,7 @@ function InviteFriendsCard({ reg }: { reg: Registration }) {
                 Solstice es mejor en grupo
               </h3>
               <p className="text-[11px] mt-2" style={{ color: C.gray, lineHeight: 1.55 }}>
-                Compartí tu Solstice con tus panas. Cada invitación que aceptan se suma a la energía de la semana.
+                Compartí tu Solstice con tus amigos. Cada invitación que aceptan se suma a la energía de la semana.
               </p>
             </div>
           </div>

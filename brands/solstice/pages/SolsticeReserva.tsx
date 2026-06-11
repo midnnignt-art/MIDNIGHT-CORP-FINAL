@@ -1500,7 +1500,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                 <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>
                   {boatChoice === 'join'
                     ? 'Llegaste por un link de invitación · ya quedás en esa lancha'
-                    : 'Elegí tu lancha y al pagar te damos un link para invitar a tus panas'}
+                    : 'Elegí tu lancha y al pagar te damos un link para invitar a tus amigos'}
                 </p>
               </div>
 
@@ -1526,7 +1526,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                         </p>
                       </div>
                       <p className="text-xs" style={{ color: C.gray, lineHeight: 1.6 }}>
-                        Te unís a la lancha {joinLeaderName ? <>de <strong style={{ color: C.cream }}>{joinLeaderName}</strong></> : 'de tu pana'} · <strong style={{ color: C.cream }}>{boats.find(b => b.id === selectedBoatId)?.name || 'Lancha'}</strong>.
+                        Te unís a la lancha {joinLeaderName ? <>de <strong style={{ color: C.cream }}>{joinLeaderName}</strong></> : 'de tu amigo'} · <strong style={{ color: C.cream }}>{boats.find(b => b.id === selectedBoatId)?.name || 'Lancha'}</strong>.
                         Continuá para completar tus datos y pago.
                       </p>
                     </div>
@@ -2237,7 +2237,7 @@ function ConfirmationCinematic({
               </p>
             </div>
             <p className="text-xs mb-3" style={{ color: '#F9F2D7', lineHeight: 1.55 }}>
-              Eres <strong>líder</strong>. Mandales este <strong>link</strong> a tus panas — al abrirlo quedan automáticamente en tu lancha, sin códigos:
+              Eres <strong>líder</strong>. Mandales este <strong>link</strong> a tus amigos — al abrirlo quedan automáticamente en tu lancha, sin códigos:
             </p>
 
             <div
@@ -2469,7 +2469,7 @@ function ConfirmationCinematic({
               (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
             }}
           >
-            💬 Avisar a tus panas
+            💬 Avisar a tus amigos
           </button>
 
           <button

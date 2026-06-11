@@ -813,7 +813,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
             </h2>
             <p className="text-sm md:text-base max-w-2xl mx-auto" style={{ color: '#a0a0a8', lineHeight: 1.6 }}>
               Pensado para estudiantes universitarios: <strong style={{ color: C.cream }}>reservás ahora con ${entryK}K</strong> y
-              pagás el resto en {s.installments} cuotas mensuales. <strong style={{ color: C.cream }}>Sin recargo. Sin interés.</strong> Como hacer una vaca con tus panas, pero conmigo.
+              pagás el resto en {s.installments} cuotas mensuales. <strong style={{ color: C.cream }}>Sin recargo. Sin interés.</strong> Como hacer una vaca con tus amigos, pero conmigo.
             </p>
           </div>
 

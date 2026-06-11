@@ -121,16 +121,8 @@ export const SolsticeAtmosphere: React.FC<{ className?: string }> = ({ className
         }}
       />
 
-      {/* Capa 3: horizonte (línea fina iluminada) */}
-      <div
-        style={{
-          position: 'absolute', left: 0, right: 0,
-          bottom: '30%',
-          height: '1px',
-          background: 'linear-gradient(90deg, transparent 0%, rgba(255,180,140,0.6) 50%, transparent 100%)',
-          opacity: 0.6,
-        }}
-      />
+      {/* Capa 3: horizonte — removido. La línea fina de ancho completo se leía
+          como una "línea que corta el fondo" a la altura del botón. */}
 
       {/* Capa 4: mar (gradient con shimmer) */}
       <div
