@@ -170,6 +170,8 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
   // las reservas de esa lancha). Se hidrata al cargar + se actualiza en
   // realtime cuando alguien reserva/cancela en otra sesión.
   const [boatOccupancy, setBoatOccupancy] = useState<Record<string, number>>({});
+  // Descripción general que el admin pone arriba de todas las lanchas.
+  const [boatsIntro, setBoatsIntro] = useState<string>('');
   const [recentBoatId, setRecentBoatId]   = useState<string | null>(null);
 
   useEffect(() => {
@@ -202,8 +204,17 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
       } catch {}
     }
 
+    async function loadBoatsIntro() {
+      try {
+        const { data } = await supabase
+          .from('solstice_config').select('value').eq('key', 'boats_intro').maybeSingle();
+        if (mounted && data?.value) setBoatsIntro(typeof data.value === 'string' ? data.value : String(data.value));
+      } catch {}
+    }
+
     loadBoats();
     loadOccupancy();
+    loadBoatsIntro();
 
     // Realtime: cuando se inserta/actualiza una reservation, refrescamos
     // ocupación y mostramos un highlight breve sobre la lancha afectada.
@@ -1506,6 +1517,13 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                     : 'Elegí tu lancha y al pagar te damos un link para invitar a tus amigos'}
                 </p>
               </div>
+
+              {/* Descripción general de las lanchas (configurable por el admin) */}
+              {boatsIntro && boatChoice !== 'join' && (
+                <div className="p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.10)', borderRadius: '18px' }}>
+                  <p className="text-xs" style={{ color: `${C.cream}dd`, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{boatsIntro}</p>
+                </div>
+              )}
 
               {/* Invitado por link: card de confirmación (sin selección manual) */}
               {boatChoice === 'join' && (

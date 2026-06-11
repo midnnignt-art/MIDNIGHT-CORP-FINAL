@@ -2124,6 +2124,9 @@ function BoatsAdmin({ seasonId }: { seasonId: string | null }) {
   const [boats, setBoats] = useState<Boat[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
+  // Descripción general que se muestra ARRIBA de todas las lanchas en la vitrina.
+  const [intro, setIntro] = useState('');
+  const [introSaving, setIntroSaving] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -2134,8 +2137,22 @@ function BoatsAdmin({ seasonId }: { seasonId: string | null }) {
         .order('created_at', { ascending: true });
       setBoats((data as Boat[]) ?? []);
       setLoading(false);
+      const { data: cfg } = await supabase
+        .from('solstice_config').select('value').eq('key', 'boats_intro').maybeSingle();
+      if (cfg?.value) setIntro(typeof cfg.value === 'string' ? cfg.value : String(cfg.value));
     })();
   }, []);
+
+  const saveIntro = async () => {
+    setIntroSaving(true);
+    try {
+      await supabase.from('solstice_config').upsert(
+        { key: 'boats_intro', value: intro, updated_at: new Date().toISOString() },
+        { onConflict: 'key' });
+      toast.success('Descripción guardada');
+    } catch (e: any) { toast.error(e?.message || 'Error'); }
+    finally { setIntroSaving(false); }
+  };
 
   const addBoat = async () => {
     const newBoat = {
@@ -2212,6 +2229,28 @@ function BoatsAdmin({ seasonId }: { seasonId: string | null }) {
         >
           <Plus size={12} /> Agregar lancha
         </button>
+      </div>
+
+      {/* Descripción general — se muestra arriba de todas las lanchas en la vitrina */}
+      <div className="p-4" style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.10)', borderRadius: '16px' }}>
+        <label className="text-[9px] uppercase block mb-2" style={{ color: '#606060', letterSpacing: '0.25em', fontWeight: 600 }}>
+          Descripción arriba de todas las lanchas (vitrina)
+        </label>
+        <textarea
+          value={intro}
+          onChange={e => setIntro(e.target.value)}
+          rows={3}
+          placeholder="Ej: Todas las lanchas salen el Día 3 a la bahía privada con DJ y barra libre. Elegí la tuya según capacidad y vibra."
+          className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-xs outline-none resize-y"
+          style={{ color: '#F9F2D7' }}
+        />
+        <div className="flex justify-end mt-2">
+          <button onClick={saveIntro} disabled={introSaving}
+            className="inline-flex items-center gap-2 px-4 py-1.5 text-[10px] uppercase"
+            style={{ background: 'rgba(230,57,47,0.22)', border: '0.5px solid rgba(230,57,47,0.5)', borderRadius: '999px', color: '#F9F2D7', letterSpacing: '0.2em', fontWeight: 600, opacity: introSaving ? 0.5 : 1 }}>
+            {introSaving ? 'Guardando…' : 'Guardar descripción'}
+          </button>
+        </div>
       </div>
 
       {boats.length === 0 ? (
