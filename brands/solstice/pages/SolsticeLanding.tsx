@@ -619,19 +619,17 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
             Reservá tu semana
           </motion.button>
 
-          {/* Stats trust strip debajo del CTA */}
-          <motion.div
+          {/* Mensaje claro del adelanto: reservás con $40K y el resto en cuotas */}
+          <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.9, delay: 1.25 }}
-            className="flex items-center justify-center gap-5 md:gap-8 mt-8 md:mt-10"
+            className="text-center mt-6 md:mt-8 text-[13px] md:text-sm px-6"
+            style={{ color: `${C.cream}dd`, letterSpacing: '0.02em', fontWeight: 400, lineHeight: 1.5 }}
           >
-            <HeroStat value={String(displayDays.length)} label="Días" />
-            <HeroDivider />
-            <HeroStat value={String(displayWeeks.length)} label="Unis" />
-            <HeroDivider />
-            <HeroStat value={`$${entryK}K`} label="Desde" highlight />
-          </motion.div>
+            Reservás tu semana con solo <strong style={{ color: C.red }}>${entryK}.000</strong>.
+            <br className="hidden md:block" /> El resto lo pagás en cuotas, sin afán.
+          </motion.p>
         </motion.div>
 
         {/* Scroll hint sutil */}
@@ -712,11 +710,69 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
       </section>
 
       {/* ── MARQUEE ── */}
-      <section className="py-12 md:py-16 border-y" style={{ borderColor: 'rgba(230,57,47,0.15)' }}>
+      <section className="py-12 md:py-16">
         <SolsticeMarquee
           items={['SOLSTICE 2026', 'SANTA MARTA', 'ATARDECER PRIVADO', 'LANCHAS · BEACH CLUB', 'UNA VEZ AL AÑO', 'SELECTED BEATS']}
           speedSeconds={60}
         />
+      </section>
+
+      {/* ── PROGRAMA (subido: lo primero que ve el cliente tras el hero) ── */}
+      <section className="py-24 overflow-hidden" style={{ background: 'rgba(255,255,255,0.02)' }}>
+        <div className="max-w-7xl mx-auto px-4">
+          <h2 className="text-3xl text-center mb-3 uppercase"
+            style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '-0.02em', fontWeight: 300 }}>
+            Programa — {displayDays.length} Días
+          </h2>
+          <p className="text-center text-xs uppercase mb-20" style={{ letterSpacing: '0.08em', color: C.gray, fontWeight: 500 }}>
+            Todo incluido · Atardecer cada noche
+          </p>
+          <div className="relative">
+            <div className="hidden md:block absolute top-[2.4rem] left-0 right-0 h-px" style={{ background: `${C.gray}20` }} />
+            <div className="flex flex-col md:flex-row justify-between gap-12 relative z-10">
+              {displayDays.map(day => (
+                <div key={day.day_number} className="flex-1 flex flex-col items-center text-center">
+                  <div className="w-10 h-10 flex items-center justify-center mb-6"
+                    style={day.highlight
+                      ? { background: C.red, borderRadius: '999px', color: C.cream, border: '0.5px solid rgba(230,57,47,0.45)' }
+                      : { borderRadius: '999px', color: C.gray, border: '0.5px solid rgba(255,255,255,0.10)' }}>
+                    {day.highlight ? <Ship size={18} /> : <span className="text-sm">{day.day_number}</span>}
+                  </div>
+                  <h4 className="text-base mb-1 uppercase"
+                    style={{
+                      color: day.highlight ? C.red : C.cream,
+                      fontFamily: "'Poiret One', sans-serif",
+                      letterSpacing: '0.1em',
+                      fontWeight: 300,
+                    }}>
+                    {day.title}
+                  </h4>
+                  <p className="text-[10px] uppercase mb-2" style={{ color: C.gray, letterSpacing: '0.08em', fontWeight: 500 }}>{day.subtitle}</p>
+                  <p className="text-[9px] uppercase" style={{ color: `${C.gray}80`, letterSpacing: '0.08em', fontWeight: 500 }}>
+                    ${Math.round(day.price / 1000)}K individual
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="mt-14 flex items-center justify-center gap-8 flex-wrap">
+            <span className="text-[10px] uppercase" style={{ color: C.gray, letterSpacing: '0.08em', fontWeight: 500 }}>
+              Sueltos: ${Math.round(displayDays.reduce((a, d) => a + d.price, 0) / 1000)}K
+            </span>
+            <span className="text-[10px] uppercase" style={{ color: C.red, letterSpacing: '0.08em', fontWeight: 500 }}>
+              Combo completo: ${comboK}K
+            </span>
+            <span className="text-[10px] uppercase" style={{ color: `${C.gray}80`, letterSpacing: '0.08em', fontWeight: 500 }}>
+              Combo 1 (sin Día 3): ${combo1K}K
+            </span>
+            <button
+              onClick={() => onNavigate('programa')}
+              className="flex items-center gap-1.5 text-[10px] uppercase font-medium tracking-widest transition-all hover:opacity-100 opacity-60"
+              style={{ color: C.cream, letterSpacing: '0.08em' }}>
+              Ver programa completo <ChevronRight size={11} />
+            </button>
+          </div>
+        </div>
       </section>
 
       {/* ── SEMANAS ── */}
@@ -829,64 +885,6 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
           <p className="text-center text-[10px] uppercase mt-12" style={{ letterSpacing: '0.35em', color: `${C.gray}cc`, fontWeight: 500 }}>
             Cuotas con tarjeta guardada · Bold cobra automático · Avisos por WhatsApp
           </p>
-        </div>
-      </section>
-
-      {/* ── PROGRAMA ── */}
-      <section className="py-24 overflow-hidden" style={{ background: 'rgba(255,255,255,0.02)' }}>
-        <div className="max-w-7xl mx-auto px-4">
-          <h2 className="text-3xl text-center mb-3 uppercase"
-            style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '-0.02em', fontWeight: 300 }}>
-            Programa — {displayDays.length} Días
-          </h2>
-          <p className="text-center text-xs uppercase mb-20" style={{ letterSpacing: '0.08em', color: C.gray, fontWeight: 500 }}>
-            Todo incluido · Atardecer cada noche
-          </p>
-          <div className="relative">
-            <div className="hidden md:block absolute top-[2.4rem] left-0 right-0 h-px" style={{ background: `${C.gray}20` }} />
-            <div className="flex flex-col md:flex-row justify-between gap-12 relative z-10">
-              {displayDays.map(day => (
-                <div key={day.day_number} className="flex-1 flex flex-col items-center text-center">
-                  <div className="w-10 h-10 flex items-center justify-center mb-6"
-                    style={day.highlight
-                      ? { background: C.red, borderRadius: '999px', color: C.cream, border: '0.5px solid rgba(230,57,47,0.45)' }
-                      : { borderRadius: '999px', color: C.gray, border: '0.5px solid rgba(255,255,255,0.10)' }}>
-                    {day.highlight ? <Ship size={18} /> : <span className="text-sm">{day.day_number}</span>}
-                  </div>
-                  <h4 className="text-base mb-1 uppercase"
-                    style={{
-                      color: day.highlight ? C.red : C.cream,
-                      fontFamily: "'Poiret One', sans-serif",
-                      letterSpacing: '0.1em',
-                      fontWeight: 300,
-                    }}>
-                    {day.title}
-                  </h4>
-                  <p className="text-[10px] uppercase mb-2" style={{ color: C.gray, letterSpacing: '0.08em', fontWeight: 500 }}>{day.subtitle}</p>
-                  <p className="text-[9px] uppercase" style={{ color: `${C.gray}80`, letterSpacing: '0.08em', fontWeight: 500 }}>
-                    ${Math.round(day.price / 1000)}K individual
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="mt-14 flex items-center justify-center gap-8 flex-wrap">
-            <span className="text-[10px] uppercase" style={{ color: C.gray, letterSpacing: '0.08em', fontWeight: 500 }}>
-              Sueltos: ${Math.round(displayDays.reduce((a, d) => a + d.price, 0) / 1000)}K
-            </span>
-            <span className="text-[10px] uppercase" style={{ color: C.red, letterSpacing: '0.08em', fontWeight: 500 }}>
-              Combo completo: ${comboK}K
-            </span>
-            <span className="text-[10px] uppercase" style={{ color: `${C.gray}80`, letterSpacing: '0.08em', fontWeight: 500 }}>
-              Combo 1 (sin Día 3): ${combo1K}K
-            </span>
-            <button
-              onClick={() => onNavigate('programa')}
-              className="flex items-center gap-1.5 text-[10px] uppercase font-medium tracking-widest transition-all hover:opacity-100 opacity-60"
-              style={{ color: C.cream, letterSpacing: '0.08em' }}>
-              Ver programa completo <ChevronRight size={11} />
-            </button>
-          </div>
         </div>
       </section>
 
