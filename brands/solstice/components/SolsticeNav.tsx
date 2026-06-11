@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Sun, LayoutDashboard, Users, Settings, DollarSign, LogOut, ChevronRight, AlertCircle, ScanLine, BookOpen, Trophy, Ship, BedDouble, TrendingUp, Tag, FileSpreadsheet, Percent } from 'lucide-react';
+import { X, Sun, LayoutDashboard, Users, Settings, DollarSign, LogOut, LogIn, ChevronRight, AlertCircle, ScanLine, BookOpen, Trophy, Ship, BedDouble, TrendingUp, Tag, FileSpreadsheet, Percent } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSolsticeLogo } from '../hooks/useSolsticeLogo';
 import { useSolsticeLogoSize } from '../hooks/useSolsticeLogoSize';
@@ -29,6 +29,7 @@ interface Props {
   onNavigate: (page: SolsticePage) => void;
   onExit: () => void;
   role: 'admin' | 'seller' | 'manager' | 'head' | 'buyer';
+  onLogin?: () => void;
 }
 
 const C = {
@@ -63,7 +64,7 @@ const NAV_ITEMS: { page: SolsticePage; label: string; icon: React.ReactNode; rol
   { page: 'buyer',         label: 'Mi semana',    icon: <LayoutDashboard size={15} />,roles: ['buyer'] },
 ];
 
-export default function SolsticeNav({ currentPage, onNavigate, onExit, role }: Props) {
+export default function SolsticeNav({ currentPage, onNavigate, onExit, role, onLogin }: Props) {
   const [open, setOpen] = useState(false);
   const [logoUrl] = useSolsticeLogo();
   const [triggerSize] = useSolsticeLogoSize('trigger');
@@ -207,8 +208,24 @@ export default function SolsticeNav({ currentPage, onNavigate, onExit, role }: P
                 })}
               </nav>
 
-              {/* Footer — salir */}
-              <div className="px-4 py-5" style={{ borderTop: '0.5px solid rgba(255,255,255,0.10)' }}>
+              {/* Footer — login + salir */}
+              <div className="px-4 py-5 space-y-1" style={{ borderTop: '0.5px solid rgba(255,255,255,0.10)' }}>
+                {onLogin && (
+                  <button
+                    onClick={() => { setOpen(false); onLogin(); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left"
+                    style={{
+                      color: C.cream,
+                      borderRadius: '999px',
+                      border: '0.5px solid rgba(230,57,47,0.40)',
+                      background: 'rgba(230,57,47,0.12)',
+                      transition: 'all 0.3s ease',
+                    }}
+                  >
+                    <LogIn size={15} style={{ color: C.red }} />
+                    <span className="text-[11px] uppercase" style={{ fontWeight: 600, letterSpacing: '0.08em' }}>Iniciar sesión</span>
+                  </button>
+                )}
                 <button
                   onClick={() => { setOpen(false); onExit(); }}
                   className="w-full flex items-center gap-3 px-4 py-3 text-left"

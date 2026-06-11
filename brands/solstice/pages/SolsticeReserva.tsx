@@ -611,7 +611,10 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
         customerEmail:    email,
         customerFullName: name,
         customerPhone:    phone.replace(/[^0-9+]/g, '').replace(/^\+/, ''),
-        redirectUrl:      `${window.location.origin}/gracias`,
+        // ?solstice=1 → la confirmación se muestra Solstice (no la de Midnight).
+        // registration=<id> → SolsticeSuccess carga la orden de forma confiable
+        // (Wompi no siempre devuelve el 'reference' en el redirect).
+        redirectUrl:      `${window.location.origin}/gracias?solstice=1${pendingRegId ? `&registration=${pendingRegId}` : ''}`,
       });
       window.location.href = url;
     } catch (err: any) {

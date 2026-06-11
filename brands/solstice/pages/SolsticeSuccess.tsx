@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle2, Loader2, Ship, BedDouble, AlertCircle, Sun, ChevronRight } from 'lucide-react';
+import { CheckCircle2, Loader2, Ship, BedDouble, AlertCircle, Sun, ChevronRight, Copy, Check, Share2, Ticket } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 
 const C = { bg: '#000', red: '#E6392F', cream: '#F9F2D7', gray: '#606060', green: '#10b981' };
@@ -37,6 +37,20 @@ export default function SolsticeSuccess() {
   const [schedule, setSchedule] = useState<SchedulePaid | null>(null);
   const [reg, setReg]           = useState<RegPaid | null>(null);
   const [polls, setPolls]       = useState(0);
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  // Si el comprador armó lancha (es líder), traemos su invite_code para mostrar
+  // el link de invitar amigos apenas paga.
+  useEffect(() => {
+    const regId = registrationParam;
+    if (!regId || state !== 'ready') return;
+    let cancelled = false;
+    supabase.from('solstice_boat_reservations').select('invite_code')
+      .eq('leader_registration_id', regId).maybeSingle()
+      .then(({ data }) => { if (!cancelled && data?.invite_code) setInviteCode(data.invite_code); });
+    return () => { cancelled = true; };
+  }, [registrationParam, state]);
 
   useEffect(() => {
     document.body.style.backgroundColor = '#000';
@@ -360,8 +374,40 @@ export default function SolsticeSuccess() {
           transition={{ delay: 1.2, duration: 0.6 }}
           className="space-y-3"
         >
+          {/* Link de lancha para invitar amigos — solo si el comprador es líder */}
+          {inviteCode && (
+            <div className="p-4 mb-1" style={{ background: 'rgba(230,57,47,0.08)', border: '0.5px solid rgba(230,57,47,0.35)', borderRadius: '18px' }}>
+              <div className="flex items-center gap-2 mb-2">
+                <Ship size={14} style={{ color: C.red }} />
+                <p className="text-[10px] uppercase" style={{ color: C.red, letterSpacing: '0.2em', fontWeight: 600 }}>Invitá a tus amigos a tu lancha</p>
+              </div>
+              <p className="text-[10px] mb-3" style={{ color: `${C.cream}cc`, lineHeight: 1.5 }}>
+                Mandales este link. Al abrirlo quedan en <strong style={{ color: C.cream }}>tu lancha</strong> y en tu misma semana, sin códigos.
+              </p>
+              <div className="flex items-center gap-2 px-3 py-2.5 mb-2" style={{ background: 'rgba(0,0,0,0.4)', border: '0.5px dashed rgba(230,57,47,0.4)', borderRadius: '12px' }}>
+                <span className="text-[10px] flex-1 break-all font-mono" style={{ color: C.cream }}>{`${window.location.origin}/sol/i/${inviteCode}`}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => { navigator.clipboard?.writeText(`${window.location.origin}/sol/i/${inviteCode}`); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000); }}
+                  className="flex items-center justify-center gap-2 py-2.5 text-[10px] uppercase"
+                  style={{ background: linkCopied ? '#10b981' : 'rgba(230,57,47,0.22)', border: `0.5px solid ${linkCopied ? '#10b981' : 'rgba(230,57,47,0.5)'}`, color: '#fff', borderRadius: '999px', fontWeight: 600, letterSpacing: '0.1em' }}>
+                  {linkCopied ? <Check size={13} /> : <Copy size={13} />} {linkCopied ? 'Copiado' : 'Copiar'}
+                </button>
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(`¡Vení a mi lancha en Solstice! Reservá tu cupo acá: ${window.location.origin}/sol/i/${inviteCode}`)}`}
+                  target="_blank" rel="noopener"
+                  className="flex items-center justify-center gap-2 py-2.5 text-[10px] uppercase"
+                  style={{ background: 'rgba(16,185,129,0.18)', border: '0.5px solid rgba(16,185,129,0.45)', color: '#86efac', borderRadius: '999px', fontWeight: 600, letterSpacing: '0.1em', textDecoration: 'none' }}>
+                  <Share2 size={13} /> WhatsApp
+                </a>
+              </div>
+            </div>
+          )}
+
+          {/* Ver mis entradas → Mi Semana */}
           <a
-            href="/sol"
+            href="/sol?page=buyer"
             className="w-full flex items-center justify-center gap-3 py-4 text-sm uppercase"
             style={{
               background: C.red,
@@ -373,9 +419,16 @@ export default function SolsticeSuccess() {
               textDecoration: 'none',
             }}
           >
-            <Sun size={16} />
-            Volver a Solstice
+            <Ticket size={16} />
+            Ver mis entradas
             <ChevronRight size={16} />
+          </a>
+          <a
+            href="/sol"
+            className="w-full flex items-center justify-center gap-2 py-3 text-[11px] uppercase"
+            style={{ color: `${C.cream}99`, letterSpacing: '0.2em', fontWeight: 500, textDecoration: 'none' }}
+          >
+            <Sun size={14} /> Volver a Solstice
           </a>
         </motion.div>
 

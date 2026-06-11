@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
 import SolsticeNav, { SolsticePage } from './components/SolsticeNav';
 import SolsticeSplash from './components/SolsticeSplash';
+import MagicPanel from '../../components/MagicPanel';
 import SolsticeLanding from './pages/SolsticeLanding';
 import SolsticeReserva from './pages/SolsticeReserva';
 import SolsticeAdminConfig from './pages/SolsticeAdminConfig';
@@ -66,8 +67,19 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
     } catch { return undefined; }
   })();
 
-  const [splash, setSplash] = useState(!initialInviteCode);
-  const [page, setPage] = useState<SolsticePage>(initialInviteCode ? 'reserva' : 'landing');
+  // Página inicial: respeta ?page= (ej. ?page=buyer para "Ver mis entradas"
+  // tras pagar), si no hay invite ni page param, arranca en landing.
+  const initialPageParam = (() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get('page');
+      const allowed = ['buyer', 'landing', 'programa', 'reserva'];
+      return p && allowed.includes(p) ? (p as SolsticePage) : undefined;
+    } catch { return undefined; }
+  })();
+
+  const [splash, setSplash] = useState(!initialInviteCode && !initialPageParam);
+  const [page, setPage] = useState<SolsticePage>(initialPageParam || (initialInviteCode ? 'reserva' : 'landing'));
+  const [loginOpen, setLoginOpen] = useState(false);
   const [reservaWeek, setReservaWeek] = useState<string | undefined>(undefined);
   // Nombre del promotor que atiende (si el cliente llegó por un link /sol/p/CODE).
   // Se muestra como banner "Atendido por X" en la vitrina, igual que Midnight.
@@ -291,7 +303,12 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
           onNavigate={p => handleNavigate(p)}
           onExit={onExit}
           role={role}
+          onLogin={role === 'buyer' ? () => setLoginOpen(true) : undefined}
         />
+
+        {/* Login (magic link / OTP) — antes solo existía en Midnight; ahora se
+            puede iniciar sesión sin salir de Solstice. */}
+        <MagicPanel isOpen={loginOpen} onClose={() => setLoginOpen(false)} />
 
         {/* Botón Volver — visible en todas las sub-páginas excepto landing.
             Usa history.back() para que el browser back también funcione natural. */}
