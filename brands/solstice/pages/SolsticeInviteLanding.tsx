@@ -216,7 +216,7 @@ export default function SolsticeInviteLanding({ inviteCode }: Props) {
                 cursor: 'pointer',
               }}
             >
-              Aceptar invitación · ${priceK || '—'}K
+              Aceptar invitación · {priceK ? '$' + (priceK * 1000).toLocaleString('es-CO') : '—'}
               <ChevronRight size={16} />
             </motion.button>
 

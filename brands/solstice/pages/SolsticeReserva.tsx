@@ -7,7 +7,7 @@ import {
 import { supabase } from '../../../lib/supabase';
 import { buildWompiCheckoutUrl } from '../../../lib/wompi';
 import { useStore } from '../../../context/StoreContext';
-import { SOLSTICE_SEASON_MOCK, SOLSTICE_WEEKS_MOCK, SOLSTICE_DAYS } from '../constants';
+import { SOLSTICE_SEASON_MOCK, SOLSTICE_WEEKS_MOCK, SOLSTICE_DAYS, fmtCOP } from '../constants';
 import { SolsticeWeek } from '../types';
 
 const C = { bg: '#000', bgS: '#0d0d0d', red: '#E6392F', org: '#FF7A00', gray: '#606060', cream: '#F9F2D7' };
@@ -26,15 +26,15 @@ const COMBOS: { id: ComboType; label: string; sub: string; icon: React.ReactNode
 type PaymentMethod = 'full_combo' | 'auto_subscription' | 'manual_monthly';
 const PAYMENT_METHODS: { id: PaymentMethod; label: string; sub: string; icon: React.ReactNode; badge?: string }[] = [
   { id: 'full_combo',        label: 'Todo de una',           sub: 'Pagás hoy, sin cuotas, sin recargos',                  icon: <Star size={18} />,     badge: 'Mejor precio' },
-  { id: 'auto_subscription', label: 'Débito automático',     sub: '$40K hoy + cargos automáticos cada mes',               icon: <Repeat size={18} />,   badge: 'Más fácil' },
-  { id: 'manual_monthly',    label: 'Mes a mes con tarjeta', sub: '$40K hoy + tarjeta guardada (te avisamos 24h antes)',  icon: <Calendar size={18} /> },
+  { id: 'auto_subscription', label: 'Débito automático',     sub: '$40.000 hoy + cargos automáticos cada mes',               icon: <Repeat size={18} />,   badge: 'Más fácil' },
+  { id: 'manual_monthly',    label: 'Mes a mes con tarjeta', sub: '$40.000 hoy + tarjeta guardada (te avisamos 24h antes)',  icon: <Calendar size={18} /> },
 ];
 
 // Tabla legacy MODES — la dejamos para compat con código downstream (resumen,
 // step 4, etc) que lookup por id.
 const MODES: { id: PaymentMode; label: string; sub: string; icon: React.ReactNode; badge?: string }[] = [
-  { id: 'auto_subscription', label: 'Débito automático',   sub: '$40K hoy + cargos automáticos cada mes',         icon: <Repeat size={18} />,    badge: 'Más fácil' },
-  { id: 'manual_monthly',    label: 'Mes a mes con tarjeta', sub: '$40K hoy + tarjeta guardada (te avisamos 24h antes)', icon: <Calendar size={18} /> },
+  { id: 'auto_subscription', label: 'Débito automático',   sub: '$40.000 hoy + cargos automáticos cada mes',         icon: <Repeat size={18} />,    badge: 'Más fácil' },
+  { id: 'manual_monthly',    label: 'Mes a mes con tarjeta', sub: '$40.000 hoy + tarjeta guardada (te avisamos 24h antes)', icon: <Calendar size={18} /> },
   { id: 'individual_days',   label: 'Días sueltos prepagos', sub: 'Comprás solo los días que querés, 100% online', icon: <ListChecks size={18} /> },
   { id: 'full_combo',        label: 'Todo de una',           sub: 'Pagás hoy, sin cuotas, sin recargos',           icon: <Star size={18} />,     badge: 'Mejor precio' },
 ];
@@ -799,9 +799,9 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
             const comboMeta: Record<ComboType, { headline: string; bigPrice: string; afterPrice?: string; tags: string[] }> = {
               full_combo: {
                 headline: '5 días con todo incluido — hospedaje, lancha, fiestas, beach club',
-                bigPrice: `$${totalK}K`,
+                bigPrice: `${fmtCOP(totalK * 1000)}`,
                 afterPrice: ' total',
-                tags: [`Reservás con $${entryK}K`, 'Después: cuotas o pago de una', 'Mejor precio por día'],
+                tags: [`Reservás con ${fmtCOP(entryK * 1000)}`, 'Después: cuotas o pago de una', 'Mejor precio por día'],
               },
               individual_days: {
                 headline: 'Elegís solo los días que querés ir, sin compromiso de combo',
@@ -960,24 +960,24 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
               respaldo: string;
             }> = {
               auto_subscription: {
-                headline: `${entryK}K hoy + ${cuotas} cuotas de ${cuotaK}K`,
-                bigPrice: `$${cuotaK}K`,
+                headline: `${fmtCOP(entryK * 1000)} hoy + ${cuotas} cuotas de ${fmtCOP(cuotaK * 1000)}`,
+                bigPrice: `${fmtCOP(cuotaK * 1000)}`,
                 afterPrice: `/mes · ${cuotas}× automático`,
                 tags: ['Cero olvidos', 'Sin recargos por mora'],
-                cobro:    `Hoy pagás $${entryK}K por Wompi. Las ${cuotas} cuotas de $${cuotaK}K se cobran cada mes.`,
+                cobro:    `Hoy pagás ${fmtCOP(entryK * 1000)} por Wompi. Las ${cuotas} cuotas de ${fmtCOP(cuotaK * 1000)} se cobran cada mes.`,
                 respaldo: 'Si la tarjeta no tiene fondos, 7 días de gracia. Devolución del adelanto solo dentro de los primeros 15 días desde la compra.',
               },
               manual_monthly: {
-                headline: `${entryK}K hoy + tarjeta guardada`,
-                bigPrice: `$${cuotaK}K`,
+                headline: `${fmtCOP(entryK * 1000)} hoy + tarjeta guardada`,
+                bigPrice: `${fmtCOP(cuotaK * 1000)}`,
                 afterPrice: `/mes · aviso 24h antes`,
                 tags: ['Avisamos por WhatsApp', 'Movés la fecha 1× si necesitás'],
-                cobro:    `Hoy pagás $${entryK}K por Wompi. Te avisamos 24h antes de cada cuota de $${cuotaK}K.`,
+                cobro:    `Hoy pagás ${fmtCOP(entryK * 1000)} por Wompi. Te avisamos 24h antes de cada cuota de ${fmtCOP(cuotaK * 1000)}.`,
                 respaldo: 'Podés posponer 1 cuota hasta 7 días sin costo. Devolución del adelanto solo dentro de los primeros 15 días desde la compra.',
               },
               full_combo: {
                 headline: `Pagás hoy y te olvidás`,
-                bigPrice: `$${totalK}K`,
+                bigPrice: `${fmtCOP(totalK * 1000)}`,
                 afterPrice: ` total`,
                 tags: ['Sin pagos pendientes', 'Una sola transacción'],
                 cobro:    `1 sola transacción por Wompi con tu tarjeta o transferencia. Quedás cerrado en minutos.`,
@@ -996,7 +996,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                     ¿Cómo te queda mejor pagar?
                   </h2>
                   <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>
-                    Combo completo · Reserva hoy con <strong style={{ color: C.red }}>${entryK}K</strong> y elige cómo seguir
+                    Combo completo · Reserva hoy con <strong style={{ color: C.red }}>{fmtCOP(entryK * 1000)}</strong> y elige cómo seguir
                   </p>
                 </div>
 
@@ -1106,7 +1106,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                                           {row.label}{row.note ? ` · ${row.note}` : ''}
                                         </span>
                                         <span className="text-sm tabular-nums" style={{ color: i === 0 ? C.red : C.cream, fontWeight: 600 }}>
-                                          ${row.amount}K
+                                          {fmtCOP(row.amount * 1000)}
                                         </span>
                                       </div>
                                     ))}
@@ -1159,7 +1159,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                     Cómo aseguramos tu lugar
                   </p>
                   <ul className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <GarantiaItem step="1" title="Pago seguro" desc={`Tu $${entryK}K se cobra por Wompi. El cupo queda bloqueado apenas aprueba.`} />
+                    <GarantiaItem step="1" title="Pago seguro" desc={`Tu ${fmtCOP(entryK * 1000)} se cobra por Wompi. El cupo queda bloqueado apenas aprueba.`} />
                     <GarantiaItem step="2" title="Sin sorpresas" desc="Ves tu plan de pago completo antes de confirmar. Vos elegís cómo pagar." />
                     <GarantiaItem step="3" title="Te avisamos" desc="Recordatorio por WhatsApp antes de cada cuota. 7 días de gracia si hace falta." />
                   </ul>
@@ -1199,7 +1199,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                           {mode === 'full_combo' ? 'Pagás hoy' : 'Reservás hoy con'}
                         </p>
                         <p className="text-xl md:text-2xl tabular-nums" style={{ fontFamily: "'Poiret One', sans-serif", color: C.cream, fontWeight: 300 }}>
-                          ${chargeK}K <span className="text-[10px] uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>COP</span>
+                          {fmtCOP(chargeNow)} <span className="text-[10px] uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>COP</span>
                         </p>
                       </div>
                       <motion.button
@@ -1260,8 +1260,8 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                       </div>
                       <p className="text-sm" style={{ color: selected ? C.red : C.gray, fontWeight: 500 }}>
                         {day.day === 3
-                          ? `desde $${Math.round((cheapestBoatPrice || day.price) / 1000)}K`
-                          : `$${Math.round(day.price / 1000)}K`}
+                          ? `desde ${fmtCOP((cheapestBoatPrice || day.price))}`
+                          : `${fmtCOP(day.price)}`}
                       </p>
                     </button>
                   );
@@ -1276,10 +1276,10 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                   boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
                 }}>
                   <div className="flex justify-between text-xs uppercase mb-1" style={{ color: C.gray, letterSpacing: '0.15em', fontWeight: 500 }}>
-                    <span>Tu selección ({selDays.length} días)</span><span>${Math.round(dayTotal/1000)}K</span>
+                    <span>Tu selección ({selDays.length} días)</span><span>{fmtCOP(dayTotal)}</span>
                   </div>
                   <div className="flex justify-between text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.15em', fontWeight: 500 }}>
-                    <span>Combo completo</span><span>${Math.round(s.combo_total/1000)}K</span>
+                    <span>Combo completo</span><span>{fmtCOP(s.combo_total)}</span>
                   </div>
                   {dayTotal > s.combo_total && (
                     <p className="text-[9px] mt-2 uppercase text-center" style={{ color: C.red }}>
@@ -1694,7 +1694,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                                 </span>
                                 {priceK > 0 && (
                                   <span className="text-[10px]" style={{ color: C.gray, letterSpacing: '0.05em' }}>
-                                    · ${priceK}K / persona
+                                    · {fmtCOP(priceK * 1000)} / persona
                                   </span>
                                 )}
                               </div>
@@ -1803,27 +1803,27 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                 <div className="pt-4 mt-2 space-y-2" style={{ borderTop: '0.5px solid rgba(255,255,255,0.10)' }}>
                   <div className="flex justify-between text-xs uppercase" style={{ letterSpacing: '0.1em', fontWeight: 500 }}>
                     <span style={{ color: C.gray }}>{isCombo ? 'Combo de fiestas' : `Días sueltos (${selDays.length})`}</span>
-                    <span style={{ color: C.cream }}>${Math.round((isCombo ? s.combo_total : dayTotal) / 1000)}K</span>
+                    <span style={{ color: C.cream }}>{fmtCOP((isCombo ? s.combo_total : dayTotal))}</span>
                   </div>
                   {boatPart > 0 && (
                     <div className="flex justify-between text-xs uppercase" style={{ letterSpacing: '0.1em', fontWeight: 500 }}>
                       <span style={{ color: C.gray }}>Lancha (tu parte)</span>
-                      <span style={{ color: C.cream }}>${Math.round(boatPart / 1000)}K</span>
+                      <span style={{ color: C.cream }}>{fmtCOP(boatPart)}</span>
                     </div>
                   )}
                   {discountAmount > 0 && (
                     <div className="flex justify-between text-xs uppercase" style={{ letterSpacing: '0.1em', fontWeight: 600 }}>
                       <span style={{ color: '#86efac' }}>Descuento ({sellerDiscountPct}%)</span>
-                      <span style={{ color: '#86efac' }}>−${Math.round(discountAmount / 1000)}K</span>
+                      <span style={{ color: '#86efac' }}>−{fmtCOP(discountAmount)}</span>
                     </div>
                   )}
                   <div className="flex justify-between text-xs uppercase" style={{ letterSpacing: '0.1em', fontWeight: 500 }}>
                     <span style={{ color: C.gray }}>Ticket service (6.6%)</span>
-                    <span style={{ color: C.cream }}>${Math.round(ticketService / 1000)}K</span>
+                    <span style={{ color: C.cream }}>{fmtCOP(ticketService)}</span>
                   </div>
                   <div className="flex justify-between items-center pt-2" style={{ borderTop: '0.5px solid rgba(255,255,255,0.08)' }}>
                     <span className="text-xs uppercase" style={{ color: C.cream, fontWeight: 600, letterSpacing: '0.1em' }}>Total</span>
-                    <span className="text-xl" style={{ color: C.cream, fontWeight: 400 }}>${Math.round(grandTotal / 1000)}K</span>
+                    <span className="text-xl" style={{ color: C.cream, fontWeight: 400 }}>{fmtCOP(grandTotal)}</span>
                   </div>
                 </div>
 
@@ -1832,11 +1832,11 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                   <span className="text-sm uppercase" style={{ color: C.gray, fontWeight: 500 }}>
                     {isInstallmentMode ? 'Adelanto hoy' : 'Pago hoy'}
                   </span>
-                  <span className="text-3xl" style={{ color: C.red, fontWeight: 300 }}>${chargeK}K</span>
+                  <span className="text-3xl" style={{ color: C.red, fontWeight: 300 }}>{fmtCOP(chargeNow)}</span>
                 </div>
                 {isInstallmentMode && (
                   <p className="text-[9px] uppercase text-center" style={{ color: C.gray, fontWeight: 500 }}>
-                    + {effectiveInstallments} cuotas de ${Math.round(installmentBase / effectiveInstallments / 1000)}K/mes
+                    + {effectiveInstallments} cuotas de {fmtCOP(installmentBase / effectiveInstallments)}/mes
                   </p>
                 )}
 
@@ -1868,7 +1868,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                   (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none';
                 }}
               >
-                {processing ? <Loader2 className="animate-spin" /> : <><Shield size={16} /> Ir a pagar ${chargeK}K</>}
+                {processing ? <Loader2 className="animate-spin" /> : <><Shield size={16} /> Ir a pagar {fmtCOP(chargeNow)}</>}
               </button>
               {reserveError && (
                 <p className="text-xs text-center mt-3" style={{ color: C.red, fontWeight: 500, lineHeight: 1.5 }}>
@@ -1903,7 +1903,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                   <p className="text-[10px] uppercase mb-2" style={{ color: C.gray, letterSpacing: '0.3em', fontWeight: 500 }}>
                     {isOneShot ? 'Total a pagar ahora' : 'Reserva hoy con'}
                   </p>
-                  <p className="text-5xl" style={{ color: C.cream, fontWeight: 300 }}>${chargeK}K</p>
+                  <p className="text-5xl" style={{ color: C.cream, fontWeight: 300 }}>{fmtCOP(chargeNow)}</p>
                   <p className="text-[10px] uppercase mt-2" style={{ color: C.gray, letterSpacing: '0.15em', fontWeight: 500 }}>
                     {MODES.find(m => m.id === mode)?.label}
                   </p>
@@ -1946,7 +1946,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                     >
                       {simulating
                         ? <><Loader2 className="animate-spin" size={18} /> Redirigiendo a Wompi…</>
-                        : <><CreditCard size={16} /> Pagar ${chargeK}K con Wompi</>}
+                        : <><CreditCard size={16} /> Pagar {fmtCOP(chargeNow)} con Wompi</>}
                     </button>
                     {wompiError && (
                       <p className="text-[10px]" style={{ color: C.red, letterSpacing: '0.1em' }}>
@@ -1960,7 +1960,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
               <p className="text-[9px] uppercase" style={{ color: `${C.gray}50`, letterSpacing: '0.2em', fontWeight: 500 }}>
                 {isOneShot
                   ? 'Te redirigimos a Wompi · vuelves automáticamente al finalizar'
-                  : `Hoy pagas el adelanto de $${chargeK}K por Wompi · las cuotas se cobran mes a mes`}
+                  : `Hoy pagas el adelanto de ${fmtCOP(chargeNow)} por Wompi · las cuotas se cobran mes a mes`}
               </p>
             </motion.div>
             );
@@ -2199,7 +2199,7 @@ function ConfirmationCinematic({
             <BoardingRow label="Universidad" value={weekUniversity || '—'} />
             <BoardingRow label="Modalidad"   value={modalityLabel} />
             {showInstallments && (
-              <BoardingRow label="Próxima cuota" value={`$${installmentAmountK}K / mes`} highlight />
+              <BoardingRow label="Próxima cuota" value={`${fmtCOP(installmentAmountK * 1000)} / mes`} highlight />
             )}
             <BoardingRow label="Confirmación a" value={email} small />
           </div>
@@ -2364,7 +2364,7 @@ function ConfirmationCinematic({
                         {l.name}
                       </p>
                       <p className="text-[10px]" style={{ color: '#606060' }}>
-                        {priceK > 0 ? `Desde $${priceK}K/noche` : 'Consultá tarifas'} {l.category ? `· ${l.category}` : ''}
+                        {priceK > 0 ? `Desde ${fmtCOP(priceK * 1000)}/noche` : 'Consultá tarifas'} {l.category ? `· ${l.category}` : ''}
                       </p>
                     </div>
                     <button

@@ -1,5 +1,10 @@
 import { SolsticeSeason, SolsticeWeek } from './types';
 
+// Formato de precio claro en pesos colombianos: 150000 → "$150.000".
+// El dueño pidió mostrar el monto completo en vez de abreviar "150K".
+export const fmtCOP = (n: number | null | undefined): string =>
+  '$' + Math.round(Number(n) || 0).toLocaleString('es-CO');
+
 export const SOLSTICE_SEASON_MOCK: SolsticeSeason = {
   id: 'solstice-2026',
   name: 'SOLSTICE 2026',

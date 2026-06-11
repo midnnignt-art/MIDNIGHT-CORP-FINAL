@@ -8,6 +8,7 @@ import { useSolsticeLogoLayout } from '../hooks/useSolsticeLogoLayout';
 import { useSolsticeLogoPosition } from '../hooks/useSolsticeLogoPosition';
 import SolsticeAtmosphere from '../components/SolsticeAtmosphere';
 import SolsticeMarquee from '../components/SolsticeMarquee';
+import { fmtCOP } from '../constants';
 
 const C = {
   bg:    '#000000',
@@ -356,6 +357,12 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
   const cuotaK = Math.round(s.combo_total / (s.installments || 1) / 1000);
   const combo1K = Math.round(s.combo1_total / 1000);
   const cuota1K = Math.round(s.combo1_total / (s.combo1_installments || 1) / 1000);
+  // Precios en pesos completos (claros): "$150.000" en vez de "150K".
+  const entryCOP  = fmtCOP(s.entry_price);
+  const comboCOP  = fmtCOP(s.combo_total);
+  const cuotaCOP  = fmtCOP(s.combo_total / (s.installments || 1));
+  const combo1COP = fmtCOP(s.combo1_total);
+  const cuota1COP = fmtCOP(s.combo1_total / (s.combo1_installments || 1));
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: C.bg }}>
@@ -703,7 +710,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
               {s.phase1_limit
                 ? `Fase 1 activa — primeras ${s.phase1_limit} reservas desde `
                 : 'Reserva desde '}
-              <strong style={{ color: C.red }}>${entryK}K</strong>
+              <strong style={{ color: C.red }}>{entryCOP}</strong>
             </span>
           </div>
         </div>
@@ -749,7 +756,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
                   </h4>
                   <p className="text-[10px] uppercase mb-2" style={{ color: C.gray, letterSpacing: '0.08em', fontWeight: 500 }}>{day.subtitle}</p>
                   <p className="text-[9px] uppercase" style={{ color: `${C.gray}80`, letterSpacing: '0.08em', fontWeight: 500 }}>
-                    ${Math.round(day.price / 1000)}K individual
+                    {fmtCOP(day.price)} individual
                   </p>
                 </div>
               ))}
@@ -757,13 +764,13 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
           </div>
           <div className="mt-14 flex items-center justify-center gap-8 flex-wrap">
             <span className="text-[10px] uppercase" style={{ color: C.gray, letterSpacing: '0.08em', fontWeight: 500 }}>
-              Sueltos: ${Math.round(displayDays.reduce((a, d) => a + d.price, 0) / 1000)}K
+              Sueltos: {fmtCOP(displayDays.reduce((a, d) => a + d.price, 0))}
             </span>
             <span className="text-[10px] uppercase" style={{ color: C.red, letterSpacing: '0.08em', fontWeight: 500 }}>
-              Combo completo: ${comboK}K
+              Combo completo: {comboCOP}
             </span>
             <span className="text-[10px] uppercase" style={{ color: `${C.gray}80`, letterSpacing: '0.08em', fontWeight: 500 }}>
-              Combo 1 (sin Día 3): ${combo1K}K
+              Combo 1 (sin Día 3): {combo1COP}
             </span>
             <button
               onClick={() => onNavigate('programa')}
@@ -812,7 +819,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
               ¿Qué es <span style={{ color: C.red }}>La Vaca</span>?
             </h2>
             <p className="text-sm md:text-base max-w-2xl mx-auto" style={{ color: '#a0a0a8', lineHeight: 1.6 }}>
-              Pensado para estudiantes universitarios: <strong style={{ color: C.cream }}>reservás ahora con ${entryK}K</strong> y
+              Pensado para estudiantes universitarios: <strong style={{ color: C.cream }}>reservás ahora con {entryCOP}</strong> y
               pagás el resto en {s.installments} cuotas mensuales. <strong style={{ color: C.cream }}>Sin recargo. Sin interés.</strong> Como hacer una vaca con tus amigos, pero conmigo.
             </p>
           </div>
@@ -823,7 +830,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
               {
                 n: '01',
                 title: 'Reservás hoy',
-                desc: `Con $${entryK}K asegurás tu lugar. Bold cobra al instante con tu tarjeta o transferencia.`,
+                desc: `Con ${entryCOP} asegurás tu lugar. Wompi cobra al instante con tu tarjeta o transferencia.`,
               },
               {
                 n: '02',
@@ -883,7 +890,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
 
           {/* Tagline */}
           <p className="text-center text-[10px] uppercase mt-12" style={{ letterSpacing: '0.35em', color: `${C.gray}cc`, fontWeight: 500 }}>
-            Cuotas con tarjeta guardada · Bold cobra automático · Avisos por WhatsApp
+            Cuotas con tarjeta guardada · Wompi cobra automático · Avisos por WhatsApp
           </p>
         </div>
       </section>
@@ -959,7 +966,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
           La Vaca — Cómo funciona
         </h2>
         <p className="text-sm mb-2" style={{ color: C.gray }}>
-          Reserva con <strong style={{ color: C.cream }}>${entryK}K</strong> hoy.
+          Reserva con <strong style={{ color: C.cream }}>{entryCOP}</strong> hoy.
           El resto en cuotas mensuales sin interés.
         </p>
         <p className="text-xs uppercase mb-14" style={{ color: `${C.gray}80`, letterSpacing: '0.08em', fontWeight: 500 }}>
@@ -987,18 +994,18 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
               }}>
               Combo 1
             </div>
-            <div className="text-5xl font-semibold mb-1" style={{ color: C.cream }}>${combo1K}K</div>
+            <div className="text-5xl font-semibold mb-1" style={{ color: C.cream }}>{combo1COP}</div>
             <p className="text-xs uppercase mb-4" style={{ color: C.gray, letterSpacing: '0.08em', fontWeight: 500 }}>
-              {s.combo1_installments} cuotas de ${cuota1K}K/mes
+              {s.combo1_installments} cuotas de {cuota1COP}/mes
             </p>
             <div className="space-y-1.5 text-xs" style={{ color: C.gray }}>
               <div className="flex justify-between">
                 <span>Reserva inicial</span>
-                <span style={{ color: C.cream }}>${entryK}K</span>
+                <span style={{ color: C.cream }}>{entryCOP}</span>
               </div>
               <div className="flex justify-between pt-2" style={{ borderTop: '0.5px solid rgba(255,255,255,0.10)' }}>
                 <span>Total</span>
-                <span style={{ color: C.cream }}>${combo1K}K</span>
+                <span style={{ color: C.cream }}>{combo1COP}</span>
               </div>
             </div>
           </div>
@@ -1021,18 +1028,18 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
               }}>
               Combo Completo
             </div>
-            <div className="text-5xl font-semibold mb-1" style={{ color: C.red }}>${comboK}K</div>
+            <div className="text-5xl font-semibold mb-1" style={{ color: C.red }}>{comboCOP}</div>
             <p className="text-xs uppercase mb-4" style={{ color: `${C.red}80`, letterSpacing: '0.08em', fontWeight: 500 }}>
-              {s.installments} cuotas de ${cuotaK}K/mes
+              {s.installments} cuotas de {cuotaCOP}/mes
             </p>
             <div className="space-y-1.5 text-xs" style={{ color: `${C.gray}` }}>
               <div className="flex justify-between">
                 <span>Reserva inicial</span>
-                <span style={{ color: C.cream }}>${entryK}K</span>
+                <span style={{ color: C.cream }}>{entryCOP}</span>
               </div>
               <div className="flex justify-between pt-2" style={{ borderTop: '0.5px solid rgba(255,255,255,0.10)' }}>
                 <span>Total</span>
-                <span style={{ color: C.red }}>${comboK}K</span>
+                <span style={{ color: C.red }}>{comboCOP}</span>
               </div>
             </div>
           </div>
@@ -1042,7 +1049,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
         <div className="space-y-5 text-left max-w-md mx-auto">
           {[
             'Tocas el botón de reserva',
-            `Pagas $${entryK}K por Bold`,
+            `Pagas ${entryCOP} por Wompi`,
             'Recibes tu QR de confirmación',
             'Cuotas mensuales vía link WhatsApp',
           ].map((step, i) => (
@@ -1151,7 +1158,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
                     style={{ background: '#fff', boxShadow: '0 0 8px rgba(255,255,255,0.8)' }}
                   />
                   <span className="text-left truncate" style={{ fontFamily: "'Archivo', sans-serif" }}>
-                    Reservá tu Solstice · ${entryK}K
+                    Reservá tu Solstice · {entryCOP}
                   </span>
                 </div>
                 <ChevronRight size={18} className="flex-shrink-0" />

@@ -38,7 +38,8 @@ interface Schedule {
 }
 
 const fmt  = (n: number) => `$${Math.round(n).toLocaleString('es-CO')}`;
-const fmtK = (n: number) => `$${Math.round(n / 1000)}K`;
+// Precio claro en pesos completos: 150000 → "$150.000" (antes abreviaba "150K").
+const fmtK = (n: number) => '$' + Math.round(Number(n) || 0).toLocaleString('es-CO');
 
 const MODE_LABEL: Record<string, string> = {
   auto_subscription: 'Débito automático',
