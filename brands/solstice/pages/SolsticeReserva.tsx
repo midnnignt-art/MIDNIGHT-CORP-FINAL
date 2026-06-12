@@ -169,7 +169,9 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
   // Mapa boatId → total de pasajeros activos (suma de slots_claimed de todas
   // las reservas de esa lancha). Se hidrata al cargar + se actualiza en
   // realtime cuando alguien reserva/cancela en otra sesión.
-  const [boatOccupancy, setBoatOccupancy] = useState<Record<string, number>>({});
+  // Reservas crudas (con week_id) → la ocupación de cada yate se calcula POR
+  // SEMANA: un yate lleno en una semana NO bloquea las otras.
+  const [boatReservationsRaw, setBoatReservationsRaw] = useState<Array<{ boat_id: string; slots_claimed: number; week_id: string | null }>>([]);
   // Descripción general que el admin pone arriba de todas las lanchas.
   const [boatsIntro, setBoatsIntro] = useState<string>('');
   const [recentBoatId, setRecentBoatId]   = useState<string | null>(null);
@@ -193,14 +195,10 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
       try {
         const { data } = await supabase
           .from('solstice_boat_reservations')
-          .select('boat_id, slots_claimed, status')
+          .select('boat_id, slots_claimed, status, week_id')
           .neq('status', 'cancelled');
         if (!data || !mounted) return;
-        const map: Record<string, number> = {};
-        for (const r of data) {
-          map[r.boat_id] = (map[r.boat_id] || 0) + (r.slots_claimed || 0);
-        }
-        setBoatOccupancy(map);
+        setBoatReservationsRaw(data as any);
       } catch {}
     }
 
@@ -283,6 +281,18 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
     }
     return a + (SOLSTICE_DAYS.find(x => x.day === d)?.price || 0);
   }, 0);
+
+  // Ocupación de cada yate POR SEMANA: solo cuentan las reservas de la semana
+  // elegida (las de otras semanas no bloquean). Las reservas sin week_id (legacy)
+  // se cuentan de forma conservadora para no sobrevender.
+  const boatOccupancy: Record<string, number> = (() => {
+    const map: Record<string, number> = {};
+    for (const r of boatReservationsRaw) {
+      if (selWeek?.id && r.week_id && r.week_id !== selWeek.id) continue;
+      map[r.boat_id] = (map[r.boat_id] || 0) + (r.slots_claimed || 0);
+    }
+    return map;
+  })();
 
   // ¿Hay alguna lancha con cupo? Si TODAS están llenas, el cliente igual debe
   // poder avanzar al pago (el equipo le asigna lancha después) — si no, se
@@ -559,6 +569,9 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
               total_capacity:         capacity,
               slots_claimed:          1,
               status:                 'open',
+              // La reserva pertenece a ESTA semana → la ocupación del yate se
+              // cuenta por semana (un yate lleno en una semana no bloquea otras).
+              week_id:                weekData?.id || null,
             })
             .select()
             .single();
