@@ -69,6 +69,9 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
   // ── Real data from DB (falls back to mock if not yet migrated) ──
   const [season, setSeason] = useState<SeasonData | null>(null);
   const [weeks, setWeeks]   = useState<SolsticeWeek[]>(SOLSTICE_WEEKS_MOCK);
+  // Días reales de la temporada (precios configurados por el admin). Si la DB
+  // está vacía, caemos a la constante SOLSTICE_DAYS.
+  const [programDays, setProgramDays] = useState<Array<{ day: number; title: string; subtitle: string; price: number; highlight: boolean }>>([]);
 
   useEffect(() => {
     async function loadData() {
@@ -85,6 +88,17 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
           .select('*')
           .order('start_date');
         if (weekRows && weekRows.length > 0) setWeeks(weekRows as SolsticeWeek[]);
+
+        const { data: dayRows } = await supabase
+          .from('solstice_program_days')
+          .select('day_number, title, subtitle, price, highlight')
+          .order('day_number');
+        if (dayRows && dayRows.length > 0) {
+          setProgramDays(dayRows.map((d: any) => ({
+            day: d.day_number, title: d.title || `Día ${d.day_number}`,
+            subtitle: d.subtitle || '', price: d.price || 0, highlight: !!d.highlight,
+          })));
+        }
       } catch {
         // DB not yet migrated — mock data stays
       }
@@ -249,6 +263,16 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
 
   const s       = season ?? SOLSTICE_SEASON_MOCK;
 
+  // ── Días y combo POR SEMANA ──────────────────────────────────────────────
+  // Catálogo de días con precios reales (DB del admin); si no hay, la constante.
+  const daysCatalog = programDays.length > 0 ? programDays : SOLSTICE_DAYS;
+  // Días activos de la semana elegida (ej. Javeriana 4 días, Los Andes 5). Si la
+  // semana no tiene config, se asumen todos los del catálogo.
+  const activeDayNums = (selWeek?.days && selWeek.days.length > 0) ? selWeek.days : daysCatalog.map(d => d.day);
+  const weekDays = daysCatalog.filter(d => activeDayNums.includes(d.day));
+  // Combo de ESA semana = suma de los precios de sus días activos (automático).
+  const weekCombo = weekDays.reduce((a, d) => a + (d.price || 0), 0);
+
   // ── Modelo de precios (owner, jun 2026) ──────────────────────────────────
   //  • Combo de fiestas (full_combo) = combo_total (150k). NO incluye lancha.
   //  • Días sueltos (individual_days) = suma de días elegidos. El día 3 ya
@@ -264,7 +288,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
 
   // El día 3 (Lanchas + Beach Club) está incluido en el combo; en días sueltos
   // solo si lo eligieron explícitamente.
-  const includesBoat = isCombo || (comboType === 'individual_days' && selDays.includes(3));
+  const includesBoat = (isCombo && activeDayNums.includes(3)) || (comboType === 'individual_days' && selDays.includes(3));
 
   const selectedBoat = selectedBoatId ? boats.find(b => b.id === selectedBoatId) : null;
   // Precio "desde": la lancha más barata (para mostrar antes de que elija una).
@@ -279,7 +303,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
     if (comboType === 'individual_days' && d === 3) {
       return a + (selectedBoat?.price_per_person ?? cheapestBoatPrice);
     }
-    return a + (SOLSTICE_DAYS.find(x => x.day === d)?.price || 0);
+    return a + (daysCatalog.find(x => x.day === d)?.price || 0);
   }, 0);
 
   // Ocupación de cada yate POR SEMANA: solo cuentan las reservas de la semana
@@ -320,7 +344,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
   // ticket service 6.6% sobre lo ya descontado. El invitado sigue el mismo
   // modelo: si elige combo paga el combo + su lancha; si elige días sueltos con
   // Día 3, ese día cuesta el precio de su lancha.
-  const packageBase   = (isCombo ? s.combo_total : dayTotal) + boatPart;
+  const packageBase   = (isCombo ? weekCombo : dayTotal) + boatPart;
   const discountAmount = Math.round(packageBase * sellerDiscountPct / 100);
   const subtotal      = packageBase - discountAmount;
   const ticketService = Math.round(subtotal * TICKET_SERVICE_PCT);
@@ -822,7 +846,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
               El cliente primero elige QUÉ compra, y después CÓMO paga. */}
           {step === 1 && (() => {
             const entryK = Math.round((season?.entry_price ?? 40000) / 1000);
-            const totalK = Math.round((season?.combo_total ?? 400000) / 1000);
+            const totalK = Math.round(weekCombo / 1000);
             const comboMeta: Record<ComboType, { headline: string; bigPrice: string; afterPrice?: string; tags: string[] }> = {
               full_combo: {
                 headline: '5 días con todo incluido — hospedaje, lancha, fiestas, beach club',
@@ -1260,7 +1284,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                 <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>Selecciona uno o más</p>
               </div>
               <div className="space-y-3">
-                {SOLSTICE_DAYS.map(day => {
+                {weekDays.map(day => {
                   const selected = selDays.includes(day.day);
                   return (
                     <button key={day.day}
@@ -1306,9 +1330,9 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                     <span>Tu selección ({selDays.length} días)</span><span>{fmtCOP(dayTotal)}</span>
                   </div>
                   <div className="flex justify-between text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.15em', fontWeight: 500 }}>
-                    <span>Combo completo</span><span>{fmtCOP(s.combo_total)}</span>
+                    <span>Combo completo</span><span>{fmtCOP(weekCombo)}</span>
                   </div>
-                  {dayTotal > s.combo_total && (
+                  {dayTotal > weekCombo && (
                     <p className="text-[9px] mt-2 uppercase text-center" style={{ color: C.red }}>
                       El combo sale más barato — considera cambiarlo
                     </p>
@@ -1837,7 +1861,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                 <div className="pt-4 mt-2 space-y-2" style={{ borderTop: '0.5px solid rgba(255,255,255,0.10)' }}>
                   <div className="flex justify-between text-xs uppercase" style={{ letterSpacing: '0.1em', fontWeight: 500 }}>
                     <span style={{ color: C.gray }}>{isCombo ? 'Combo de fiestas' : `Días sueltos (${selDays.length})`}</span>
-                    <span style={{ color: C.cream }}>{fmtCOP((isCombo ? s.combo_total : dayTotal))}</span>
+                    <span style={{ color: C.cream }}>{fmtCOP((isCombo ? weekCombo : dayTotal))}</span>
                   </div>
                   {boatPart > 0 && (
                     <div className="flex justify-between text-xs uppercase" style={{ letterSpacing: '0.1em', fontWeight: 500 }}>

@@ -56,6 +56,7 @@ interface Week {
   end_date: string;
   capacity: number;
   reserved?: number;
+  days?: number[];   // días activos de esta semana (ej. [1,2,3,4])
 }
 
 interface ProgramDay {
@@ -620,6 +621,7 @@ export default function SolsticeAdminConfig() {
         start_date: toDateOrNull(week.start_date),
         end_date:   toDateOrNull(week.end_date),
         capacity:   toInt(week.capacity),
+        days:       (week.days && week.days.length > 0) ? [...week.days].sort((a, b) => a - b) : [1, 2, 3, 4, 5],
       };
       if (!payload.start_date || !payload.end_date) {
         toast.error(`Fechas inválidas en semana ${week.university}`); setSaving(false); return;
@@ -918,6 +920,37 @@ export default function SolsticeAdminConfig() {
                         <InputRow label="Fecha inicio" value={week.start_date} onChange={v => upWeek(idx, 'start_date', v)} type="date" />
                         <InputRow label="Fecha fin" value={week.end_date} onChange={v => upWeek(idx, 'end_date', v)} type="date" />
                         <InputRow label="Cupos" value={week.capacity} onChange={v => upWeek(idx, 'capacity', Number(v))} type="number" />
+                      </div>
+                      {/* Días activos de esta semana → el combo = suma de sus precios */}
+                      <div className="mt-3">
+                        <label className="text-[9px] uppercase block mb-2" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 600 }}>
+                          Días de esta semana · el combo se calcula sumando sus precios
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {days.map(d => {
+                            const cur = week.days ?? [1, 2, 3, 4, 5];
+                            const active = cur.includes(d.day_number);
+                            return (
+                              <button key={d.day_number} type="button"
+                                onClick={() => upWeek(idx, 'days', active ? cur.filter(n => n !== d.day_number) : [...cur, d.day_number])}
+                                className="px-3 py-2 text-[10px] uppercase"
+                                style={{
+                                  background: active ? 'rgba(230,57,47,0.18)' : 'rgba(255,255,255,0.04)',
+                                  border: `0.5px solid ${active ? 'rgba(230,57,47,0.5)' : 'rgba(255,255,255,0.10)'}`,
+                                  color: active ? C.red : C.gray, borderRadius: '12px', fontWeight: 600,
+                                }}>
+                                Día {d.day_number} · ${Math.round((d.price || 0) / 1000)}K
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <p className="text-[10px] mt-2" style={{ color: C.cream }}>
+                          Combo de esta semana:{' '}
+                          <strong style={{ color: C.red }}>
+                            ${days.filter(d => (week.days ?? [1, 2, 3, 4, 5]).includes(d.day_number)).reduce((a, d) => a + (d.price || 0), 0).toLocaleString('es-CO')}
+                          </strong>
+                          {' '}<span style={{ color: C.gray }}>({(week.days ?? [1, 2, 3, 4, 5]).length} días)</span>
+                        </p>
                       </div>
                     </div>
                   ))}

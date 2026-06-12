@@ -18,4 +18,7 @@ export interface SolsticeWeek {
   end_date: string;
   capacity: number;
   reserved: number;
+  // Días activos de ESTA semana (ej. [1,2,3,4] = 4 días). El combo de la semana
+  // = suma de los precios de estos días.
+  days?: number[];
 }
