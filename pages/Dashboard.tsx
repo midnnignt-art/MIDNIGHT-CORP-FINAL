@@ -703,9 +703,17 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
         }
 
         if (createdOrders.length > 0) {
-            // UN solo email con todos los tickets
-            const { sendTicketEmail } = await import('../services/emailService');
-            await sendTicketEmail(createdOrders, event);
+            // El email es BEST-EFFORT: si el import dinámico falla (chunk viejo
+            // tras un deploy → 'text/html' is not a valid JS MIME type) o el envío
+            // falla, la VENTA YA quedó registrada y NO debe abortarse. Antes esto
+            // tumbaba toda la venta con "Error al procesar venta".
+            try {
+                const { sendTicketEmail } = await import('../services/emailService');
+                await sendTicketEmail(createdOrders, event);
+            } catch (emailErr) {
+                console.warn('Venta registrada, pero no se pudo enviar el email del ticket:', emailErr);
+                toast.info?.('Venta registrada. El email del ticket no salió — reintentá enviarlo o refrescá la página.');
+            }
 
             // UN solo refresh al final
             await fetchData();
