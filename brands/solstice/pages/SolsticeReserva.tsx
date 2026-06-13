@@ -324,11 +324,9 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
   // ¿Hay alguna lancha con cupo? Si TODAS están llenas, el cliente igual debe
   // poder avanzar al pago (el equipo le asigna lancha después) — si no, se
   // queda bloqueado y se pierde la venta.
-  const anyBoatAvailable = boats.some(b => {
-    const claimed = boatOccupancy[b.id] || 0;
-    const available = Math.max(0, (b.capacity || 0) - claimed);
-    return b.status !== 'sold_out' && available > 0;
-  });
+  // Una lancha está libre (para un nuevo líder) si NO tiene ninguna reserva en la
+  // semana (un solo grupo por lancha) y no está marcada como agotada.
+  const anyBoatAvailable = boats.some(b => b.status !== 'sold_out' && (boatOccupancy[b.id] || 0) === 0);
   const allBoatsFull = boats.length > 0 && !anyBoatAvailable;
   // En el COMBO la lancha SÍ se suma aparte (combo $160k + lancha $130k = $290k).
   // En días sueltos la lancha se cobra como el precio del Día 3 (ver dayTotal),
@@ -1632,9 +1630,11 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                     boats.map(b => {
                       const sel = selectedBoatId === b.id;
                       const claimed   = boatOccupancy[b.id] || 0;
-                      const available = Math.max(0, (b.capacity || 0) - claimed);
-                      const isFull    = available <= 0;
-                      const isSoldOut = b.status === 'sold_out' || isFull;
+                      // Una lancha la reserva UN solo grupo por semana: si ya tiene
+                      // reserva (claimed > 0), no se puede elegir como nueva — los
+                      // amigos entran por el link del líder, no seleccionándola acá.
+                      const isTaken   = claimed > 0;
+                      const isSoldOut = b.status === 'sold_out' || isTaken;
                       const isJustReserved = recentBoatId === b.id;
                       const priceK = Math.round((b.price_per_person || 0) / 1000);
                       return (
@@ -1668,7 +1668,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                           {isSoldOut && (
                             <div className="absolute top-3 right-3 px-2.5 py-1 text-[8px] uppercase"
                               style={{ background: C.gray, color: '#000', letterSpacing: '0.2em', borderRadius: '999px', fontWeight: 700 }}>
-                              Lleno
+                              {b.status === 'sold_out' ? 'No disponible' : 'Reservada'}
                             </div>
                           )}
                           {!isSoldOut && isJustReserved && (
@@ -1719,9 +1719,8 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                                     loading="lazy"
                                     className="object-cover flex-shrink-0"
                                     style={{
-                                      width: photos.length === 1 ? '100%' : '70%',
-                                      maxWidth: '320px',
-                                      aspectRatio: '4 / 3',
+                                      width: '100%',
+                                      aspectRatio: '16 / 10',
                                       borderRadius: '14px',
                                       scrollSnapAlign: 'start',
                                     }}
@@ -1748,31 +1747,18 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                               )}
                               <div className="flex items-baseline gap-3 mt-2 flex-wrap">
                                 <span className="text-[10px] uppercase tabular-nums" style={{
-                                  color: available <= 5 && available > 0 ? '#FFB48C' : isFull ? C.gray : C.red,
+                                  color: isTaken ? C.gray : C.red,
                                   letterSpacing: '0.2em',
                                   fontWeight: 600,
                                 }}>
-                                  {isFull ? 'Sin cupos' : `${available} de ${b.capacity} cupos`}
+                                  {isTaken ? 'Reservada' : `${b.capacity} cupos`}
                                 </span>
-                                {priceK > 0 && (
+                                {priceK > 0 && !isTaken && (
                                   <span className="text-[10px]" style={{ color: C.gray, letterSpacing: '0.05em' }}>
                                     · {fmtCOP(priceK * 1000)} / persona
                                   </span>
                                 )}
                               </div>
-                              {/* Mini barra de ocupación */}
-                              {!isFull && (b.capacity || 0) > 0 && (
-                                <div className="w-full mt-2 h-[2px] rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                                  <div
-                                    style={{
-                                      width: `${(claimed / b.capacity) * 100}%`,
-                                      height: '100%',
-                                      background: available <= 5 ? '#FFB48C' : C.red,
-                                      transition: 'width 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
-                                    }}
-                                  />
-                                </div>
-                              )}
                             </div>
                           </div>
                         </motion.button>
