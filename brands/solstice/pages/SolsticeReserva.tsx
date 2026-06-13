@@ -330,9 +330,12 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
     return b.status !== 'sold_out' && available > 0;
   });
   const allBoatsFull = boats.length > 0 && !anyBoatAvailable;
-  // La lancha NO se suma aparte: el COMBO ya la incluye en su precio, y en DÍAS
-  // SUELTOS la lancha se cobra como el precio del Día 3 (ver dayTotal). Por eso 0.
-  const boatPart  = 0;
+  // En el COMBO la lancha SÍ se suma aparte (combo $160k + lancha $130k = $290k).
+  // En días sueltos la lancha se cobra como el precio del Día 3 (ver dayTotal),
+  // por eso ahí boatPart no aplica.
+  const boatPart  = (isCombo && includesBoat && selectedBoat)
+    ? (selectedBoat.price_per_person || 0)
+    : 0;
 
   // Descuento del vendedor: si el cliente llegó por un link /sol/p/CODE de un
   // vendedor con descuento, se aplica automáticamente al paquete.
