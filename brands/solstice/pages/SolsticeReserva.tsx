@@ -267,11 +267,14 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
   // Catálogo de días con precios reales (DB del admin); si no hay, la constante.
   const daysCatalog = programDays.length > 0 ? programDays : SOLSTICE_DAYS;
   // Días activos de la semana elegida (ej. Javeriana 4 días, Los Andes 5). Si la
-  // semana no tiene config, se asumen todos los del catálogo.
+  // semana no tiene config, se asumen todos los del catálogo. Esto define qué
+  // días aparecen en "días sueltos".
   const activeDayNums = (selWeek?.days && selWeek.days.length > 0) ? selWeek.days : daysCatalog.map(d => d.day);
   const weekDays = daysCatalog.filter(d => activeDayNums.includes(d.day));
-  // Combo de ESA semana = suma de los precios de sus días activos (automático).
-  const weekCombo = weekDays.reduce((a, d) => a + (d.price || 0), 0);
+  // El COMBO es un precio con descuento por semana (NO la suma de los días
+  // sueltos, que son precios individuales). Cada semana puede tener su propio
+  // precio de combo; si no, cae al de la temporada.
+  const weekCombo = Number((selWeek as any)?.combo_total) || s.combo_total;
 
   // ── Modelo de precios (owner, jun 2026) ──────────────────────────────────
   //  • Combo de fiestas (full_combo) = combo_total (150k). NO incluye lancha.

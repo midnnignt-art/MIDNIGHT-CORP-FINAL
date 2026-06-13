@@ -56,7 +56,8 @@ interface Week {
   end_date: string;
   capacity: number;
   reserved?: number;
-  days?: number[];   // días activos de esta semana (ej. [1,2,3,4])
+  days?: number[];        // días activos de esta semana (ej. [1,2,3,4])
+  combo_total?: number;   // precio del combo de esta semana (con descuento)
 }
 
 interface ProgramDay {
@@ -622,6 +623,7 @@ export default function SolsticeAdminConfig() {
         end_date:   toDateOrNull(week.end_date),
         capacity:   toInt(week.capacity),
         days:       (week.days && week.days.length > 0) ? [...week.days].sort((a, b) => a - b) : [1, 2, 3, 4, 5],
+        combo_total: week.combo_total ? toInt(week.combo_total) : null,
       };
       if (!payload.start_date || !payload.end_date) {
         toast.error(`Fechas inválidas en semana ${week.university}`); setSaving(false); return;
@@ -921,12 +923,12 @@ export default function SolsticeAdminConfig() {
                         <InputRow label="Fecha fin" value={week.end_date} onChange={v => upWeek(idx, 'end_date', v)} type="date" />
                         <InputRow label="Cupos" value={week.capacity} onChange={v => upWeek(idx, 'capacity', Number(v))} type="number" />
                       </div>
-                      {/* Días activos de esta semana → el combo = suma de sus precios */}
+                      {/* Días de esta semana (para "días sueltos") + precio del combo */}
                       <div className="mt-3">
                         <label className="text-[9px] uppercase block mb-2" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 600 }}>
-                          Días de esta semana · el combo se calcula sumando sus precios
+                          Días de esta semana (los que aparecen en "días sueltos")
                         </label>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-2 mb-3">
                           {days.map(d => {
                             const cur = week.days ?? [1, 2, 3, 4, 5];
                             const active = cur.includes(d.day_number);
@@ -944,13 +946,17 @@ export default function SolsticeAdminConfig() {
                             );
                           })}
                         </div>
-                        <p className="text-[10px] mt-2" style={{ color: C.cream }}>
-                          Combo de esta semana:{' '}
-                          <strong style={{ color: C.red }}>
-                            ${days.filter(d => (week.days ?? [1, 2, 3, 4, 5]).includes(d.day_number)).reduce((a, d) => a + (d.price || 0), 0).toLocaleString('es-CO')}
-                          </strong>
-                          {' '}<span style={{ color: C.gray }}>({(week.days ?? [1, 2, 3, 4, 5]).length} días)</span>
-                        </p>
+                        <div className="max-w-xs">
+                          <InputRow
+                            label={`Precio combo de esta semana (${(week.days ?? [1, 2, 3, 4, 5]).length} días)`}
+                            value={week.combo_total ?? ''}
+                            onChange={v => upWeek(idx, 'combo_total', v === '' ? undefined : Number(v))}
+                            type="number"
+                          />
+                          <p className="text-[9px] mt-1" style={{ color: C.gray }}>
+                            Vacío = usa el combo general de la temporada. Es el precio CON descuento (no la suma de los días sueltos).
+                          </p>
+                        </div>
                       </div>
                     </div>
                   ))}
