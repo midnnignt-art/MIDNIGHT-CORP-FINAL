@@ -703,7 +703,7 @@ const EventCostsPanel: React.FC<{ event: any }> = ({ event }) => {
 
 // ── MAIN COMPONENT ────────────────────────────────────────────────────────────
 export const Accounting: React.FC = () => {
-  const { accountingMovements, orders, events, tiers, promoters, settlements, deleteAccountingMovement, updateCostActual, addEventCost } = useStore();
+  const { accountingMovements, orders, events, tiers, promoters, settlements, teams, deleteAccountingMovement, updateCostActual, addEventCost } = useStore();
   const [activeTab, setActiveTab] = useState<'resumen' | 'balance' | 'movimientos' | 'pyl' | 'eventos' | 'impuestos' | 'cierre'>('resumen');
   const [showForm, setShowForm] = useState(false);
 
@@ -2259,8 +2259,8 @@ export const Accounting: React.FC = () => {
         // Financial data comes from the master promoterEventDebts memo (same source as Balance General)
         const eventFinancials = promoterEventDebts.filter(r => r.eventId === cierreEventId);
 
-        // Merge: display fields + financial fields
-        const rows = Array.from(displayMap.values()).map(disp => {
+        // Merge: display fields + financial fields (POR PROMOTOR — intermedio)
+        const promoterRows = Array.from(displayMap.values()).map(disp => {
           const fin = disp.promoterId
             ? eventFinancials.find(r => r.promoterId === disp.promoterId)
             : undefined;
@@ -2269,18 +2269,49 @@ export const Accounting: React.FC = () => {
             cashNetAmount: fin?.cashNetAmount ?? 0,
             webCommissions: fin?.webCommissions ?? 0,
             dineroAEnviar: fin?.dineroAEnviar ?? 0,
-            yaEnviado: fin?.yaEnviado ?? 0,
-            deuda: fin ? fin.dineroAEnviar - fin.yaEnviado : 0,
           };
+        });
+
+        // ── Agrupar POR SQUAD: el manager responde por el saldo TOTAL de su
+        // equipo (un solo pago por el equipo). Promotores sin squad quedan como
+        // fila individual; las ventas directas (sin promotor) como "Directas". ──
+        const teamOf = (pid: string | null) =>
+          pid ? teams.find(t => t.manager_id === pid || (t.members_ids || []).includes(pid)) : null;
+        const groupMap = new Map<string, any>();
+        for (const r of promoterRows) {
+          const team = teamOf(r.promoterId);
+          const key = team ? `team_${team.id}` : (r.promoterId || 'house');
+          if (!groupMap.has(key)) {
+            const mgr = team ? promoters.find(p => p.user_id === team.manager_id) : null;
+            groupMap.set(key, {
+              promoterId: team ? team.manager_id : r.promoterId,   // a quién se le registra el pago del equipo
+              name: team ? (mgr?.name || team.name || 'Squad') : r.name,
+              code: team ? `SQUAD · ${team.name}` : r.code,
+              memberIds: team ? [team.manager_id, ...(team.members_ids || [])] : (r.promoterId ? [r.promoterId] : []),
+              tierSales: {} as Record<string, number>,
+              comisionesTotales: 0, cashNetAmount: 0, webCommissions: 0, dineroAEnviar: 0,
+            });
+          }
+          const g = groupMap.get(key);
+          g.comisionesTotales += r.comisionesTotales;
+          g.cashNetAmount     += r.cashNetAmount;
+          g.webCommissions    += r.webCommissions;
+          g.dineroAEnviar     += r.dineroAEnviar;
+          for (const tid of Object.keys(r.tierSales)) g.tierSales[tid] = (g.tierSales[tid] || 0) + r.tierSales[tid];
+        }
+        const rows = Array.from(groupMap.values()).map(g => {
+          // Ya enviado del squad = todo lo que mandó cualquier miembro del equipo.
+          const yaEnviado = settlements
+            .filter(se => se.event_id === cierreEventId && g.memberIds.includes(se.promoter_id))
+            .reduce((s, se) => s + se.amount_sent, 0);
+          return { ...g, yaEnviado, deuda: g.dineroAEnviar - yaEnviado };
         }).sort((a, b) => b.dineroAEnviar - a.dineroAEnviar);
 
         const totalCashNet     = rows.reduce((s, r) => s + r.cashNetAmount, 0);
         const totalWebComm     = rows.reduce((s, r) => s + r.webCommissions, 0);
         const totalComisiones  = rows.reduce((s, r) => s + r.comisionesTotales, 0);
-        // Totals only for non-house promoters — matches cuentasPorCobrar logic exactly
         const totalDineroAEnviar = rows.filter(r => r.promoterId).reduce((s, r) => s + Math.max(0, r.dineroAEnviar), 0);
         const totalYaEnviado     = rows.filter(r => r.promoterId).reduce((s, r) => s + r.yaEnviado, 0);
-        // Correct formula: Σ max(0, deuda per promoter)  — identical to cuentasPorCobrar filtered by this event
         const totalDeuda = rows.filter(r => r.promoterId).reduce((s, r) => s + Math.max(0, r.deuda), 0);
 
         return (
@@ -2375,8 +2406,9 @@ export const Accounting: React.FC = () => {
                     </div>
                   ) : rows.map(row => {
                     // settList/lastSett for display only (payment count, comprobante link)
-                    const settList = row.promoterId
-                      ? settlements.filter(se => se.event_id === cierreEventId && se.promoter_id === row.promoterId)
+                    // — del squad entero (cualquier miembro del equipo).
+                    const settList = (row.memberIds && row.memberIds.length > 0)
+                      ? settlements.filter(se => se.event_id === cierreEventId && row.memberIds.includes(se.promoter_id))
                       : [];
                     const lastSett = settList[settList.length - 1];
                     // Financial values come from the shared promoterEventDebts memo
