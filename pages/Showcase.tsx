@@ -323,30 +323,8 @@ const HeroEvent: React.FC<HeroEventProps> = ({ event, tiers, index, totalEvents,
                     <span className="text-[10px] font-light tracking-widest text-moonlight/40 ml-2 align-middle">COP</span>
                   </p>
                 </div>
-                {soldPercent > 0 && (
-                  <div className="text-right">
-                    <p className={`text-[9px] font-bold tracking-[0.4em] uppercase mb-1.5 ${isLowStock ? 'text-red-400' : 'text-moonlight/35'}`}>
-                      {isLowStock ? 'Almost Sold' : 'Vendido'}
-                    </p>
-                    <p className={`text-2xl md:text-3xl font-black tracking-tighter font-mono ${isLowStock ? 'text-red-400' : 'text-moonlight'}`}>
-                      {soldPercent}<span className="text-[12px] font-light text-moonlight/40 align-middle">%</span>
-                    </p>
-                  </div>
-                )}
+                {/* % de venta OCULTO al público (decisión del owner). */}
               </div>
-
-              {soldPercent > 0 && (
-                <div className="relative w-full h-[2px] bg-moonlight/10 overflow-hidden">
-                  <motion.div
-                    initial={{ scaleX: 0 }}
-                    whileInView={{ scaleX: soldPercent / 100 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: 0.95, duration: 1.2, ease: EASE_OUT }}
-                    style={{ originX: 0 }}
-                    className={`absolute inset-y-0 left-0 right-0 ${isLowStock ? 'bg-red-400' : 'bg-moonlight'}`}
-                  />
-                </div>
-              )}
             </motion.div>
           )}
 

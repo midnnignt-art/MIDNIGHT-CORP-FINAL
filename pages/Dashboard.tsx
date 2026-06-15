@@ -188,6 +188,21 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   const promoterCommission = (o: (typeof orders)[number]): number =>
     promoterPayoutPerTicket(o.event_id, o.staff_id) * o.items.reduce((s, i) => s + i.quantity, 0);
 
+  // ── Comisión del MANAGER ─────────────────────────────────────────────────
+  // Lo que el SUPER ADMIN paga al manager por boleta = commission_manager del
+  // tier × boletas. La comisión que se muestra depende del rol que mira:
+  //  • Super admin / Cabeza / Head of Sales → ven la comisión de MANAGERS.
+  //  • Manager → ve la comisión de PROMOTORES (lo que él les paga).
+  const managerCommission = (o: (typeof orders)[number]): number =>
+    o.items.reduce((s, i) => {
+      const tier = tiers.find(t => t.id === i.tier_id);
+      return s + ((tier?.commission_manager || tier?.commission_fixed || 0) * i.quantity);
+    }, 0);
+  // ¿Este usuario ve la comisión de managers? (todos menos el manager raso).
+  const usesManagerCommission = isGlobalHead || isScopedHead;
+  const roleCommission = (o: (typeof orders)[number]): number =>
+    usesManagerCommission ? managerCommission(o) : promoterCommission(o);
+
   // Staff disponible para vincular (sin equipo asignado)
   const availableStaffToLink = promoters.filter(p => !p.sales_team_id && !isAdminLevel(p.role));
 
@@ -317,7 +332,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
           const totalQty = digitalQty + cashQty;
           
           // CRITICAL FIX: If forceNoCommission (Admin/System) is true, commission is 0.
-          const totalCommission = forceNoCommission ? 0 : subsetOrders.reduce((acc, o) => acc + promoterCommission(o), 0);
+          const totalCommission = forceNoCommission ? 0 : subsetOrders.reduce((acc, o) => acc + roleCommission(o), 0);
           
           // LIQUIDACIÓN REAL: Efectivo Recaudado - Comisiones Totales
           const netLiquidation = cashGross - totalCommission;
@@ -617,7 +632,7 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
 
     const commissions = scopeOrders.reduce((acc, o) => {
         if (!o.staff_id || adminIds.includes(o.staff_id)) return acc;
-        return acc + promoterCommission(o);
+        return acc + roleCommission(o);
     }, 0);
 
     const cashSales = scopeOrders.filter(o => o.payment_method === 'cash').reduce((acc, o) => acc + o.total, 0);

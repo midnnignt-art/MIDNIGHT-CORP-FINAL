@@ -231,29 +231,8 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBuy, onBack }) => {
           )}
         </div>
 
-        {soldPercent > 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, ease: EASE_OUT }}
-            className="mt-8 md:mt-10 flex items-center justify-between gap-4 pt-6 border-t border-moonlight/10"
-          >
-            <span className={`text-[10px] font-black tracking-[0.4em] uppercase ${isLowStock ? 'text-red-400' : 'text-moonlight/40'}`}>
-              {isLowStock ? `Últimas entradas — ${100 - soldPercent}% disponibles` : `${soldPercent}% vendido`}
-            </span>
-            <div className="relative flex-1 max-w-xs h-[2px] bg-moonlight/10 overflow-hidden">
-              <motion.div
-                initial={{ scaleX: 0 }}
-                whileInView={{ scaleX: soldPercent / 100 }}
-                viewport={{ once: true }}
-                transition={{ duration: 1.2, ease: EASE_OUT }}
-                style={{ originX: 0 }}
-                className={`absolute inset-y-0 left-0 right-0 ${isLowStock ? 'bg-red-400' : 'bg-moonlight'}`}
-              />
-            </div>
-          </motion.div>
-        )}
+        {/* % de venta OCULTO al público (decisión del owner): el cliente no debe
+            ver cuánto se ha vendido. La info de ventas vive solo en el admin. */}
       </section>
 
       {/* ── VENUE ──────────────────────────────────────────────────────── */}
