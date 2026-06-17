@@ -1626,6 +1626,30 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                 </div>
               )}
 
+              {/* Tu semana — selector compacto junto a las lanchas (una sola
+                  pantalla: universidad + lanchas, como pidió el owner). */}
+              {boatChoice === 'lead' && weeks.length > 1 && (
+                <div>
+                  <p className="text-[10px] uppercase mb-2" style={{ color: C.gray, letterSpacing: '0.25em', fontWeight: 600 }}>Tu semana</p>
+                  <div className="flex flex-wrap gap-2">
+                    {weeks.map(w => {
+                      const wsel = selWeek?.id === w.id;
+                      return (
+                        <button key={w.id} type="button" onClick={() => setSelWeek(w)}
+                          className="px-3.5 py-2 text-[10px] uppercase"
+                          style={{
+                            background: wsel ? 'rgba(230,57,47,0.18)' : 'rgba(255,255,255,0.04)',
+                            border: `0.5px solid ${wsel ? 'rgba(230,57,47,0.50)' : 'rgba(255,255,255,0.10)'}`,
+                            color: wsel ? C.red : C.gray, borderRadius: '999px', fontWeight: 600, letterSpacing: '0.08em',
+                          }}>
+                          {w.university}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Líder: catálogo de lanchas */}
               {boatChoice === 'lead' && (
                 <div className="space-y-3">
