@@ -377,6 +377,14 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
   // Monto que se reparte en cuotas (el resto después del adelanto)
   const installmentBase = Math.max(0, grandTotal - s.entry_price);
 
+  // Días sueltos: si el total cae por debajo de $200.000, el fraccionado deja de
+  // estar disponible → forzar pago único.
+  useEffect(() => {
+    if (comboType === 'individual_days' && grandTotal < 200000 && (mode === 'manual_monthly' || mode === 'auto_subscription')) {
+      setMode('individual_days');
+    }
+  }, [comboType, grandTotal, mode]);
+
   // Prefill auth if customer is already logged in (not staff — staff skips OTP in handleRequestOtp)
   useEffect(() => {
     if (currentCustomer && !currentUser) {
@@ -1892,6 +1900,26 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                     <span className="text-xl" style={{ color: C.cream, fontWeight: 400 }}>{fmtCOP(grandTotal)}</span>
                   </div>
                 </div>
+
+                {/* Plan de pago — días sueltos: la opción de reservar con adelanto
+                    se ACTIVA solo si el total llega a $200.000 (regla del owner). */}
+                {comboType === 'individual_days' && grandTotal >= 200000 && (
+                  <div className="pt-3 mt-1 space-y-2" style={{ borderTop: '0.5px solid rgba(255,255,255,0.10)' }}>
+                    <p className="text-[10px] uppercase" style={{ letterSpacing: '0.3em', color: C.red, fontWeight: 600 }}>Plan de pago</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button type="button" onClick={() => setMode('individual_days')}
+                        className="p-3 text-left" style={{ borderRadius: '14px', background: !isInstallmentMode ? 'rgba(230,57,47,0.12)' : 'rgba(255,255,255,0.04)', border: `0.5px solid ${!isInstallmentMode ? 'rgba(230,57,47,0.5)' : 'rgba(255,255,255,0.10)'}` }}>
+                        <p className="text-[11px] uppercase" style={{ color: C.cream, fontWeight: 600 }}>Pago único</p>
+                        <p className="text-[10px] mt-0.5" style={{ color: C.gray }}>{fmtCOP(grandTotal)} hoy</p>
+                      </button>
+                      <button type="button" onClick={() => setMode('manual_monthly')}
+                        className="p-3 text-left" style={{ borderRadius: '14px', background: isInstallmentMode ? 'rgba(230,57,47,0.12)' : 'rgba(255,255,255,0.04)', border: `0.5px solid ${isInstallmentMode ? 'rgba(230,57,47,0.5)' : 'rgba(255,255,255,0.10)'}` }}>
+                        <p className="text-[11px] uppercase" style={{ color: C.cream, fontWeight: 600 }}>Fraccionado</p>
+                        <p className="text-[10px] mt-0.5" style={{ color: C.gray }}>Reservá con {fmtCOP(s.entry_price)}</p>
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Pago de hoy */}
                 <div className="pt-3 mt-1 flex justify-between items-center" style={{ borderTop: '0.5px solid rgba(255,255,255,0.10)' }}>
