@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, Ship, Move, Check, X as XIcon, RotateCcw } from 'lucide-react';
+import { ChevronRight, Ship, Move, Check, X as XIcon, RotateCcw, Ticket, Star, CalendarDays, Plus } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useSolsticeLogo } from '../hooks/useSolsticeLogo';
 import { useSolsticeLogoSize } from '../hooks/useSolsticeLogoSize';
@@ -724,24 +724,24 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
         />
       </section>
 
-      {/* ── ELEGÍ TU PLAN — dos opciones claras (pedido de promotores: que la decisión esté en la principal) ── */}
+      {/* ── ELEGÍ TU PLAN — dos opciones claras (pedido de promotores: la decisión clara EN la principal, "explicando todo") ── */}
       <section className="py-16 md:py-24 px-4" style={{ background: 'rgba(255,255,255,0.015)' }}>
         <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-10 md:mb-12">
-            <p className="text-[10px] md:text-[11px] uppercase mb-3" style={{ letterSpacing: '0.4em', color: C.red, fontWeight: 600 }}>
-              Tu semana, totalmente adaptada
+          <div className="mb-10 md:mb-12 text-center">
+            <p className="text-[10px] md:text-[11px] uppercase mb-4" style={{ letterSpacing: '0.4em', color: C.red, fontWeight: 600 }}>
+              Sistema flexible para universitarios
             </p>
-            <h2 className="text-3xl md:text-5xl uppercase mb-4" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.03em', fontWeight: 300, color: C.cream }}>
-              Elegí cómo armás tu semana
+            <h2 className="text-3xl md:text-5xl uppercase mb-4 mx-auto max-w-2xl" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.03em', fontWeight: 300, color: C.cream, lineHeight: 1.12 }}>
+              Tu semana en Santa Marta, totalmente adaptada
             </h2>
             <p className="text-sm md:text-base max-w-xl mx-auto" style={{ color: `${C.cream}cc`, lineHeight: 1.6 }}>
-              Reservás con <strong style={{ color: C.red }}>{entryCOP}</strong> y pagás el resto en cuotas, sin afán.
-              <br className="hidden md:block" /> Hay dos formas de vivir Solstice:
+              Reservá con solo <strong style={{ color: C.red }}>{entryCOP}</strong> y pagá el resto en cuotas.
+              <br className="hidden md:block" /> Elegí cómo armás tu plan:
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-5">
-            {/* OPCIÓN 1 — PLAN TOTAL */}
+            {/* ════ OPCIÓN 1 — PLAN TOTAL ════ */}
             <motion.button
               whileHover={{ y: -4 }}
               whileTap={{ scale: 0.99 }}
@@ -757,38 +757,50 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
                 cursor: 'pointer',
               }}
             >
-              <div className="absolute top-5 right-5 px-3 py-1 text-[8px] uppercase flex items-center gap-1.5"
-                style={{ background: C.red, color: C.cream, letterSpacing: '0.2em', borderRadius: '999px', fontWeight: 600 }}>
-                <span style={{ width: 5, height: 5, borderRadius: 999, background: '#fff', animation: 'pulse 2s ease-in-out infinite' }} />
-                Más elegido
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <p className="text-[10px] uppercase" style={{ letterSpacing: '0.3em', color: C.red, fontWeight: 600 }}>Opción 1</p>
+                <div className="px-2.5 py-1 text-[8px] uppercase flex items-center gap-1.5 flex-shrink-0"
+                  style={{ background: C.red, color: C.cream, letterSpacing: '0.15em', borderRadius: '999px', fontWeight: 700 }}>
+                  <Star size={9} fill={C.cream} /> Mejor precio
+                </div>
               </div>
-              <p className="text-[10px] uppercase mb-2" style={{ letterSpacing: '0.3em', color: C.red, fontWeight: 600 }}>Opción 1</p>
-              <h3 className="text-2xl md:text-3xl uppercase mb-2" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.04em', fontWeight: 300, color: C.cream }}>
+              <h3 className="text-2xl md:text-3xl uppercase mb-5" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.04em', fontWeight: 300, color: C.cream, lineHeight: 1.1 }}>
                 Plan Total · 5 días
               </h3>
-              <p className="text-[13px] mb-5" style={{ color: `${C.cream}bb`, lineHeight: 1.5 }}>
-                Los 5 eventos de la semana + tu lancha. El mejor precio por persona, todo asegurado.
+
+              {/* ilustración: 5 covers */}
+              <div className="flex items-center mb-5" style={{ color: C.red }}>
+                {[0, 1, 2, 3, 4].map(i => (
+                  <Ticket key={i} size={30} strokeWidth={1.5} style={{ marginLeft: i ? -9 : 0, opacity: 0.45 + i * 0.13 }} />
+                ))}
+              </div>
+
+              <p className="text-[13px] mb-5" style={{ color: `${C.cream}cc`, lineHeight: 1.5 }}>
+                <strong style={{ color: C.cream }}>Covers para los 5 eventos + lancha.</strong> La forma más económica de vivir toda la semana, todo asegurado.
               </p>
-              <div className="flex items-baseline gap-2 mb-1">
+
+              <div className="flex items-baseline gap-2 mb-4">
                 <span className="text-4xl md:text-5xl tabular-nums" style={{ fontFamily: "'Poiret One', sans-serif", color: C.red, fontWeight: 300, letterSpacing: '-0.02em' }}>
                   {comboCOP}
                 </span>
                 <span className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.1em', fontWeight: 500 }}>+ lancha</span>
               </div>
-              <ul className="mt-4 space-y-1.5 flex-1">
-                {['Los 5 días incluidos', 'Lancha + Beach Club', 'Reservás con ' + entryCOP, 'Cuotas o pago de una'].map((t, i) => (
-                  <li key={i} className="flex items-center gap-2 text-[12px]" style={{ color: `${C.cream}dd` }}>
-                    <Check size={13} style={{ color: C.red, flexShrink: 0 }} /> {t}
+
+              <ul className="space-y-1.5 flex-1 mb-6">
+                {['Acceso a los 5 días de fiesta', 'Lancha + Beach Club (día 3)', '2 botellas por cada 5 personas', 'Reservás con ' + entryCOP + ' · cuotas o de una'].map((t, i) => (
+                  <li key={i} className="flex items-start gap-2 text-[12px]" style={{ color: `${C.cream}dd`, lineHeight: 1.4 }}>
+                    <Check size={13} style={{ color: C.red, flexShrink: 0, marginTop: 2 }} /> {t}
                   </li>
                 ))}
               </ul>
-              <div className="mt-6 w-full py-3.5 text-center text-sm uppercase flex items-center justify-center gap-2"
-                style={{ background: C.red, color: C.cream, borderRadius: '999px', letterSpacing: '0.18em', fontWeight: 600 }}>
+
+              <div className="w-full py-3.5 text-center text-sm uppercase flex items-center justify-center gap-2"
+                style={{ background: C.red, color: C.cream, borderRadius: '999px', letterSpacing: '0.18em', fontWeight: 700 }}>
                 Elegir plan total <ChevronRight size={16} />
               </div>
             </motion.button>
 
-            {/* OPCIÓN 2 — ARMA TU PROPIA SEMANA */}
+            {/* ════ OPCIÓN 2 — ARMA TU PROPIA SEMANA ════ */}
             <motion.button
               whileHover={{ y: -4 }}
               whileTap={{ scale: 0.99 }}
@@ -804,32 +816,62 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
                 cursor: 'pointer',
               }}
             >
-              <p className="text-[10px] uppercase mb-2" style={{ letterSpacing: '0.3em', color: C.gray, fontWeight: 600 }}>Opción 2</p>
-              <h3 className="text-2xl md:text-3xl uppercase mb-2" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.04em', fontWeight: 300, color: C.cream }}>
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <p className="text-[10px] uppercase" style={{ letterSpacing: '0.3em', color: C.gray, fontWeight: 600 }}>Opción 2</p>
+                <div className="px-2.5 py-1 text-[8px] uppercase flex items-center gap-1.5 flex-shrink-0"
+                  style={{ background: 'rgba(255,255,255,0.08)', color: C.cream, border: '0.5px solid rgba(255,255,255,0.18)', letterSpacing: '0.15em', borderRadius: '999px', fontWeight: 700 }}>
+                  <CalendarDays size={9} /> Flexible
+                </div>
+              </div>
+              <h3 className="text-2xl md:text-3xl uppercase mb-5" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.04em', fontWeight: 300, color: C.cream, lineHeight: 1.1 }}>
                 Arma tu propia semana
               </h3>
-              <p className="text-[13px] mb-5" style={{ color: `${C.cream}bb`, lineHeight: 1.5 }}>
-                Elegís solo los días que querés ir. Máxima flexibilidad, pagás solo lo que usás.
+
+              {/* ilustración: elegís día por día */}
+              <div className="flex items-center gap-1.5 mb-5" style={{ color: `${C.cream}aa` }}>
+                <Ticket size={28} strokeWidth={1.5} />
+                <Plus size={13} style={{ color: C.gray }} />
+                <Ticket size={28} strokeWidth={1.5} />
+                <Plus size={13} style={{ color: C.gray }} />
+                <Ticket size={28} strokeWidth={1.5} />
+              </div>
+
+              <p className="text-[13px] mb-5" style={{ color: `${C.cream}cc`, lineHeight: 1.5 }}>
+                <strong style={{ color: C.cream }}>Elegí covers y lancha día por día.</strong> Máxima flexibilidad: pagás solo los días que vas a ir.
               </p>
-              <div className="flex items-baseline gap-2 mb-1">
+
+              <div className="flex items-baseline gap-2 mb-4">
                 <span className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.1em', fontWeight: 500 }}>Desde</span>
                 <span className="text-4xl md:text-5xl tabular-nums" style={{ fontFamily: "'Poiret One', sans-serif", color: C.cream, fontWeight: 300, letterSpacing: '-0.02em' }}>
                   {fmtCOP(Math.min(...displayDays.map(d => d.price)))}
                 </span>
-                <span className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.1em', fontWeight: 500 }}>/ día</span>
+                <span className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.1em', fontWeight: 500 }}>/ día + lancha</span>
               </div>
-              <ul className="mt-4 space-y-1.5 flex-1">
-                {['Elegís día por día', 'Sin reserva mínima', 'Cada día con su QR', 'Lancha opcional'].map((t, i) => (
-                  <li key={i} className="flex items-center gap-2 text-[12px]" style={{ color: `${C.cream}dd` }}>
-                    <Check size={13} style={{ color: C.red, flexShrink: 0 }} /> {t}
+
+              <ul className="space-y-1.5 flex-1 mb-6">
+                {['Elegís qué días vas', 'Sin reserva mínima de combo', 'Cada día con su propio QR', 'Sumá la lancha si querés'].map((t, i) => (
+                  <li key={i} className="flex items-start gap-2 text-[12px]" style={{ color: `${C.cream}dd`, lineHeight: 1.4 }}>
+                    <Check size={13} style={{ color: C.red, flexShrink: 0, marginTop: 2 }} /> {t}
                   </li>
                 ))}
               </ul>
-              <div className="mt-6 w-full py-3.5 text-center text-sm uppercase flex items-center justify-center gap-2"
-                style={{ background: 'rgba(255,255,255,0.06)', color: C.cream, border: '0.5px solid rgba(255,255,255,0.15)', borderRadius: '999px', letterSpacing: '0.18em', fontWeight: 600 }}>
-                Elegir mis días <ChevronRight size={16} />
+
+              <div className="w-full py-3.5 text-center text-sm uppercase flex items-center justify-center gap-2"
+                style={{ background: 'rgba(255,255,255,0.06)', color: C.cream, border: '0.5px solid rgba(255,255,255,0.18)', borderRadius: '999px', letterSpacing: '0.18em', fontWeight: 700 }}>
+                Elegir días individuales <ChevronRight size={16} />
               </div>
             </motion.button>
+          </div>
+
+          {/* Cómo pagar — lleva al explicador de pago/cuotas más abajo */}
+          <div className="text-center mt-8">
+            <button
+              onClick={() => document.getElementById('solstice-como-pagar')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              className="inline-flex items-center gap-2 text-[11px] uppercase px-5 py-2.5"
+              style={{ letterSpacing: '0.25em', color: `${C.cream}aa`, fontWeight: 600, background: 'transparent', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '999px', cursor: 'pointer' }}
+            >
+              Cómo pagar <ChevronRight size={14} />
+            </button>
           </div>
         </div>
       </section>
@@ -918,7 +960,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
       </section>
 
       {/* ── ¿QUÉ ES LA VACA? — Explicación del sistema de cuotas ── */}
-      <section className="py-24 px-4" style={{ background: 'rgba(255,255,255,0.015)' }}>
+      <section id="solstice-como-pagar" className="py-24 px-4" style={{ background: 'rgba(255,255,255,0.015)' }}>
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
             <p className="text-[10px] uppercase mb-3" style={{ letterSpacing: '0.4em', color: C.red, fontWeight: 600 }}>
