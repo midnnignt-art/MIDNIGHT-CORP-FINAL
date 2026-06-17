@@ -17,7 +17,7 @@ type ComboType   = 'full_combo' | 'individual_days';
 
 // Paso 1 — combo: qué está comprando el cliente.
 const COMBOS: { id: ComboType; label: string; sub: string; icon: React.ReactNode; badge?: string }[] = [
-  { id: 'full_combo',      label: 'Combo completo',  sub: '5 días con todo incluido (hospedaje, lancha, fiestas)', icon: <Star size={18} />,        badge: 'Más popular' },
+  { id: 'full_combo',      label: 'Combo completo',  sub: '5 días con todo incluido (lancha, fiestas, beach club)', icon: <Star size={18} />,        badge: 'Más popular' },
   { id: 'individual_days', label: 'Días sueltos',    sub: 'Elegís solo los días que querés ir',                     icon: <ListChecks size={18} /> },
 ];
 
@@ -851,7 +851,7 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
             const totalK = Math.round(weekCombo / 1000);
             const comboMeta: Record<ComboType, { headline: string; bigPrice: string; afterPrice?: string; tags: string[] }> = {
               full_combo: {
-                headline: '5 días con todo incluido — hospedaje, lancha, fiestas, beach club',
+                headline: '5 días con todo incluido — lancha, fiestas, beach club',
                 bigPrice: `${fmtCOP(totalK * 1000)}`,
                 afterPrice: ' total',
                 tags: [`Reservás con ${fmtCOP(entryK * 1000)}`, 'Después: cuotas o pago de una', 'Mejor precio por día'],
@@ -1561,6 +1561,24 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
               {boatsIntro && boatChoice !== 'join' && (
                 <div className="p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.10)', borderRadius: '18px' }}>
                   <p className="text-xs" style={{ color: `${C.cream}dd`, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{boatsIntro}</p>
+                </div>
+              )}
+
+              {/* Notas clave de la lancha — botellas incluidas + link de invitación */}
+              {boatChoice !== 'join' && (
+                <div className="p-4 space-y-2.5" style={{ background: 'rgba(230,57,47,0.08)', border: '0.5px solid rgba(230,57,47,0.30)', borderRadius: '18px' }}>
+                  <div className="flex items-start gap-2.5">
+                    <span className="flex-shrink-0" style={{ fontSize: 14 }}>🍾</span>
+                    <p className="text-[11px]" style={{ color: `${C.cream}dd`, lineHeight: 1.5 }}>
+                      El precio de la lancha <strong style={{ color: C.cream }}>incluye 2 botellas cada 5 personas</strong> en el Beach Club.
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-2.5">
+                    <span className="flex-shrink-0" style={{ fontSize: 14 }}>🔗</span>
+                    <p className="text-[11px]" style={{ color: `${C.cream}dd`, lineHeight: 1.5 }}>
+                      Sé el <strong style={{ color: C.cream }}>primero de tu grupo</strong> en elegir lancha: apenas pagás, te damos un <strong style={{ color: C.cream }}>link</strong> para que tus amigos se unan a TU lancha.
+                    </p>
+                  </div>
                 </div>
               )}
 
