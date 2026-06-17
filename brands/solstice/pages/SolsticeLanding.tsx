@@ -724,6 +724,116 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
         />
       </section>
 
+      {/* ── ELEGÍ TU PLAN — dos opciones claras (pedido de promotores: que la decisión esté en la principal) ── */}
+      <section className="py-16 md:py-24 px-4" style={{ background: 'rgba(255,255,255,0.015)' }}>
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-10 md:mb-12">
+            <p className="text-[10px] md:text-[11px] uppercase mb-3" style={{ letterSpacing: '0.4em', color: C.red, fontWeight: 600 }}>
+              Tu semana, totalmente adaptada
+            </p>
+            <h2 className="text-3xl md:text-5xl uppercase mb-4" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.03em', fontWeight: 300, color: C.cream }}>
+              Elegí cómo armás tu semana
+            </h2>
+            <p className="text-sm md:text-base max-w-xl mx-auto" style={{ color: `${C.cream}cc`, lineHeight: 1.6 }}>
+              Reservás con <strong style={{ color: C.red }}>{entryCOP}</strong> y pagás el resto en cuotas, sin afán.
+              <br className="hidden md:block" /> Hay dos formas de vivir Solstice:
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-5">
+            {/* OPCIÓN 1 — PLAN TOTAL */}
+            <motion.button
+              whileHover={{ y: -4 }}
+              whileTap={{ scale: 0.99 }}
+              onClick={() => onNavigate('reserva@full_combo')}
+              className="text-left relative overflow-hidden p-7 md:p-8 flex flex-col"
+              style={{
+                borderRadius: '24px',
+                background: 'rgba(230,57,47,0.07)',
+                border: '0.5px solid rgba(230,57,47,0.5)',
+                boxShadow: '0 24px 60px rgba(230,57,47,0.14)',
+                backdropFilter: 'blur(32px) saturate(180%)',
+                transition: 'all 0.4s cubic-bezier(0.16,1,0.3,1)',
+                cursor: 'pointer',
+              }}
+            >
+              <div className="absolute top-5 right-5 px-3 py-1 text-[8px] uppercase flex items-center gap-1.5"
+                style={{ background: C.red, color: C.cream, letterSpacing: '0.2em', borderRadius: '999px', fontWeight: 600 }}>
+                <span style={{ width: 5, height: 5, borderRadius: 999, background: '#fff', animation: 'pulse 2s ease-in-out infinite' }} />
+                Más elegido
+              </div>
+              <p className="text-[10px] uppercase mb-2" style={{ letterSpacing: '0.3em', color: C.red, fontWeight: 600 }}>Opción 1</p>
+              <h3 className="text-2xl md:text-3xl uppercase mb-2" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.04em', fontWeight: 300, color: C.cream }}>
+                Plan Total · 5 días
+              </h3>
+              <p className="text-[13px] mb-5" style={{ color: `${C.cream}bb`, lineHeight: 1.5 }}>
+                Los 5 eventos de la semana + tu lancha. El mejor precio por persona, todo asegurado.
+              </p>
+              <div className="flex items-baseline gap-2 mb-1">
+                <span className="text-4xl md:text-5xl tabular-nums" style={{ fontFamily: "'Poiret One', sans-serif", color: C.red, fontWeight: 300, letterSpacing: '-0.02em' }}>
+                  {comboCOP}
+                </span>
+                <span className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.1em', fontWeight: 500 }}>+ lancha</span>
+              </div>
+              <ul className="mt-4 space-y-1.5 flex-1">
+                {['Los 5 días incluidos', 'Lancha + Beach Club', 'Reservás con ' + entryCOP, 'Cuotas o pago de una'].map((t, i) => (
+                  <li key={i} className="flex items-center gap-2 text-[12px]" style={{ color: `${C.cream}dd` }}>
+                    <Check size={13} style={{ color: C.red, flexShrink: 0 }} /> {t}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-6 w-full py-3.5 text-center text-sm uppercase flex items-center justify-center gap-2"
+                style={{ background: C.red, color: C.cream, borderRadius: '999px', letterSpacing: '0.18em', fontWeight: 600 }}>
+                Elegir plan total <ChevronRight size={16} />
+              </div>
+            </motion.button>
+
+            {/* OPCIÓN 2 — ARMA TU PROPIA SEMANA */}
+            <motion.button
+              whileHover={{ y: -4 }}
+              whileTap={{ scale: 0.99 }}
+              onClick={() => onNavigate('reserva@individual_days')}
+              className="text-left relative overflow-hidden p-7 md:p-8 flex flex-col"
+              style={{
+                borderRadius: '24px',
+                background: 'rgba(255,255,255,0.035)',
+                border: '0.5px solid rgba(255,255,255,0.12)',
+                boxShadow: '0 16px 40px rgba(0,0,0,0.28)',
+                backdropFilter: 'blur(32px) saturate(180%)',
+                transition: 'all 0.4s cubic-bezier(0.16,1,0.3,1)',
+                cursor: 'pointer',
+              }}
+            >
+              <p className="text-[10px] uppercase mb-2" style={{ letterSpacing: '0.3em', color: C.gray, fontWeight: 600 }}>Opción 2</p>
+              <h3 className="text-2xl md:text-3xl uppercase mb-2" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.04em', fontWeight: 300, color: C.cream }}>
+                Arma tu propia semana
+              </h3>
+              <p className="text-[13px] mb-5" style={{ color: `${C.cream}bb`, lineHeight: 1.5 }}>
+                Elegís solo los días que querés ir. Máxima flexibilidad, pagás solo lo que usás.
+              </p>
+              <div className="flex items-baseline gap-2 mb-1">
+                <span className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.1em', fontWeight: 500 }}>Desde</span>
+                <span className="text-4xl md:text-5xl tabular-nums" style={{ fontFamily: "'Poiret One', sans-serif", color: C.cream, fontWeight: 300, letterSpacing: '-0.02em' }}>
+                  {fmtCOP(Math.min(...displayDays.map(d => d.price)))}
+                </span>
+                <span className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.1em', fontWeight: 500 }}>/ día</span>
+              </div>
+              <ul className="mt-4 space-y-1.5 flex-1">
+                {['Elegís día por día', 'Sin reserva mínima', 'Cada día con su QR', 'Lancha opcional'].map((t, i) => (
+                  <li key={i} className="flex items-center gap-2 text-[12px]" style={{ color: `${C.cream}dd` }}>
+                    <Check size={13} style={{ color: C.red, flexShrink: 0 }} /> {t}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-6 w-full py-3.5 text-center text-sm uppercase flex items-center justify-center gap-2"
+                style={{ background: 'rgba(255,255,255,0.06)', color: C.cream, border: '0.5px solid rgba(255,255,255,0.15)', borderRadius: '999px', letterSpacing: '0.18em', fontWeight: 600 }}>
+                Elegir mis días <ChevronRight size={16} />
+              </div>
+            </motion.button>
+          </div>
+        </div>
+      </section>
+
       {/* ── PROGRAMA (subido: lo primero que ve el cliente tras el hero) ── */}
       <section className="py-24 overflow-hidden" style={{ background: 'rgba(255,255,255,0.02)' }}>
         <div className="max-w-7xl mx-auto px-4">

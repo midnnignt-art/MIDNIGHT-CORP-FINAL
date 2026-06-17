@@ -81,6 +81,7 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
   const [page, setPage] = useState<SolsticePage>(initialPageParam || (initialInviteCode ? 'reserva' : 'landing'));
   const [loginOpen, setLoginOpen] = useState(false);
   const [reservaWeek, setReservaWeek] = useState<string | undefined>(undefined);
+  const [reservaCombo, setReservaCombo] = useState<string | undefined>(undefined);
   // Nombre del promotor que atiende (si el cliente llegó por un link /sol/p/CODE).
   // Se muestra como banner "Atendido por X" en la vitrina, igual que Midnight.
   const [refName, setRefName] = useState<string>(() => {
@@ -221,13 +222,19 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
 
   const handleNavigate = (target: string) => {
     if (target === 'home') { onExit(); return; }
-    if (target.startsWith('reserva:')) {
-      setReservaWeek(target.slice('reserva:'.length));
-      setPage('reserva');
-      return;
-    }
-    if (target === 'reserva') {
-      setReservaWeek(undefined);
+    // Formatos soportados:
+    //  'reserva'                  → checkout desde cero
+    //  'reserva:Universidad'      → con semana preseleccionada
+    //  'reserva@full_combo'       → con plan ya elegido (desde la principal)
+    //  'reserva:Universidad@individual_days'
+    if (target === 'reserva' || target.startsWith('reserva:') || target.startsWith('reserva@')) {
+      let rest = target.slice('reserva'.length);          // ':Uni@combo' | '@combo' | ':Uni' | ''
+      let combo: string | undefined;
+      const at = rest.indexOf('@');
+      if (at >= 0) { combo = rest.slice(at + 1); rest = rest.slice(0, at); }
+      const week = rest.startsWith(':') ? rest.slice(1) : undefined;
+      setReservaWeek(week || undefined);
+      setReservaCombo(combo || undefined);
       setPage('reserva');
       return;
     }
@@ -385,6 +392,7 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
         {page === 'reserva'       && (
           <SolsticeReserva
             initialWeek={reservaWeek}
+            initialCombo={reservaCombo as any}
             initialInviteCode={inviteCode}
             onBack={() => setPage('landing')}
           />

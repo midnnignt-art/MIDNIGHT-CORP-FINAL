@@ -17,8 +17,8 @@ type ComboType   = 'full_combo' | 'individual_days';
 
 // Paso 1 — combo: qué está comprando el cliente.
 const COMBOS: { id: ComboType; label: string; sub: string; icon: React.ReactNode; badge?: string }[] = [
-  { id: 'full_combo',      label: 'Combo completo',  sub: '5 días con todo incluido (lancha, fiestas, beach club)', icon: <Star size={18} />,        badge: 'Más popular' },
-  { id: 'individual_days', label: 'Días sueltos',    sub: 'Elegís solo los días que querés ir',                     icon: <ListChecks size={18} /> },
+  { id: 'full_combo',      label: 'Plan Total · 5 días',   sub: 'Los 5 eventos + lancha. El mejor precio por persona.', icon: <Star size={18} />,        badge: 'Más elegido' },
+  { id: 'individual_days', label: 'Arma tu propia semana', sub: 'Elegís solo los días que querés ir.',                 icon: <ListChecks size={18} /> },
 ];
 
 // Paso 1.4 — forma de pago: solo aplica cuando el cliente elige combo completo.
@@ -49,6 +49,7 @@ interface SeasonData {
 
 interface Props {
   initialWeek?: string;
+  initialCombo?: ComboType;
   initialInviteCode?: string;
   onBack: () => void;
 }
@@ -63,7 +64,7 @@ function addMonths(date: Date, n: number) {
   return d.toISOString().split('T')[0];
 }
 
-export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack }: Props) {
+export default function SolsticeReserva({ initialWeek, initialCombo, initialInviteCode, onBack }: Props) {
   const { requestCustomerOtp, verifyOtpUnified, currentCustomer, currentUser } = useStore();
 
   // ── Real data from DB (falls back to mock if not yet migrated) ──
@@ -110,12 +111,22 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
   // Invitado por link de lancha: hereda la SEMANA y la LANCHA del líder, pero SÍ
   // elige el combo → arranca en la selección de combo (1), saltando solo la
   // selección de semana (0).
-  const [step, setStep]       = useState<number>(initialInviteCode ? 1 : (initialWeek ? 1 : 0));
+  // Si llega con plan preelegido desde la principal (initialCombo) y además ya
+  // tiene semana, saltamos directo al siguiente paso del plan:
+  //   full_combo → lancha (2.7) · individual_days → días (1.5)
+  // Si trae plan pero NO semana, arranca en la selección de semana (0) y al
+  // elegirla salta el paso de combo (ver onClick de las semanas).
+  const comboNextStep = (ct?: ComboType | null) => (ct === 'individual_days' ? (1.5 as any) : (2.7 as any));
+  const [step, setStep]       = useState<number>(
+    initialInviteCode ? 1
+      : initialWeek ? (initialCombo ? comboNextStep(initialCombo) : 1)
+      : 0
+  );
   const [selWeek, setSelWeek] = useState<SolsticeWeek | null>(
     initialWeek ? SOLSTICE_WEEKS_MOCK.find(w => w.university === initialWeek) || null : null
   );
-  const [mode, setMode]           = useState<PaymentMode | null>(null);
-  const [comboType, setComboType] = useState<ComboType | null>(null);
+  const [mode, setMode]           = useState<PaymentMode | null>(initialCombo === 'individual_days' ? 'individual_days' : null);
+  const [comboType, setComboType] = useState<ComboType | null>(initialCombo ?? null);
   const [selDays, setSelDays]     = useState<number[]>([]);
   const [name, setName]           = useState('');
   const [email, setEmail]         = useState('');
@@ -798,8 +809,13 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
           {step === 0 && (
             <motion.div key="s0" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
               <div>
+                {comboType && (
+                  <p className="text-[10px] uppercase mb-2 inline-flex items-center gap-2 px-3 py-1.5" style={{ letterSpacing: '0.25em', color: C.red, fontWeight: 600, background: 'rgba(230,57,47,0.10)', border: '0.5px solid rgba(230,57,47,0.4)', borderRadius: '999px' }}>
+                    {comboType === 'full_combo' ? 'Plan Total · 5 días' : 'Arma tu propia semana'}
+                  </p>
+                )}
                 <h2 className="text-3xl uppercase mb-2" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.08em', fontWeight: 300 }}>¿Cuál semana?</h2>
-                <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>Selecciona tu universidad</p>
+                <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>Selecciona tu universidad y fecha</p>
               </div>
               <div className="space-y-4">
                 {weeks.map(week => {
@@ -811,7 +827,13 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                   const left = Math.max(0, cap - res);
                   const hasCap = cap > 0;
                   return (
-                    <button key={week.id} onClick={() => { setSelWeek(week); setStep(1); }}
+                    <button key={week.id} onClick={() => {
+                        setSelWeek(week);
+                        // Si ya eligió plan en la principal, saltamos el paso de combo.
+                        if (comboType === 'individual_days') { setMode('individual_days'); setStep(1.5 as any); }
+                        else if (comboType === 'full_combo') { if (mode === 'individual_days') setMode(null); setStep(2.7 as any); }
+                        else setStep(1);
+                      }}
                       className="w-full p-4 flex items-center justify-between gap-3 text-left"
                       style={{
                         borderRadius: '16px',
