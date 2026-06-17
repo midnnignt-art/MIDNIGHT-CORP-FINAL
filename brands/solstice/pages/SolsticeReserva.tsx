@@ -2398,8 +2398,12 @@ function ConfirmationCinematic({
           </motion.div>
         )}
 
-        {/* Hospedaje upsell */}
-        {lodgings.length > 0 && lodgeStatus !== 'reserved' && (
+        {/* Hospedaje: ya NO es un paso de la compra. Se reserva APARTE desde
+            "Mi Semana", cuando el cliente decide dónde quedarse. */}
+        <p className="text-[10px] uppercase text-center" style={{ color: '#606060', letterSpacing: '0.2em', fontWeight: 500 }}>
+          ¿Hospedaje? Reservalo cuando quieras desde <strong style={{ color: '#F9F2D7' }}>Mi Semana</strong>.
+        </p>
+        {false && lodgings.length > 0 && lodgeStatus !== 'reserved' && (
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}

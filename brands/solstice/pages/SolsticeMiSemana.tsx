@@ -796,6 +796,9 @@ export default function SolsticeMiSemana() {
           </div>
         )}
 
+        {/* ── Hospedaje — opción APARTE: reservás cuando decidís dónde quedarte ── */}
+        {!reg.lodging && <LodgingUpsell reg={reg} />}
+
         {/* ── Invitar a amigos — sharing viral con mensaje pre-armado ── */}
         <InviteFriendsCard reg={reg} />
 
@@ -1061,6 +1064,80 @@ function calcTime(startDate: string) {
     mins:  Math.floor((diff % 3600000) / 60000),
     secs:  Math.floor((diff % 60000) / 1000),
   };
+}
+
+// ── Hospedaje: opción aparte (se reserva desde Mi Semana, no en la compra) ──
+function LodgingUpsell({ reg }: { reg: Registration }) {
+  const [lodgings, setLodgings] = useState<any[]>([]);
+  const [status, setStatus]     = useState<'idle' | 'reserving' | 'reserved' | 'error'>('idle');
+  const [reservedName, setReservedName] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase
+      .from('solstice_lodgings')
+      .select('id, name, image_url, price_per_night, category')
+      .eq('status', 'active')
+      .order('sort_order', { ascending: true })
+      .limit(6)
+      .then(({ data }) => { if (data && data.length > 0) setLodgings(data); });
+  }, []);
+
+  const reserve = async (l: any) => {
+    setStatus('reserving');
+    try {
+      const nights = 5;
+      const { data: inserted, error } = await supabase
+        .from('solstice_lodging_reservations')
+        .insert({
+          lodging_id: l.id, registration_id: reg.id,
+          customer_name: reg.customer_name, customer_email: reg.customer_email,
+          nights, guests: 1, total_amount: nights * (l.price_per_night || 0), status: 'pending',
+        })
+        .select('id').single();
+      if (error) throw new Error(error.message);
+      if (inserted?.id) supabase.functions.invoke('send-lodging-notification', { body: { reservation_id: inserted.id } }).catch(() => {});
+      setReservedName(l.name);
+      setStatus('reserved');
+    } catch { setStatus('error'); }
+  };
+
+  if (lodgings.length === 0) return null;
+
+  if (status === 'reserved') {
+    return (
+      <div className="p-5 text-center" style={{ borderRadius: '20px', background: 'rgba(16,185,129,0.10)', border: '0.5px solid rgba(16,185,129,0.40)' }}>
+        <p className="text-xs uppercase" style={{ color: C.green, letterSpacing: '0.2em', fontWeight: 600 }}>Hospedaje reservado · {reservedName}</p>
+        <p className="text-[10px] mt-1" style={{ color: C.gray }}>Te contactamos por WhatsApp en las próximas 24h.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-5" style={{ borderRadius: '24px', background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.10)' }}>
+      <p className="text-[10px] uppercase mb-1" style={{ letterSpacing: '0.35em', color: C.red, fontWeight: 600 }}>¿Dónde te quedás?</p>
+      <h3 className="text-xl uppercase mb-2" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.04em', fontWeight: 300 }}>Hospedajes curados Solstice</h3>
+      <p className="text-[11px] mb-4" style={{ color: C.gray, lineHeight: 1.55 }}>Reservás cuando decidas dónde quedarte — te confirmamos por WhatsApp y pagás directo al hotel. Es aparte de tu compra.</p>
+      <div className="space-y-2.5">
+        {lodgings.map(l => (
+          <div key={l.id} className="flex items-center gap-3 p-3" style={{ borderRadius: '14px', background: 'rgba(255,255,255,0.025)', border: '0.5px solid rgba(255,255,255,0.06)' }}>
+            {l.image_url
+              ? <img src={l.image_url} alt={l.name} className="w-14 h-14 object-cover flex-shrink-0" style={{ borderRadius: '10px' }} />
+              : <div className="w-14 h-14 flex-shrink-0 flex items-center justify-center" style={{ borderRadius: '10px', background: 'rgba(230,57,47,0.10)', color: C.red, fontSize: 18 }}>✦</div>}
+            <div className="flex-1 min-w-0">
+              <p className="text-[12px] uppercase truncate" style={{ color: C.cream, letterSpacing: '0.1em', fontWeight: 600 }}>{l.name}</p>
+              <p className="text-[10px]" style={{ color: C.gray }}>{(l.price_per_night || 0) > 0 ? `Desde ${fmtK(l.price_per_night)}/noche` : 'Consultá tarifas'}{l.category ? ` · ${l.category}` : ''}</p>
+            </div>
+            <button onClick={() => reserve(l)} disabled={status === 'reserving'}
+              className="flex-shrink-0 px-3 py-2 text-[10px] uppercase"
+              style={{ background: 'rgba(230,57,47,0.18)', border: '0.5px solid rgba(230,57,47,0.50)', color: C.red, letterSpacing: '0.2em', borderRadius: '999px', fontWeight: 600, opacity: status === 'reserving' ? 0.4 : 1 }}>
+              {status === 'reserving' ? '...' : 'Reservar'}
+            </button>
+          </div>
+        ))}
+      </div>
+      {status === 'error' && <p className="text-[10px] mt-3 text-center" style={{ color: C.red }}>No pudimos reservar. Intentá de nuevo.</p>}
+    </div>
+  );
 }
 
 // ── Invitar a amigos: tarjeta de share viral en MiSemana ──────────────────
