@@ -812,38 +812,28 @@ export default function SolsticeReserva({ initialWeek, initialInviteCode, onBack
                   const hasCap = cap > 0;
                   return (
                     <button key={week.id} onClick={() => { setSelWeek(week); setStep(1); }}
-                      className="w-full p-6 text-left"
+                      className="w-full p-4 flex items-center justify-between gap-3 text-left"
                       style={{
-                        borderRadius: '24px',
+                        borderRadius: '16px',
                         background: 'rgba(255,255,255,0.04)',
-                        backdropFilter: 'blur(32px) saturate(180%)',
                         border: '0.5px solid rgba(255,255,255,0.10)',
-                        boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
-                        transition: 'all 0.35s cubic-bezier(0.25,0.46,0.45,0.94)',
+                        transition: 'all 0.3s ease',
                       }}
-                      onMouseEnter={e => {
-                        (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-3px)';
-                        (e.currentTarget as HTMLButtonElement).style.border = '0.5px solid rgba(230,57,47,0.30)';
-                      }}
-                      onMouseLeave={e => {
-                        (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
-                        (e.currentTarget as HTMLButtonElement).style.border = '0.5px solid rgba(255,255,255,0.10)';
-                      }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.border = '0.5px solid rgba(230,57,47,0.40)'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.border = '0.5px solid rgba(255,255,255,0.10)'; }}
                     >
-                      <div className="flex justify-between items-start mb-3">
-                        <h3 className="text-xl uppercase" style={{ fontFamily: "'Poiret One', sans-serif", fontWeight: 300 }}>{week.university}</h3>
-                        {hasCap && <span className="text-[9px] uppercase" style={{ color: C.gray, letterSpacing: '0.15em', fontWeight: 500 }}>{res}/{cap}</span>}
+                      <div className="min-w-0">
+                        <h3 className="text-base md:text-lg uppercase truncate" style={{ fontFamily: "'Poiret One', sans-serif", fontWeight: 300, letterSpacing: '0.04em' }}>{week.university}</h3>
+                        <p className="text-[10px] uppercase" style={{ color: C.gray, letterSpacing: '0.12em', fontWeight: 500 }}>
+                          {new Date(week.start_date).toLocaleDateString('es-CO', { month: 'short', day: 'numeric' })} — {new Date(week.end_date).toLocaleDateString('es-CO', { month: 'short', day: 'numeric' })}
+                        </p>
                       </div>
-                      <p className="text-xs uppercase mb-4" style={{ color: C.gray, letterSpacing: '0.15em', fontWeight: 500 }}>
-                        {new Date(week.start_date).toLocaleDateString('es-CO', { month: 'short', day: 'numeric' })} — {new Date(week.end_date).toLocaleDateString('es-CO', { month: 'short', day: 'numeric' })}
-                      </p>
-                      {/* Urgency / progress bar */}
-                      <div className="w-full mb-1" style={{ height: '2px', background: `${C.gray}20`, borderRadius: '999px' }}>
-                        <div style={{ width: `${pct}%`, height: '100%', background: C.red, borderRadius: '999px', transition: 'width 0.8s' }} />
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className="text-[9px] uppercase text-right" style={{ color: hasCap && left <= 20 ? C.red : C.gray, letterSpacing: '0.1em', fontWeight: 500 }}>
+                          {!hasCap ? 'Disponible' : left <= 20 ? `¡Solo ${left}!` : `${left} cupos`}
+                        </span>
+                        <ChevronRight size={16} style={{ color: C.gray }} />
                       </div>
-                      <p className="text-[9px] uppercase" style={{ color: hasCap && left <= 20 ? C.red : C.gray, letterSpacing: '0.1em', fontWeight: 500 }}>
-                        {!hasCap ? 'Cupos disponibles' : left <= 20 ? `¡Solo ${left} cupos!` : `${left} cupos disponibles`}
-                      </p>
                     </button>
                   );
                 })}
