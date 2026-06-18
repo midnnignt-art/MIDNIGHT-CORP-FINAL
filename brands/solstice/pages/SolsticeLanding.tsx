@@ -740,63 +740,63 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-5">
+          {/* Dos columnas SIEMPRE (también en móvil) — las dos opciones se ven de
+              un vistazo, como el mockup. Más conversión: comparás al instante. */}
+          <div className="grid grid-cols-2 gap-3 md:gap-5 items-stretch">
             {/* ════ OPCIÓN 1 — PLAN TOTAL ════ */}
             <motion.button
               whileHover={{ y: -4 }}
               whileTap={{ scale: 0.99 }}
               onClick={() => onNavigate('reserva@full_combo')}
-              className="text-left relative overflow-hidden p-7 md:p-8 flex flex-col"
+              className="text-left relative overflow-hidden p-4 md:p-7 flex flex-col"
               style={{
-                borderRadius: '24px',
+                borderRadius: '20px',
                 background: 'rgba(230,57,47,0.07)',
-                border: '0.5px solid rgba(230,57,47,0.5)',
-                boxShadow: '0 24px 60px rgba(230,57,47,0.14)',
+                border: '0.5px solid rgba(230,57,47,0.45)',
+                boxShadow: '0 16px 44px rgba(230,57,47,0.13)',
                 backdropFilter: 'blur(32px) saturate(180%)',
                 transition: 'all 0.4s cubic-bezier(0.16,1,0.3,1)',
                 cursor: 'pointer',
               }}
             >
-              <div className="flex items-start justify-between gap-3 mb-4">
-                <p className="text-[10px] uppercase" style={{ letterSpacing: '0.3em', color: C.red, fontWeight: 600 }}>Opción 1</p>
-                <div className="px-2.5 py-1 text-[8px] uppercase flex items-center gap-1.5 flex-shrink-0"
-                  style={{ background: C.red, color: C.cream, letterSpacing: '0.15em', borderRadius: '999px', fontWeight: 700 }}>
-                  <Star size={9} fill={C.cream} /> Mejor precio
+              {/* Opción + badge */}
+              <div className="flex items-center justify-between gap-1.5 mb-2.5">
+                <p className="text-[9px] md:text-[10px] uppercase" style={{ letterSpacing: '0.25em', color: C.red, fontWeight: 700 }}>Opción 1</p>
+                <div className="px-2 py-0.5 text-[7px] md:text-[8px] uppercase flex items-center gap-1 flex-shrink-0"
+                  style={{ background: C.cream, color: '#0a0a0a', letterSpacing: '0.1em', borderRadius: '999px', fontWeight: 800 }}>
+                  <Star size={8} fill="#0a0a0a" /> Best value
                 </div>
               </div>
-              <h3 className="text-2xl md:text-3xl uppercase mb-5" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.04em', fontWeight: 300, color: C.cream, lineHeight: 1.1 }}>
-                Plan Total · 5 días
-              </h3>
+
+              {/* Título + thumbnail */}
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <h3 className="text-[16px] md:text-2xl uppercase flex-1" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.03em', fontWeight: 300, color: C.cream, lineHeight: 1.08 }}>
+                  Plan Total · 5 días
+                </h3>
+                <img src={GALLERY_IMAGES[5]} alt="" loading="lazy" className="w-11 h-11 md:w-14 md:h-14 object-cover flex-shrink-0" style={{ borderRadius: '10px', border: '0.5px solid rgba(255,255,255,0.12)' }} />
+              </div>
 
               {/* ilustración: 5 covers */}
-              <div className="flex items-center mb-5" style={{ color: C.red }}>
+              <div className="flex items-center mb-3" style={{ color: C.cream }}>
                 {[0, 1, 2, 3, 4].map(i => (
-                  <Ticket key={i} size={30} strokeWidth={1.5} style={{ marginLeft: i ? -9 : 0, opacity: 0.45 + i * 0.13 }} />
+                  <Ticket key={i} size={22} strokeWidth={1.5} style={{ marginLeft: i ? -7 : 0, opacity: 0.5 + i * 0.12 }} />
                 ))}
               </div>
 
-              <p className="text-[13px] mb-5" style={{ color: `${C.cream}cc`, lineHeight: 1.5 }}>
-                <strong style={{ color: C.cream }}>Covers para los 5 eventos + lancha.</strong> La forma más económica de vivir toda la semana, todo asegurado.
+              <p className="text-[11px] md:text-[13px] mb-3 flex-1" style={{ color: `${C.cream}cc`, lineHeight: 1.45 }}>
+                <strong style={{ color: C.cream }}>Covers para los 5 eventos + lancha.</strong> La forma más económica.
               </p>
 
-              <div className="flex items-baseline gap-2 mb-4">
-                <span className="text-4xl md:text-5xl tabular-nums" style={{ fontFamily: "'Poiret One', sans-serif", color: C.red, fontWeight: 300, letterSpacing: '-0.02em' }}>
+              <div className="flex items-baseline gap-1.5 mb-3 flex-wrap">
+                <span className="text-2xl md:text-4xl tabular-nums" style={{ fontFamily: "'Poiret One', sans-serif", color: C.cream, fontWeight: 300, letterSpacing: '-0.02em' }}>
                   {comboCOP}
                 </span>
-                <span className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.1em', fontWeight: 500 }}>+ lancha</span>
+                <span className="text-[9px] md:text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.1em', fontWeight: 500 }}>+ lancha</span>
               </div>
 
-              <ul className="space-y-1.5 flex-1 mb-6">
-                {['Acceso a los 5 días de fiesta', 'Lancha + Beach Club (día 3)', '2 botellas por cada 5 personas', 'Reservás con ' + entryCOP + ' · cuotas o de una'].map((t, i) => (
-                  <li key={i} className="flex items-start gap-2 text-[12px]" style={{ color: `${C.cream}dd`, lineHeight: 1.4 }}>
-                    <Check size={13} style={{ color: C.red, flexShrink: 0, marginTop: 2 }} /> {t}
-                  </li>
-                ))}
-              </ul>
-
-              <div className="w-full py-3.5 text-center text-sm uppercase flex items-center justify-center gap-2"
-                style={{ background: C.red, color: C.cream, borderRadius: '999px', letterSpacing: '0.18em', fontWeight: 700 }}>
-                Elegir plan total <ChevronRight size={16} />
+              <div className="w-full py-2.5 md:py-3.5 text-center text-[10px] md:text-sm uppercase flex items-center justify-center gap-1.5"
+                style={{ background: C.cream, color: '#0a0a0a', borderRadius: '999px', letterSpacing: '0.1em', fontWeight: 800 }}>
+                Elegir plan total <ChevronRight size={14} />
               </div>
             </motion.button>
 
@@ -805,60 +805,56 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
               whileHover={{ y: -4 }}
               whileTap={{ scale: 0.99 }}
               onClick={() => onNavigate('reserva@individual_days')}
-              className="text-left relative overflow-hidden p-7 md:p-8 flex flex-col"
+              className="text-left relative overflow-hidden p-4 md:p-7 flex flex-col"
               style={{
-                borderRadius: '24px',
+                borderRadius: '20px',
                 background: 'rgba(255,255,255,0.035)',
                 border: '0.5px solid rgba(255,255,255,0.12)',
-                boxShadow: '0 16px 40px rgba(0,0,0,0.28)',
+                boxShadow: '0 14px 36px rgba(0,0,0,0.28)',
                 backdropFilter: 'blur(32px) saturate(180%)',
                 transition: 'all 0.4s cubic-bezier(0.16,1,0.3,1)',
                 cursor: 'pointer',
               }}
             >
-              <div className="flex items-start justify-between gap-3 mb-4">
-                <p className="text-[10px] uppercase" style={{ letterSpacing: '0.3em', color: C.gray, fontWeight: 600 }}>Opción 2</p>
-                <div className="px-2.5 py-1 text-[8px] uppercase flex items-center gap-1.5 flex-shrink-0"
-                  style={{ background: 'rgba(255,255,255,0.08)', color: C.cream, border: '0.5px solid rgba(255,255,255,0.18)', letterSpacing: '0.15em', borderRadius: '999px', fontWeight: 700 }}>
-                  <CalendarDays size={9} /> Flexible
+              <div className="flex items-center justify-between gap-1.5 mb-2.5">
+                <p className="text-[9px] md:text-[10px] uppercase" style={{ letterSpacing: '0.25em', color: C.gray, fontWeight: 700 }}>Opción 2</p>
+                <div className="px-2 py-0.5 text-[7px] md:text-[8px] uppercase flex items-center gap-1 flex-shrink-0"
+                  style={{ background: 'rgba(255,255,255,0.10)', color: C.cream, border: '0.5px solid rgba(255,255,255,0.20)', letterSpacing: '0.1em', borderRadius: '999px', fontWeight: 800 }}>
+                  <CalendarDays size={8} /> Flexibility
                 </div>
               </div>
-              <h3 className="text-2xl md:text-3xl uppercase mb-5" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.04em', fontWeight: 300, color: C.cream, lineHeight: 1.1 }}>
-                Arma tu propia semana
-              </h3>
+
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <h3 className="text-[16px] md:text-2xl uppercase flex-1" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.03em', fontWeight: 300, color: C.cream, lineHeight: 1.08 }}>
+                  Arma tu propia semana
+                </h3>
+                <img src={GALLERY_IMAGES[1]} alt="" loading="lazy" className="w-11 h-11 md:w-14 md:h-14 object-cover flex-shrink-0" style={{ borderRadius: '10px', border: '0.5px solid rgba(255,255,255,0.12)' }} />
+              </div>
 
               {/* ilustración: elegís día por día */}
-              <div className="flex items-center gap-1.5 mb-5" style={{ color: `${C.cream}aa` }}>
-                <Ticket size={28} strokeWidth={1.5} />
-                <Plus size={13} style={{ color: C.gray }} />
-                <Ticket size={28} strokeWidth={1.5} />
-                <Plus size={13} style={{ color: C.gray }} />
-                <Ticket size={28} strokeWidth={1.5} />
+              <div className="flex items-center gap-1 mb-3" style={{ color: `${C.cream}aa` }}>
+                <Ticket size={20} strokeWidth={1.5} />
+                <Plus size={11} style={{ color: C.gray }} />
+                <Ticket size={20} strokeWidth={1.5} />
+                <Plus size={11} style={{ color: C.gray }} />
+                <Ticket size={20} strokeWidth={1.5} />
               </div>
 
-              <p className="text-[13px] mb-5" style={{ color: `${C.cream}cc`, lineHeight: 1.5 }}>
-                <strong style={{ color: C.cream }}>Elegí covers y lancha día por día.</strong> Máxima flexibilidad: pagás solo los días que vas a ir.
+              <p className="text-[11px] md:text-[13px] mb-3 flex-1" style={{ color: `${C.cream}cc`, lineHeight: 1.45 }}>
+                <strong style={{ color: C.cream }}>Elegí covers y lancha día por día.</strong> Máxima flexibilidad.
               </p>
 
-              <div className="flex items-baseline gap-2 mb-4">
-                <span className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.1em', fontWeight: 500 }}>Desde</span>
-                <span className="text-4xl md:text-5xl tabular-nums" style={{ fontFamily: "'Poiret One', sans-serif", color: C.cream, fontWeight: 300, letterSpacing: '-0.02em' }}>
+              <div className="flex items-baseline gap-1.5 mb-3 flex-wrap">
+                <span className="text-[9px] md:text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.1em', fontWeight: 500 }}>Desde</span>
+                <span className="text-2xl md:text-4xl tabular-nums" style={{ fontFamily: "'Poiret One', sans-serif", color: C.cream, fontWeight: 300, letterSpacing: '-0.02em' }}>
                   {fmtCOP(Math.min(...displayDays.map(d => d.price)))}
                 </span>
-                <span className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.1em', fontWeight: 500 }}>/ día + lancha</span>
+                <span className="text-[9px] md:text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.1em', fontWeight: 500 }}>/ día</span>
               </div>
 
-              <ul className="space-y-1.5 flex-1 mb-6">
-                {['Elegís qué días vas', 'Sin reserva mínima de combo', 'Cada día con su propio QR', 'Sumá la lancha si querés'].map((t, i) => (
-                  <li key={i} className="flex items-start gap-2 text-[12px]" style={{ color: `${C.cream}dd`, lineHeight: 1.4 }}>
-                    <Check size={13} style={{ color: C.red, flexShrink: 0, marginTop: 2 }} /> {t}
-                  </li>
-                ))}
-              </ul>
-
-              <div className="w-full py-3.5 text-center text-sm uppercase flex items-center justify-center gap-2"
-                style={{ background: 'rgba(255,255,255,0.06)', color: C.cream, border: '0.5px solid rgba(255,255,255,0.18)', borderRadius: '999px', letterSpacing: '0.18em', fontWeight: 700 }}>
-                Elegir días individuales <ChevronRight size={16} />
+              <div className="w-full py-2.5 md:py-3.5 text-center text-[10px] md:text-sm uppercase flex items-center justify-center gap-1.5"
+                style={{ background: C.cream, color: '#0a0a0a', borderRadius: '999px', letterSpacing: '0.1em', fontWeight: 800 }}>
+                Elegir días <ChevronRight size={14} />
               </div>
             </motion.button>
           </div>
