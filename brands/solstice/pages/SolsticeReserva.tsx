@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, ChevronRight, Loader2, Shield, CreditCard, CheckCircle2,
-  Ship, Calendar, Repeat, ListChecks, Star
+  Ship, Calendar, Repeat, ListChecks, Star, Check
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { buildWompiCheckoutUrl } from '../../../lib/wompi';
@@ -111,21 +111,23 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
   // Invitado por link de lancha: hereda la SEMANA y la LANCHA del líder, pero SÍ
   // elige el combo → arranca en la selección de combo (1), saltando solo la
   // selección de semana (0).
-  // Si llega con plan preelegido desde la principal (initialCombo) y además ya
-  // tiene semana, saltamos directo al siguiente paso del plan:
-  //   full_combo → lancha (2.7) · individual_days → días (1.5)
-  // Si trae plan pero NO semana, arranca en la selección de semana (0) y al
-  // elegirla salta el paso de combo (ver onClick de las semanas).
-  const comboNextStep = (ct?: ComboType | null) => (ct === 'individual_days' ? (1.5 as any) : (2.7 as any));
+  // Flujo: plan(1) → configura semana(2.7) → datos → resumen.
+  //  • Con plan preelegido desde la principal (initialCombo) → directo a config (2.7).
+  //  • Sin plan → arranca eligiendo plan (1).
+  //  • Invitado por link → arranca en plan (1), hereda semana/lancha.
   const [step, setStep]       = useState<number>(
     initialInviteCode ? 1
-      : initialWeek ? (initialCombo ? comboNextStep(initialCombo) : 1)
-      : 0
+      : initialCombo ? (2.7 as any)
+      : 1
   );
   const [selWeek, setSelWeek] = useState<SolsticeWeek | null>(
     initialWeek ? SOLSTICE_WEEKS_MOCK.find(w => w.university === initialWeek) || null : null
   );
-  const [mode, setMode]           = useState<PaymentMode | null>(initialCombo === 'individual_days' ? 'individual_days' : null);
+  const [mode, setMode]           = useState<PaymentMode | null>(
+    initialCombo === 'individual_days' ? 'individual_days'
+      : initialCombo === 'full_combo' ? 'full_combo'
+      : null
+  );
   const [comboType, setComboType] = useState<ComboType | null>(initialCombo ?? null);
   const [selDays, setSelDays]     = useState<number[]>([]);
   const [name, setName]           = useState('');
@@ -716,31 +718,31 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
     }
   };
 
-  // Orden nuevo (owner jun 2026): combo(1) → lancha(2.7) → forma de pago(1.4)
-  // → datos(2) → otp(2.5) → resumen(3) → pago(4) → confirmación(5).
-  // Días sueltos saltan forma de pago (sin cuotas).
+  // Orden simplificado (owner jun 2026, "como los mockups"):
+  //   plan(1) → configura semana(2.7: universidad + días + lancha)
+  //   → datos(2) → otp(2.5) → resumen+plan de pago(3) → pago(4) → confirmación(5).
+  // La forma de pago (único/fraccionado) se elige DENTRO del resumen.
   const goBack = () => {
     if      (step === 5)            onBack();
     else if (step === 4)            setStep(3);
     else if (step === 3)            setStep(currentCustomer ? 2 : (2.5 as any));
     else if (step === (2.5 as any)) setStep(2);
-    else if (step === 2)            setStep(isCombo ? (1.4 as any) : (includesBoat ? (2.7 as any) : (1.5 as any)));
-    else if (step === (1.4 as any)) setStep(2.7 as any);                 // forma de pago viene tras lancha
-    else if (step === (2.7 as any)) setStep(isCombo ? 1 : (1.5 as any)); // lancha viene tras combo/días
-    else if (step === (1.5 as any)) setStep(1);
-    // El invitado heredó la semana: desde combo (1) "atrás" sale de la reserva.
-    else if (step === 1 && isInvitee) onBack();
-    else if (step === 1)            setStep(0);
+    else if (step === 2)            setStep(2.7 as any);   // datos ← configura semana
+    else if (step === (1.4 as any)) setStep(2.7 as any);  // legacy
+    else if (step === (2.7 as any)) setStep(1);           // configura ← plan
+    else if (step === (1.5 as any)) setStep(1);           // legacy
+    // El invitado heredó la semana: desde plan (1) "atrás" sale de la reserva.
+    else if (step === 1)            onBack();
     else                            onBack();
   };
 
   const stepLabel = step === (2.7 as any)
-    ? 'Lancha'
+    ? 'Configura tu semana'
     : step === (1.4 as any)
       ? 'Forma de pago'
       : step === (1.5 as any)
         ? 'Días'
-        : ['Semana', 'Combo', 'Tus datos', '', 'Pago', '✓'][Math.min(Math.floor(step), 5)];
+        : ['Plan', 'Plan', 'Tus datos', 'Resumen', 'Pago', '✓'][Math.min(Math.floor(step), 5)];
   const stepNum   = Math.min(Math.floor(step), 5);
 
   // Shared style helpers
@@ -985,19 +987,15 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
                       <motion.button
                         whileTap={{ scale: 0.97 }}
                         onClick={() => {
-                          if (comboType === 'individual_days') {
-                            setMode('individual_days');
-                            setStep(1.5 as any);
-                          } else {
-                            // Combo: primero elige lancha, después forma de pago.
-                            if (mode === 'individual_days') setMode(null);
-                            setStep(2.7 as any);
-                          }
+                          // Modo por defecto según el plan; la forma de pago
+                          // (único/fraccionado) se confirma en el resumen.
+                          setMode(comboType === 'individual_days' ? 'individual_days' : 'full_combo');
+                          setStep(2.7 as any); // → configura tu semana (universidad + días + lancha)
                         }}
                         className="flex-shrink-0 px-7 py-4 text-sm uppercase flex items-center gap-3"
                         style={{ background: C.red, color: '#fff', letterSpacing: '0.2em', borderRadius: '999px', fontWeight: 600, boxShadow: '0 12px 32px rgba(230,57,47,0.45)' }}
                       >
-                        {comboType === 'individual_days' ? 'Elegir días' : 'Elegir lancha'}
+                        Configurar semana
                         <ChevronRight size={16} />
                       </motion.button>
                     </div>
@@ -1565,42 +1563,29 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
             <motion.div key="s2.7" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
               <div>
                 <p className="text-[10px] uppercase mb-2" style={{ letterSpacing: '0.4em', color: C.red, fontWeight: 600 }}>
-                  Día 3 · Lanchas + Beach Club
+                  Paso 2 · {boatChoice === 'join' ? 'Confirmá tu lancha' : `Configura tu ${isCombo ? 'plan total' : 'semana'}`}
                 </p>
                 <h2 className="text-3xl md:text-4xl uppercase mb-1" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.04em', fontWeight: 300 }}>
-                  {boatChoice === 'join' ? 'Te unís a una lancha' : 'Elegí tu lancha'}
+                  {boatChoice === 'join' ? 'Te unís a una lancha' : 'Configura tu semana'}
                 </h2>
-                <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>
-                  {boatChoice === 'join'
-                    ? 'Llegaste por un link de invitación · ya quedás en esa lancha'
-                    : 'Elegí tu lancha y al pagar te damos un link para invitar a tus amigos'}
-                </p>
+                {/* Chip de estado — qué falta configurar (universidad · lancha) */}
+                {boatChoice === 'lead' ? (
+                  <div className="mt-3 inline-flex flex-wrap items-center gap-3 px-3.5 py-2" style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.10)', borderRadius: '12px' }}>
+                    <span className="text-[9px] uppercase" style={{ color: C.gray, letterSpacing: '0.18em', fontWeight: 600 }}>Configurando:</span>
+                    <span className="text-[9px] uppercase flex items-center gap-1.5" style={{ color: selWeek ? C.red : C.gray, letterSpacing: '0.1em', fontWeight: 600 }}>
+                      {selWeek ? <Check size={11} /> : <span style={{ width: 5, height: 5, borderRadius: 999, border: `1px solid ${C.gray}` }} />} Universidad
+                    </span>
+                    <span className="text-[9px] uppercase flex items-center gap-1.5" style={{ color: selectedBoatId ? C.red : C.gray, letterSpacing: '0.1em', fontWeight: 600 }}>
+                      {selectedBoatId ? <Check size={11} /> : <span style={{ width: 5, height: 5, borderRadius: 999, border: `1px solid ${C.gray}` }} />} Lancha
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>
+                    Llegaste por un link de invitación · ya quedás en esa lancha
+                  </p>
+                )}
               </div>
 
-              {/* Descripción general de las lanchas (configurable por el admin) */}
-              {boatsIntro && boatChoice !== 'join' && (
-                <div className="p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.10)', borderRadius: '18px' }}>
-                  <p className="text-xs" style={{ color: `${C.cream}dd`, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{boatsIntro}</p>
-                </div>
-              )}
-
-              {/* Notas clave de la lancha — botellas incluidas + link de invitación */}
-              {boatChoice !== 'join' && (
-                <div className="p-4 space-y-2.5" style={{ background: 'rgba(230,57,47,0.08)', border: '0.5px solid rgba(230,57,47,0.30)', borderRadius: '18px' }}>
-                  <div className="flex items-start gap-2.5">
-                    <span className="flex-shrink-0" style={{ fontSize: 14 }}>🍾</span>
-                    <p className="text-[11px]" style={{ color: `${C.cream}dd`, lineHeight: 1.5 }}>
-                      El precio de la lancha <strong style={{ color: C.cream }}>incluye 2 botellas cada 5 personas</strong> en el Beach Club.
-                    </p>
-                  </div>
-                  <div className="flex items-start gap-2.5">
-                    <span className="flex-shrink-0" style={{ fontSize: 14 }}>🔗</span>
-                    <p className="text-[11px]" style={{ color: `${C.cream}dd`, lineHeight: 1.5 }}>
-                      Sé el <strong style={{ color: C.cream }}>primero de tu grupo</strong> en elegir lancha: apenas pagás, te damos un <strong style={{ color: C.cream }}>link</strong> para que tus amigos se unan a TU lancha.
-                    </p>
-                  </div>
-                </div>
-              )}
 
               {/* Invitado por link: card de confirmación (sin selección manual) */}
               {boatChoice === 'join' && (
@@ -1648,23 +1633,42 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
                 </div>
               )}
 
-              {/* Tu semana — selector compacto junto a las lanchas (una sola
-                  pantalla: universidad + lanchas, como pidió el owner). */}
-              {boatChoice === 'lead' && weeks.length > 1 && (
+              {/* 1) Universidad y fecha — filas compactas (logo box U1/U2/U3 +
+                  semana + fechas), como el mockup "Configura tu semana". */}
+              {boatChoice === 'lead' && (
                 <div>
-                  <p className="text-[10px] uppercase mb-2" style={{ color: C.gray, letterSpacing: '0.25em', fontWeight: 600 }}>Tu semana</p>
-                  <div className="flex flex-wrap gap-2">
-                    {weeks.map(w => {
+                  <p className="text-sm uppercase mb-3" style={{ color: C.cream, letterSpacing: '0.12em', fontWeight: 600 }}>
+                    <span style={{ color: C.red }}>1)</span> Seleccioná tu universidad y fecha
+                  </p>
+                  <div className="space-y-2">
+                    {weeks.map((w, i) => {
                       const wsel = selWeek?.id === w.id;
+                      const cap  = Number(w.capacity) || 0;
+                      const left = Math.max(0, cap - (Number(w.reserved) || 0));
                       return (
-                        <button key={w.id} type="button" onClick={() => setSelWeek(w)}
-                          className="px-3.5 py-2 text-[10px] uppercase"
+                        <button key={w.id} type="button"
+                          onClick={() => { setSelWeek(w); setSelectedBoatId(null); }}
+                          className="w-full p-3 flex items-center gap-3 text-left"
                           style={{
-                            background: wsel ? 'rgba(230,57,47,0.18)' : 'rgba(255,255,255,0.04)',
-                            border: `0.5px solid ${wsel ? 'rgba(230,57,47,0.50)' : 'rgba(255,255,255,0.10)'}`,
-                            color: wsel ? C.red : C.gray, borderRadius: '999px', fontWeight: 600, letterSpacing: '0.08em',
+                            borderRadius: '14px',
+                            background: wsel ? 'rgba(230,57,47,0.10)' : 'rgba(255,255,255,0.04)',
+                            border: `0.5px solid ${wsel ? 'rgba(230,57,47,0.55)' : 'rgba(255,255,255,0.10)'}`,
+                            transition: 'all 0.25s ease',
                           }}>
-                          {w.university}
+                          <div className="w-11 h-11 flex items-center justify-center flex-shrink-0"
+                            style={{ borderRadius: '11px', background: wsel ? C.red : 'rgba(255,255,255,0.06)', color: wsel ? C.cream : C.gray, fontWeight: 700 }}>
+                            <span className="text-[12px]">{`U${i + 1}`}</span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[12px] uppercase truncate" style={{ color: C.cream, letterSpacing: '0.06em', fontWeight: 600 }}>{w.university}</p>
+                            <p className="text-[9px] uppercase" style={{ color: cap > 0 && left <= 20 ? C.red : C.gray, letterSpacing: '0.08em', fontWeight: 500 }}>
+                              {new Date(w.start_date).toLocaleDateString('es-CO', { month: 'short', day: 'numeric' })} — {new Date(w.end_date).toLocaleDateString('es-CO', { month: 'short', day: 'numeric' })}
+                              {cap > 0 && left <= 20 ? ` · ¡Solo ${left}!` : ''}
+                            </p>
+                          </div>
+                          {wsel
+                            ? <Check size={16} style={{ color: C.red, flexShrink: 0 }} />
+                            : <ChevronRight size={15} style={{ color: C.gray, flexShrink: 0 }} />}
                         </button>
                       );
                     })}
@@ -1672,9 +1676,74 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
                 </div>
               )}
 
-              {/* Líder: catálogo de lanchas */}
-              {boatChoice === 'lead' && (
+              {/* 2) Días — solo "arma tu propia semana"; el combo incluye todos */}
+              {boatChoice === 'lead' && comboType === 'individual_days' && selWeek && (
+                <div>
+                  <p className="text-sm uppercase mb-3" style={{ color: C.cream, letterSpacing: '0.12em', fontWeight: 600 }}>
+                    <span style={{ color: C.red }}>2)</span> Elegí los días que vas
+                  </p>
+                  <div className="space-y-2">
+                    {weekDays.map(day => {
+                      const selected = selDays.includes(day.day);
+                      return (
+                        <button key={day.day} type="button"
+                          onClick={() => setSelDays(prev => selected ? prev.filter(d => d !== day.day) : [...prev, day.day])}
+                          className="w-full p-3.5 flex items-center gap-3 text-left"
+                          style={{
+                            borderRadius: '14px',
+                            background: selected ? 'rgba(230,57,47,0.08)' : 'rgba(255,255,255,0.04)',
+                            border: `0.5px solid ${selected ? 'rgba(230,57,47,0.50)' : 'rgba(255,255,255,0.10)'}`,
+                            transition: 'all 0.25s ease',
+                          }}>
+                          <div className="w-9 h-9 rounded-full flex items-center justify-center border-2 flex-shrink-0"
+                            style={selected ? { background: C.red, borderColor: C.red } : { borderColor: `${C.gray}50` }}>
+                            {day.highlight
+                              ? <Ship size={14} style={{ color: selected ? C.cream : C.gray }} />
+                              : <span className="text-[11px]" style={{ color: selected ? C.cream : C.gray }}>{day.day}</span>}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[12px] uppercase" style={{ color: day.highlight ? C.red : C.cream, letterSpacing: '0.06em', fontWeight: 600 }}>{day.title}</p>
+                            <p className="text-[9px]" style={{ color: C.gray }}>{day.subtitle}</p>
+                          </div>
+                          <p className="text-[11px]" style={{ color: selected ? C.red : C.gray, fontWeight: 600 }}>
+                            {day.day === 3 ? `desde ${fmtCOP(cheapestBoatPrice || day.price)}` : fmtCOP(day.price)}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* N) Lancha — catálogo. Para días sueltos solo aplica si va el día 3. */}
+              {boatChoice === 'lead' && selWeek && includesBoat && (
                 <div className="space-y-3">
+                  <p className="text-sm uppercase mb-1" style={{ color: C.cream, letterSpacing: '0.12em', fontWeight: 600 }}>
+                    <span style={{ color: C.red }}>{isCombo ? '2)' : '3)'}</span> Seleccioná tu lancha <span style={{ color: C.gray, fontWeight: 400 }}>· día 3</span>
+                  </p>
+
+                  {/* Descripción general de las lanchas (configurable por el admin) */}
+                  {boatsIntro && (
+                    <div className="p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.10)', borderRadius: '18px' }}>
+                      <p className="text-xs" style={{ color: `${C.cream}dd`, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{boatsIntro}</p>
+                    </div>
+                  )}
+
+                  {/* Notas clave — botellas incluidas + link de invitación */}
+                  <div className="p-4 space-y-2.5" style={{ background: 'rgba(230,57,47,0.08)', border: '0.5px solid rgba(230,57,47,0.30)', borderRadius: '18px' }}>
+                    <div className="flex items-start gap-2.5">
+                      <span className="flex-shrink-0" style={{ fontSize: 14 }}>🍾</span>
+                      <p className="text-[11px]" style={{ color: `${C.cream}dd`, lineHeight: 1.5 }}>
+                        El precio de la lancha <strong style={{ color: C.cream }}>incluye 2 botellas cada 5 personas</strong> en el Beach Club.
+                      </p>
+                    </div>
+                    <div className="flex items-start gap-2.5">
+                      <span className="flex-shrink-0" style={{ fontSize: 14 }}>🔗</span>
+                      <p className="text-[11px]" style={{ color: `${C.cream}dd`, lineHeight: 1.5 }}>
+                        Sé el <strong style={{ color: C.cream }}>primero de tu grupo</strong> en elegir lancha: apenas pagás, te damos un <strong style={{ color: C.cream }}>link</strong> para que tus amigos se unan a TU lancha.
+                      </p>
+                    </div>
+                  </div>
                   {boats.length === 0 ? (
                     <div className="p-6 text-center" style={{
                       borderRadius: '20px',
@@ -1834,15 +1903,26 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
                   Si todas las lanchas están llenas (lead), se puede avanzar sin
                   selección (el equipo asigna después) para no bloquear la venta. */}
               {(() => {
-                const canAdvanceLead = !!selectedBoatId || (boats.length === 0) || allBoatsFull;
+                // Para avanzar (lead): universidad elegida + (días sueltos: al menos
+                // 1 día). La lancha NO es obligatoria si todas están llenas o si no
+                // va el día 3 — el equipo asigna después.
+                const daysOk = isCombo || selDays.length > 0;
+                const boatOk = !selWeek || !includesBoat
+                  ? true
+                  : (!!selectedBoatId || boats.length === 0 || allBoatsFull);
+                const canAdvanceLead = !!selWeek && daysOk && boatOk;
                 const ready = boatChoice === 'join' ? !!boatReservationId : canAdvanceLead;
-                const selBoatName = boats.find(b => b.id === selectedBoatId)?.name;
+                const hint = !selWeek ? 'Elegí tu universidad'
+                  : (!daysOk ? 'Elegí al menos un día' : null);
                 return (
               <div style={{ position: 'sticky', bottom: 0, zIndex: 20, paddingTop: '20px', paddingBottom: '10px', marginTop: '4px', background: 'linear-gradient(to top, #0a0000 62%, rgba(10,0,0,0))' }}>
+              {hint && boatChoice === 'lead' && (
+                <p className="text-[10px] uppercase text-center mb-2" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>{hint}</p>
+              )}
               <button
                 onClick={() => {
                   if (!ready) return;
-                  setStep(isCombo ? (1.4 as any) : 2);
+                  setStep(2);
                 }}
                 disabled={!ready}
                 style={{
@@ -1861,9 +1941,7 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
                   (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none';
                 }}
               >
-                {selBoatName && boatChoice === 'lead'
-                  ? `Continuar con ${selBoatName}`
-                  : (isCombo ? 'Cómo pagar' : 'Continuar al resumen')} <ChevronRight size={16} />
+                Ir al resumen y pago <ChevronRight size={16} />
               </button>
               </div>
                 );
@@ -1875,9 +1953,73 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
           {step === 3 && (
             <motion.div key="s3" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
               <div>
-                <h2 className="text-3xl uppercase mb-1" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.08em', fontWeight: 300 }}>Resumen</h2>
-                <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>Confirma antes de pagar</p>
+                <p className="text-[10px] uppercase mb-2" style={{ letterSpacing: '0.4em', color: C.red, fontWeight: 600 }}>
+                  Paso 3 · Resumen y {isInstallmentMode ? 'reserva' : 'pago'}
+                </p>
+                <h2 className="text-3xl md:text-4xl uppercase mb-1" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.04em', fontWeight: 300 }}>
+                  {isCombo ? 'Tu Plan Total' : 'Tus días elegidos'}
+                </h2>
               </div>
+
+              {/* ── Detalles de lo que incluye (como el mockup) ── */}
+              <div className="p-5 space-y-3.5" style={{
+                borderRadius: '24px',
+                background: 'rgba(230,57,47,0.05)',
+                border: '0.5px solid rgba(230,57,47,0.30)',
+              }}>
+                <p className="text-[11px] uppercase" style={{ letterSpacing: '0.25em', color: C.red, fontWeight: 700 }}>
+                  {isCombo ? 'Detalles del Plan Total' : 'Resumen de tu selección'}
+                </p>
+                {isCombo ? (
+                  [
+                    [<Ship size={17} style={{ color: C.red }} />, 'Recorrido en lancha VIP & sonido pro', 'Fiesta en lancha con plataforma de audio premium'],
+                    [<Calendar size={17} style={{ color: C.red }} />, 'Acceso completo a los 5 eventos', 'Clubes exclusivos + Beach Club Boat Party'],
+                    [<span style={{ fontSize: 15 }}>🍾</span>, 'Cortesía de 2 botellas (por cada 5 personas)', 'Válido para tu grupo en el Beach Club'],
+                  ].map(([icon, title, sub], i) => (
+                    <div key={i} className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(230,57,47,0.12)' }}>{icon as React.ReactNode}</div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] uppercase" style={{ color: C.cream, letterSpacing: '0.04em', fontWeight: 600, lineHeight: 1.3 }}>{title as string}</p>
+                        <p className="text-[10px] mt-0.5" style={{ color: C.gray, lineHeight: 1.4 }}>{sub as string}</p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="space-y-2">
+                    {selDays.slice().sort((a, b) => a - b).map(dn => {
+                      const d = weekDays.find(x => x.day === dn);
+                      return (
+                        <div key={dn} className="flex items-center gap-3">
+                          <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: dn === 3 ? C.red : 'rgba(255,255,255,0.06)' }}>
+                            {dn === 3 ? <Ship size={13} style={{ color: C.cream }} /> : <span className="text-[10px]" style={{ color: C.cream }}>{dn}</span>}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[12px] uppercase" style={{ color: dn === 3 ? C.red : C.cream, letterSpacing: '0.04em', fontWeight: 600 }}>
+                              Día {dn} · {d?.title || ''}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {selDays.includes(3) && (
+                      <p className="text-[10px] pt-1" style={{ color: C.gray, lineHeight: 1.5 }}>
+                        Incluye el cupo en el Bote & Beach Club con audio premium y botellas de cortesía (por cada 5 personas).
+                      </p>
+                    )}
+                  </div>
+                )}
+                <div className="pt-2 flex flex-wrap gap-x-4 gap-y-1" style={{ borderTop: '0.5px solid rgba(255,255,255,0.08)' }}>
+                  <span className="text-[10px] uppercase pt-2" style={{ color: C.gray, letterSpacing: '0.1em' }}>
+                    Semana: <strong style={{ color: C.cream }}>{selWeek?.university}</strong>
+                  </span>
+                  {includesBoat && selectedBoatId && (
+                    <span className="text-[10px] uppercase pt-2" style={{ color: C.gray, letterSpacing: '0.1em' }}>
+                      Lancha: <strong style={{ color: C.cream }}>{boats.find(b => b.id === selectedBoatId)?.name || 'Seleccionada'}</strong>
+                    </span>
+                  )}
+                </div>
+              </div>
+
               <div className="space-y-3 p-6" style={{
                 borderRadius: '28px',
                 background: 'rgba(255,255,255,0.03)',
@@ -1887,14 +2029,8 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
               }}>
                 {/* Datos informativos */}
                 {([
-                  ['Semana',    selWeek?.university],
-                  ['Modalidad', MODES.find(m => m.id === mode)?.label],
                   ['Nombre',    name],
                   ['Email',     email],
-                  comboType === 'individual_days' ? ['Días', selDays.map(d => `Día ${d}`).join(', ')] : null,
-                  includesBoat && selectedBoatId
-                    ? ['Lancha', boats.find(b => b.id === selectedBoatId)?.name || 'Seleccionada']
-                    : null,
                   includesBoat && boatChoice === 'lead'
                     ? ['Rol lancha', 'Líder (te damos link para invitar)']
                     : includesBoat && boatChoice === 'join'
@@ -1909,15 +2045,18 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
                     </div>
                   ))}
 
-                {/* ── Desglose de precio ──────────────────────────────────── */}
-                <div className="pt-4 mt-2 space-y-2" style={{ borderTop: '0.5px solid rgba(255,255,255,0.10)' }}>
+                {/* ── Tabla Concepto / Valor (COP) ───────────────────────── */}
+                <div className="flex justify-between text-[10px] uppercase pb-1" style={{ letterSpacing: '0.15em', color: C.gray, fontWeight: 600, borderBottom: '0.5px solid rgba(255,255,255,0.10)' }}>
+                  <span>Concepto</span><span>Valor (COP)</span>
+                </div>
+                <div className="space-y-2 pt-1">
                   <div className="flex justify-between text-xs uppercase" style={{ letterSpacing: '0.1em', fontWeight: 500 }}>
-                    <span style={{ color: C.gray }}>{isCombo ? 'Combo de fiestas' : `Días sueltos (${selDays.length})`}</span>
+                    <span style={{ color: C.gray }}>{isCombo ? 'Covers a clubes premium' : `Covers (${selDays.length} días)`}</span>
                     <span style={{ color: C.cream }}>{fmtCOP((isCombo ? weekCombo : dayTotal))}</span>
                   </div>
                   {boatPart > 0 && (
                     <div className="flex justify-between text-xs uppercase" style={{ letterSpacing: '0.1em', fontWeight: 500 }}>
-                      <span style={{ color: C.gray }}>Lancha (tu parte)</span>
+                      <span style={{ color: C.gray }}>Experiencia Bote & Beach Club</span>
                       <span style={{ color: C.cream }}>{fmtCOP(boatPart)}</span>
                     </div>
                   )}
@@ -1937,21 +2076,29 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
                   </div>
                 </div>
 
-                {/* Plan de pago — días sueltos: la opción de reservar con adelanto
-                    se ACTIVA solo si el total llega a $200.000 (regla del owner). */}
-                {comboType === 'individual_days' && grandTotal >= 200000 && (
-                  <div className="pt-3 mt-1 space-y-2" style={{ borderTop: '0.5px solid rgba(255,255,255,0.10)' }}>
-                    <p className="text-[10px] uppercase" style={{ letterSpacing: '0.3em', color: C.red, fontWeight: 600 }}>Plan de pago</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button type="button" onClick={() => setMode('individual_days')}
-                        className="p-3 text-left" style={{ borderRadius: '14px', background: !isInstallmentMode ? 'rgba(230,57,47,0.12)' : 'rgba(255,255,255,0.04)', border: `0.5px solid ${!isInstallmentMode ? 'rgba(230,57,47,0.5)' : 'rgba(255,255,255,0.10)'}` }}>
-                        <p className="text-[11px] uppercase" style={{ color: C.cream, fontWeight: 600 }}>Pago único</p>
-                        <p className="text-[10px] mt-0.5" style={{ color: C.gray }}>{fmtCOP(grandTotal)} hoy</p>
+                {/* Seleccioná tu plan de pago — fraccionado disponible desde $200.000.
+                    Pago único = cobra el total hoy; fraccionado = adelanto + cuotas. */}
+                {grandTotal >= 200000 && (
+                  <div className="pt-4 mt-1 space-y-3" style={{ borderTop: '0.5px solid rgba(255,255,255,0.10)' }}>
+                    <p className="text-[11px] uppercase text-center" style={{ letterSpacing: '0.25em', color: C.red, fontWeight: 700 }}>Seleccioná tu plan de pago</p>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {/* Pago único */}
+                      <button type="button" onClick={() => setMode(isCombo ? 'full_combo' : 'individual_days')}
+                        className="p-4 text-left relative" style={{ borderRadius: '16px', background: !isInstallmentMode ? 'rgba(230,57,47,0.12)' : 'rgba(255,255,255,0.04)', border: `0.5px solid ${!isInstallmentMode ? 'rgba(230,57,47,0.55)' : 'rgba(255,255,255,0.10)'}` }}>
+                        {!isInstallmentMode && <CheckCircle2 size={15} style={{ color: C.red, position: 'absolute', top: 12, right: 12 }} />}
+                        <p className="text-[12px] uppercase" style={{ color: C.cream, fontWeight: 700, letterSpacing: '0.05em' }}>Pago único</p>
+                        <p className="text-[11px] mt-1" style={{ color: C.red, fontWeight: 600 }}>{fmtCOP(grandTotal)}</p>
+                        <p className="text-[9px] mt-1.5" style={{ color: C.gray, lineHeight: 1.4 }}>Garantizás todo con un solo pago hoy.</p>
                       </button>
+                      {/* Pago fraccionado */}
                       <button type="button" onClick={() => setMode('manual_monthly')}
-                        className="p-3 text-left" style={{ borderRadius: '14px', background: isInstallmentMode ? 'rgba(230,57,47,0.12)' : 'rgba(255,255,255,0.04)', border: `0.5px solid ${isInstallmentMode ? 'rgba(230,57,47,0.5)' : 'rgba(255,255,255,0.10)'}` }}>
-                        <p className="text-[11px] uppercase" style={{ color: C.cream, fontWeight: 600 }}>Fraccionado</p>
-                        <p className="text-[10px] mt-0.5" style={{ color: C.gray }}>Reservá con {fmtCOP(s.entry_price)}</p>
+                        className="p-4 text-left relative" style={{ borderRadius: '16px', background: isInstallmentMode ? 'rgba(230,57,47,0.12)' : 'rgba(255,255,255,0.04)', border: `0.5px solid ${isInstallmentMode ? 'rgba(230,57,47,0.55)' : 'rgba(255,255,255,0.10)'}` }}>
+                        {isInstallmentMode && <CheckCircle2 size={15} style={{ color: C.red, position: 'absolute', top: 12, right: 12 }} />}
+                        <p className="text-[12px] uppercase" style={{ color: C.cream, fontWeight: 700, letterSpacing: '0.05em' }}>Fraccionado</p>
+                        <p className="text-[11px] mt-1" style={{ color: C.red, fontWeight: 600 }}>Reservá con {fmtCOP(s.entry_price)}</p>
+                        <p className="text-[9px] mt-1.5" style={{ color: C.gray, lineHeight: 1.4 }}>
+                          + {effectiveInstallments} {effectiveInstallments === 1 ? 'cuota' : 'cuotas'} de {fmtCOP(installmentBase / effectiveInstallments)}.
+                        </p>
                       </button>
                     </div>
                   </div>
@@ -1998,7 +2145,7 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
                   (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none';
                 }}
               >
-                {processing ? <Loader2 className="animate-spin" /> : <><Shield size={16} /> Ir a pagar {fmtCOP(chargeNow)}</>}
+                {processing ? <Loader2 className="animate-spin" /> : <><Shield size={16} /> {isInstallmentMode ? 'Confirmar reserva con' : 'Confirmar y pagar'} {fmtCOP(chargeNow)}</>}
               </button>
               {reserveError && (
                 <p className="text-xs text-center mt-3" style={{ color: C.red, fontWeight: 500, lineHeight: 1.5 }}>
