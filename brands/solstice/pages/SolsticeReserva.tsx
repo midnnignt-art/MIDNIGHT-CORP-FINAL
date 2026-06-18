@@ -398,6 +398,12 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
     }
   }, [comboType, grandTotal, mode]);
 
+  // Cada vez que cambia el paso, volver al tope — si no, el nuevo paso aparece
+  // scrolleado abajo (quejas de "me manda abajo al pasar de paso").
+  useEffect(() => {
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'auto' });
+  }, [step]);
+
   // Prefill auth if customer is already logged in (not staff — staff skips OTP in handleRequestOtp)
   useEffect(() => {
     if (currentCustomer && !currentUser) {
@@ -782,8 +788,13 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
   return (
     <div style={{ background: C.bg, minHeight: '100vh', color: C.cream, fontFamily: "'Archivo', sans-serif" }}>
 
-      {/* Progress header */}
-      <div className="sticky top-0 z-10 px-6 py-4 flex items-center gap-4" style={{ background: C.bg, borderBottom: '0.5px solid rgba(255,255,255,0.08)' }}>
+      {/* Espaciador — el logo MIDNIGHT está fixed en top ~2.5rem; sin esto el
+          header del reserva queda debajo del logo y se corta la info. */}
+      <div aria-hidden style={{ height: 'calc(4rem + env(safe-area-inset-top, 0px))' }} />
+
+      {/* Progress header — sticky JUSTO debajo del logo (no en top:0) */}
+      <div className="sticky z-10 px-6 py-4 flex items-center gap-4"
+        style={{ top: 'calc(4rem + env(safe-area-inset-top, 0px))', background: C.bg, borderBottom: '0.5px solid rgba(255,255,255,0.08)' }}>
         {step > 0 && step < 5 && (
           <button onClick={goBack} className="p-2 rounded-full transition-colors" style={{ color: C.gray }}
             onMouseEnter={e => (e.currentTarget.style.color = C.cream)} onMouseLeave={e => (e.currentTarget.style.color = C.gray)}>
