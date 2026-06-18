@@ -223,7 +223,8 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
         const { data } = await supabase
           .from('solstice_boat_reservations')
           .select('boat_id, slots_claimed, status, week_id')
-          .neq('status', 'cancelled');
+          .neq('status', 'cancelled')
+          .neq('status', 'pending_payment'); // sin pagar → no ocupa cupo
         if (!data || !mounted) return;
         setBoatReservationsRaw(data as any);
       } catch {}
@@ -621,7 +622,10 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
               invite_code:            code,
               total_capacity:         capacity,
               slots_claimed:          1,
-              status:                 'open',
+              // 'pending_payment' = aún NO cuenta como ocupada. Un trigger la pasa
+              // a 'open' cuando el registro queda pagado (status='active'). Así una
+              // lancha NO aparece reservada si el cliente no pagó.
+              status:                 'pending_payment',
               // La reserva pertenece a ESTA semana → la ocupación del yate se
               // cuenta por semana (un yate lleno en una semana no bloquea otras).
               week_id:                weekData?.id || null,
@@ -788,13 +792,11 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
   return (
     <div style={{ background: C.bg, minHeight: '100vh', color: C.cream, fontFamily: "'Archivo', sans-serif" }}>
 
-      {/* Espaciador — el logo MIDNIGHT está fixed en top ~2.5rem; sin esto el
-          header del reserva queda debajo del logo y se corta la info. */}
-      <div aria-hidden style={{ height: 'calc(4rem + env(safe-area-inset-top, 0px))' }} />
-
-      {/* Progress header — sticky JUSTO debajo del logo (no en top:0) */}
-      <div className="sticky z-10 px-6 py-4 flex items-center gap-4"
-        style={{ top: 'calc(4rem + env(safe-area-inset-top, 0px))', background: C.bg, borderBottom: '0.5px solid rgba(255,255,255,0.08)' }}>
+      {/* Progress header — sticky en top:0 con fondo opaco ALTO: el padding-top
+          empuja su texto debajo del logo MIDNIGHT (fixed ~2.5rem) y el fondo negro
+          tapa cualquier contenido que suba al hacer scroll (antes se cruzaba). */}
+      <div className="sticky top-0 z-[60] px-6 pb-4 flex items-center gap-4"
+        style={{ paddingTop: 'calc(4.25rem + env(safe-area-inset-top, 0px))', background: C.bg, borderBottom: '0.5px solid rgba(255,255,255,0.08)' }}>
         {step > 0 && step < 5 && (
           <button onClick={goBack} className="p-2 rounded-full transition-colors" style={{ color: C.gray }}
             onMouseEnter={e => (e.currentTarget.style.color = C.cream)} onMouseLeave={e => (e.currentTarget.style.color = C.gray)}>
