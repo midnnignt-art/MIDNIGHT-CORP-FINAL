@@ -12,6 +12,11 @@ import { signInWithGoogle } from '../lib/oauth';
 
 const TURNSTILE_ENABLED = !!(import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined);
 
+// Google OAuth: dejar en false mientras el proveedor Google no esté habilitado en
+// Supabase Auth (si no, "Continuar con Google" redirige a un error 400). Poner en
+// true una vez configuradas las credenciales de Google Cloud en Supabase.
+const GOOGLE_OAUTH_ENABLED = false;
+
 export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage: string; }> = ({ onNavigate, currentPage }) => {
   const { currentUser, login, logout, dbStatus, requestCustomerOtp, verifyOtpUnified, currentCustomer, customerLogout } = useStore();
   
@@ -323,22 +328,29 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
                             <ValueBullet icon={<TrendingUp size={11} />}>Beneficios que suben con cada evento</ValueBullet>
                         </ul>
 
-                        {/* Google OAuth */}
-                        <button
-                            onClick={handleGoogleSignIn}
-                            disabled={isLoading}
-                            className="w-full h-12 md:h-14 bg-white text-black font-bold text-sm rounded-xl md:rounded-2xl flex items-center justify-center gap-2.5 hover:bg-zinc-100 transition-colors disabled:opacity-50 mb-3"
-                        >
-                            <GoogleGlyph />
-                            <span>Continuar con Google</span>
-                        </button>
+                        {/* Google OAuth — OCULTO hasta habilitar el proveedor Google en
+                            Supabase Auth (requiere credenciales de Google Cloud). Mientras
+                            tanto se entra por email/OTP, que sí funciona. Para reactivar:
+                            poné GOOGLE_OAUTH_ENABLED = true. */}
+                        {GOOGLE_OAUTH_ENABLED && (
+                          <>
+                            <button
+                                onClick={handleGoogleSignIn}
+                                disabled={isLoading}
+                                className="w-full h-12 md:h-14 bg-white text-black font-bold text-sm rounded-xl md:rounded-2xl flex items-center justify-center gap-2.5 hover:bg-zinc-100 transition-colors disabled:opacity-50 mb-3"
+                            >
+                                <GoogleGlyph />
+                                <span>Continuar con Google</span>
+                            </button>
 
-                        {/* Divider */}
-                        <div className="flex items-center gap-3 my-4">
-                            <div className="flex-1 h-px bg-moonlight/10" />
-                            <span className="text-[9px] font-bold tracking-[0.3em] text-moonlight/30 uppercase">o</span>
-                            <div className="flex-1 h-px bg-moonlight/10" />
-                        </div>
+                            {/* Divider */}
+                            <div className="flex items-center gap-3 my-4">
+                                <div className="flex-1 h-px bg-moonlight/10" />
+                                <span className="text-[9px] font-bold tracking-[0.3em] text-moonlight/30 uppercase">o</span>
+                                <div className="flex-1 h-px bg-moonlight/10" />
+                            </div>
+                          </>
+                        )}
 
                         <form onSubmit={handleEmailSubmit} className="space-y-3">
                             <Input
