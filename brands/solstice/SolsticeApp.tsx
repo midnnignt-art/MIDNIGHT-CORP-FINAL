@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
 import SolsticeNav, { SolsticePage } from './components/SolsticeNav';
 import SolsticeSplash from './components/SolsticeSplash';
-import MagicPanel from '../../components/MagicPanel';
+import SolsticeLogin from './components/SolsticeLogin';
 import SolsticeLanding from './pages/SolsticeLanding';
 import SolsticeReserva from './pages/SolsticeReserva';
 import SolsticeAdminConfig from './pages/SolsticeAdminConfig';
@@ -313,9 +313,13 @@ export default function SolsticeApp({ onExit, userRole, userName = '' }: Props) 
           onLogin={role === 'buyer' ? () => setLoginOpen(true) : undefined}
         />
 
-        {/* Login (magic link / OTP) — antes solo existía en Midnight; ahora se
-            puede iniciar sesión sin salir de Solstice. */}
-        <MagicPanel isOpen={loginOpen} onClose={() => setLoginOpen(false)} />
+        {/* Login de COMPRADOR Solstice — email + OTP. Al entrar, va a Mi Semana.
+            (Antes abría el MagicPanel de Midnight por error → "gestión de imágenes".) */}
+        <SolsticeLogin
+          isOpen={loginOpen}
+          onClose={() => setLoginOpen(false)}
+          onSuccess={() => { setLoginOpen(false); setPage('buyer'); }}
+        />
 
         {/* Botón Volver — visible en todas las sub-páginas excepto landing.
             Usa history.back() para que el browser back también funcione natural. */}
