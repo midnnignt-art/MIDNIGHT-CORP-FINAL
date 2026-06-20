@@ -166,7 +166,7 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
 
     {/* UNIFIED NAVIGATION MENU OVERLAY (Minimalist Floating) */}
     {menuOpen && (
-        <div className="fixed inset-0 z-[90] flex justify-end p-4 md:p-8 pointer-events-none">
+        <div className="fixed inset-0 z-[90] flex justify-end items-start p-4 md:p-8 pointer-events-none">
             {/* Backdrop for closing — más oscuro para que el menú no se mezcle
                 con el contenido en mobile (donde no hay backdrop-blur) */}
             <div
@@ -176,8 +176,8 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
 
             {/* Drawer con fondo casi sólido (bg-void/98) para no depender del
                 backdrop-blur, que está desactivado en mobile por el fix de flicker. */}
-            <div className="relative w-full max-w-[280px] h-fit bg-[#0B0316]/98 backdrop-blur-3xl border border-white/10 rounded-[1.5rem] shadow-[0_30px_60px_rgba(0,0,0,0.8)] pointer-events-auto flex flex-col overflow-hidden animate-in slide-in-from-right-5 fade-in duration-700">
-                <div className="flex justify-between items-center p-5 border-b border-white/5">
+            <div className="relative w-full max-w-[280px] max-h-[calc(100dvh-2rem)] bg-[#0B0316]/98 backdrop-blur-3xl border border-white/10 rounded-[1.5rem] shadow-[0_30px_60px_rgba(0,0,0,0.8)] pointer-events-auto flex flex-col overflow-hidden animate-in slide-in-from-right-5 fade-in duration-700">
+                <div className="flex justify-between items-center p-5 border-b border-white/5 flex-shrink-0">
                      <div className="flex flex-col">
                         <span className="text-base font-black tracking-tighter text-white">MIDNIGHT</span>
                         <span className="text-[5px] font-light tracking-[0.6em] text-moonlight/20 uppercase">Worldwide</span>
@@ -187,7 +187,7 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
                      </button>
                 </div>
                 
-                <div className="p-3 space-y-0.5">
+                <div className="p-3 space-y-0.5 flex-1 min-h-0 overflow-y-auto">
                     {/* Volver al portal — entrada al sistema solar */}
                     <button
                         onClick={() => handleNavigateAction('portal')}
@@ -258,7 +258,7 @@ export const Navbar: React.FC<{ onNavigate: (page: string) => void; currentPage:
                     )}
                 </div>
 
-                <div className="p-5 bg-white/[0.01] border-t border-white/5">
+                <div className="p-5 bg-white/[0.01] border-t border-white/5 flex-shrink-0">
                     {(currentUser || currentCustomer) ? (
                         <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-3 min-w-0">
