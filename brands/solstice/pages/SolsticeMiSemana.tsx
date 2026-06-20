@@ -53,7 +53,30 @@ function DigitalTicket({ reg }: { reg: Registration }) {
   const ticketRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
 
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&bgcolor=0d0d0d&color=E6392F&data=${encodeURIComponent(reg.order_number)}`;
+  // QR rotativo anti-reventa: pide al server un token firmado cada 25s. El token
+  // caduca a los ~90s, así un screenshot reenviado a otra persona NO sirve.
+  // Si el server no responde, cae al order_number estático (la puerta nunca se
+  // traba — el bouncer igual valida ese formato).
+  const [qrData, setQrData] = useState<string>(reg.order_number);
+  useEffect(() => {
+    let alive = true;
+    const refresh = async () => {
+      try {
+        const { data, error } = await supabase.rpc('solstice_qr_token', { p_registration_id: reg.id });
+        if (!alive) return;
+        setQrData(!error && typeof data === 'string' && data ? data : reg.order_number);
+      } catch { if (alive) setQrData(reg.order_number); }
+    };
+    refresh();
+    const iv = setInterval(refresh, 25000);
+    // Refrescar también al volver a la pestaña (evita QR vencido tras tener el
+    // celular en el bolsillo justo antes de llegar a la puerta).
+    const onVis = () => { if (document.visibilityState === 'visible') refresh(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => { alive = false; clearInterval(iv); document.removeEventListener('visibilitychange', onVis); };
+  }, [reg.id, reg.order_number]);
+
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&bgcolor=0d0d0d&color=E6392F&data=${encodeURIComponent(qrData)}`;
 
   const downloadTicket = async () => {
     if (!ticketRef.current) return;
