@@ -784,14 +784,14 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
               </div>
 
               <p className="text-[11px] md:text-[13px] mb-3 flex-1" style={{ color: `${C.cream}cc`, lineHeight: 1.45 }}>
-                <strong style={{ color: C.cream }}>Covers para los 5 eventos + lancha.</strong> La forma más económica.
+                <strong style={{ color: C.cream }}>Covers para los 5 días.</strong> La experiencia completa de Solstice en una sola reserva.
               </p>
 
               <div className="flex items-baseline gap-1.5 mb-3 flex-wrap">
                 <span className="text-2xl md:text-4xl tabular-nums" style={{ fontFamily: "'Poiret One', sans-serif", color: C.cream, fontWeight: 300, letterSpacing: '-0.02em' }}>
                   {comboCOP}
                 </span>
-                <span className="text-[9px] md:text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.1em', fontWeight: 500 }}>+ lancha</span>
+                <span className="text-[9px] md:text-xs uppercase" style={{ color: C.cream, letterSpacing: '0.1em', fontWeight: 600 }}>+ precio lancha</span>
               </div>
 
               <div className="w-full py-2.5 md:py-3.5 text-center text-[10px] md:text-sm uppercase flex items-center justify-center gap-1.5"

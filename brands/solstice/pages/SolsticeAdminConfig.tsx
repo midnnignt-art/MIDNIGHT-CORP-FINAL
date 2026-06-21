@@ -2233,11 +2233,15 @@ function BoatsAdmin({ seasonId }: { seasonId: string | null }) {
   };
 
   const deleteBoat = async (id: string) => {
-    if (!confirm('¿Eliminar esta lancha? Las reservas existentes no se borran.')) return;
-    const { error } = await supabase.from('solstice_boats').delete().eq('id', id);
-    if (error) { toast.error('No se pudo eliminar (¿tiene reservas?)'); return; }
+    if (!confirm('¿Eliminar esta lancha? Si tiene reservas de prueba/canceladas se limpian; si tiene reservas activas no se borra.')) return;
+    // RPC seguro: rechaza si hay reservas activas reales, si no limpia referencias
+    // (reservas canceladas/pendientes de pruebas) y borra la lancha. El delete
+    // directo fallaba por el FK ON DELETE RESTRICT de solstice_boat_reservations.
+    const { data, error } = await supabase.rpc('solstice_admin_delete_boat', { p_boat_id: id });
+    if (error) { toast.error('No se pudo eliminar: ' + error.message); return; }
+    if (!data?.ok) { toast.error(data?.message || 'No se pudo eliminar'); return; }
     setBoats(prev => prev.filter(b => b.id !== id));
-    toast.success('Eliminada');
+    toast.success('Lancha eliminada');
   };
 
   if (loading) return <div className="py-12 text-center text-xs uppercase" style={{ color: '#606060' }}><Loader2 className="animate-spin mx-auto" /></div>;

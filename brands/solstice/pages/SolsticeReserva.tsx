@@ -1898,8 +1898,8 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
                                   {isTaken ? 'Reservada' : `${b.capacity} cupos`}
                                 </span>
                                 {priceK > 0 && !isTaken && (
-                                  <span className="text-[10px]" style={{ color: C.gray, letterSpacing: '0.05em' }}>
-                                    · {fmtCOP(priceK * 1000)} / persona
+                                  <span className="text-[12px]" style={{ color: C.cream, letterSpacing: '0.04em', fontWeight: 600 }}>
+                                    · {fmtCOP(priceK * 1000)} <span style={{ color: C.gray, fontWeight: 400 }}>/ persona</span>
                                   </span>
                                 )}
                               </div>
