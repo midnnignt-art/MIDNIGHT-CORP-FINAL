@@ -308,6 +308,15 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
   const includesBoat = (isCombo && activeDayNums.includes(3)) || (comboType === 'individual_days' && selDays.includes(3));
 
   const selectedBoat = selectedBoatId ? boats.find(b => b.id === selectedBoatId) : null;
+
+  // Ajuste dinámico de la lancha según el plan (owner, jun 2026):
+  //   • Plan Total (combo)  → −$15.000 sobre el precio ingresado por el admin
+  //   • Días sueltos        → +$15.000
+  // Misma regla para las invitaciones de líderes de lancha.
+  const BOAT_PLAN_ADJ = 15000;
+  const adjBoatPrice = (base: number) =>
+    (base > 0 ? Math.max(0, base + (isCombo ? -BOAT_PLAN_ADJ : BOAT_PLAN_ADJ)) : 0);
+
   // Precio "desde": la lancha más barata (para mostrar antes de que elija una).
   const cheapestBoatPrice = (() => {
     const prices = boats.map(b => b.price_per_person || 0).filter(p => p > 0);
@@ -318,7 +327,7 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
   // la más barata. En combo el día 3 va en el combo y la lancha se suma aparte.
   const dayTotal  = selDays.reduce((a, d) => {
     if (comboType === 'individual_days' && d === 3) {
-      return a + (selectedBoat?.price_per_person ?? cheapestBoatPrice);
+      return a + adjBoatPrice(selectedBoat?.price_per_person ?? cheapestBoatPrice);
     }
     return a + (daysCatalog.find(x => x.day === d)?.price || 0);
   }, 0);
@@ -346,7 +355,7 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
   // En días sueltos la lancha se cobra como el precio del Día 3 (ver dayTotal),
   // por eso ahí boatPart no aplica.
   const boatPart  = (isCombo && includesBoat && selectedBoat)
-    ? (selectedBoat.price_per_person || 0)
+    ? adjBoatPrice(selectedBoat.price_per_person || 0)
     : 0;
 
   // Descuento del vendedor: si el cliente llegó por un link /sol/p/CODE de un
@@ -1780,7 +1789,9 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
                       const isTaken   = claimed > 0;
                       const isSoldOut = b.status === 'sold_out' || isTaken;
                       const isJustReserved = recentBoatId === b.id;
-                      const priceK = Math.round((b.price_per_person || 0) / 1000);
+                      // Precio mostrado = ajustado por plan (Plan Total −15k / días +15k)
+                      const boatShownPrice = adjBoatPrice(b.price_per_person || 0);
+                      const priceK = Math.round(boatShownPrice / 1000);
                       return (
                         <motion.button
                           key={b.id}
