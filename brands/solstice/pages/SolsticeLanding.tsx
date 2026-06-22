@@ -813,14 +813,20 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
                 <h3 className="text-[16px] md:text-2xl uppercase flex-1" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.03em', fontWeight: 300, color: C.cream, lineHeight: 1.08 }}>
                   Plan Total · 5 días
                 </h3>
-                <img src={GALLERY_IMAGES[5]} alt="" loading="lazy" className="w-11 h-11 md:w-14 md:h-14 object-cover flex-shrink-0" style={{ borderRadius: '10px', border: '0.5px solid rgba(255,255,255,0.12)' }} />
+                <div className="w-11 h-11 md:w-14 md:h-14 flex-shrink-0 flex items-center justify-center" style={{ borderRadius: '12px', background: 'rgba(230,57,47,0.15)', border: '0.5px solid rgba(230,57,47,0.4)', color: C.red }}>
+                  <Ship size={24} strokeWidth={1.5} />
+                </div>
               </div>
 
-              {/* ilustración: 5 covers */}
-              <div className="flex items-center mb-3" style={{ color: C.cream }}>
-                {[0, 1, 2, 3, 4].map(i => (
-                  <Ticket key={i} size={22} strokeWidth={1.5} style={{ marginLeft: i ? -7 : 0, opacity: 0.5 + i * 0.12 }} />
-                ))}
+              {/* ilustración: boletas (5 eventos) + bote (lancha) */}
+              <div className="flex items-center gap-2 mb-3" style={{ color: C.cream }}>
+                <div className="flex items-center">
+                  {[0, 1, 2].map(i => (
+                    <Ticket key={i} size={20} strokeWidth={1.5} style={{ marginLeft: i ? -6 : 0, opacity: 0.55 + i * 0.15 }} />
+                  ))}
+                </div>
+                <Plus size={11} style={{ color: C.gray }} />
+                <Ship size={24} strokeWidth={1.5} />
               </div>
 
               <p className="text-[11px] md:text-[13px] mb-3 flex-1" style={{ color: `${C.cream}cc`, lineHeight: 1.45 }}>
