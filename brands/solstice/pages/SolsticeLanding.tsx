@@ -255,6 +255,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
   const [season, setSeason] = useState<Season | null>(null);
   const [weeks,  setWeeks]  = useState<Week[]>([]);
   const [days,   setDays]   = useState<Day[]>([]);
+  const [cheapestBoat, setCheapestBoat] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [ctaHovered, setCtaHovered] = useState(false);
   // CTA sticky: aparece cuando el usuario pasa el hero (~80vh)
@@ -280,14 +281,19 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
   useEffect(() => {
     (async () => {
       try {
-        const [{ data: s }, { data: w }, { data: d }] = await Promise.all([
+        const [{ data: s }, { data: w }, { data: d }, { data: b }] = await Promise.all([
           supabase.from('solstice_seasons').select('*').eq('status', 'open').single(),
           supabase.from('solstice_weeks').select('*').order('start_date'),
           supabase.from('solstice_program_days').select('*').order('day_number'),
+          supabase.from('solstice_boats').select('price_per_person').eq('status', 'active'),
         ]);
         if (s) setSeason(s as Season);
         if (w?.length) setWeeks(w as Week[]);
         if (d?.length) setDays(d as Day[]);
+        if (b?.length) {
+          const prices = b.map((x: any) => Number(x.price_per_person) || 0).filter((p: number) => p > 0);
+          if (prices.length) setCheapestBoat(Math.min(...prices));
+        }
       } catch { /* fallback to defaults below */ }
       finally { setLoading(false); }
     })();
@@ -361,6 +367,12 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
   const entryCOP  = fmtCOP(s.entry_price);
   const comboCOP  = fmtCOP(s.combo_total);
   const cuotaCOP  = fmtCOP(s.combo_total / (s.installments || 1));
+  // Plan Total "desde" = covers (combo) + lancha MÁS BARATA con el descuento del
+  // plan (−$15.000). Es el precio mínimo real que pagaría alguien con Plan Total.
+  const planTotalMin    = s.combo_total + (cheapestBoat > 0 ? Math.max(0, cheapestBoat - 15000) : 0);
+  const planTotalMinCOP = fmtCOP(planTotalMin);
+  // Día más barato (para "arma tu semana · desde")
+  const minDayCOP = fmtCOP(Math.min(...displayDays.map(d => d.price)));
   const combo1COP = fmtCOP(s.combo1_total);
   const cuota1COP = fmtCOP(s.combo1_total / (s.combo1_installments || 1));
 
@@ -740,6 +752,34 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
             </p>
           </div>
 
+          {/* OFERTA LIMITADA · PACK FIESTAS — entrada a todos los eventos (sin lancha).
+              Teaser barato que recomienda el Plan Total (el Beach Club requiere lancha). */}
+          <motion.button
+            whileHover={{ y: -3 }}
+            whileTap={{ scale: 0.99 }}
+            onClick={() => onNavigate('reserva@events_pack')}
+            className="w-full text-left mb-5 p-5 md:p-6 relative overflow-hidden block"
+            style={{ borderRadius: '20px', background: 'rgba(230,57,47,0.10)', border: '0.5px solid rgba(230,57,47,0.5)', boxShadow: '0 16px 44px rgba(230,57,47,0.16)', backdropFilter: 'blur(32px) saturate(180%)' }}
+          >
+            <div className="px-2.5 py-1 text-[8px] uppercase inline-flex items-center gap-1.5 mb-3"
+              style={{ background: C.red, color: C.cream, borderRadius: '999px', fontWeight: 800, letterSpacing: '0.15em' }}>
+              <Star size={9} fill={C.cream} /> Oferta limitada
+            </div>
+            <div className="flex items-end justify-between gap-3 flex-wrap">
+              <div className="min-w-0">
+                <h3 className="text-xl md:text-2xl uppercase" style={{ fontFamily: "'Poiret One', sans-serif", fontWeight: 300, color: C.cream, letterSpacing: '0.03em', lineHeight: 1.1 }}>Pack Fiestas · 5 eventos</h3>
+                <p className="text-[11px] mt-1.5" style={{ color: `${C.cream}bb`, lineHeight: 1.4 }}>
+                  Acceso a <strong style={{ color: C.cream }}>todos los eventos</strong> de Solstice. <span style={{ color: C.gray }}>(El Beach Club requiere lancha.)</span>
+                </p>
+              </div>
+              <p className="text-2xl md:text-3xl tabular-nums flex-shrink-0" style={{ fontFamily: "'Poiret One', sans-serif", color: C.cream, fontWeight: 300, letterSpacing: '-0.02em' }}>{comboCOP}</p>
+            </div>
+            <div className="mt-4 w-full py-2.5 text-center text-[11px] uppercase flex items-center justify-center gap-1.5"
+              style={{ background: 'linear-gradient(135deg, #E6392F 0%, #FF7A1A 100%)', color: C.cream, borderRadius: '999px', letterSpacing: '0.12em', fontWeight: 800, boxShadow: '0 8px 22px rgba(230,57,47,0.35)' }}>
+              Aprovechar oferta <ChevronRight size={14} />
+            </div>
+          </motion.button>
+
           {/* Dos columnas SIEMPRE (también en móvil) — las dos opciones se ven de
               un vistazo, como el mockup. Más conversión: comparás al instante. */}
           <div className="grid grid-cols-2 gap-3 md:gap-5 items-stretch">
@@ -787,16 +827,19 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
                 <strong style={{ color: C.cream }}>Covers para los 5 días.</strong> La experiencia completa de Solstice en una sola reserva.
               </p>
 
-              <div className="flex items-baseline gap-1.5 mb-3 flex-wrap">
+              <div className="flex items-baseline gap-1.5 flex-wrap">
+                <span className="text-[9px] md:text-xs uppercase" style={{ color: C.cream, letterSpacing: '0.1em', fontWeight: 600 }}>Desde</span>
                 <span className="text-2xl md:text-4xl tabular-nums" style={{ fontFamily: "'Poiret One', sans-serif", color: C.cream, fontWeight: 300, letterSpacing: '-0.02em' }}>
-                  {comboCOP}
+                  {planTotalMinCOP}
                 </span>
-                <span className="text-[9px] md:text-xs uppercase" style={{ color: C.cream, letterSpacing: '0.1em', fontWeight: 600 }}>+ precio lancha</span>
               </div>
+              <p className="text-[9px] md:text-[10px] uppercase mb-3" style={{ color: C.gray, letterSpacing: '0.1em', fontWeight: 500 }}>
+                Entradas + lancha · por persona
+              </p>
 
               <div className="w-full py-2.5 md:py-3.5 text-center text-[10px] md:text-sm uppercase flex items-center justify-center gap-1.5"
-                style={{ background: C.cream, color: '#0a0a0a', borderRadius: '999px', letterSpacing: '0.1em', fontWeight: 800 }}>
-                Elegir plan total <ChevronRight size={14} />
+                style={{ background: 'linear-gradient(135deg, #E6392F 0%, #FF7A1A 100%)', color: C.cream, borderRadius: '999px', letterSpacing: '0.1em', fontWeight: 800, boxShadow: '0 8px 22px rgba(230,57,47,0.35)' }}>
+                Quiero los 5 días 🌞 <ChevronRight size={14} />
               </div>
             </motion.button>
 
@@ -853,8 +896,8 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
               </div>
 
               <div className="w-full py-2.5 md:py-3.5 text-center text-[10px] md:text-sm uppercase flex items-center justify-center gap-1.5"
-                style={{ background: C.cream, color: '#0a0a0a', borderRadius: '999px', letterSpacing: '0.1em', fontWeight: 800 }}>
-                Elegir días <ChevronRight size={14} />
+                style={{ background: 'linear-gradient(135deg, #E6392F 0%, #FF7A1A 100%)', color: C.cream, borderRadius: '999px', letterSpacing: '0.1em', fontWeight: 800, boxShadow: '0 8px 22px rgba(230,57,47,0.35)' }}>
+                Armar mi semana ⛱️ <ChevronRight size={14} />
               </div>
             </motion.button>
           </div>

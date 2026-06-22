@@ -13,7 +13,7 @@ import { SolsticeWeek } from '../types';
 const C = { bg: '#000', bgS: '#0d0d0d', red: '#E6392F', org: '#FF7A00', gray: '#606060', cream: '#F9F2D7' };
 
 type PaymentMode = 'auto_subscription' | 'manual_monthly' | 'individual_days' | 'full_combo';
-type ComboType   = 'full_combo' | 'individual_days';
+type ComboType   = 'full_combo' | 'individual_days' | 'events_pack';
 
 // Paso 1 — combo: qué está comprando el cliente.
 const COMBOS: { id: ComboType; label: string; sub: string; icon: React.ReactNode; badge?: string }[] = [
@@ -125,7 +125,7 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
   );
   const [mode, setMode]           = useState<PaymentMode | null>(
     initialCombo === 'individual_days' ? 'individual_days'
-      : initialCombo === 'full_combo' ? 'full_combo'
+      : (initialCombo === 'full_combo' || initialCombo === 'events_pack') ? 'full_combo'
       : null
   );
   const [comboType, setComboType] = useState<ComboType | null>(initialCombo ?? null);
@@ -301,11 +301,15 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
 
   // El "paquete" se define por comboType (combo de fiestas vs días sueltos),
   // independiente de la forma de pago (mode = todo de una / cuotas).
-  const isCombo = comboType === 'full_combo';
+  // events_pack (Pack Fiestas) = los 5 covers SIN lancha (precio fijo de combo,
+  // pero no incluye lancha → al Beach Club no se entra sin lancha; se recomienda
+  // Plan Total). isCombo = precio fijo de combo (full_combo o events_pack).
+  const isEventsPack = comboType === 'events_pack';
+  const isCombo = comboType === 'full_combo' || comboType === 'events_pack';
 
-  // El día 3 (Lanchas + Beach Club) está incluido en el combo; en días sueltos
-  // solo si lo eligieron explícitamente.
-  const includesBoat = (isCombo && activeDayNums.includes(3)) || (comboType === 'individual_days' && selDays.includes(3));
+  // El día 3 (Lanchas + Beach Club) trae lancha SOLO en el Plan Total (full_combo);
+  // en días sueltos solo si eligieron el día 3. El Pack Fiestas NO incluye lancha.
+  const includesBoat = (comboType === 'full_combo' && activeDayNums.includes(3)) || (comboType === 'individual_days' && selDays.includes(3));
 
   const selectedBoat = selectedBoatId ? boats.find(b => b.id === selectedBoatId) : null;
 
@@ -835,7 +839,7 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
               <div>
                 {comboType && (
                   <p className="text-[10px] uppercase mb-2 inline-flex items-center gap-2 px-3 py-1.5" style={{ letterSpacing: '0.25em', color: C.red, fontWeight: 600, background: 'rgba(230,57,47,0.10)', border: '0.5px solid rgba(230,57,47,0.4)', borderRadius: '999px' }}>
-                    {comboType === 'full_combo' ? 'Plan Total · 5 días' : 'Arma tu propia semana'}
+                    {comboType === 'full_combo' ? 'Plan Total · 5 días' : comboType === 'events_pack' ? 'Pack Fiestas · 5 eventos' : 'Arma tu propia semana'}
                   </p>
                 )}
                 <h2 className="text-3xl uppercase mb-2" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.08em', fontWeight: 300 }}>¿Cuál semana?</h2>
@@ -893,7 +897,7 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
           {step === 1 && (() => {
             const entryK = Math.round((season?.entry_price ?? 40000) / 1000);
             const totalK = Math.round(weekCombo / 1000);
-            const comboMeta: Record<ComboType, { headline: string; bigPrice: string; afterPrice?: string; tags: string[] }> = {
+            const comboMeta: Partial<Record<ComboType, { headline: string; bigPrice: string; afterPrice?: string; tags: string[] }>> = {
               full_combo: {
                 headline: '5 días con todo incluido — lancha, fiestas, beach club',
                 bigPrice: `${fmtCOP(totalK * 1000)}`,
@@ -925,7 +929,7 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
                 <div className="space-y-3">
                   {COMBOS.map(c => {
                     const sel = comboType === c.id;
-                    const data = comboMeta[c.id];
+                    const data = comboMeta[c.id]!;  // COMBOS solo trae full_combo / individual_days
                     return (
                       <motion.button
                         key={c.id}
@@ -1585,7 +1589,7 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
             <motion.div key="s2.7" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
               <div>
                 <p className="text-[10px] uppercase mb-2" style={{ letterSpacing: '0.4em', color: C.red, fontWeight: 600 }}>
-                  Paso 2 · {boatChoice === 'join' ? 'Confirmá tu lancha' : `Configura tu ${isCombo ? 'plan total' : 'semana'}`}
+                  Paso 2 · {boatChoice === 'join' ? 'Confirmá tu lancha' : `Configura tu ${isEventsPack ? 'pack fiestas' : isCombo ? 'plan total' : 'semana'}`}
                 </p>
                 <h2 className="text-3xl md:text-4xl uppercase mb-1" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.04em', fontWeight: 300 }}>
                   {boatChoice === 'join' ? 'Te unís a una lancha' : 'Configura tu semana'}
@@ -1981,7 +1985,7 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
                   Paso 3 · Resumen y {isInstallmentMode ? 'reserva' : 'pago'}
                 </p>
                 <h2 className="text-3xl md:text-4xl uppercase mb-1" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.04em', fontWeight: 300 }}>
-                  {isCombo ? 'Tu Plan Total' : 'Tus días elegidos'}
+                  {isEventsPack ? 'Tu Pack Fiestas' : isCombo ? 'Tu Plan Total' : 'Tus días elegidos'}
                 </h2>
               </div>
 
@@ -1992,9 +1996,39 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
                 border: '0.5px solid rgba(230,57,47,0.30)',
               }}>
                 <p className="text-[11px] uppercase" style={{ letterSpacing: '0.25em', color: C.red, fontWeight: 700 }}>
-                  {isCombo ? 'Detalles del Plan Total' : 'Resumen de tu selección'}
+                  {isEventsPack ? 'Pack Fiestas · 5 eventos' : isCombo ? 'Detalles del Plan Total' : 'Resumen de tu selección'}
                 </p>
-                {isCombo ? (
+                {isEventsPack ? (
+                  <>
+                    {([
+                      [<Calendar size={17} style={{ color: C.red }} />, 'Acceso a los 5 eventos', 'Clubes exclusivos de toda la semana'],
+                      [<span style={{ fontSize: 15 }}>🌊</span>, 'Acceso al Beach Club', 'OJO: solo se entra EN LANCHA'],
+                    ] as [React.ReactNode, string, string][]).map(([icon, title, sub], i) => (
+                      <div key={i} className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(230,57,47,0.12)' }}>{icon}</div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[12px] uppercase" style={{ color: C.cream, letterSpacing: '0.04em', fontWeight: 600, lineHeight: 1.3 }}>{title}</p>
+                          <p className="text-[10px] mt-0.5" style={{ color: C.gray, lineHeight: 1.4 }}>{sub}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {/* Advertencia + upsell a Plan Total (pedido del owner) */}
+                    <div className="p-3.5 mt-1" style={{ borderRadius: '14px', background: 'rgba(255,180,80,0.08)', border: '0.5px solid rgba(255,180,80,0.35)' }}>
+                      <p className="text-[11px]" style={{ color: `${C.cream}ee`, lineHeight: 1.5 }}>
+                        Esta oferta te da acceso a <strong style={{ color: C.cream }}>todos los eventos y al Beach Club</strong> 🌊. Pero ojo: al Beach Club <strong style={{ color: C.cream }}>solo se entra en lancha</strong>, y solo las nuestras están autorizadas. Con esta opción vas a necesitar <strong style={{ color: C.cream }}>sumar una lancha aparte</strong>.
+                      </p>
+                      <p className="text-[11px] mt-2" style={{ color: '#FFD9A0', lineHeight: 1.5, fontWeight: 600 }}>
+                        💡 Mejor llevá el Plan Total — incluye todo (eventos + lancha + Beach Club).
+                      </p>
+                      <button type="button"
+                        onClick={() => { setComboType('full_combo'); setMode('full_combo'); setSelectedBoatId(null); setStep(2.7 as any); }}
+                        className="mt-3 w-full py-2.5 text-center text-[11px] uppercase flex items-center justify-center gap-1.5"
+                        style={{ background: 'linear-gradient(135deg, #E6392F 0%, #FF7A1A 100%)', color: C.cream, borderRadius: '999px', letterSpacing: '0.12em', fontWeight: 700 }}>
+                        Cambiar a Plan Total <ChevronRight size={14} />
+                      </button>
+                    </div>
+                  </>
+                ) : isCombo ? (
                   [
                     [<Ship size={17} style={{ color: C.red }} />, 'Recorrido en lancha VIP & sonido pro', 'Fiesta en lancha con plataforma de audio premium'],
                     [<Calendar size={17} style={{ color: C.red }} />, 'Acceso completo a los 5 eventos', 'Clubes exclusivos + Beach Club Boat Party'],
