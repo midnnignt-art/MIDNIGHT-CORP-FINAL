@@ -781,7 +781,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
               <p className="text-2xl md:text-3xl tabular-nums flex-shrink-0" style={{ fontFamily: "'Poiret One', sans-serif", color: C.cream, fontWeight: 300, letterSpacing: '-0.02em' }}>{eventsPackCOP}</p>
             </div>
             <div className="mt-4 w-full py-2.5 text-center text-[11px] uppercase flex items-center justify-center gap-1.5"
-              style={{ background: 'linear-gradient(135deg, #E6392F 0%, #FF7A1A 100%)', color: C.cream, borderRadius: '999px', letterSpacing: '0.12em', fontWeight: 800, boxShadow: '0 8px 22px rgba(230,57,47,0.35)' }}>
+              style={{ background: C.red, color: C.cream, borderRadius: '999px', letterSpacing: '0.12em', fontWeight: 800, boxShadow: '0 8px 22px rgba(230,57,47,0.35)' }}>
               Aprovechar oferta <ChevronRight size={14} />
             </div>
           </motion.button>
@@ -818,7 +818,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
                 </div>
               </div>
               <div className="w-full py-2.5 md:py-3.5 text-center text-[10px] md:text-sm uppercase flex items-center justify-center gap-1.5"
-                style={{ background: 'linear-gradient(135deg, #E6392F 0%, #FF7A1A 100%)', color: C.cream, borderRadius: '999px', letterSpacing: '0.08em', fontWeight: 800, boxShadow: '0 8px 22px rgba(230,57,47,0.35)' }}>Quiero los 5 días 🌞 <ChevronRight size={14} /></div>
+                style={{ background: C.cream, color: '#0a0a0a', borderRadius: '999px', letterSpacing: '0.08em', fontWeight: 800, boxShadow: '0 8px 22px rgba(0,0,0,0.3)' }}>Quiero los 5 días 🌞 <ChevronRight size={14} /></div>
             </motion.button>
 
             {/* ═══ OPCIÓN 3 — ARMA TU SEMANA ═══ */}
@@ -853,7 +853,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
                 </div>
               </div>
               <div className="w-full py-2.5 md:py-3.5 text-center text-[10px] md:text-sm uppercase flex items-center justify-center gap-1.5"
-                style={{ background: 'linear-gradient(135deg, #E6392F 0%, #FF7A1A 100%)', color: C.cream, borderRadius: '999px', letterSpacing: '0.08em', fontWeight: 800, boxShadow: '0 8px 22px rgba(230,57,47,0.35)' }}>Armar mi semana ⛱️ <ChevronRight size={14} /></div>
+                style={{ background: C.cream, color: '#0a0a0a', borderRadius: '999px', letterSpacing: '0.08em', fontWeight: 800, boxShadow: '0 8px 22px rgba(0,0,0,0.3)' }}>Armar mi semana ⛱️ <ChevronRight size={14} /></div>
             </motion.button>
           </div>
 
