@@ -43,6 +43,7 @@ interface SeasonData {
   id: string;
   entry_price: number;
   combo_total: number;
+  events_pack_total: number;
   installments: number;
   phase1_limit: number;
 }
@@ -79,7 +80,7 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
       try {
         const { data: seasonRow } = await supabase
           .from('solstice_seasons')
-          .select('id,entry_price,combo_total,installments,phase1_limit')
+          .select('id,entry_price,combo_total,events_pack_total,installments,phase1_limit')
           .eq('status', 'open')
           .single();
         if (seasonRow) setSeason(seasonRow as SeasonData);
@@ -289,6 +290,9 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
   // sueltos, que son precios individuales). Cada semana puede tener su propio
   // precio de combo; si no, cae al de la temporada.
   const weekCombo = Number((selWeek as any)?.combo_total) || s.combo_total;
+  // Pack Fiestas (events_pack) tiene su PROPIO precio (gancho más barato), aparte
+  // del precio de covers del Plan Total.
+  const eventsPackTotal = Number((s as any).events_pack_total) || 125000;
 
   // ── Modelo de precios (owner, jun 2026) ──────────────────────────────────
   //  • Combo de fiestas (full_combo) = combo_total (150k). NO incluye lancha.
@@ -373,7 +377,8 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
   // ticket service 6.6% sobre lo ya descontado. El invitado sigue el mismo
   // modelo: si elige combo paga el combo + su lancha; si elige días sueltos con
   // Día 3, ese día cuesta el precio de su lancha.
-  const packageBase   = (isCombo ? weekCombo : dayTotal) + boatPart;
+  const comboBase     = isEventsPack ? eventsPackTotal : weekCombo;
+  const packageBase   = (isCombo ? comboBase : dayTotal) + boatPart;
   const discountAmount = Math.round(packageBase * sellerDiscountPct / 100);
   const subtotal      = packageBase - discountAmount;
   const ticketService = Math.round(subtotal * TICKET_SERVICE_PCT);
@@ -2110,7 +2115,7 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
                 <div className="space-y-2 pt-1">
                   <div className="flex justify-between text-xs uppercase" style={{ letterSpacing: '0.1em', fontWeight: 500 }}>
                     <span style={{ color: C.gray }}>{isCombo ? 'Covers a clubes premium' : `Covers (${selDays.length} días)`}</span>
-                    <span style={{ color: C.cream }}>{fmtCOP((isCombo ? weekCombo : dayTotal))}</span>
+                    <span style={{ color: C.cream }}>{fmtCOP((isCombo ? comboBase : dayTotal))}</span>
                   </div>
                   {boatPart > 0 && (
                     <div className="flex justify-between text-xs uppercase" style={{ letterSpacing: '0.1em', fontWeight: 500 }}>

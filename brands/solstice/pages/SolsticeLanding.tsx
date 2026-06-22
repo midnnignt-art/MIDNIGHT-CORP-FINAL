@@ -25,7 +25,7 @@ interface Props {
 
 interface Season {
   id: string; name: string; tagline: string;
-  entry_price: number; combo_total: number; combo1_total: number;
+  entry_price: number; combo_total: number; events_pack_total?: number; combo1_total: number;
   installments: number; combo1_installments: number;
   phase1_limit: number | null; phase_increment: number | null;
   phase_increment_type: 'fixed' | 'percent';
@@ -339,7 +339,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
   // Fallbacks if DB is empty
   const s: Season = season ?? {
     id: '', name: 'SOLSTICE 2026', tagline: 'SELECTED BEATS. PRIVATE SUNSET.',
-    entry_price: 40000, combo_total: 400000, combo1_total: 300000,
+    entry_price: 40000, combo_total: 400000, events_pack_total: 125000, combo1_total: 300000,
     installments: 5, combo1_installments: 5,
     phase1_limit: null, phase_increment: null, phase_increment_type: 'fixed',
   };
@@ -366,6 +366,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
   // Precios en pesos completos (claros): "$150.000" en vez de "150K".
   const entryCOP  = fmtCOP(s.entry_price);
   const comboCOP  = fmtCOP(s.combo_total);
+  const eventsPackCOP = fmtCOP(s.events_pack_total || s.combo_total);
   const cuotaCOP  = fmtCOP(s.combo_total / (s.installments || 1));
   // Plan Total "desde" = covers (combo) + lancha MÁS BARATA con el descuento del
   // plan (−$15.000). Es el precio mínimo real que pagaría alguien con Plan Total.
@@ -772,7 +773,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
                   Acceso a <strong style={{ color: C.cream }}>todos los eventos</strong> de Solstice. <span style={{ color: C.gray }}>(El Beach Club requiere lancha.)</span>
                 </p>
               </div>
-              <p className="text-2xl md:text-3xl tabular-nums flex-shrink-0" style={{ fontFamily: "'Poiret One', sans-serif", color: C.cream, fontWeight: 300, letterSpacing: '-0.02em' }}>{comboCOP}</p>
+              <p className="text-2xl md:text-3xl tabular-nums flex-shrink-0" style={{ fontFamily: "'Poiret One', sans-serif", color: C.cream, fontWeight: 300, letterSpacing: '-0.02em' }}>{eventsPackCOP}</p>
             </div>
             <div className="mt-4 w-full py-2.5 text-center text-[11px] uppercase flex items-center justify-center gap-1.5"
               style={{ background: 'linear-gradient(135deg, #E6392F 0%, #FF7A1A 100%)', color: C.cream, borderRadius: '999px', letterSpacing: '0.12em', fontWeight: 800, boxShadow: '0 8px 22px rgba(230,57,47,0.35)' }}>

@@ -26,6 +26,7 @@ interface Season {
   entry_price: number;
   // Combo completo
   combo_total: number;
+  events_pack_total?: number;   // Pack Fiestas: covers sin lancha (precio propio)
   installments: number;
   combo_days: number[];
   // Combo 1
@@ -437,7 +438,7 @@ export default function SolsticeAdminConfig() {
         setSeason({
           id: '', name: 'SOLSTICE 2026', status: 'open', tagline: 'SELECTED BEATS. PRIVATE SUNSET.',
           entry_price: 40000,
-          combo_total: 400000,   installments: 5,      combo_days: [1,2,3,4,5],
+          combo_total: 400000,   events_pack_total: 125000,   installments: 5,      combo_days: [1,2,3,4,5],
           combo1_total: 300000,  combo1_installments: 5, combo1_days: [1,2,4,5],
           phase1_limit: null,    phase_increment: null, phase_increment_type: 'fixed',
           phase1_price: null,    phase2_price: null,
@@ -588,6 +589,7 @@ export default function SolsticeAdminConfig() {
       tagline:                 season.tagline,
       entry_price:             toInt(season.entry_price),
       combo_total:             toInt(season.combo_total),
+      events_pack_total:       toInt(season.events_pack_total) || 125000,
       installments:            toInt(season.installments) || 1,
       combo1_total:            toInt(season.combo1_total),
       combo1_installments:     toInt(season.combo1_installments) || 1,
@@ -1138,7 +1140,8 @@ export default function SolsticeAdminConfig() {
                       days={days}
                     />
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <InputRow label="Precio total" value={season.combo_total} onChange={v => upSeason('combo_total', v)} type="number" prefix="$" />
+                      <InputRow label="Precio covers (Plan Total)" value={season.combo_total} onChange={v => upSeason('combo_total', v)} type="number" prefix="$" />
+                      <InputRow label="Precio Pack Fiestas (sin lancha)" value={season.events_pack_total ?? 125000} onChange={v => upSeason('events_pack_total', v)} type="number" prefix="$" />
                       <div className="flex flex-col gap-1">
                         <label className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>Cuotas mensuales</label>
                         <div className="flex items-center gap-2 px-3 py-2.5"
