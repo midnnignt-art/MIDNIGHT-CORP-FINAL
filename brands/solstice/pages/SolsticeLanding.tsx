@@ -778,7 +778,10 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
                   Acceso a <strong style={{ color: C.cream }}>todos los eventos</strong> de Solstice. <span style={{ color: C.gray }}>(El Beach Club requiere lancha.)</span>
                 </p>
               </div>
-              <p className="text-2xl md:text-3xl tabular-nums flex-shrink-0" style={{ fontFamily: "'Poiret One', sans-serif", color: C.cream, fontWeight: 300, letterSpacing: '-0.02em' }}>{eventsPackCOP}</p>
+              <div className="flex-shrink-0 text-right">
+                <p className="text-2xl md:text-3xl tabular-nums" style={{ fontFamily: "'Poiret One', sans-serif", color: C.cream, fontWeight: 300, letterSpacing: '-0.02em' }}>{eventsPackCOP}</p>
+                <p className="text-[9px] uppercase" style={{ color: C.red, letterSpacing: '0.08em', fontWeight: 600 }}>Reservá con {entryCOP}</p>
+              </div>
             </div>
             <div className="mt-4 w-full py-2.5 text-center text-[11px] uppercase flex items-center justify-center gap-1.5"
               style={{ background: C.red, color: C.cream, borderRadius: '999px', letterSpacing: '0.12em', fontWeight: 800, boxShadow: '0 8px 22px rgba(230,57,47,0.35)' }}>
@@ -814,7 +817,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
               <p className="text-[8px] md:text-[9px] uppercase text-center mb-3" style={{ color: C.gray, letterSpacing: '0.12em' }}>por persona</p>
               <div className="pt-3 mb-4 flex-1" style={{ borderTop: '0.5px solid rgba(255,255,255,0.10)' }}>
                 <div className="flex items-start gap-1.5 text-[10px] md:text-[11px]" style={{ color: `${C.cream}dd`, lineHeight: 1.35 }}>
-                  <Check size={12} style={{ color: C.red, flexShrink: 0, marginTop: 2 }} /> Incluye TODOS los eventos de la semana + la lancha.
+                  <Check size={12} style={{ color: C.red, flexShrink: 0, marginTop: 2 }} /> Incluye TODOS los eventos de la semana + tu parte de la lancha.
                 </div>
               </div>
               <div className="w-full py-2.5 md:py-3.5 text-center text-[10px] md:text-sm uppercase flex items-center justify-center gap-1.5"

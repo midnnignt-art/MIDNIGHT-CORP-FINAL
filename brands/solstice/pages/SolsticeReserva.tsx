@@ -2149,7 +2149,7 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
 
                 {/* Seleccioná tu plan de pago — fraccionado disponible desde $200.000.
                     Pago único = cobra el total hoy; fraccionado = adelanto + cuotas. */}
-                {grandTotal >= 200000 && (
+                {(isCombo || grandTotal >= 200000) && (
                   <div className="pt-4 mt-1 space-y-3" style={{ borderTop: '0.5px solid rgba(255,255,255,0.10)' }}>
                     <p className="text-[11px] uppercase text-center" style={{ letterSpacing: '0.25em', color: C.red, fontWeight: 700 }}>Seleccioná tu plan de pago</p>
                     <div className="grid grid-cols-2 gap-2.5">
