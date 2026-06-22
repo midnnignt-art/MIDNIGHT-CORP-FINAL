@@ -44,6 +44,7 @@ interface SeasonData {
   entry_price: number;
   combo_total: number;
   events_pack_total: number;
+  boat_day_number: number;
   installments: number;
   phase1_limit: number;
 }
@@ -80,7 +81,7 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
       try {
         const { data: seasonRow } = await supabase
           .from('solstice_seasons')
-          .select('id,entry_price,combo_total,events_pack_total,installments,phase1_limit')
+          .select('id,entry_price,combo_total,events_pack_total,boat_day_number,installments,phase1_limit')
           .eq('status', 'open')
           .single();
         if (seasonRow) setSeason(seasonRow as SeasonData);
@@ -293,6 +294,8 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
   // Pack Fiestas (events_pack) tiene su PROPIO precio (gancho más barato), aparte
   // del precio de covers del Plan Total.
   const eventsPackTotal = Number((s as any).events_pack_total) || 125000;
+  // Día de la lancha/Beach Club — configurable por el admin (default día 3).
+  const boatDay = Number((s as any).boat_day_number) || 3;
 
   // ── Modelo de precios (owner, jun 2026) ──────────────────────────────────
   //  • Combo de fiestas (full_combo) = combo_total (150k). NO incluye lancha.
@@ -313,7 +316,7 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
 
   // El día 3 (Lanchas + Beach Club) trae lancha SOLO en el Plan Total (full_combo);
   // en días sueltos solo si eligieron el día 3. El Pack Fiestas NO incluye lancha.
-  const includesBoat = (comboType === 'full_combo' && activeDayNums.includes(3)) || (comboType === 'individual_days' && selDays.includes(3));
+  const includesBoat = (comboType === 'full_combo' && activeDayNums.includes(boatDay)) || (comboType === 'individual_days' && selDays.includes(boatDay));
 
   const selectedBoat = selectedBoatId ? boats.find(b => b.id === selectedBoatId) : null;
 
@@ -334,7 +337,7 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
   // ELEGIDA (cada lancha tiene su precio), no un fijo. Si aún no elige, "desde"
   // la más barata. En combo el día 3 va en el combo y la lancha se suma aparte.
   const dayTotal  = selDays.reduce((a, d) => {
-    if (comboType === 'individual_days' && d === 3) {
+    if (comboType === 'individual_days' && d === boatDay) {
       return a + adjBoatPrice(selectedBoat?.price_per_person ?? cheapestBoatPrice);
     }
     return a + (daysCatalog.find(x => x.day === d)?.price || 0);
@@ -901,17 +904,22 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
               El cliente primero elige QUÉ compra, y después CÓMO paga. */}
           {step === 1 && (() => {
             const entryK = Math.round((season?.entry_price ?? 40000) / 1000);
-            const totalK = Math.round(weekCombo / 1000);
+            // Plan Total "desde" = covers + lancha más barata con descuento (−15k).
+            const planTotalFrom = weekCombo + (cheapestBoatPrice > 0 ? Math.max(0, cheapestBoatPrice - BOAT_PLAN_ADJ) : 0);
+            const dayFrom = (() => {
+              const ps = weekDays.map(d => d.day === boatDay ? (cheapestBoatPrice + BOAT_PLAN_ADJ) : d.price).filter(p => p > 0);
+              return ps.length ? Math.min(...ps) : 0;
+            })();
             const comboMeta: Partial<Record<ComboType, { headline: string; bigPrice: string; afterPrice?: string; tags: string[] }>> = {
               full_combo: {
                 headline: '5 días con todo incluido — lancha, fiestas, beach club',
-                bigPrice: `${fmtCOP(totalK * 1000)}`,
-                afterPrice: ' total',
+                bigPrice: `Desde ${fmtCOP(planTotalFrom)}`,
+                afterPrice: ' · por persona',
                 tags: [`Reservás con ${fmtCOP(entryK * 1000)}`, 'Después: cuotas o pago de una', 'Mejor precio por día'],
               },
               individual_days: {
                 headline: 'Elegís solo los días que querés ir, sin compromiso de combo',
-                bigPrice: 'Desde $70K',
+                bigPrice: `Desde ${fmtCOP(dayFrom)}`,
                 afterPrice: ' /día',
                 tags: ['Sin reserva mínima', 'Pagás solo lo que elegís', 'Cada día con su QR'],
               },
@@ -1361,7 +1369,7 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
                         <p className="text-[10px]" style={{ color: C.gray }}>{day.subtitle}</p>
                       </div>
                       <p className="text-sm" style={{ color: selected ? C.red : C.gray, fontWeight: 500 }}>
-                        {day.day === 3
+                        {day.day === boatDay
                           ? `desde ${fmtCOP((cheapestBoatPrice || day.price))}`
                           : `${fmtCOP(day.price)}`}
                       </p>
@@ -1737,7 +1745,7 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
                             <p className="text-[9px]" style={{ color: C.gray }}>{day.subtitle}</p>
                           </div>
                           <p className="text-[11px]" style={{ color: selected ? C.red : C.gray, fontWeight: 600 }}>
-                            {day.day === 3 ? `desde ${fmtCOP(cheapestBoatPrice || day.price)}` : fmtCOP(day.price)}
+                            {day.day === boatDay ? `desde ${fmtCOP(cheapestBoatPrice || day.price)}` : fmtCOP(day.price)}
                           </p>
                         </button>
                       );
@@ -1750,7 +1758,7 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
               {boatChoice === 'lead' && selWeek && includesBoat && (
                 <div className="space-y-3">
                   <p className="text-sm uppercase mb-1" style={{ color: C.cream, letterSpacing: '0.12em', fontWeight: 600 }}>
-                    <span style={{ color: C.red }}>{isCombo ? '2)' : '3)'}</span> Seleccioná tu lancha <span style={{ color: C.gray, fontWeight: 400 }}>· día 3</span>
+                    <span style={{ color: C.red }}>{isCombo ? '2)' : '3)'}</span> Seleccioná tu lancha <span style={{ color: C.gray, fontWeight: 400 }}>· día {boatDay}</span>
                   </p>
 
                   {/* Descripción general de las lanchas (configurable por el admin) */}
@@ -2053,18 +2061,18 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
                       const d = weekDays.find(x => x.day === dn);
                       return (
                         <div key={dn} className="flex items-center gap-3">
-                          <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: dn === 3 ? C.red : 'rgba(255,255,255,0.06)' }}>
-                            {dn === 3 ? <Ship size={13} style={{ color: C.cream }} /> : <span className="text-[10px]" style={{ color: C.cream }}>{dn}</span>}
+                          <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: dn === boatDay ? C.red : 'rgba(255,255,255,0.06)' }}>
+                            {dn === boatDay ? <Ship size={13} style={{ color: C.cream }} /> : <span className="text-[10px]" style={{ color: C.cream }}>{dn}</span>}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-[12px] uppercase" style={{ color: dn === 3 ? C.red : C.cream, letterSpacing: '0.04em', fontWeight: 600 }}>
+                            <p className="text-[12px] uppercase" style={{ color: dn === boatDay ? C.red : C.cream, letterSpacing: '0.04em', fontWeight: 600 }}>
                               Día {dn} · {d?.title || ''}
                             </p>
                           </div>
                         </div>
                       );
                     })}
-                    {selDays.includes(3) && (
+                    {selDays.includes(boatDay) && (
                       <p className="text-[10px] pt-1" style={{ color: C.gray, lineHeight: 1.5 }}>
                         Incluye el cupo en el Bote & Beach Club con audio premium y botellas de cortesía (por cada 5 personas).
                       </p>

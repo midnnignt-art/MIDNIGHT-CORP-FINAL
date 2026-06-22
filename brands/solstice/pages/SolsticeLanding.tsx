@@ -608,7 +608,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 1.0, ease: [0.16, 1, 0.3, 1] }}
             whileTap={{ scale: 0.97 }}
-            onClick={() => onNavigate('reserva')}
+            onClick={() => document.getElementById('solstice-opciones')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
             className="px-12 py-4 text-sm font-medium uppercase flex items-center gap-3 mx-auto"
             style={{
               background: ctaHovered
@@ -737,8 +737,9 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
         />
       </section>
 
-      {/* ── ELEGÍ TU PLAN — dos opciones claras (pedido de promotores: la decisión clara EN la principal, "explicando todo") ── */}
-      <section className="py-16 md:py-24 px-4" style={{ background: 'rgba(255,255,255,0.015)' }}>
+      {/* ── ELEGÍ TU PLAN — 3 opciones (Pack Fiestas / Plan Total / Arma). Los CTA
+            genéricos "Reservá" bajan acá, en vez de a un paso aparte que confundía. ── */}
+      <section id="solstice-opciones" className="py-16 md:py-24 px-4" style={{ background: 'rgba(255,255,255,0.015)' }}>
         <div className="max-w-5xl mx-auto">
           <div className="mb-10 md:mb-12 text-center">
             <p className="text-[10px] md:text-[11px] uppercase mb-4" style={{ letterSpacing: '0.4em', color: C.red, fontWeight: 600 }}>
@@ -1286,7 +1287,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
           </p>
           <motion.button
             whileTap={{ scale: 0.97 }}
-            onClick={() => onNavigate('reserva')}
+            onClick={() => document.getElementById('solstice-opciones')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
             className="inline-flex items-center gap-4 mx-auto px-16 py-5 text-base font-medium uppercase"
             style={{
               background: finalCtaHovered ? 'rgba(230,57,47,0.45)' : 'rgba(230,57,47,0.25)',
@@ -1325,7 +1326,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
           >
             <div className="max-w-md md:max-w-lg mx-auto pointer-events-auto">
               <button
-                onClick={() => onNavigate('reserva')}
+                onClick={() => document.getElementById('solstice-opciones')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
                 className="w-full flex items-center justify-between gap-4 px-5 py-3 md:py-4"
                 style={{
                   background: 'linear-gradient(135deg, rgba(230,57,47,0.95) 0%, rgba(255,122,0,0.92) 100%)',
