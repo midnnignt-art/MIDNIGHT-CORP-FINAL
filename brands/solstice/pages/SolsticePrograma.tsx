@@ -139,6 +139,38 @@ export default function SolsticePrograma({ onNavigate }: Props) {
         ))}
       </div>
 
+      {/* ── CALENDARIOS POR UNIVERSIDAD (v3) ───────────────────────────── */}
+      <section className="py-20 md:py-24 px-4">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-10">
+            <p className="text-[10px] uppercase mb-3" style={{ letterSpacing: '0.4em', color: C.red, fontWeight: 600 }}>El cronograma oficial</p>
+            <h2 className="text-3xl md:text-4xl uppercase" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.02em', fontWeight: 300, color: C.cream }}>
+              Calendario por universidad
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-5">
+            {['javeriana', 'andes', 'cesa'].map((file, i) => (
+              <motion.div
+                key={file}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-50px' }}
+                transition={{ delay: i * 0.08, duration: 0.7 }}
+                style={{ borderRadius: '16px', overflow: 'hidden', border: '0.5px solid rgba(230,57,47,0.25)', boxShadow: '0 16px 40px rgba(0,0,0,0.35)' }}
+              >
+                <img
+                  src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/assets/solstice/calendars/${file}.jpg`}
+                  alt={`Calendario ${file}`}
+                  loading="lazy"
+                  className="w-full block"
+                  style={{ aspectRatio: '4 / 5', objectFit: 'cover' }}
+                />
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── CTA FINAL ───────────────────────────────────────────────────── */}
       <FinalCta onNavigate={onNavigate} />
 
