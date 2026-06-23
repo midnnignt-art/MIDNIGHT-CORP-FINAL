@@ -126,18 +126,8 @@ export default function SolsticePrograma({ onNavigate }: Props) {
         onNavigate={onNavigate}
       />
 
-      {/* ── TIMELINE CINEMÁTICO ────────────────────────────────────────── */}
-      <div className="relative">
-        {days.map((day, idx) => (
-          <DaySection
-            key={day.day_number}
-            day={day}
-            index={idx}
-            total={days.length}
-            onNavigate={onNavigate}
-          />
-        ))}
-      </div>
+      {/* Timeline cinemático removido (pedido owner): el programa se muestra con
+          los calendarios oficiales por universidad, abajo. */}
 
       {/* ── CALENDARIOS POR UNIVERSIDAD (v3) ───────────────────────────── */}
       <section className="py-20 md:py-24 px-4">
