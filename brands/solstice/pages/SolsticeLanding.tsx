@@ -775,7 +775,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
               <div className="min-w-0">
                 <h3 className="text-xl md:text-2xl uppercase" style={{ fontFamily: "'Poiret One', sans-serif", fontWeight: 300, color: C.cream, letterSpacing: '0.03em', lineHeight: 1.1 }}>Pack Fiestas · 5 eventos</h3>
                 <p className="text-[11px] mt-1.5" style={{ color: `${C.cream}bb`, lineHeight: 1.4 }}>
-                  Acceso a <strong style={{ color: C.cream }}>todos los eventos</strong> de Solstice. <span style={{ color: C.gray }}>(El Beach Club requiere lancha.)</span>
+                  Acceso a <strong style={{ color: C.cream }}>todos los eventos</strong> de Solstice.
                 </p>
               </div>
               <div className="flex-shrink-0 text-right">
