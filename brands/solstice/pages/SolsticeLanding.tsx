@@ -1021,69 +1021,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
         </div>
       </section>
 
-      {/* ── CÓMO SE VIVE — galería inmersiva ── */}
-      <section className="py-24 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 mb-12 text-center">
-          <p className="text-[10px] uppercase mb-3" style={{ letterSpacing: '0.4em', color: C.red, fontWeight: 600 }}>
-            La experiencia
-          </p>
-          <h2 className="text-3xl md:text-4xl uppercase"
-            style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '-0.02em', fontWeight: 300, color: C.cream }}>
-            Cómo se vive
-          </h2>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 px-4">
-          {GALLERY_IMAGES.map((src, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-50px' }}
-              transition={{ delay: i * 0.06, duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-              style={{
-                aspectRatio: i % 3 === 0 ? '3/4' : '1/1',
-                background: '#0a0a0a',
-                borderRadius: '12px',
-                overflow: 'hidden',
-                position: 'relative',
-                border: '0.5px solid rgba(230,57,47,0.15)',
-              }}
-            >
-              <img
-                src={src}
-                alt={`Solstice ${i + 1}`}
-                loading="lazy"
-                decoding="async"
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  filter: 'saturate(0.85) brightness(0.85)',
-                  transition: 'transform 0.8s cubic-bezier(0.16, 1, 0.3, 1), filter 0.5s ease',
-                }}
-                onMouseEnter={e => {
-                  (e.currentTarget as HTMLImageElement).style.transform = 'scale(1.05)';
-                  (e.currentTarget as HTMLImageElement).style.filter = 'saturate(1) brightness(1)';
-                }}
-                onMouseLeave={e => {
-                  (e.currentTarget as HTMLImageElement).style.transform = 'scale(1)';
-                  (e.currentTarget as HTMLImageElement).style.filter = 'saturate(0.85) brightness(0.85)';
-                }}
-              />
-              <div
-                style={{
-                  position: 'absolute', inset: 0,
-                  background: 'linear-gradient(180deg, transparent 60%, rgba(0,0,0,0.6) 100%)',
-                  pointerEvents: 'none',
-                }}
-              />
-            </motion.div>
-          ))}
-        </div>
-        <p className="text-center text-[9px] uppercase mt-8" style={{ letterSpacing: '0.4em', color: C.gray, fontWeight: 500 }}>
-          Ediciones pasadas — Santa Marta 2024–2025
-        </p>
-      </section>
+      {/* Galería "Cómo se vive" removida (pedido owner jun 2026). */}
 
       {/* ── LA VACA ── */}
       <section className="py-24 px-4 max-w-4xl mx-auto text-center">
@@ -1100,42 +1038,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
         </p>
 
         {/* Plans */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-14 text-left">
-          {/* Combo 1 */}
-          <div className="p-8 relative"
-            style={{
-              background: 'rgba(255,255,255,0.05)',
-              backdropFilter: 'blur(32px) saturate(180%)',
-              border: '0.5px solid rgba(255,255,255,0.10)',
-              borderRadius: '24px',
-              boxShadow: '0 24px 48px rgba(0,0,0,0.25)',
-            }}>
-            <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 text-[10px] uppercase font-medium whitespace-nowrap"
-              style={{
-                background: C.gray,
-                letterSpacing: '0.08em',
-                color: C.bg,
-                borderRadius: '999px',
-                fontWeight: 500,
-              }}>
-              Combo 1
-            </div>
-            <div className="text-5xl font-semibold mb-1" style={{ color: C.cream }}>{combo1COP}</div>
-            <p className="text-xs uppercase mb-4" style={{ color: C.gray, letterSpacing: '0.08em', fontWeight: 500 }}>
-              {s.combo1_installments} cuotas de {cuota1COP}/mes
-            </p>
-            <div className="space-y-1.5 text-xs" style={{ color: C.gray }}>
-              <div className="flex justify-between">
-                <span>Reserva inicial</span>
-                <span style={{ color: C.cream }}>{entryCOP}</span>
-              </div>
-              <div className="flex justify-between pt-2" style={{ borderTop: '0.5px solid rgba(255,255,255,0.10)' }}>
-                <span>Total</span>
-                <span style={{ color: C.cream }}>{combo1COP}</span>
-              </div>
-            </div>
-          </div>
-
+        <div className="grid grid-cols-1 max-w-sm mx-auto gap-6 mb-14 text-left">
           {/* Combo completo */}
           <div className="p-8 relative"
             style={{
