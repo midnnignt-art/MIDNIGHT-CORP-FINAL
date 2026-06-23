@@ -19,8 +19,8 @@ interface Props { onNavigate: (page: string) => void; }
 
 const DAY_ICONS: Record<number, React.ReactNode> = {
   1: <Sun   size={20} />,
-  2: <Music size={20} />,
-  3: <Ship  size={20} />,
+  2: <Ship  size={20} />,   // día 2 = Lanchas + Beach Club
+  3: <Music size={20} />,
   4: <Waves size={20} />,
   5: <Star  size={20} />,
 };
@@ -34,41 +34,41 @@ const DAY_IMAGES: Record<number, string> = {
 };
 
 const INCLUDED: Record<number, string[]> = {
-  1: ['Bienvenida', 'Hospedaje', 'Apertura nocturna'],
-  2: ['Día de playa', 'Fiesta nocturna', 'Hospedaje'],
-  3: ['Lanchas privadas', 'Beach Club exclusivo', 'DJ', 'All You Can Drink', 'Bahía privada'],
-  4: ['Playa privada exclusiva', 'All You Can Drink', 'Almuerzo incluido'],
-  5: ['Fiesta de cierre', 'Cena grupal', 'Last night ritual'],
+  1: ['Tardeada', 'Rooftop más alto de la ciudad'],
+  2: ['Lanchas privadas', 'Beach Club exclusivo', 'DJ', 'Bahía privada'],
+  3: ['Rooftop party'],
+  4: ['Rooftop party'],
+  5: ['Fiesta de cierre', 'Edición especial'],
 };
 
 // Atmósfera por día — gradient que va del amanecer al cierre nocturno
 const DAY_ATMOSPHERE: Record<number, { eyebrow: string; gradient: string; sunColor: string; sunBlur: string }> = {
   1: {
-    eyebrow: 'Llegada · Apertura del ritual',
+    eyebrow: 'Apertura · Tardeada + Rooftop',
     gradient: 'linear-gradient(180deg, #1a0a0c 0%, #381210 40%, #6b1e1c 75%, #1a0506 100%)',
     sunColor: 'rgba(255,180,140,0.55)',
     sunBlur: '60px',
   },
   2: {
-    eyebrow: 'Día libre · Tarde de playa',
-    gradient: 'linear-gradient(180deg, #0a0205 0%, #2a0e10 35%, #8b2c20 70%, #1f0808 100%)',
-    sunColor: 'rgba(255,140,80,0.65)',
-    sunBlur: '50px',
-  },
-  3: {
     eyebrow: 'Día icónico · Lanchas + Beach Club',
     gradient: 'linear-gradient(180deg, #050a18 0%, #0d2440 25%, #1a4060 50%, #6b4520 80%, #2a1108 100%)',
     sunColor: 'rgba(255,220,180,0.85)',
     sunBlur: '40px',
   },
+  3: {
+    eyebrow: 'Rooftop',
+    gradient: 'linear-gradient(180deg, #0a0205 0%, #2a0e10 35%, #8b2c20 70%, #1f0808 100%)',
+    sunColor: 'rgba(255,140,80,0.65)',
+    sunBlur: '50px',
+  },
   4: {
-    eyebrow: 'Atardecer · Bahía privada',
+    eyebrow: 'Rooftop',
     gradient: 'linear-gradient(180deg, #200608 0%, #4a1410 30%, #8c2818 55%, #c04020 75%, #1a0506 100%)',
     sunColor: 'rgba(255,100,60,0.85)',
     sunBlur: '70px',
   },
   5: {
-    eyebrow: 'Cierre · Last night ritual',
+    eyebrow: 'Cierre · Midnight (Edición Especial)',
     gradient: 'linear-gradient(180deg, #050308 0%, #1a0a18 40%, #2a0e1c 70%, #050208 100%)',
     sunColor: 'rgba(176,38,255,0.45)',
     sunBlur: '90px',
@@ -281,7 +281,7 @@ function DaySection({ day, index, total, onNavigate }: {
   const img = day.image_url || DAY_IMAGES[day.day_number];
   const included = INCLUDED[day.day_number] || [];
   const atm = DAY_ATMOSPHERE[day.day_number] || DAY_ATMOSPHERE[1];
-  const isHighlight = day.highlight || day.day_number === 3;
+  const isHighlight = day.highlight || day.day_number === 2;  // día 2 = Lanchas + Beach Club
 
   return (
     <section
@@ -337,7 +337,7 @@ function DaySection({ day, index, total, onNavigate }: {
       />
 
       {/* Highlight: partículas extra para Día 3 (Lanchas + Beach Club) */}
-      {day.day_number === 3 && <CatamaranSparkles />}
+      {day.day_number === 2 && <CatamaranSparkles />}
 
       {/* Contenido */}
       <div className="relative z-10 w-full max-w-6xl mx-auto px-6 md:px-12 py-20 md:py-24">
