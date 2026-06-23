@@ -112,7 +112,7 @@ function WeekCard({ week, reserved, onSelect, idx }: { week: Week; reserved: num
             letterSpacing: '0.2em', borderRadius: '999px', fontWeight: 700,
           }}>
           <span style={{ width: 5, height: 5, borderRadius: 999, background: '#0a0a0a', animation: 'pulse 1.6s ease-in-out infinite' }} />
-          Casi llena · {remaining} cupos
+          ¡Casi llena!
         </div>
       )}
       {isHot && !isAlmostFull && !urgent && (
@@ -162,34 +162,8 @@ function WeekCard({ week, reserved, onSelect, idx }: { week: Week; reserved: num
         ))}
       </div>
 
-      {/* Live occupancy — actualiza realtime cuando alguien reserva */}
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[9px] uppercase" style={{
-          letterSpacing: '0.2em',
-          color: isAlmostFull ? '#FFB48C' : isHot ? `${C.red}` : C.gray,
-          fontWeight: 600,
-        }}>
-          {reserved} {reserved === 1 ? 'reserva' : 'reservas'}
-        </span>
-        <span className="text-[9px] uppercase tabular-nums" style={{
-          letterSpacing: '0.15em',
-          color: C.gray,
-          fontWeight: 500,
-        }}>
-          {reserved}/{week.capacity}
-        </span>
-      </div>
-      <div className="w-full h-[2px] mb-2" style={{ background: `${C.gray}20`, borderRadius: '999px' }}>
-        <motion.div className="h-full"
-          initial={{ width: 0 }}
-          animate={{ width: `${occupancyPct}%` }}
-          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          style={{
-            background: isAlmostFull ? '#FFB48C' : isHot ? C.red : `${C.red}aa`,
-            borderRadius: '999px',
-            boxShadow: isAlmostFull ? '0 0 8px rgba(255,180,140,0.55)' : 'none',
-          }} />
-      </div>
+      {/* Reservas / ocupación OCULTAS al público (pedido owner): que no se vea
+          "1 reserva", "8/120", etc. Se mantiene solo el countdown de días. */}
 
       {/* Urgency bar (días al evento) */}
       <div className="w-full h-[2px] mb-1" style={{ background: `${C.gray}20`, borderRadius: '999px' }}>
