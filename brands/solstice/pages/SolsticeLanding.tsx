@@ -947,7 +947,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
             </h2>
             <p className="text-sm md:text-base max-w-2xl mx-auto" style={{ color: '#a0a0a8', lineHeight: 1.6 }}>
               Pensado para estudiantes universitarios: <strong style={{ color: C.cream }}>reservás ahora con {entryCOP}</strong> y
-              pagás el resto en {s.installments} cuotas mensuales. <strong style={{ color: C.cream }}>Sin recargo. Sin interés.</strong> Como hacer una vaca con tus amigos, pero conmigo.
+              pagás el resto en <strong style={{ color: C.cream }}>cuotas mensuales</strong> — la cantidad depende del tiempo que falte para el primer evento. <strong style={{ color: C.cream }}>Sin recargo. Sin interés.</strong> Como hacer una vaca con tus amigos, pero conmigo.
             </p>
           </div>
 
@@ -1009,10 +1009,9 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
           </div>
 
           {/* Stat row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <VacaStat icon="✦" value={`${s.installments}`} label="Cuotas mensuales" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <VacaStat icon="✦" value={`Hasta ${s.installments}`} label="Cuotas mensuales · según el tiempo que falte para el primer evento" />
             <VacaStat icon="✓" value="0%" label="Recargo · Sin interés" highlight />
-            <VacaStat icon="🔒" value="100%" label="Reembolsable hasta 14 días antes" />
           </div>
 
           {/* Tagline */}
