@@ -899,9 +899,6 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
             <span className="text-[10px] uppercase" style={{ color: C.red, letterSpacing: '0.08em', fontWeight: 500 }}>
               Combo completo: {comboCOP}
             </span>
-            <span className="text-[10px] uppercase" style={{ color: `${C.gray}80`, letterSpacing: '0.08em', fontWeight: 500 }}>
-              Combo 1 (sin Día 3): {combo1COP}
-            </span>
             <button
               onClick={() => onNavigate('programa')}
               className="flex items-center gap-1.5 text-[10px] uppercase font-medium tracking-widest transition-all hover:opacity-100 opacity-60"
