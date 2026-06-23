@@ -535,6 +535,7 @@ export default function SolsticeAdminFinance() {
                         <Tooltip
                           contentStyle={{ background: 'rgba(8,0,0,0.90)', backdropFilter: 'blur(40px) saturate(160%)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '16px' }}
                           labelStyle={{ color: C.cream, fontSize: 10, textTransform: 'uppercase' }}
+                          itemStyle={{ color: C.cream }}
                           formatter={(v: any, name: string) => [fmtK(v), name === 'recibido' ? 'Recibido' : 'Proyectado']}
                         />
                         <Legend formatter={v => <span style={{ color: C.gray, fontSize: 10, textTransform: 'uppercase' }}>{v === 'recibido' ? 'Recibido' : 'Proyectado'}</span>} />

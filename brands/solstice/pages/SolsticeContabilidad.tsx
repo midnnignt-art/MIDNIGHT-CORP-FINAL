@@ -222,8 +222,10 @@ function ResumenTab({ totals, perWeek }: { totals: any; perWeek: any[] }) {
                   contentStyle={{
                     background: 'rgba(8,0,0,0.94)',
                     border: '0.5px solid rgba(230,57,47,0.40)',
-                    borderRadius: 14, fontSize: 11,
+                    borderRadius: 14, fontSize: 11, color: C.cream,
                   }}
+                  itemStyle={{ color: C.cream }}
+                  labelStyle={{ color: C.cream }}
                   formatter={(v: any, n: string) => [`$${v}K`, n]}
                 />
               </PieChart>
@@ -239,7 +241,9 @@ function ResumenTab({ totals, perWeek }: { totals: any; perWeek: any[] }) {
                 <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#606060' }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} tickLine={false} />
                 <YAxis tick={{ fontSize: 10, fill: '#606060' }} tickFormatter={v => `${v}K`} axisLine={false} tickLine={false} width={32} />
                 <Tooltip
-                  contentStyle={{ background: 'rgba(8,0,0,0.94)', border: '0.5px solid rgba(230,57,47,0.40)', borderRadius: 14, fontSize: 11 }}
+                  contentStyle={{ background: 'rgba(8,0,0,0.94)', border: '0.5px solid rgba(230,57,47,0.40)', borderRadius: 14, fontSize: 11, color: C.cream }}
+                  itemStyle={{ color: C.cream }}
+                  labelStyle={{ color: C.cream }}
                   formatter={(v: any, n: string) => [`$${v}K`, n]}
                 />
                 <Legend wrapperStyle={{ fontSize: 10, color: C.gray }} />
