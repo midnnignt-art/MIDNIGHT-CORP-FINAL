@@ -1044,10 +1044,11 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
                 transition={{ delay: i * 0.08, duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
                 style={{ borderRadius: '16px', overflow: 'hidden', border: '0.5px solid rgba(230,57,47,0.25)', boxShadow: '0 16px 40px rgba(0,0,0,0.35)' }}
               >
-                <img
-                  src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/assets/solstice/calendars/${c.file}.jpg`}
-                  alt={`Calendario ${c.u}`}
-                  loading="lazy"
+                <video
+                  src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/assets/solstice/calendars/${c.file}.mp4`}
+                  poster={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/assets/solstice/calendars/${c.file}.jpg`}
+                  autoPlay muted loop playsInline preload="metadata"
+                  aria-label={`Calendario ${c.u}`}
                   className="w-full block"
                   style={{ aspectRatio: '4 / 5', objectFit: 'cover' }}
                 />

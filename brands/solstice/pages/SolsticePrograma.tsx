@@ -158,10 +158,11 @@ export default function SolsticePrograma({ onNavigate }: Props) {
                 transition={{ delay: i * 0.08, duration: 0.7 }}
                 style={{ borderRadius: '16px', overflow: 'hidden', border: '0.5px solid rgba(230,57,47,0.25)', boxShadow: '0 16px 40px rgba(0,0,0,0.35)' }}
               >
-                <img
-                  src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/assets/solstice/calendars/${file}.jpg`}
-                  alt={`Calendario ${file}`}
-                  loading="lazy"
+                <video
+                  src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/assets/solstice/calendars/${file}.mp4`}
+                  poster={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/assets/solstice/calendars/${file}.jpg`}
+                  autoPlay muted loop playsInline preload="metadata"
+                  aria-label={`Calendario ${file}`}
                   className="w-full block"
                   style={{ aspectRatio: '4 / 5', objectFit: 'cover' }}
                 />
