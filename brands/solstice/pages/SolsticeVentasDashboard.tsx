@@ -326,11 +326,13 @@ interface Props { role: 'seller' | 'manager' | 'admin' | 'head' }
 export default function SolsticeVentasDashboard({ role }: Props) {
   const { currentUser, promoters, teams: storeTeams, superSquads: storeSquads } = useStore();
   const isAdmin   = role === 'admin';
-  const isSeller  = role === 'seller';
   const isHead    = role === 'head';                 // Cabeza — ve su super-squad
-  // La Cabeza usa la misma vista de equipo que el gerente, pero con scope
-  // ampliado a TODOS los squads de su super-squad.
-  const isManager = role === 'manager' || isHead;
+  // Un "gerente" es cualquiera que MANEJE un team (sales_teams.manager_id = él),
+  // aunque su rol sea 'seller' (team-lead). Ve su equipo + tiene link + recluta.
+  const managesTeam = !!currentUser && storeTeams.some(t => (t as any).manager_id === currentUser.user_id);
+  const isManager = role === 'manager' || isHead || managesTeam;
+  // Vendedor "puro" = seller que NO maneja ningún team.
+  const isSeller  = role === 'seller' && !managesTeam;
 
   const [season,  setSeason]  = useState<Season | null>(null);
   const [allRegs, setAllRegs] = useState<Registration[]>([]);
@@ -396,7 +398,9 @@ export default function SolsticeVentasDashboard({ role }: Props) {
       // con su link, SIN que el admin tenga que activarlo. (Decisión del
       // owner: "el admin nunca lo va a activar".)
       if ((isSeller || isManager) && currentUser.user_id) {
-        const selfRole = isHead ? 'head' : isManager ? 'manager' : 'seller';
+        // solstice_sellers.role solo permite 'seller' | 'manager'. Head se guarda
+        // como 'manager' (su scope de super-squad se resuelve aparte por isHead).
+        const selfRole = isSeller ? 'seller' : 'manager';
         const genName = (myRich?.name || currentUser.name || 'SOL').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || 'SOL';
         const gen = `SOL-${genName}-${Math.floor(100 + Math.random() * 900)}`;
 
@@ -443,12 +447,14 @@ export default function SolsticeVentasDashboard({ role }: Props) {
         const ids = headSellers.map(sl => sl.user_id);
         q = q.in('seller_id', ids.length ? ids : ['00000000-0000-0000-0000-000000000000']);
         setTeamSellers(headSellers);
-      } else if (isManager && myRich?.team_id) {
-        const teamMemberIds = richSellers.filter(sl => sl.team_id === myRich.team_id).map(sl => sl.user_id);
-        if (teamMemberIds.length) {
-          q = q.in('seller_id', teamMemberIds);
-          setTeamSellers(richSellers.filter(sl => sl.team_id === myRich.team_id));
-        }
+      } else if (isManager) {
+        // El gerente ve SOLO las ventas de su equipo: los teams que él MANEJA
+        // (sales_teams.manager_id = él), no su membresía. Incluye sus ventas propias.
+        const managedTeamIds = storeTeams.filter(t => (t as any).manager_id === currentUser.user_id).map(t => t.id);
+        const teamSellersList = richSellers.filter(sl => sl.team_id && managedTeamIds.includes(sl.team_id));
+        const scopeIds = Array.from(new Set([...teamSellersList.map(sl => sl.user_id), currentUser.user_id]));
+        q = q.in('seller_id', scopeIds.length ? scopeIds : ['00000000-0000-0000-0000-000000000000']);
+        setTeamSellers(teamSellersList);
       }
 
       const { data: regs } = await q;
