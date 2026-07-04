@@ -230,6 +230,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
   const [weeks,  setWeeks]  = useState<Week[]>([]);
   const [days,   setDays]   = useState<Day[]>([]);
   const [cheapestBoat, setCheapestBoat] = useState<number>(0);
+  const [promoBanner, setPromoBanner] = useState<{ enabled: boolean; text: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [ctaHovered, setCtaHovered] = useState(false);
   // CTA sticky: aparece cuando el usuario pasa el hero (~80vh)
@@ -255,11 +256,12 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
   useEffect(() => {
     (async () => {
       try {
-        const [{ data: s }, { data: w }, { data: d }, { data: b }] = await Promise.all([
+        const [{ data: s }, { data: w }, { data: d }, { data: b }, { data: pb }] = await Promise.all([
           supabase.from('solstice_seasons').select('*').eq('status', 'open').single(),
           supabase.from('solstice_weeks').select('*').order('start_date'),
           supabase.from('solstice_program_days').select('*').order('day_number'),
           supabase.from('solstice_boats').select('price_per_person').eq('status', 'active'),
+          supabase.from('solstice_config').select('value').eq('key', 'promo_banner').maybeSingle(),
         ]);
         if (s) setSeason(s as Season);
         if (w?.length) setWeeks(w as Week[]);
@@ -268,6 +270,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
           const prices = b.map((x: any) => Number(x.price_per_person) || 0).filter((p: number) => p > 0);
           if (prices.length) setCheapestBoat(Math.min(...prices));
         }
+        if (pb?.value) setPromoBanner(pb.value as { enabled: boolean; text: string });
       } catch { /* fallback to defaults below */ }
       finally { setLoading(false); }
     })();
@@ -715,6 +718,19 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
             genéricos "Reservá" bajan acá, en vez de a un paso aparte que confundía. ── */}
       <section id="solstice-opciones" className="py-16 md:py-24 px-4" style={{ background: 'rgba(255,255,255,0.015)' }}>
         <div className="max-w-5xl mx-auto">
+          {/* Banner promocional configurable (ej: "60% SOLD OUT") — editable desde el admin */}
+          {promoBanner?.enabled && promoBanner.text?.trim() && (
+            <div className="max-w-md mx-auto mb-8 px-5 py-3 text-center"
+              style={{
+                borderRadius: '999px',
+                background: 'linear-gradient(135deg, #E6392F 0%, #FF7A1A 100%)',
+                boxShadow: '0 10px 30px rgba(230,57,47,0.35)',
+              }}>
+              <p className="text-xs md:text-sm uppercase" style={{ color: C.cream, letterSpacing: '0.15em', fontWeight: 800 }}>
+                {promoBanner.text}
+              </p>
+            </div>
+          )}
           <div className="mb-8 md:mb-10">
             {/* Recordatorio del adelanto — card como el mockup */}
             <div className="max-w-md mx-auto flex items-center justify-center gap-3 px-5 py-3.5 mb-8"

@@ -233,6 +233,64 @@ function SaveBtn({ loading, onClick }: { loading: boolean; onClick: () => void }
   );
 }
 
+// Banner promocional configurable del landing (ej: "60% SOLD OUT"). Se guarda en
+// solstice_config key 'promo_banner' = { enabled, text }.
+function PromoBannerCard() {
+  const [enabled, setEnabled] = useState(false);
+  const [text, setText] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from('solstice_config').select('value').eq('key', 'promo_banner').maybeSingle();
+      const v = (data?.value as any) || {};
+      setEnabled(!!v.enabled);
+      setText(typeof v.text === 'string' ? v.text : '');
+      setLoading(false);
+    })();
+  }, []);
+
+  const save = async () => {
+    setSaving(true);
+    const { error } = await supabase.from('solstice_config').upsert(
+      { key: 'promo_banner', value: { enabled, text }, updated_at: new Date().toISOString() },
+      { onConflict: 'key' }
+    );
+    setSaving(false);
+    if (error) toast.error('Error: ' + error.message);
+    else toast.success('Banner guardado');
+  };
+
+  if (loading) return null;
+
+  return (
+    <div className="p-5 mt-6" style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.10)', borderRadius: '20px' }}>
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+        <div>
+          <h3 className="text-sm uppercase" style={{ color: C.cream, letterSpacing: '0.08em', fontWeight: 600 }}>Banner promocional</h3>
+          <p className="text-[10px] uppercase" style={{ color: C.gray, letterSpacing: '0.08em' }}>Aparece arriba de las opciones (ej: "60% SOLD OUT")</p>
+        </div>
+        <Toggle label={enabled ? 'Visible' : 'Oculto'} active={enabled} onToggle={() => setEnabled(e => !e)} />
+      </div>
+      <input
+        value={text}
+        onChange={e => setText(e.target.value)}
+        placeholder="🔥 60% SOLD OUT · quedan pocos cupos"
+        className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-sm outline-none"
+        style={{ color: C.cream }}
+      />
+      {/* Preview */}
+      {text.trim() && (
+        <div className="mt-3 max-w-xs mx-auto px-4 py-2 text-center" style={{ borderRadius: 999, background: 'linear-gradient(135deg, #E6392F 0%, #FF7A1A 100%)' }}>
+          <p className="text-[11px] uppercase" style={{ color: C.cream, letterSpacing: '0.12em', fontWeight: 800 }}>{text}</p>
+        </div>
+      )}
+      <div className="flex justify-end mt-3"><SaveBtn loading={saving} onClick={save} /></div>
+    </div>
+  );
+}
+
 function PriceSection({ title, subtitle, onSave, saving, children }: {
   title: string; subtitle: string; onSave: () => void; saving: boolean; children: React.ReactNode;
 }) {
@@ -901,6 +959,7 @@ export default function SolsticeAdminConfig() {
                 </div>
                 <InputRow label="Tagline (visible en landing)" value={season.tagline} onChange={v => upSeason('tagline', v)} />
                 <div className="pt-2"><SaveBtn loading={saving} onClick={saveSeason} /></div>
+                <PromoBannerCard />
               </div>
             )}
 
