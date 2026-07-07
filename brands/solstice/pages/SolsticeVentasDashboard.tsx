@@ -435,26 +435,54 @@ export default function SolsticeVentasDashboard({ role }: Props) {
       }
       setMySeller(myRich);
 
+      // La membresía real (quién está en qué team/squad) vive en profiles →
+      // reflejada en `promoters` (sales_team_id / super_squad_id). solstice_sellers
+      // casi siempre tiene esos campos en null, por eso el head/manager veía vacío.
+      const ssFor = (uid: string) => (ss || []).find((x: any) => x.user_id === uid);
+      const richFromPromoter = (p: any): RichSeller => {
+        const s = ssFor(p.user_id);
+        const team = storeTeams.find(t => t.id === p.sales_team_id);
+        const squad = storeSquads.find(sq => sq.id === p.super_squad_id)
+          || storeSquads.find(sq => sq.id === (team as any)?.super_squad_id);
+        return {
+          user_id: p.user_id,
+          name: p.name || p.user_id,
+          ref_code: s?.ref_code || '',
+          team_id: p.sales_team_id || null,
+          team_name: team?.name || null,
+          squad_id: squad?.id || null,
+          squad_name: squad?.name || null,
+          discount_pct: Number(s?.discount_pct) || 0,
+        };
+      };
+
       // Scope registrations query
       let q = supabase.from('solstice_registrations').select('*').order('created_at', { ascending: false });
       if (isSeller) {
         q = q.eq('seller_id', currentUser.user_id);
       } else if (isHead) {
-        // Cabeza: todos los squads de su super-squad → todos sus sellers.
-        const mySquadIds = storeSquads.filter(sq => (sq as any).head_id === currentUser.user_id).map(sq => sq.id);
-        const myTeamIds  = storeTeams.filter(t => (t as any).super_squad_id && mySquadIds.includes((t as any).super_squad_id)).map(t => t.id);
-        const headSellers = richSellers.filter(sl => sl.team_id && myTeamIds.includes(sl.team_id));
-        const ids = headSellers.map(sl => sl.user_id);
-        q = q.in('seller_id', ids.length ? ids : ['00000000-0000-0000-0000-000000000000']);
-        setTeamSellers(headSellers);
+        // Cabeza: sus super-squads → los teams de esos squads → los promotores de
+        // esos teams (profiles.sales_team_id; el super_squad_id de profiles está
+        // vacío, así que la membresía se resuelve team → super_squad).
+        const mySquadIds = storeSquads
+          .filter(sq => (sq as any).head_id === currentUser.user_id || (sq as any).head_of_sales_id === currentUser.user_id)
+          .map(sq => sq.id);
+        const myTeamIds = storeTeams
+          .filter(t => (t as any).super_squad_id && mySquadIds.includes((t as any).super_squad_id))
+          .map(t => t.id);
+        const headProms = promoters.filter(p => p.sales_team_id && myTeamIds.includes(p.sales_team_id));
+        const ids = Array.from(new Set([...headProms.map(p => p.user_id), currentUser.user_id]));
+        q = q.in('seller_id', ids);
+        setTeamSellers(headProms.map(richFromPromoter));
       } else if (isManager) {
-        // El gerente ve SOLO las ventas de su equipo: los teams que él MANEJA
-        // (sales_teams.manager_id = él), no su membresía. Incluye sus ventas propias.
+        // Gerente: promotores de los teams que maneja (sales_teams.manager_id = él)
+        // o cuyo manager_id sea él. Incluye sus ventas propias.
         const managedTeamIds = storeTeams.filter(t => (t as any).manager_id === currentUser.user_id).map(t => t.id);
-        const teamSellersList = richSellers.filter(sl => sl.team_id && managedTeamIds.includes(sl.team_id));
-        const scopeIds = Array.from(new Set([...teamSellersList.map(sl => sl.user_id), currentUser.user_id]));
-        q = q.in('seller_id', scopeIds.length ? scopeIds : ['00000000-0000-0000-0000-000000000000']);
-        setTeamSellers(teamSellersList);
+        const teamProms = promoters.filter(p =>
+          (p.sales_team_id && managedTeamIds.includes(p.sales_team_id)) || p.manager_id === currentUser.user_id);
+        const scopeIds = Array.from(new Set([...teamProms.map(p => p.user_id), currentUser.user_id]));
+        q = q.in('seller_id', scopeIds);
+        setTeamSellers(teamProms.map(richFromPromoter));
       }
 
       const { data: regs } = await q;
@@ -469,7 +497,8 @@ export default function SolsticeVentasDashboard({ role }: Props) {
       const enrichedRegs: Registration[] = regs.map((r: any) => ({
         ...r,
         schedules:   (schedules || []).filter((sc: any) => sc.registration_id === r.id),
-        seller_name: richSellers.find(sl => sl.user_id === r.seller_id)?.name || null,
+        seller_name: richSellers.find(sl => sl.user_id === r.seller_id)?.name
+          || promoters.find(p => p.user_id === r.seller_id)?.name || null,
       }));
       setAllRegs(enrichedRegs);
     } catch (err) {
