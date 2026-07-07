@@ -1503,32 +1503,57 @@ export default function SolsticeVentasDashboard({ role }: Props) {
                   <p className="text-[10px] mt-1" style={{ color: C.gray }}>Usá el botón <span style={{ color: C.red }}>Reclutar</span> de arriba para sumar promotores. Apenas vendan, vas a ver acá su ranking.</p>
                 </div>
               )}
-              {[...teamSellers]
-                .map(sl => ({ sl, paid: dateRegs.filter(r => r.seller_id === sl.user_id).reduce((a,r)=>a+r.amount_paid,0) }))
-                .sort((a, b) => b.paid - a.paid)   // ranking: mayor venta primero
-                .map(({ sl }, rankIdx) => {
-                const slRegs = dateRegs.filter(r => r.seller_id === sl.user_id);
-                const slPaid = slRegs.reduce((a,r)=>a+r.amount_paid,0);
-                return (
-                  <button key={sl.user_id} onClick={() => setSellerFilter(v => v===sl.user_id?'all':sl.user_id)}
-                    className="w-full grid grid-cols-12 px-5 py-3 items-center text-left hover:bg-white/3 transition-colors"
-                    style={{ borderBottom: '0.5px solid rgba(255,255,255,0.05)', background: sellerFilter===sl.user_id?'rgba(230,57,47,0.08)':'transparent' }}>
-                    <div className="col-span-4 flex items-center gap-2">
-                      <span className="text-[10px] tabular-nums flex-shrink-0" style={{ color: rankIdx===0?C.red:C.gray, fontWeight: 700, width: 16 }}>{rankIdx+1}</span>
-                      <div className="min-w-0">
-                        <p className="text-xs uppercase truncate" style={{ color: sellerFilter===sl.user_id?C.red:C.cream, fontWeight: 500 }}>{sl.name}</p>
-                        <p className="text-[9px] font-mono" style={{ color: C.gray }}>{sl.ref_code}</p>
+              {(() => {
+                // Segregar por EQUIPO (squad). Cada team con su header + total, y
+                // sus vendedores adentro ordenados por venta.
+                const paidOf = (uid: string) => dateRegs.filter(r => r.seller_id === uid).reduce((a,r)=>a+r.amount_paid,0);
+                const byTeam = new Map<string, RichSeller[]>();
+                teamSellers.forEach(sl => {
+                  const k = sl.team_name || 'Sin equipo';
+                  if (!byTeam.has(k)) byTeam.set(k, []);
+                  byTeam.get(k)!.push(sl);
+                });
+                return Array.from(byTeam.entries())
+                  .map(([teamName, sellers]) => ({ teamName, sellers, tPaid: sellers.reduce((a, sl) => a + paidOf(sl.user_id), 0) }))
+                  .sort((a, b) => b.tPaid - a.tPaid)
+                  .map(({ teamName, sellers, tPaid }) => (
+                    <div key={teamName}>
+                      {/* header del equipo (squad) */}
+                      <div className="grid grid-cols-12 px-5 py-2 items-center" style={{ background: 'rgba(230,57,47,0.07)', borderBottom: '0.5px solid rgba(255,255,255,0.05)' }}>
+                        <div className="col-span-8 text-[10px] uppercase truncate" style={{ color: C.red, fontWeight: 700, letterSpacing: '0.08em' }}>
+                          {teamName} <span style={{ color: C.gray }}>· {sellers.length} vend.</span>
+                        </div>
+                        <div className="col-span-4 text-right text-[10px]" style={{ color: C.cream, fontWeight: 600 }}>{fmtK(tPaid)}</div>
                       </div>
+                      {sellers
+                        .map(sl => ({ sl, paid: paidOf(sl.user_id) }))
+                        .sort((a, b) => b.paid - a.paid)
+                        .map(({ sl }, i) => {
+                          const slRegs = dateRegs.filter(r => r.seller_id === sl.user_id);
+                          const slPaid = slRegs.reduce((a,r)=>a+r.amount_paid,0);
+                          return (
+                            <button key={sl.user_id} onClick={() => setSellerFilter(v => v===sl.user_id?'all':sl.user_id)}
+                              className="w-full grid grid-cols-12 px-5 py-3 items-center text-left hover:bg-white/3 transition-colors"
+                              style={{ borderBottom: '0.5px solid rgba(255,255,255,0.05)', background: sellerFilter===sl.user_id?'rgba(230,57,47,0.08)':'transparent' }}>
+                              <div className="col-span-4 flex items-center gap-2">
+                                <span className="text-[10px] tabular-nums flex-shrink-0" style={{ color: i===0?C.red:C.gray, fontWeight: 700, width: 16 }}>{i+1}</span>
+                                <div className="min-w-0">
+                                  <p className="text-xs uppercase truncate" style={{ color: sellerFilter===sl.user_id?C.red:C.cream, fontWeight: 500 }}>{sl.name}</p>
+                                  <p className="text-[9px] font-mono truncate" style={{ color: C.gray }}>{sl.ref_code || '— sin link'}</p>
+                                </div>
+                              </div>
+                              <div className="col-span-2 text-right text-xs" style={{ fontWeight: 500 }}>{slRegs.length}</div>
+                              <div className="col-span-2 text-right text-xs" style={{ color: C.gray }}>
+                                {slRegs.filter(r=>r.ref_code&&r.payment_mode!=='cash_to_seller').length} · {slRegs.filter(r=>r.payment_mode==='cash_to_seller').length}
+                              </div>
+                              <div className="col-span-2 text-right text-xs">{fmtK(slPaid)}</div>
+                              <div className="col-span-2 text-right text-xs" style={{ color: C.green }}>{fmtK(slPaid*comPct)}</div>
+                            </button>
+                          );
+                        })}
                     </div>
-                    <div className="col-span-2 text-right text-xs" style={{ fontWeight: 500 }}>{slRegs.length}</div>
-                    <div className="col-span-2 text-right text-xs" style={{ color: C.gray }}>
-                      {slRegs.filter(r=>r.ref_code&&r.payment_mode!=='cash_to_seller').length} · {slRegs.filter(r=>r.payment_mode==='cash_to_seller').length}
-                    </div>
-                    <div className="col-span-2 text-right text-xs">{fmtK(slPaid)}</div>
-                    <div className="col-span-2 text-right text-xs" style={{ color: C.green }}>{fmtK(slPaid*comPct)}</div>
-                  </button>
-                );
-              })}
+                  ));
+              })()}
             </div>
           </div>
         )}
