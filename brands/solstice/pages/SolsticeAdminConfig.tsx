@@ -752,9 +752,11 @@ export default function SolsticeAdminConfig() {
   }, 'Combo 1');
 
   const saveComboCom = () => saveField({
-    combo_total:  toInt(season?.combo_total),
-    installments: toInt(season?.installments) || 1,
-    combo_days:   season?.combo_days || [1,2,3,4,5],
+    combo_total:       toInt(season?.combo_total),
+    events_pack_total: toInt(season?.events_pack_total) || 125000,
+    boat_day_number:   toInt(season?.boat_day_number) || 3,
+    installments:      toInt(season?.installments) || 1,
+    combo_days:        season?.combo_days || [1,2,3,4,5],
   }, 'Combo completo');
 
   const savePhases = () => saveField({
