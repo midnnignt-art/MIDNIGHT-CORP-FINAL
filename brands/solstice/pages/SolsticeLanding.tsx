@@ -231,6 +231,7 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
   const [days,   setDays]   = useState<Day[]>([]);
   const [cheapestBoat, setCheapestBoat] = useState<number>(0);
   const [promoBanner, setPromoBanner] = useState<{ enabled: boolean; text: string } | null>(null);
+  const [phaseDelta, setPhaseDelta] = useState(0);
   const [loading, setLoading] = useState(true);
   const [ctaHovered, setCtaHovered] = useState(false);
   // CTA sticky: aparece cuando el usuario pasa el hero (~80vh)
@@ -263,7 +264,14 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
           supabase.from('solstice_boats').select('price_per_person').eq('status', 'active'),
           supabase.from('solstice_config').select('value').eq('key', 'promo_banner').maybeSingle(),
         ]);
-        if (s) setSeason(s as Season);
+        if (s) {
+          setSeason(s as Season);
+          const { data: ph } = await supabase
+            .from('solstice_phases').select('price_delta')
+            .eq('season_id', (s as any).id).eq('status', 'active')
+            .order('position').limit(1).maybeSingle();
+          if (ph) setPhaseDelta(Number((ph as any).price_delta) || 0);
+        }
         if (w?.length) setWeeks(w as Week[]);
         if (d?.length) setDays(d as Day[]);
         if (b?.length) {
@@ -335,24 +343,29 @@ export default function SolsticeLanding({ onNavigate, isAdmin }: Props) {
     { day_number: 5, title: 'Cierre',        subtitle: 'Última noche',              price: 70000,  highlight: false },
   ];
 
+  // Sobreprecio de la etapa de venta activa: sube todos los combos (no la reserva).
+  const pd = phaseDelta;
+  const comboTotalP  = s.combo_total + pd;
+  const eventsPackP  = (s.events_pack_total || s.combo_total) + pd;
+  const combo1TotalP = s.combo1_total + pd;
   const entryK = Math.round(s.entry_price / 1000);
-  const comboK = Math.round(s.combo_total / 1000);
-  const cuotaK = Math.round(s.combo_total / (s.installments || 1) / 1000);
-  const combo1K = Math.round(s.combo1_total / 1000);
-  const cuota1K = Math.round(s.combo1_total / (s.combo1_installments || 1) / 1000);
+  const comboK = Math.round(comboTotalP / 1000);
+  const cuotaK = Math.round(comboTotalP / (s.installments || 1) / 1000);
+  const combo1K = Math.round(combo1TotalP / 1000);
+  const cuota1K = Math.round(combo1TotalP / (s.combo1_installments || 1) / 1000);
   // Precios en pesos completos (claros): "$150.000" en vez de "150K".
   const entryCOP  = fmtCOP(s.entry_price);
-  const comboCOP  = fmtCOP(s.combo_total);
-  const eventsPackCOP = fmtCOP(s.events_pack_total || s.combo_total);
-  const cuotaCOP  = fmtCOP(s.combo_total / (s.installments || 1));
+  const comboCOP  = fmtCOP(comboTotalP);
+  const eventsPackCOP = fmtCOP(eventsPackP);
+  const cuotaCOP  = fmtCOP(comboTotalP / (s.installments || 1));
   // Plan Total "desde" = covers (combo) + lancha MÁS BARATA con el descuento del
   // plan (−$15.000). Es el precio mínimo real que pagaría alguien con Plan Total.
-  const planTotalMin    = s.combo_total + (cheapestBoat > 0 ? Math.max(0, cheapestBoat - 15000) : 0);
+  const planTotalMin    = comboTotalP + (cheapestBoat > 0 ? Math.max(0, cheapestBoat - 15000) : 0);
   const planTotalMinCOP = fmtCOP(planTotalMin);
   // Día más barato (para "arma tu semana · desde")
-  const minDayCOP = fmtCOP(Math.min(...displayDays.map(d => d.price)));
-  const combo1COP = fmtCOP(s.combo1_total);
-  const cuota1COP = fmtCOP(s.combo1_total / (s.combo1_installments || 1));
+  const minDayCOP = fmtCOP(Math.min(...displayDays.map(d => d.price)) + pd);
+  const combo1COP = fmtCOP(combo1TotalP);
+  const cuota1COP = fmtCOP(combo1TotalP / (s.combo1_installments || 1));
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: C.bg }}>

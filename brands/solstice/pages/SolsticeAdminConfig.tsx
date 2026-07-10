@@ -291,6 +291,182 @@ function PromoBannerCard() {
   );
 }
 
+// ── Gestor de etapas de venta (múltiples, con nombre + sobreprecio + cupo) ──
+// Cada etapa sube TODOS los combos en `price_delta`. La etapa activa es la que
+// ve el comprador. Sube sola al llenarse el cupo (trigger en la BD) o a mano con
+// "Cerrar y pasar a la siguiente".
+type Phase = {
+  id: string; season_id: string; position: number; name: string;
+  price_delta: number; capacity: number | null;
+  status: 'active' | 'upcoming' | 'closed'; sold?: number;
+};
+
+function PhasesManager({ seasonId, basePack, baseCombo }: { seasonId: string; basePack: number; baseCombo: number }) {
+  const [phases, setPhases] = useState<Phase[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const load = async () => {
+    const [{ data: ph }, { data: regs }] = await Promise.all([
+      supabase.from('solstice_phases').select('*').eq('season_id', seasonId).order('position'),
+      supabase.from('solstice_registrations').select('phase_id, status').eq('season_id', seasonId),
+    ]);
+    const sold: Record<string, number> = {};
+    for (const r of (regs || [])) {
+      if (r.phase_id && r.status !== 'cancelled') sold[r.phase_id] = (sold[r.phase_id] || 0) + 1;
+    }
+    setPhases(((ph || []) as Phase[]).map(p => ({ ...p, sold: sold[p.id] || 0 })));
+    setLoading(false);
+  };
+  useEffect(() => { if (seasonId) load(); /* eslint-disable-next-line */ }, [seasonId]);
+
+  const up = (id: string, k: keyof Phase, v: any) =>
+    setPhases(prev => prev.map(p => p.id === id ? { ...p, [k]: v } : p));
+
+  const addPhase = async () => {
+    setBusy(true);
+    const anyActive = phases.some(p => p.status === 'active');
+    const pos = phases.length ? Math.max(...phases.map(p => p.position)) + 1 : 0;
+    const { error } = await supabase.from('solstice_phases').insert({
+      season_id: seasonId, position: pos, name: `Etapa ${pos + 1}`,
+      price_delta: 0, capacity: null, status: anyActive ? 'upcoming' : 'active',
+    });
+    setBusy(false);
+    if (error) toast.error('Error: ' + error.message); else load();
+  };
+
+  const removePhase = async (id: string) => {
+    if (!confirm('¿Eliminar esta etapa? Las ventas que tenía quedan sin etapa asignada.')) return;
+    setBusy(true);
+    const { error } = await supabase.from('solstice_phases').delete().eq('id', id);
+    setBusy(false);
+    if (error) toast.error('Error: ' + error.message); else load();
+  };
+
+  const saveAll = async () => {
+    setSaving(true);
+    for (const p of phases) {
+      const { error } = await supabase.from('solstice_phases').update({
+        name: p.name?.trim() || 'Etapa',
+        price_delta: Math.max(0, toInt(p.price_delta)),
+        capacity: p.capacity === null || String(p.capacity) === '' ? null : Math.max(0, toInt(p.capacity)),
+      }).eq('id', p.id);
+      if (error) { toast.error(`Error en ${p.name}: ${error.message}`); setSaving(false); return; }
+    }
+    setSaving(false);
+    toast.success('Etapas guardadas');
+    load();
+  };
+
+  // Cierra la etapa activa y activa la siguiente 'upcoming' (por posición).
+  const advance = async (activeId: string) => {
+    const ordered = [...phases].sort((a, b) => a.position - b.position);
+    const idx = ordered.findIndex(p => p.id === activeId);
+    const next = ordered.slice(idx + 1).find(p => p.status === 'upcoming');
+    if (!confirm(next
+      ? `Cerrar la etapa actual y pasar a "${next.name}". Los precios suben de una. ¿Seguro?`
+      : 'No hay una etapa siguiente. Se cerrará la etapa actual (no habrá etapa activa). ¿Seguro?')) return;
+    setBusy(true);
+    await supabase.from('solstice_phases').update({ status: 'closed' }).eq('id', activeId);
+    if (next) await supabase.from('solstice_phases').update({ status: 'active' }).eq('id', next.id);
+    setBusy(false);
+    toast.success(next ? `Ahora activa: ${next.name}` : 'Etapa cerrada');
+    load();
+  };
+
+  const k = (v: number) => `$${Math.round(v / 1000)}K`;
+  const badge = (s: Phase['status']) => s === 'active'
+    ? { t: 'ACTIVA', c: C.green, bg: 'rgba(16,185,129,0.15)' }
+    : s === 'upcoming'
+    ? { t: 'PRÓXIMA', c: C.gray, bg: 'rgba(255,255,255,0.06)' }
+    : { t: 'CERRADA', c: C.red, bg: 'rgba(230,57,47,0.12)' };
+
+  if (loading) return null;
+
+  return (
+    <div className="p-5" style={{ background: 'rgba(255,255,255,0.03)', backdropFilter: 'blur(24px)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '24px' }}>
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
+        <h2 className="text-xs uppercase tracking-widest" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.06em' }}>Etapas de venta</h2>
+        <div className="flex gap-2">
+          <button onClick={addPhase} disabled={busy}
+            className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest disabled:opacity-40"
+            style={{ background: 'rgba(255,255,255,0.05)', border: '0.5px solid rgba(255,255,255,0.15)', borderRadius: 999, color: C.cream, padding: '8px 14px' }}>
+            <Plus size={12} /> Agregar etapa
+          </button>
+          <SaveBtn loading={saving} onClick={saveAll} />
+        </div>
+      </div>
+      <p className="text-[10px] uppercase mb-4" style={{ color: C.gray, letterSpacing: '0.08em' }}>
+        Cada etapa sube TODOS los combos en su sobreprecio. La reserva inicial ($40K) siempre fija.
+      </p>
+
+      {phases.length === 0 && (
+        <p className="text-xs py-6 text-center" style={{ color: C.gray }}>Sin etapas. Agregá la primera.</p>
+      )}
+
+      <div className="space-y-3">
+        {[...phases].sort((a, b) => a.position - b.position).map(p => {
+          const b = badge(p.status);
+          const full = p.capacity != null && (p.sold || 0) >= p.capacity;
+          return (
+            <div key={p.id} className="p-4" style={{
+              background: p.status === 'active' ? 'rgba(16,185,129,0.05)' : 'rgba(255,255,255,0.02)',
+              border: `0.5px solid ${p.status === 'active' ? 'rgba(16,185,129,0.35)' : 'rgba(255,255,255,0.10)'}`,
+              borderRadius: '18px', opacity: p.status === 'closed' ? 0.6 : 1,
+            }}>
+              <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+                <span className="px-2.5 py-1 text-[9px] uppercase tracking-widest" style={{ background: b.bg, color: b.c, borderRadius: 999, fontWeight: 700 }}>{b.t}</span>
+                <span className="text-[11px] tabular-nums" style={{ color: full ? C.red : C.cream, fontWeight: 600 }}>
+                  {p.sold || 0}{p.capacity != null ? ` / ${p.capacity}` : ''} vendidas{p.capacity != null && full ? ' · LLENA' : ''}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] uppercase" style={{ color: C.gray, letterSpacing: '0.08em' }}>Nombre</label>
+                  <input value={p.name} onChange={e => up(p.id, 'name', e.target.value)}
+                    className="px-3 py-2.5 text-xs outline-none bg-transparent" style={{ color: C.cream, background: 'rgba(255,255,255,0.05)', border: '0.5px solid rgba(255,255,255,0.10)', borderRadius: 16 }} />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] uppercase" style={{ color: C.gray, letterSpacing: '0.08em' }}>Sobreprecio (se suma)</label>
+                  <div className="flex items-center" style={{ background: 'rgba(255,255,255,0.05)', border: '0.5px solid rgba(255,255,255,0.10)', borderRadius: 16 }}>
+                    <span className="px-3 text-xs shrink-0" style={{ color: C.gray, borderRight: '0.5px solid rgba(255,255,255,0.08)' }}>+$</span>
+                    <input type="number" value={p.price_delta} onChange={e => up(p.id, 'price_delta', e.target.value)}
+                      className="flex-1 px-3 py-2.5 text-xs outline-none bg-transparent w-full" style={{ color: C.cream }} />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] uppercase" style={{ color: C.gray, letterSpacing: '0.08em' }}>Cupo (vacío = ilimitado)</label>
+                  <input type="number" value={p.capacity ?? ''} placeholder="∞" onChange={e => up(p.id, 'capacity', e.target.value === '' ? null : e.target.value)}
+                    className="px-3 py-2.5 text-xs outline-none bg-transparent" style={{ color: C.cream, background: 'rgba(255,255,255,0.05)', border: '0.5px solid rgba(255,255,255,0.10)', borderRadius: 16 }} />
+                </div>
+              </div>
+              <div className="flex items-center justify-between flex-wrap gap-2 mt-3">
+                <p className="text-[10px] uppercase" style={{ color: C.gray, letterSpacing: '0.08em' }}>
+                  En esta etapa: Pack <span style={{ color: C.cream }}>{k(basePack + toInt(p.price_delta))}</span> · Plan Total covers <span style={{ color: C.cream }}>{k(baseCombo + toInt(p.price_delta))}</span>
+                </p>
+                <div className="flex items-center gap-2">
+                  {p.status === 'active' && (
+                    <button onClick={() => advance(p.id)} disabled={busy}
+                      className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest disabled:opacity-40"
+                      style={{ background: 'rgba(230,57,47,0.18)', border: '0.5px solid rgba(230,57,47,0.45)', borderRadius: 999, color: C.cream, padding: '8px 14px' }}>
+                      Cerrar y pasar a la siguiente <ChevronRight size={12} />
+                    </button>
+                  )}
+                  <button onClick={() => removePhase(p.id)} disabled={busy} title="Eliminar etapa"
+                    className="p-2 disabled:opacity-40" style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.10)', borderRadius: 12, color: C.gray }}>
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function PriceSection({ title, subtitle, onSave, saving, children }: {
   title: string; subtitle: string; onSave: () => void; saving: boolean; children: React.ReactNode;
 }) {
@@ -758,12 +934,6 @@ export default function SolsticeAdminConfig() {
     installments:      toInt(season?.installments) || 1,
     combo_days:        season?.combo_days || [1,2,3,4,5],
   }, 'Combo completo');
-
-  const savePhases = () => saveField({
-    phase1_limit:         phasesOn ? toIntOrNull(season?.phase1_limit)    : null,
-    phase_increment:      phasesOn ? toIntOrNull(season?.phase_increment) : null,
-    phase_increment_type: season?.phase_increment_type || 'fixed',
-  }, 'Sistema de etapas');
 
   // ── Image upload ──────────────────────────────────────────────────────────────
   const handleImageFile = async (idx: number, file: File) => {
@@ -1236,69 +1406,14 @@ export default function SolsticeAdminConfig() {
                   </div>
                 </PriceSection>
 
-                {/* ── 4. Sistema de etapas ── */}
-                <PriceSection
-                  title="Sistema de etapas"
-                  subtitle="Sube automáticamente todos los precios después de X reservas. La reserva inicial ($40K) siempre fija."
-                  onSave={savePhases}
-                  saving={saving}>
-                  <Toggle label="Activar sistema de etapas" active={phasesOn} onToggle={() => setPhasesOn(p => !p)} />
-                  {phasesOn && (
-                    <div className="space-y-4 mt-3">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <InputRow
-                          label="Reservas en Fase 1 (límite)"
-                          value={season.phase1_limit || ''}
-                          onChange={v => upSeason('phase1_limit', v)}
-                          type="number"
-                          placeholder="ej. 50"
-                        />
-                        <InputRow
-                          label="Incremento de precio"
-                          value={season.phase_increment || ''}
-                          onChange={v => upSeason('phase_increment', v)}
-                          type="number"
-                          prefix={season.phase_increment_type === 'percent' ? '%' : '$'}
-                          placeholder="ej. 20000"
-                        />
-                        <div className="flex flex-col gap-1">
-                          <label className="text-[9px] uppercase" style={{ color: C.gray, fontWeight: 500, letterSpacing: '0.08em' }}>Tipo de incremento</label>
-                          <select value={season.phase_increment_type}
-                            onChange={e => upSeason('phase_increment_type', e.target.value)}
-                            className="px-3 py-2.5 text-xs outline-none"
-                            style={{
-                              background: 'rgba(255,255,255,0.05)',
-                              border: '0.5px solid rgba(255,255,255,0.10)',
-                              borderRadius: '16px',
-                              color: C.cream,
-                              transition: 'all 0.3s ease',
-                            }}>
-                            <option value="fixed">Valor fijo ($)</option>
-                            <option value="percent">Porcentaje (%)</option>
-                          </select>
-                        </div>
-                      </div>
-                      {season.phase1_limit && season.phase_increment && (
-                        <div className="p-4 text-[10px] leading-relaxed uppercase"
-                          style={{
-                            background: 'rgba(230,57,47,0.08)',
-                            border: '0.5px solid rgba(230,57,47,0.20)',
-                            borderRadius: '16px',
-                            color: C.gray,
-                            letterSpacing: '0.12em',
-                          }}>
-                          <span style={{ color: C.cream }}>Fase 1:</span> precio actual hasta {season.phase1_limit} reservas ·{' '}
-                          <span style={{ color: C.red }}>
-                            Fase 2: sube {season.phase_increment_type === 'percent'
-                              ? `${season.phase_increment}%`
-                              : `$${Math.round(season.phase_increment / 1000)}K`} en todos los combos e individuales
-                          </span>
-                          {' '}· La reserva inicial se mantiene en ${Math.round(season.entry_price / 1000)}K
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </PriceSection>
+                {/* ── 4. Etapas de venta (múltiples, con nombre + sobreprecio + cupo) ── */}
+                {season.id && (
+                  <PhasesManager
+                    seasonId={season.id}
+                    basePack={toInt(season.events_pack_total) || 125000}
+                    baseCombo={toInt(season.combo_total)}
+                  />
+                )}
 
               </div>
             )}
