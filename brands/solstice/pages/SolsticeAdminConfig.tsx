@@ -9,7 +9,7 @@ import {
   Save, Plus, Loader2, Copy, ToggleLeft, ToggleRight,
   X, Search, ExternalLink, Image, Star, ChevronRight,
   AlignLeft, AlignCenter, AlignRight,
-  Ship, BedDouble, Trash2, Upload
+  Ship, BedDouble, Trash2, Upload, Pencil, Check
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { toast } from '../../../lib/toast';
@@ -619,6 +619,22 @@ export default function SolsticeAdminConfig() {
   const [expandedSquads, setExpandedSquads]   = useState<Set<string>>(new Set());
   const [expandedTeams, setExpandedTeams]     = useState<Set<string>>(new Set());
   const [activating, setActivating]           = useState<Set<string>>(new Set());
+  // Renombrar equipos desde el staff
+  const [editingTeamId, setEditingTeamId]     = useState<string | null>(null);
+  const [editingTeamName, setEditingTeamName] = useState('');
+  const [renamingTeam, setRenamingTeam]       = useState(false);
+
+  const renameTeam = async (teamId: string) => {
+    const nm = editingTeamName.trim();
+    if (nm.length < 2) { toast.error('Nombre muy corto'); return; }
+    setRenamingTeam(true);
+    const { error } = await supabase.from('sales_teams').update({ name: nm }).eq('id', teamId);
+    setRenamingTeam(false);
+    if (error) { toast.error('Error: ' + error.message); return; }
+    setEditingTeamId(null);
+    toast.success('Equipo renombrado');
+    loadAll();
+  };
 
   // Recruitment modal (espejo de Midnight)
   const [recruitOpen, setRecruitOpen]   = useState(false);
@@ -1545,22 +1561,49 @@ export default function SolsticeAdminConfig() {
               const TeamBlock = ({ team }: { team: TeamGroup }) => {
                 const open = expandedTeams.has(team.id);
                 const active = team.members.filter(m => m.solstice_active).length;
+                const editing = editingTeamId === team.id;
                 return (
                   <div style={{ borderLeft: '0.5px solid rgba(255,255,255,0.08)' }} className="ml-4">
-                    <button onClick={() => setExpandedTeams(prev => {
-                      const s = new Set(prev); s.has(team.id) ? s.delete(team.id) : s.add(team.id); return s;
-                    })} className="w-full flex items-center gap-3 px-4 py-2 text-left transition-colors"
-                      style={{ borderRadius: '16px', transition: 'all 0.3s ease' }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.03)'; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
-                      <ChevronRight size={11} className="transition-transform shrink-0"
-                        style={{ color: C.gray, transform: open ? 'rotate(90deg)' : 'none' }} />
-                      <span className="text-[10px] uppercase tracking-widest flex-1" style={{ color: C.cream }}>{team.name}</span>
-                      <span className="text-[9px]" style={{ color: active > 0 ? C.green : 'rgba(96,96,96,0.5)' }}>
-                        {active}/{team.members.length} en Solstice
-                      </span>
-                    </button>
-                    {open && team.members.map(m => <MemberRowItem key={m.profile_id} m={m} />)}
+                    {editing ? (
+                      <div className="flex items-center gap-2 px-4 py-2">
+                        <input autoFocus value={editingTeamName}
+                          onChange={e => setEditingTeamName(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') renameTeam(team.id); if (e.key === 'Escape') setEditingTeamId(null); }}
+                          className="flex-1 text-[11px] uppercase tracking-widest px-3 py-1.5 outline-none"
+                          style={{ background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(230,57,47,0.4)', borderRadius: 12, color: C.cream }} />
+                        <button onClick={() => renameTeam(team.id)} disabled={renamingTeam} title="Guardar"
+                          className="p-1.5 disabled:opacity-40" style={{ color: C.green }}>
+                          {renamingTeam ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                        </button>
+                        <button onClick={() => setEditingTeamId(null)} title="Cancelar" className="p-1.5" style={{ color: C.gray }}>
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="w-full flex items-center gap-3 px-4 py-2 group"
+                        style={{ borderRadius: '16px', transition: 'all 0.3s ease' }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.03)'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}>
+                        <button onClick={() => setExpandedTeams(prev => {
+                          const s = new Set(prev); s.has(team.id) ? s.delete(team.id) : s.add(team.id); return s;
+                        })} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                          <ChevronRight size={11} className="transition-transform shrink-0"
+                            style={{ color: C.gray, transform: open ? 'rotate(90deg)' : 'none' }} />
+                          <span className="text-[10px] uppercase tracking-widest flex-1 truncate" style={{ color: C.cream }}>{team.name}</span>
+                        </button>
+                        <button onClick={() => { setEditingTeamId(team.id); setEditingTeamName(team.name); }}
+                          title="Renombrar equipo"
+                          className="p-1 opacity-0 group-hover:opacity-100 shrink-0" style={{ color: C.gray, transition: 'all 0.3s ease' }}
+                          onMouseEnter={e => (e.currentTarget.style.color = C.cream)}
+                          onMouseLeave={e => (e.currentTarget.style.color = C.gray)}>
+                          <Pencil size={11} />
+                        </button>
+                        <span className="text-[9px] shrink-0" style={{ color: active > 0 ? C.green : 'rgba(96,96,96,0.5)' }}>
+                          {active}/{team.members.length} en Solstice
+                        </span>
+                      </div>
+                    )}
+                    {open && !editing && team.members.map(m => <MemberRowItem key={m.profile_id} m={m} />)}
                   </div>
                 );
               };
