@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, ChevronRight, Loader2, Shield, CreditCard, CheckCircle2,
-  Ship, Calendar, Repeat, ListChecks, Star, Check
+  Ship, Calendar, Repeat, ListChecks, Star, Check,
+  User, Mail, Phone, GraduationCap, AlertCircle, Lock, MessageCircle
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { buildWompiCheckoutUrl } from '../../../lib/wompi';
@@ -1437,23 +1438,52 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
             </motion.div>
           )}
 
-          {/* STEP 2 — Datos personales */}
-          {step === 2 && (
-            <motion.div key="s2" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
-              <div>
-                <p className="text-[10px] uppercase mb-2" style={{ letterSpacing: '0.4em', color: C.red, fontWeight: 600 }}>
-                  Paso 3 · Tus datos
+          {/* STEP 2 — Datos personales (mockup: tarjetas por sección, más amigable) */}
+          {step === 2 && (() => {
+            // Universidades sugeridas (de las semanas configuradas) para el selector.
+            const uniOptions = Array.from(new Set(
+              weeks.map(w => (w.university || '').trim()).filter(Boolean)
+            ));
+            // % del formulario completado, para la barra de progreso viva.
+            const reqFilled = [
+              name.trim().length >= 3,
+              cedula.trim().length >= 6,
+              !!birthDate,
+              EMAIL_RE.test(email.trim()),
+              PHONE_RE.test(phone.trim()),
+              uni.trim().length > 0,
+              emergencyName.trim().length >= 3,
+              PHONE_RE.test(emergencyPhone.trim()),
+            ];
+            const pct = Math.round((reqFilled.filter(Boolean).length / reqFilled.length) * 100);
+            return (
+            <motion.div key="s2" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-5">
+              <div className="text-center">
+                <p className="text-[10px] uppercase mb-2" style={{ letterSpacing: '0.35em', color: C.cream, fontWeight: 600 }}>
+                  Reserva Solstice 2026
                 </p>
-                <h2 className="text-3xl md:text-4xl uppercase mb-1" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.04em', fontWeight: 300 }}>
-                  Quién eres
+                <h2 className="text-3xl md:text-4xl uppercase leading-none mb-3" style={{ fontFamily: "'Poiret One', sans-serif", letterSpacing: '0.02em', fontWeight: 300 }}>
+                  Activa tu<br /><span style={{ color: C.red }}>pase Solstice</span>
                 </h2>
-                <p className="text-xs uppercase" style={{ color: C.gray, letterSpacing: '0.2em', fontWeight: 500 }}>
-                  Lo necesitamos para tu QR de acceso y tu pase Solstice
+                <p className="text-xs" style={{ color: C.gray, fontWeight: 400, lineHeight: 1.5 }}>
+                  Solo toma 1 minuto. Al finalizar recibirás tu QR personal para ingresar a toda la experiencia.
                 </p>
               </div>
 
-              {/* Datos personales */}
-              <FieldGroup title="Identidad">
+              {/* Barra de progreso */}
+              <div className="p-4" style={{ borderRadius: 18, background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.08)' }}>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-[10px] uppercase" style={{ color: C.red, letterSpacing: '0.15em', fontWeight: 700 }}>Paso 3 de 4</span>
+                  <span className="text-[10px] uppercase" style={{ color: C.cream, letterSpacing: '0.1em', fontWeight: 600 }}>{pct}% completado</span>
+                </div>
+                <div style={{ height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.10)', overflow: 'hidden' }}>
+                  <motion.div animate={{ width: `${pct}%` }} transition={{ duration: 0.4 }}
+                    style={{ height: '100%', borderRadius: 999, background: 'linear-gradient(90deg, #E6392F, #FF7A1A)' }} />
+                </div>
+              </div>
+
+              {/* TU IDENTIDAD */}
+              <SectionCard icon={<User size={20} />} title="Tu identidad" subtitle="Tal como aparece en tu documento.">
                 <SolField
                   label="Nombre completo"
                   value={name}
@@ -1461,18 +1491,20 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
                   error={fieldErrors.name}
                   type="text"
                   autoComplete="name"
-                  placeholder="Como aparece en tu cédula"
+                  placeholder="Ej. Juan Sebastián Palacio"
+                  icon={<User size={16} />}
                 />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <SolField
-                    label="Documento / Cédula"
+                    label="Documento"
                     value={cedula}
                     onChange={v => { setCedula(v.replace(/\D/g, '')); if (fieldErrors.cedula) setFieldErrors({ ...fieldErrors, cedula: '' }); }}
                     error={fieldErrors.cedula}
                     type="text"
                     inputMode="numeric"
                     autoComplete="off"
-                    placeholder="1234567890"
+                    placeholder="Ej. 1023456789"
+                    icon={<CreditCard size={16} />}
                   />
                   <SolField
                     label="Fecha de nacimiento"
@@ -1481,12 +1513,14 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
                     error={fieldErrors.birthDate}
                     type="date"
                     autoComplete="bday"
-                    placeholder="YYYY-MM-DD"
+                    placeholder="DD / MM / AAAA"
+                    icon={<Calendar size={16} />}
                   />
                 </div>
-              </FieldGroup>
+              </SectionCard>
 
-              <FieldGroup title="Contacto">
+              {/* TU CONTACTO */}
+              <SectionCard icon={<Mail size={20} />} title="Tu contacto" subtitle="Te enviaremos aquí tu QR y actualizaciones.">
                 <SolField
                   label="Correo electrónico"
                   value={email}
@@ -1495,17 +1529,19 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
                   type="email"
                   inputMode="email"
                   autoComplete="email"
-                  placeholder="tu@email.com"
+                  placeholder="Ej. ejemplo@email.com"
+                  icon={<Mail size={16} />}
                 />
                 <SolField
-                  label="Teléfono / WhatsApp"
+                  label="WhatsApp"
                   value={phone}
                   onChange={v => { setPhone(v); if (fieldErrors.phone) setFieldErrors({ ...fieldErrors, phone: '' }); }}
                   error={fieldErrors.phone}
                   type="tel"
                   inputMode="tel"
                   autoComplete="tel"
-                  placeholder="+57 300 123 4567"
+                  placeholder="Ej. +57 300 123 4567"
+                  icon={<MessageCircle size={16} />}
                 />
                 <SolField
                   label="Universidad"
@@ -1514,29 +1550,39 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
                   error={fieldErrors.uni}
                   type="text"
                   autoComplete="organization"
-                  placeholder="Javeriana, Andes, CESA, etc."
+                  placeholder="Selecciona o escribe la tuya"
+                  icon={<GraduationCap size={16} />}
+                  list="uni-options"
                 />
-              </FieldGroup>
+                <datalist id="uni-options">
+                  {uniOptions.map(u => <option key={u} value={u} />)}
+                </datalist>
+              </SectionCard>
 
-              <FieldGroup title="Contacto de emergencia" hint="Para emergencias durante la semana. No los molestaremos por nada más.">
-                <SolField
-                  label="Nombre del contacto"
-                  value={emergencyName}
-                  onChange={v => { setEmergencyName(v); if (fieldErrors.emergencyName) setFieldErrors({ ...fieldErrors, emergencyName: '' }); }}
-                  error={fieldErrors.emergencyName}
-                  type="text"
-                  placeholder="Papá / Mamá / Pareja / Mejor amig@"
-                />
-                <SolField
-                  label="Teléfono del contacto"
-                  value={emergencyPhone}
-                  onChange={v => { setEmergencyPhone(v); if (fieldErrors.emergencyPhone) setFieldErrors({ ...fieldErrors, emergencyPhone: '' }); }}
-                  error={fieldErrors.emergencyPhone}
-                  type="tel"
-                  inputMode="tel"
-                  placeholder="+57 300 123 4567"
-                />
-              </FieldGroup>
+              {/* CONTACTO DE EMERGENCIA */}
+              <SectionCard icon={<AlertCircle size={20} />} title="Contacto de emergencia" subtitle="Solo se usará si ocurre una emergencia.">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <SolField
+                    label="Nombre completo"
+                    value={emergencyName}
+                    onChange={v => { setEmergencyName(v); if (fieldErrors.emergencyName) setFieldErrors({ ...fieldErrors, emergencyName: '' }); }}
+                    error={fieldErrors.emergencyName}
+                    type="text"
+                    placeholder="Ej. Mamá / Papá / Pareja"
+                    icon={<User size={16} />}
+                  />
+                  <SolField
+                    label="Teléfono"
+                    value={emergencyPhone}
+                    onChange={v => { setEmergencyPhone(v); if (fieldErrors.emergencyPhone) setFieldErrors({ ...fieldErrors, emergencyPhone: '' }); }}
+                    error={fieldErrors.emergencyPhone}
+                    type="tel"
+                    inputMode="tel"
+                    placeholder="Ej. +57 300 123 4567"
+                    icon={<Phone size={16} />}
+                  />
+                </div>
+              </SectionCard>
 
               {authError && (
                 <p className="text-xs uppercase text-center py-2" style={{ color: C.red, letterSpacing: '0.15em', fontWeight: 500 }}>
@@ -1544,31 +1590,38 @@ export default function SolsticeReserva({ initialWeek, initialCombo, initialInvi
                 </p>
               )}
 
-              <button onClick={handleRequestOtp} disabled={authLoading}
-                style={{
-                  ...primaryBtnStyle,
-                  padding: '18px 16px',
-                  opacity: authLoading ? 0.35 : 1,
-                }}
-                onMouseEnter={e => {
-                  if (!authLoading) {
-                    (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
-                    (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 12px 28px rgba(230,57,47,0.30)';
-                  }
-                }}
-                onMouseLeave={e => {
-                  (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
-                  (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none';
-                }}
-              >
-                {authLoading ? <Loader2 className="animate-spin" /> : <>Continuar al pago <ChevronRight size={16} /></>}
-              </button>
-
-              <p className="text-[9px] uppercase text-center" style={{ color: `${C.gray}aa`, letterSpacing: '0.25em', fontWeight: 500 }}>
-                🔒 Datos cifrados · Solo Solstice los ve
-              </p>
+              <div className="flex items-center gap-3">
+                <span className="flex-shrink-0 flex items-center justify-center" style={{ width: 40, height: 40, borderRadius: '50%', border: '0.5px solid rgba(255,255,255,0.15)', color: C.gray }}>
+                  <Lock size={15} />
+                </span>
+                <p className="text-[10px] flex-1" style={{ color: C.gray, fontWeight: 400, lineHeight: 1.4 }}>
+                  Tus datos están cifrados y nunca se compartirán con terceros.
+                </p>
+                <button onClick={handleRequestOtp} disabled={authLoading}
+                  style={{
+                    ...primaryBtnStyle,
+                    padding: '16px 22px',
+                    flex: '1 1 auto',
+                    minWidth: 0,
+                    opacity: authLoading ? 0.35 : 1,
+                  }}
+                  onMouseEnter={e => {
+                    if (!authLoading) {
+                      (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
+                      (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 12px 28px rgba(230,57,47,0.30)';
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
+                    (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none';
+                  }}
+                >
+                  {authLoading ? <Loader2 className="animate-spin" /> : <>Continuar y asegurar mi cupo <ChevronRight size={16} /></>}
+                </button>
+              </div>
             </motion.div>
-          )}
+            );
+          })()}
 
           {/* STEP 2.5 — OTP */}
           {step === (2.5 as any) && (
@@ -2979,51 +3032,100 @@ interface SolFieldProps {
   inputMode?: 'text' | 'numeric' | 'tel' | 'email' | 'url';
   autoComplete?: string;
   placeholder?: string;
+  icon?: React.ReactNode;
+  list?: string;
 }
 
-function SolField({ label, value, onChange, error, type = 'text', inputMode, autoComplete, placeholder }: SolFieldProps) {
+function SolField({ label, value, onChange, error, type = 'text', inputMode, autoComplete, placeholder, icon, list }: SolFieldProps) {
+  const [focused, setFocused] = React.useState(false);
+  const active = focused || Boolean(value);
   return (
     <div>
-      <label className="text-[9px] uppercase block mb-1.5" style={{ letterSpacing: '0.25em', color: error ? '#E6392F' : '#606060', fontWeight: 600 }}>
-        {label}
-      </label>
-      <input
-        type={type}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        inputMode={inputMode as any}
-        autoComplete={autoComplete as any}
-        placeholder={placeholder}
-        aria-invalid={Boolean(error)}
+      <div
         style={{
-          borderRadius: '14px',
-          background: 'rgba(255,255,255,0.04)',
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          borderRadius: '16px',
+          background: 'rgba(255,255,255,0.045)',
           backdropFilter: 'blur(24px) saturate(180%)',
-          border: error ? '0.5px solid rgba(230,57,47,0.55)' : '0.5px solid rgba(255,255,255,0.10)',
-          color: '#F9F2D7',
-          padding: '14px 16px',
-          width: '100%',
-          outline: 'none',
-          fontSize: '13px',
-          fontFamily: "'Archivo', sans-serif",
-          fontWeight: 400,
-          letterSpacing: '0.02em',
+          border: error
+            ? '0.5px solid rgba(230,57,47,0.55)'
+            : focused ? '0.5px solid rgba(230,57,47,0.55)' : '0.5px solid rgba(255,255,255,0.10)',
+          boxShadow: focused ? '0 0 0 3px rgba(230,57,47,0.10)' : 'none',
+          padding: '10px 14px',
           transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
         }}
-        onFocus={e => {
-          e.currentTarget.style.borderColor = 'rgba(230,57,47,0.55)';
-          e.currentTarget.style.boxShadow = '0 0 0 3px rgba(230,57,47,0.10)';
-        }}
-        onBlur={e => {
-          e.currentTarget.style.borderColor = error ? 'rgba(230,57,47,0.55)' : 'rgba(255,255,255,0.10)';
-          e.currentTarget.style.boxShadow = 'none';
-        }}
-      />
+      >
+        {icon && (
+          <span className="flex-shrink-0 flex items-center justify-center" style={{ color: error ? '#E6392F' : active ? '#E6392F' : '#606060', transition: 'color 0.2s ease' }}>
+            {icon}
+          </span>
+        )}
+        <div className="flex-1 min-w-0">
+          <label className="text-[9px] uppercase block" style={{ letterSpacing: '0.18em', color: error ? '#E6392F' : '#7a7a7a', fontWeight: 600 }}>
+            {label}
+          </label>
+          <input
+            type={type}
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            inputMode={inputMode as any}
+            autoComplete={autoComplete as any}
+            placeholder={placeholder}
+            list={list}
+            aria-invalid={Boolean(error)}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#F9F2D7',
+              padding: '2px 0 0',
+              width: '100%',
+              outline: 'none',
+              fontSize: '14px',
+              fontFamily: "'Archivo', sans-serif",
+              fontWeight: 400,
+              letterSpacing: '0.01em',
+            }}
+          />
+        </div>
+      </div>
       {error && (
-        <p className="text-[10px] mt-1.5 flex items-center gap-1" style={{ color: '#E6392F', fontWeight: 500 }}>
-          <span>·</span> {error}
+        <p className="text-[10px] mt-1.5 flex items-center gap-1 px-1" style={{ color: '#E6392F', fontWeight: 500 }}>
+          <AlertCircle size={11} /> {error}
         </p>
       )}
+    </div>
+  );
+}
+
+// Tarjeta de sección del formulario (ícono + título + subtítulo), estilo mockup.
+function SectionCard({ icon, title, subtitle, children }: { icon: React.ReactNode; title: string; subtitle: string; children: React.ReactNode }) {
+  return (
+    <div className="p-5" style={{
+      borderRadius: '24px',
+      background: 'rgba(255,255,255,0.03)',
+      backdropFilter: 'blur(24px) saturate(160%)',
+      border: '0.5px solid rgba(255,255,255,0.08)',
+    }}>
+      <div className="flex items-center gap-3 mb-4">
+        <span className="flex-shrink-0 flex items-center justify-center" style={{
+          width: 44, height: 44, borderRadius: '50%',
+          background: 'rgba(230,57,47,0.10)',
+          border: '0.5px solid rgba(230,57,47,0.30)',
+          color: '#E6392F',
+        }}>
+          {icon}
+        </span>
+        <div>
+          <p className="text-[13px] uppercase" style={{ color: '#F9F2D7', letterSpacing: '0.14em', fontWeight: 700 }}>{title}</p>
+          <p className="text-[10px] mt-0.5" style={{ color: '#8a8a8a', fontWeight: 400 }}>{subtitle}</p>
+        </div>
+      </div>
+      <div className="space-y-3">{children}</div>
     </div>
   );
 }
