@@ -1435,6 +1435,50 @@ export default function SolsticeVentasDashboard({ role }: Props) {
             </div>
           </div>
         </div>
+
+        {/* ── Liquidación por evento (universidad) — solo managers ──────── */}
+        {isManager && (() => {
+          const byUni = new Map<string, Registration[]>();
+          for (const r of filteredRegs) {
+            const uni = (r.customer_university || '').trim() || 'Sin evento';
+            if (!byUni.has(uni)) byUni.set(uni, []);
+            byUni.get(uni)!.push(r);
+          }
+          const rows = Array.from(byUni.entries())
+            .map(([uni, rs]) => ({ uni, s: stats(rs, comPct) }))
+            .sort((a, b) => b.s.paid - a.s.paid);
+          if (rows.length === 0) return null;
+          return (
+            <div className="p-5 md:p-6" style={{ borderRadius: '24px', background: 'rgba(255,255,255,0.025)', border: '0.5px solid rgba(255,255,255,0.10)' }}>
+              <p className="text-[10px] uppercase mb-4" style={{ letterSpacing: '0.35em', color: C.red, fontWeight: 600 }}>
+                Liquidación por evento
+              </p>
+              <div className="grid grid-cols-12 text-[8px] uppercase pb-2 mb-1" style={{ color: C.gray, letterSpacing: '0.12em', fontWeight: 600, borderBottom: '0.5px solid rgba(255,255,255,0.08)' }}>
+                <div className="col-span-4">Evento</div>
+                <div className="col-span-2 text-right">Ventas</div>
+                <div className="col-span-3 text-right">Recaudado</div>
+                <div className="col-span-3 text-right">Comisión</div>
+              </div>
+              <div className="space-y-2 pt-1">
+                {rows.map(({ uni, s }) => (
+                  <div key={uni} className="grid grid-cols-12 items-center text-[11px]" style={{ letterSpacing: '0.02em' }}>
+                    <div className="col-span-4 uppercase truncate" style={{ color: C.cream, fontWeight: 600 }}>{uni}</div>
+                    <div className="col-span-2 text-right tabular-nums" style={{ color: C.gray }}>{s.count}</div>
+                    <div className="col-span-3 text-right tabular-nums" style={{ color: C.cream }}>{fmtK(s.paid)}</div>
+                    <div className="col-span-3 text-right tabular-nums" style={{ color: C.green }}>{fmtK(s.com)}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-12 items-center text-[11px] pt-3 mt-2" style={{ borderTop: `0.5px solid ${C.red}44` }}>
+                <div className="col-span-4 uppercase" style={{ color: C.cream, fontWeight: 700 }}>Total</div>
+                <div className="col-span-2 text-right tabular-nums" style={{ color: C.cream, fontWeight: 700 }}>{myStats.count}</div>
+                <div className="col-span-3 text-right tabular-nums" style={{ color: C.cream, fontWeight: 700 }}>{fmtK(myStats.paid)}</div>
+                <div className="col-span-3 text-right tabular-nums" style={{ color: C.green, fontWeight: 700 }}>{fmtK(myStats.com)}</div>
+              </div>
+            </div>
+          );
+        })()}
+
         {myStats.inMora > 0 && (
           <div className="flex items-center gap-3 px-5 py-3"
             style={{
