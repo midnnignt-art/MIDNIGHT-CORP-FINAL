@@ -131,6 +131,7 @@ interface TeamGroup {
   id: string;
   name: string;
   super_squad_id?: string;
+  university?: string | null;
   members: MemberRow[];
 }
 
@@ -619,20 +620,23 @@ export default function SolsticeAdminConfig() {
   const [expandedSquads, setExpandedSquads]   = useState<Set<string>>(new Set());
   const [expandedTeams, setExpandedTeams]     = useState<Set<string>>(new Set());
   const [activating, setActivating]           = useState<Set<string>>(new Set());
-  // Renombrar equipos desde el staff
+  // Renombrar / etiquetar equipos (nombre + universidad) desde el staff
   const [editingTeamId, setEditingTeamId]     = useState<string | null>(null);
   const [editingTeamName, setEditingTeamName] = useState('');
+  const [editingTeamUniv, setEditingTeamUniv] = useState('');
   const [renamingTeam, setRenamingTeam]       = useState(false);
 
-  const renameTeam = async (teamId: string) => {
+  const saveTeam = async (teamId: string) => {
     const nm = editingTeamName.trim();
     if (nm.length < 2) { toast.error('Nombre muy corto'); return; }
     setRenamingTeam(true);
-    const { error } = await supabase.from('sales_teams').update({ name: nm }).eq('id', teamId);
+    const { error } = await supabase.from('sales_teams')
+      .update({ name: nm, university: editingTeamUniv.trim() || null })
+      .eq('id', teamId);
     setRenamingTeam(false);
     if (error) { toast.error('Error: ' + error.message); return; }
     setEditingTeamId(null);
-    toast.success('Equipo renombrado');
+    toast.success('Equipo actualizado');
     loadAll();
   };
 
@@ -725,7 +729,7 @@ export default function SolsticeAdminConfig() {
       // ── Build full Midnight org structure ────────────────────────────────────
       const [{ data: allProfs }, { data: allTeams }, { data: allSquads }] = await Promise.all([
         supabase.from('profiles').select('id, full_name, email, code, role, sales_team_id, super_squad_id'),
-        supabase.from('sales_teams').select('id, name, super_squad_id'),
+        supabase.from('sales_teams').select('id, name, super_squad_id, university'),
         supabase.from('super_squads').select('id, name'),
       ]);
 
@@ -758,7 +762,7 @@ export default function SolsticeAdminConfig() {
 
       const teamMap = new Map<string, TeamGroup>();
       for (const t of (allTeams || [])) {
-        const tg: TeamGroup = { id: t.id, name: t.name, super_squad_id: t.super_squad_id, members: [] };
+        const tg: TeamGroup = { id: t.id, name: t.name, super_squad_id: t.super_squad_id, university: t.university, members: [] };
         teamMap.set(t.id, tg);
       }
 
@@ -1565,19 +1569,34 @@ export default function SolsticeAdminConfig() {
                 return (
                   <div style={{ borderLeft: '0.5px solid rgba(255,255,255,0.08)' }} className="ml-4">
                     {editing ? (
-                      <div className="flex items-center gap-2 px-4 py-2">
-                        <input autoFocus value={editingTeamName}
-                          onChange={e => setEditingTeamName(e.target.value)}
-                          onKeyDown={e => { if (e.key === 'Enter') renameTeam(team.id); if (e.key === 'Escape') setEditingTeamId(null); }}
-                          className="flex-1 text-[11px] uppercase tracking-widest px-3 py-1.5 outline-none"
-                          style={{ background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(230,57,47,0.4)', borderRadius: 12, color: C.cream }} />
-                        <button onClick={() => renameTeam(team.id)} disabled={renamingTeam} title="Guardar"
-                          className="p-1.5 disabled:opacity-40" style={{ color: C.green }}>
-                          {renamingTeam ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                        </button>
-                        <button onClick={() => setEditingTeamId(null)} title="Cancelar" className="p-1.5" style={{ color: C.gray }}>
-                          <X size={14} />
-                        </button>
+                      <div className="px-4 py-2 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <input autoFocus value={editingTeamName}
+                            onChange={e => setEditingTeamName(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') saveTeam(team.id); if (e.key === 'Escape') setEditingTeamId(null); }}
+                            placeholder="Nombre del equipo"
+                            className="flex-1 text-[11px] uppercase tracking-widest px-3 py-1.5 outline-none"
+                            style={{ background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(230,57,47,0.4)', borderRadius: 12, color: C.cream }} />
+                          <button onClick={() => saveTeam(team.id)} disabled={renamingTeam} title="Guardar"
+                            className="p-1.5 disabled:opacity-40" style={{ color: C.green }}>
+                            {renamingTeam ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                          </button>
+                          <button onClick={() => setEditingTeamId(null)} title="Cancelar" className="p-1.5" style={{ color: C.gray }}>
+                            <X size={14} />
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[8px] uppercase shrink-0" style={{ color: C.gray, letterSpacing: '0.15em' }}>Universidad</span>
+                          <input value={editingTeamUniv} list="team-univ-options"
+                            onChange={e => setEditingTeamUniv(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') saveTeam(team.id); if (e.key === 'Escape') setEditingTeamId(null); }}
+                            placeholder="Selecciona o escribe"
+                            className="flex-1 text-[10px] px-3 py-1.5 outline-none"
+                            style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 12, color: C.cream }} />
+                        </div>
+                        <datalist id="team-univ-options">
+                          {Array.from(new Set(weeks.map(w => (w.university || '').trim()).filter(Boolean))).map(u => <option key={u} value={u} />)}
+                        </datalist>
                       </div>
                     ) : (
                       <div className="w-full flex items-center gap-3 px-4 py-2 group"
@@ -1586,13 +1605,18 @@ export default function SolsticeAdminConfig() {
                         onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}>
                         <button onClick={() => setExpandedTeams(prev => {
                           const s = new Set(prev); s.has(team.id) ? s.delete(team.id) : s.add(team.id); return s;
-                        })} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                        })} className="flex items-center gap-2 flex-1 min-w-0 text-left">
                           <ChevronRight size={11} className="transition-transform shrink-0"
                             style={{ color: C.gray, transform: open ? 'rotate(90deg)' : 'none' }} />
-                          <span className="text-[10px] uppercase tracking-widest flex-1 truncate" style={{ color: C.cream }}>{team.name}</span>
+                          <span className="text-[10px] uppercase tracking-widest truncate" style={{ color: C.cream }}>{team.name}</span>
+                          {team.university && (
+                            <span className="text-[8px] uppercase px-2 py-0.5 shrink-0" style={{ color: C.red, background: 'rgba(230,57,47,0.10)', border: '0.5px solid rgba(230,57,47,0.30)', borderRadius: 999, letterSpacing: '0.1em' }}>
+                              {team.university}
+                            </span>
+                          )}
                         </button>
-                        <button onClick={() => { setEditingTeamId(team.id); setEditingTeamName(team.name); }}
-                          title="Renombrar equipo"
+                        <button onClick={() => { setEditingTeamId(team.id); setEditingTeamName(team.name); setEditingTeamUniv(team.university || ''); }}
+                          title="Renombrar / etiquetar universidad"
                           className="p-1 opacity-0 group-hover:opacity-100 shrink-0" style={{ color: C.gray, transition: 'all 0.3s ease' }}
                           onMouseEnter={e => (e.currentTarget.style.color = C.cream)}
                           onMouseLeave={e => (e.currentTarget.style.color = C.gray)}>
