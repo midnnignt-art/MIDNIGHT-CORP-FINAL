@@ -16,12 +16,43 @@ Deno.serve(async (req) => {
   // marcamos nada como 'failed' (las importantes/pagadas no se tocan aunque
   // Bold responda raro). Recomendado para el rescate de las 25 colgadas.
   let recoverOnly = false
+  let debugRef: string | null = null
   try {
     if (req.method === 'POST') {
       const body = await req.clone().json().catch(() => ({}))
       recoverOnly = body?.recover_only === true
+      debugRef = typeof body?.debug_ref === 'string' ? body.debug_ref : null
     }
   } catch { /* sin body */ }
+
+  // ── Modo debug: probar varios endpoints/auth de Bold para UNA referencia y
+  //    devolver el status + snippet crudo, para descubrir el correcto. ──
+  if (debugRef) {
+    // @ts-ignore
+    const ID  = Deno.env.get('BOLD_API_KEY') ?? ''
+    // @ts-ignore
+    const SEC = Deno.env.get('BOLD_SECRET_KEY') ?? ''
+    const attempts: Array<{ url: string; headers: Record<string,string> }> = [
+      { url: `https://integrations.bold.co/v2/transactions?referenceId=${debugRef}`, headers: { 'x-api-key': ID } },
+      { url: `https://integrations.bold.co/v2/transactions?referenceId=${debugRef}`, headers: { 'Authorization': `x-api-key ${ID}` } },
+      { url: `https://integrations.bold.co/online/v1/payment-voucher/${debugRef}`, headers: { 'Authorization': `x-api-key ${ID}` } },
+      { url: `https://integrations.bold.co/v2/payment-methods/${debugRef}`, headers: { 'x-api-key': SEC } },
+      { url: `https://integrations.bold.co/online/link/v1/${debugRef}`, headers: { 'Authorization': `x-api-key ${SEC}` } },
+    ]
+    const out: any[] = []
+    for (const a of attempts) {
+      try {
+        const r = await fetch(a.url, { headers: { 'Content-Type': 'application/json', ...a.headers } })
+        const t = await r.text()
+        out.push({ url: a.url, auth: Object.keys(a.headers)[0], status: r.status, body: t.slice(0, 200) })
+      } catch (e: any) {
+        out.push({ url: a.url, auth: Object.keys(a.headers)[0], error: e.message })
+      }
+    }
+    return new Response(JSON.stringify({ debug: true, ref: debugRef, attempts: out }, null, 2), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200,
+    })
+  }
 
   // @ts-ignore
   // Preferimos BOLD_API_KEY; si no está, caemos a BOLD_SECRET_KEY (la que ya

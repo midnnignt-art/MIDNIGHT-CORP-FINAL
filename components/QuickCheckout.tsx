@@ -8,7 +8,6 @@ import { useStore } from '../context/StoreContext';
 import { supabase } from '../lib/supabase';
 import { toast } from '../lib/toast';
 import { isValidEmail, isValidOtp, isValidName, normalizeEmail } from '../lib/validation';
-import { buildWompiCheckoutUrl } from '../lib/wompi';
 import TurnstileWidget from './TurnstileWidget';
 
 const TURNSTILE_ENABLED = !!(import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined);
@@ -99,7 +98,7 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
                  if (otherOrderIds.length > 0) {
                      console.log("🔄 Updating group orders:", otherOrderIds);
                      supabase.from('orders')
-                        .update({ status: 'completed', payment_method: 'wompi' })
+                        .update({ status: 'completed', payment_method: 'bold' })
                         .in('id', otherOrderIds)
                         .then(({ error }) => {
                             if (error) console.error("❌ Error updating group orders:", error);
@@ -131,42 +130,77 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
 
   useEffect(() => {
     if (step === 2.5 && pendingOrder && gatewayStatus === 'idle') {
-        initiateWompiTransaction();
+        initiateBoldTransaction();
     }
   }, [step, pendingOrder, gatewayStatus]);
 
-  // Wompi es un checkout HOSTED (redirect): pedimos la firma de integridad al
-  // edge function y redirigimos al Web Checkout de Wompi. Al terminar, Wompi
-  // devuelve al cliente a /gracias?reference=MID-XXXX&status=APPROVED, y el
-  // webhook wompi-webhook confirma la orden en el servidor.
-  const initiateWompiTransaction = async () => {
+  const initiateBoldTransaction = async () => {
       setGatewayStatus('loading');
-      setGatewayMessage('Redirigiendo a Wompi…');
-
+      setGatewayMessage('Conectando con Bold...');
+      
       try {
           if (!pendingOrder) throw new Error("No hay orden pendiente.");
-
+          
           const rawAmount = (pendingOrder as any)._groupTotal || pendingOrder.total;
           const rawOrderId = pendingOrder.order_number;
 
           if (!rawAmount || !rawOrderId) throw new Error("Datos de orden incompletos.");
 
-          console.log("🔑 Iniciando checkout Wompi para:", rawOrderId, rawAmount);
+          console.log("🔑 Iniciando firma para:", rawOrderId, rawAmount);
 
-          const url = await buildWompiCheckoutUrl({
-            reference:        rawOrderId,               // MID-XXXXX (order_number)
-            amountCOP:        Number(rawAmount),
-            customerEmail:    email || undefined,
-            customerFullName: name || undefined,
-            customerPhone:    phone ? phone.replace(/[^0-9]/g, '') : undefined,
-            redirectUrl:      `${window.location.origin}/gracias`,
+          const { data, error } = await supabase.functions.invoke('bold-signature', {
+            body: {
+                orderId: rawOrderId,
+                amount: rawAmount,
+                currency: 'COP'
+            }
           });
 
-          // Redirige al checkout de Wompi (la página se descarga aquí).
-          window.location.href = url;
+          if (error) throw new Error(error.message || "Error al conectar con el servidor de firmas.");
+          
+          const signature = data?.signature || data?.integritySignature;
+          if (!signature) throw new Error("No se recibió una firma válida del servidor.");
+
+          console.log("✅ Firma recibida. OrderId que se enviará a Bold:", rawOrderId);
+
+          const existing = document.querySelector('script[data-bold-button]');
+          if (existing) existing.remove();
+
+          const container = document.getElementById("bold-container");
+          if (!container) throw new Error("Contenedor 'bold-container' no encontrado.");
+          container.innerHTML = '';
+
+          const script = document.createElement("script");
+          script.setAttribute("data-bold-button", "dark-L");
+          script.setAttribute("data-api-key", "HXR9FR8wKFLJmIXK29TyR74ey1l32zVvLvkV4QDyaVY");
+          script.setAttribute("data-order-id", rawOrderId);  // MID-XXXXX
+          script.setAttribute("data-currency", "COP");
+          script.setAttribute("data-amount", String(rawAmount));
+          script.setAttribute("data-integrity-signature", signature);
+          script.setAttribute("data-redirection-url", `${window.location.origin}/gracias`);
+          script.setAttribute("data-render-mode", "embedded");
+          script.src = "https://checkout.bold.co/library/boldPaymentButton.js";
+          
+          if (email || name) {
+             const customerData = { email, fullName: name, phone, dialCode: "+57" };
+             script.setAttribute("data-customer-data", JSON.stringify(customerData));
+          }
+
+          script.onload = () => {
+              setGatewayStatus('ready');
+              setGatewayMessage('');
+              console.log("✅ Script Bold cargado correctamente");
+          };
+
+          script.onerror = () => {
+              setGatewayStatus('error');
+              setGatewayMessage("No se pudo cargar el botón de pago.");
+          };
+          
+          container.appendChild(script);
 
       } catch (error: any) {
-          console.error("❌ Wompi Integration Error:", error);
+          console.error("❌ Bold Integration Error:", error);
           setGatewayStatus('error');
           setGatewayMessage(error.message || "Error desconocido al iniciar pago.");
       }
@@ -191,6 +225,10 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
     });
 
   const subtotal = selectedItems.reduce((sum, item) => sum + item.subtotal, 0);
+  // Ticket service MIDNIGHT: 7.5% que se suma al total (igual que en createOrder).
+  const SERVICE_FEE_PCT = 0.075;
+  const serviceFee = Math.round(subtotal * SERVICE_FEE_PCT);
+  const totalWithFee = subtotal + serviceFee;
   const discountAppliedToSelected = appliedDiscount && selectedItems.some(i =>
     appliedDiscount.tierId === null || appliedDiscount.tierId === i.tier_id
   );
@@ -249,7 +287,7 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
       const orderData = await onComplete({
         customerInfo: { name: name.trim() || 'Cliente Midnight', email: normalizeEmail(email), phone: phone.trim() },
         items: selectedItems,
-        method: 'wompi'
+        method: 'bold'
       });
 
       if (!orderData) { setIsProcessing(false); return; }
@@ -307,26 +345,35 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
               <PromoCodeField />
 
               {/* ── Total con roll counter ─────────────────────────── */}
-              <div className="flex justify-between items-center py-5 border-t border-moonlight/10">
-                <span className="text-moonlight/40 font-light text-[10px] uppercase tracking-[0.3em]">Total</span>
-                <div className="text-right">
-                  {discountAppliedToSelected && (
-                    <p className="text-moonlight/30 text-sm line-through tabular-nums text-right">
-                      ${selectedItems.reduce((s, i) => s + (i.original_price ?? i.unit_price) * i.quantity, 0).toLocaleString()}
-                    </p>
-                  )}
-                  <AnimatePresence mode="popLayout" initial={false}>
-                    <motion.span
-                      key={subtotal}
-                      initial={{ y: 12, opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      exit={{ y: -12, opacity: 0 }}
-                      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-                      className="inline-block text-3xl md:text-4xl font-black text-moonlight tabular-nums"
-                    >
-                      ${subtotal.toLocaleString()}
-                    </motion.span>
-                  </AnimatePresence>
+              <div className="border-t border-moonlight/10 pt-4">
+                {subtotal > 0 && (
+                  <div className="flex justify-between items-center text-[11px] text-moonlight/40 mb-1">
+                    <span className="font-light">Subtotal</span>
+                    <span className="tabular-nums">${subtotal.toLocaleString()}</span>
+                  </div>
+                )}
+                {subtotal > 0 && (
+                  <div className="flex justify-between items-center text-[11px] text-moonlight/40 mb-2">
+                    <span className="font-light">Servicio (7.5%)</span>
+                    <span className="tabular-nums">${serviceFee.toLocaleString()}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center pb-4">
+                  <span className="text-moonlight/40 font-light text-[10px] uppercase tracking-[0.3em]">Total</span>
+                  <div className="text-right">
+                    <AnimatePresence mode="popLayout" initial={false}>
+                      <motion.span
+                        key={totalWithFee}
+                        initial={{ y: 12, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: -12, opacity: 0 }}
+                        transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                        className="inline-block text-3xl md:text-4xl font-black text-moonlight tabular-nums"
+                      >
+                        ${totalWithFee.toLocaleString()}
+                      </motion.span>
+                    </AnimatePresence>
+                  </div>
                 </div>
               </div>
 
@@ -340,7 +387,7 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
 
               {/* ── Trust signals ─────────────────────────────────── */}
               <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 pt-1">
-                <TrustChip>🔒 Pago seguro · Wompi</TrustChip>
+                <TrustChip>🔒 Pago seguro · Bold</TrustChip>
                 <TrustChip>QR único anti-fraude</TrustChip>
                 <TrustChip>Tickets transferibles</TrustChip>
               </div>
@@ -409,7 +456,9 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
               </div>
               <div className="bg-white/5 p-5 md:p-8 border border-moonlight/5 space-y-4 rounded-2xl">
                   <div className="flex justify-between text-moonlight/40 text-[10px] font-light tracking-[0.3em] uppercase"><span>Producto</span><span>Tickets ({selectedItems.length})</span></div>
-                  <div className="flex justify-between text-moonlight font-black text-xl pt-4 border-t border-moonlight/10 tabular-nums"><span>Total</span><span>${subtotal.toLocaleString()}</span></div>
+                  <div className="flex justify-between text-moonlight/40 text-[11px] tabular-nums"><span className="font-light">Subtotal</span><span>${subtotal.toLocaleString()}</span></div>
+                  <div className="flex justify-between text-moonlight/40 text-[11px] tabular-nums"><span className="font-light">Servicio (7.5%)</span><span>${serviceFee.toLocaleString()}</span></div>
+                  <div className="flex justify-between text-moonlight font-black text-xl pt-4 border-t border-moonlight/10 tabular-nums"><span>Total</span><span>${totalWithFee.toLocaleString()}</span></div>
               </div>
               <button onClick={handlePayment} disabled={isProcessing} className="w-full h-16 bg-eclipse text-moonlight font-black text-sm uppercase tracking-[0.5em] hover:bg-eclipse/80 transition-all shadow-[0_0_40px_rgba(73,15,124,0.3)] rounded-2xl">
                 {isProcessing ? <Loader2 className="animate-spin mx-auto" /> : "Ir a Pagar"}
@@ -431,7 +480,7 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
                      </h3>
                      <div className="my-8">
                          <p className="text-[10px] text-moonlight/40 uppercase font-light tracking-[0.4em] mb-2">Total a Pagar</p>
-                         <p className="text-5xl font-black text-moonlight tracking-tighter tabular-nums">${subtotal.toLocaleString()}</p>
+                         <p className="text-5xl font-black text-moonlight tracking-tighter tabular-nums">${totalWithFee.toLocaleString()}</p>
                          <p className="text-[10px] text-moonlight/30 mt-4 font-mono tracking-widest uppercase">Orden: {pendingOrder.order_number}</p>
                      </div>
                      <div className="flex flex-col items-center justify-center min-h-[80px] gap-4">
@@ -451,14 +500,17 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
                                  <button onClick={() => {
                                      setPaymentStatus('pending');
                                      setGatewayStatus('idle');
-                                     initiateWompiTransaction();
+                                     initiateBoldTransaction();
                                  }} className="h-10 px-6 border border-red-500/30 hover:bg-red-500/10 text-red-500 transition-all mt-2 rounded-xl">Reintentar</button>
                              </div>
+                         )}
+                         {paymentStatus === 'pending' && (
+                             <div id="bold-container" className="mt-4 flex justify-center w-full min-h-[60px]"></div>
                          )}
                      </div>
                  </div>
                  <p className="text-[9px] text-moonlight/30 uppercase font-light tracking-[0.3em] leading-relaxed max-w-xs mx-auto">
-                    {paymentStatus === 'paid' ? 'Tu pago ha sido procesado exitosamente.' : 'Serás redirigido a la pasarela oficial de Wompi para completar tu pago de forma segura.'}
+                    {paymentStatus === 'paid' ? 'Tu pago ha sido procesado exitosamente.' : 'Serás redirigido a la pasarela oficial de Bold para completar tu pago de forma segura.'}
                  </p>
              </motion.div>
           )}

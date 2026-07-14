@@ -734,6 +734,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         skipRefresh = false // Nueva optimización
     ) => {
         try {
+            // Ticket service MIDNIGHT: 7.5% que se SUMA al total que cobra la
+            // pasarela (Bold). Se aplica solo a pagos online; el efectivo no.
+            const SERVICE_FEE_PCT = 0.075;
+
             // 1. Expand items to individual tickets
             const expandedItems: any[] = [];
             let grandTotal = 0;
@@ -941,12 +945,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             if (!skipRefresh) await fetchData();
 
             // 6. Return Head Order with Group Info
+            // El monto que cobra la pasarela incluye el ticket service (7.5%)
+            // en pagos online. _groupTotal se usa como el amount enviado a Bold.
+            const applyFee = (method === 'bold' || method === 'wompi');
+            const chargeTotal = applyFee ? Math.round(grandTotal * (1 + SERVICE_FEE_PCT)) : grandTotal;
             const headOrder = createdOrders[0];
+            (headOrder as any)._groupTotal = chargeTotal;
             if (createdOrders.length > 1) {
                 (headOrder as any)._groupOrders = createdOrders;
-                (headOrder as any)._groupTotal = grandTotal;
             }
-            
+
             return { ...headOrder, items: cartItems, timestamp: headOrder.created_at };
 
         } catch (error: any) { 
