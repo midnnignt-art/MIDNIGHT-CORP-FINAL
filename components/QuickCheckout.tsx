@@ -8,6 +8,7 @@ import { useStore } from '../context/StoreContext';
 import { supabase } from '../lib/supabase';
 import { toast } from '../lib/toast';
 import { isValidEmail, isValidOtp, isValidName, normalizeEmail } from '../lib/validation';
+import { buildWompiCheckoutUrl } from '../lib/wompi';
 import TurnstileWidget from './TurnstileWidget';
 
 const TURNSTILE_ENABLED = !!(import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined);
@@ -98,7 +99,7 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
                  if (otherOrderIds.length > 0) {
                      console.log("🔄 Updating group orders:", otherOrderIds);
                      supabase.from('orders')
-                        .update({ status: 'completed', payment_method: 'bold' })
+                        .update({ status: 'completed', payment_method: 'wompi' })
                         .in('id', otherOrderIds)
                         .then(({ error }) => {
                             if (error) console.error("❌ Error updating group orders:", error);
@@ -130,77 +131,42 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
 
   useEffect(() => {
     if (step === 2.5 && pendingOrder && gatewayStatus === 'idle') {
-        initiateBoldTransaction();
+        initiateWompiTransaction();
     }
   }, [step, pendingOrder, gatewayStatus]);
 
-  const initiateBoldTransaction = async () => {
+  // Wompi es un checkout HOSTED (redirect): pedimos la firma de integridad al
+  // edge function y redirigimos al Web Checkout de Wompi. Al terminar, Wompi
+  // devuelve al cliente a /gracias?reference=MID-XXXX&status=APPROVED, y el
+  // webhook wompi-webhook confirma la orden en el servidor.
+  const initiateWompiTransaction = async () => {
       setGatewayStatus('loading');
-      setGatewayMessage('Conectando con Bold...');
-      
+      setGatewayMessage('Redirigiendo a Wompi…');
+
       try {
           if (!pendingOrder) throw new Error("No hay orden pendiente.");
-          
+
           const rawAmount = (pendingOrder as any)._groupTotal || pendingOrder.total;
           const rawOrderId = pendingOrder.order_number;
 
           if (!rawAmount || !rawOrderId) throw new Error("Datos de orden incompletos.");
 
-          console.log("🔑 Iniciando firma para:", rawOrderId, rawAmount);
+          console.log("🔑 Iniciando checkout Wompi para:", rawOrderId, rawAmount);
 
-          const { data, error } = await supabase.functions.invoke('bold-signature', {
-            body: {
-                orderId: rawOrderId,
-                amount: rawAmount,
-                currency: 'COP'
-            }
+          const url = await buildWompiCheckoutUrl({
+            reference:        rawOrderId,               // MID-XXXXX (order_number)
+            amountCOP:        Number(rawAmount),
+            customerEmail:    email || undefined,
+            customerFullName: name || undefined,
+            customerPhone:    phone ? phone.replace(/[^0-9]/g, '') : undefined,
+            redirectUrl:      `${window.location.origin}/gracias`,
           });
 
-          if (error) throw new Error(error.message || "Error al conectar con el servidor de firmas.");
-          
-          const signature = data?.signature || data?.integritySignature;
-          if (!signature) throw new Error("No se recibió una firma válida del servidor.");
-
-          console.log("✅ Firma recibida. OrderId que se enviará a Bold:", rawOrderId);
-
-          const existing = document.querySelector('script[data-bold-button]');
-          if (existing) existing.remove();
-
-          const container = document.getElementById("bold-container");
-          if (!container) throw new Error("Contenedor 'bold-container' no encontrado.");
-          container.innerHTML = '';
-
-          const script = document.createElement("script");
-          script.setAttribute("data-bold-button", "dark-L");
-          script.setAttribute("data-api-key", "HXR9FR8wKFLJmIXK29TyR74ey1l32zVvLvkV4QDyaVY");
-          script.setAttribute("data-order-id", rawOrderId);  // MID-XXXXX
-          script.setAttribute("data-currency", "COP");
-          script.setAttribute("data-amount", String(rawAmount));
-          script.setAttribute("data-integrity-signature", signature);
-          script.setAttribute("data-redirection-url", `${window.location.origin}/gracias`);
-          script.setAttribute("data-render-mode", "embedded");
-          script.src = "https://checkout.bold.co/library/boldPaymentButton.js";
-          
-          if (email || name) {
-             const customerData = { email, fullName: name, phone, dialCode: "+57" };
-             script.setAttribute("data-customer-data", JSON.stringify(customerData));
-          }
-
-          script.onload = () => {
-              setGatewayStatus('ready');
-              setGatewayMessage('');
-              console.log("✅ Script Bold cargado correctamente");
-          };
-
-          script.onerror = () => {
-              setGatewayStatus('error');
-              setGatewayMessage("No se pudo cargar el botón de pago.");
-          };
-          
-          container.appendChild(script);
+          // Redirige al checkout de Wompi (la página se descarga aquí).
+          window.location.href = url;
 
       } catch (error: any) {
-          console.error("❌ Bold Integration Error:", error);
+          console.error("❌ Wompi Integration Error:", error);
           setGatewayStatus('error');
           setGatewayMessage(error.message || "Error desconocido al iniciar pago.");
       }
@@ -283,7 +249,7 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
       const orderData = await onComplete({
         customerInfo: { name: name.trim() || 'Cliente Midnight', email: normalizeEmail(email), phone: phone.trim() },
         items: selectedItems,
-        method: 'bold'
+        method: 'wompi'
       });
 
       if (!orderData) { setIsProcessing(false); return; }
@@ -374,7 +340,7 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
 
               {/* ── Trust signals ─────────────────────────────────── */}
               <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 pt-1">
-                <TrustChip>🔒 Pago seguro · Bold</TrustChip>
+                <TrustChip>🔒 Pago seguro · Wompi</TrustChip>
                 <TrustChip>QR único anti-fraude</TrustChip>
                 <TrustChip>Tickets transferibles</TrustChip>
               </div>
@@ -485,17 +451,14 @@ export default function QuickCheckout({ event, tiers, onComplete }: QuickCheckou
                                  <button onClick={() => {
                                      setPaymentStatus('pending');
                                      setGatewayStatus('idle');
-                                     initiateBoldTransaction();
+                                     initiateWompiTransaction();
                                  }} className="h-10 px-6 border border-red-500/30 hover:bg-red-500/10 text-red-500 transition-all mt-2 rounded-xl">Reintentar</button>
                              </div>
-                         )}
-                         {paymentStatus === 'pending' && (
-                             <div id="bold-container" className="mt-4 flex justify-center w-full min-h-[60px]"></div>
                          )}
                      </div>
                  </div>
                  <p className="text-[9px] text-moonlight/30 uppercase font-light tracking-[0.3em] leading-relaxed max-w-xs mx-auto">
-                    {paymentStatus === 'paid' ? 'Tu pago ha sido procesado exitosamente.' : 'Serás redirigido a la pasarela oficial de Bold para completar tu pago de forma segura.'}
+                    {paymentStatus === 'paid' ? 'Tu pago ha sido procesado exitosamente.' : 'Serás redirigido a la pasarela oficial de Wompi para completar tu pago de forma segura.'}
                  </p>
              </motion.div>
           )}

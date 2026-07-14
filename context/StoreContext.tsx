@@ -803,8 +803,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
             console.log('[createOrder] refCode:', sessionStorage.getItem('ms_ref_code'), '| finalStaffId:', finalStaffId);
 
-            // Determines initial status based on payment method
-            const initialStatus = method === 'bold' ? 'pending' : 'completed';
+            // Determines initial status based on payment method.
+            // Pasarelas online (Bold/Wompi) arrancan 'pending' hasta que el
+            // webhook confirme el pago. Efectivo/otros quedan 'completed'.
+            const initialStatus = (method === 'bold' || method === 'wompi') ? 'pending' : 'completed';
             const createdOrders: any[] = [];
             const groupId = expandedItems.length > 1 ? crypto.randomUUID() : null;
 

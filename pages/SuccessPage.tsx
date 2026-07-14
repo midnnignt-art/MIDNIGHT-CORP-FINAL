@@ -55,14 +55,48 @@ export const SuccessPage: React.FC = () => {
 const SuccessPageMidnight: React.FC = () => {
   const { orders, events, currentCustomer } = useStore();
 
+  // Al volver de Wompi la URL trae ?reference=MID-XXXX. La orden puede seguir
+  // 'pending' unos segundos hasta que el webhook la confirme → hacemos polling
+  // directo a la BD por esa referencia y mostramos la boleta apenas quede lista.
+  const [polledOrder, setPolledOrder] = useState<any | null>(null);
+  const [confirming, setConfirming] = useState(false);
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const ref = (p.get('reference') || p.get('order') || '').trim();
+    if (!ref.startsWith('MID-')) return;
+    let alive = true;
+    let tries = 0;
+    setConfirming(true);
+    const tick = async () => {
+      const { data } = await supabase
+        .from('orders')
+        .select('order_number, event_id, customer_name, customer_email, status, created_at')
+        .eq('order_number', ref)
+        .maybeSingle();
+      if (!alive) return;
+      if (data?.status === 'completed') {
+        setPolledOrder({ ...data, timestamp: data.created_at });
+        setConfirming(false);
+        return;
+      }
+      if (tries++ < 25) { setTimeout(tick, 2000); }
+      else setConfirming(false);
+    };
+    tick();
+    return () => { alive = false; };
+  }, []);
+
   // Última orden completada del cliente (asumimos que llegó acá tras pago)
-  const latestOrder = useMemo(() => {
+  const storeOrder = useMemo(() => {
     if (!currentCustomer?.email) return null;
     const email = currentCustomer.email.toLowerCase().trim();
     return orders
       .filter(o => o.customer_email?.toLowerCase().trim() === email && o.status === 'completed')
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0] ?? null;
   }, [orders, currentCustomer]);
+
+  const latestOrder = polledOrder ?? storeOrder;
 
   const event = useMemo(
     () => latestOrder ? events.find(e => e.id === latestOrder.event_id) : null,
@@ -125,6 +159,13 @@ const SuccessPageMidnight: React.FC = () => {
           >
             <PaseBadge email={currentCustomer.email} variant="full" />
           </motion.div>
+        )}
+
+        {confirming && !latestOrder && (
+          <div className="mb-6 rounded-2xl border border-moonlight/10 bg-midnight/30 p-5 text-center">
+            <p className="text-[10px] font-black tracking-[0.3em] text-eclipse uppercase mb-2 animate-pulse">Confirmando tu pago…</p>
+            <p className="text-moonlight/50 text-xs font-light">Esto puede tardar unos segundos. Tu entrada y el correo con el QR llegan apenas Wompi confirme.</p>
+          </div>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">

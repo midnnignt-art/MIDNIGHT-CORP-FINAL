@@ -175,11 +175,60 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── Otras referencias (MIDNIGHT ticket orders, etc) ──────────────────
-    // El sistema actual usa Bold para MIDNIGHT — si en el futuro se quiere
-    // habilitar Wompi para esa marca, replicar acá la lógica de orders.
-    console.log(`ℹ️ Reference ${reference} no es Solstice — ignorada por ahora`);
-    return new Response(JSON.stringify({ success: true, ignored_brand: true, reference }), {
+    // ── Rama MIDNIGHT ticket orders: reference = order_number (MID-XXXX) ──
+    // orders usa 'completed' | 'failed' (no 'active'). Buscamos la orden
+    // cabeza; si tiene group_id, actualizamos todo el grupo de forma atómica.
+    const orderStatus = txStatus === 'APPROVED' ? 'completed' : 'failed';
+
+    const { data: headOrder, error: findOrderErr } = await supabase
+      .from('orders')
+      .select('id, order_number, group_id, status, customer_email, customer_name, event_id')
+      .eq('order_number', reference)
+      .maybeSingle();
+
+    if (findOrderErr || !headOrder) {
+      console.log(`ℹ️ Reference ${reference} no es Solstice ni una orden MIDNIGHT — ignorada`);
+      return new Response(JSON.stringify({ success: true, ignored: true, reference }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    }
+
+    let updatedOrders: any[] = [];
+    if (headOrder.group_id) {
+      const { data, error } = await supabase
+        .from('orders')
+        .update({ status: orderStatus, wompi_transaction_id: wompiTxId })
+        .eq('group_id', headOrder.group_id)
+        .neq('status', orderStatus)
+        .select('id, order_number, customer_email, customer_name, event_id');
+      if (error) throw error;
+      updatedOrders = data ?? [];
+    } else {
+      const { data, error } = await supabase
+        .from('orders')
+        .update({ status: orderStatus, wompi_transaction_id: wompiTxId })
+        .eq('order_number', reference)
+        .neq('status', orderStatus)
+        .select('id, order_number, customer_email, customer_name, event_id');
+      if (error) throw error;
+      updatedOrders = data ?? [];
+    }
+
+    if (updatedOrders.length === 0) {
+      console.log(`⚠️ Orden ${reference} ya estaba en ${orderStatus} — skip (webhook duplicado)`);
+      return new Response(JSON.stringify({ success: true, skipped: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    }
+
+    if (orderStatus === 'completed') {
+      await sendTicketEmail(updatedOrders, supabase);
+    }
+
+    console.log(`✅ MIDNIGHT ${reference}: ${updatedOrders.length} órdenes → ${orderStatus}`);
+    return new Response(JSON.stringify({ success: true, reference, status: orderStatus, updated: updatedOrders.length }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
@@ -191,5 +240,98 @@ Deno.serve(async (req) => {
     });
   }
 });
+
+// Envía el correo con las boletas (QR) de una orden MIDNIGHT ya pagada.
+// Portado de bold-webhook para mantener el mismo formato de email.
+async function sendTicketEmail(orders: any[], supabase: any) {
+  // @ts-ignore
+  const RESEND_KEY = Deno.env.get('RESEND_API_KEY');
+  const APP_URL = 'https://midnightcorp.click';
+  const DOMAIN = 'midnightcorp.click';
+  if (!RESEND_KEY || !orders[0]?.customer_email) return;
+
+  const mainOrder = orders[0];
+  const { data: event } = await supabase
+    .from('events')
+    .select('title, event_date, venue, city')
+    .eq('id', mainOrder.event_id)
+    .maybeSingle();
+
+  const eventTitle = event?.title ?? 'Midnight Event';
+  const eventDate  = event?.event_date
+    ? new Date(event.event_date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
+    : '';
+  const eventVenue = event?.venue ?? '';
+  const eventCity  = event?.city  ?? '';
+
+  const ticketsHtml = orders.map((order: any, index: number) => {
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${order.order_number}`;
+    return `
+      <div style="background:#fff;border-radius:24px;padding:20px;margin-bottom:30px;text-align:center;color:#000;">
+        <p style="margin:0 0 15px;font-size:10px;font-weight:900;letter-spacing:2px;color:#490F7C;text-transform:uppercase;">
+          Ticket ${index + 1} de ${orders.length}
+        </p>
+        <div style="display:inline-block;padding:10px;border:1px solid #f0f0f0;border-radius:16px;">
+          <img src="${qrUrl}" alt="QR" style="display:block;width:220px;height:220px;"/>
+        </div>
+        <p style="font-family:'Courier New',monospace;font-size:14px;letter-spacing:4px;color:#000;opacity:.3;margin-top:15px;font-weight:bold;">
+          ${order.order_number}
+        </p>
+      </div>
+    `;
+  }).join('');
+
+  const multiBlock = orders.length >= 2 ? `
+    <div style="margin:40px 0;background:linear-gradient(135deg,#0d0022,#1a0444);border:1px solid rgba(176,38,255,.3);border-radius:20px;padding:28px 24px;">
+      <p style="color:#b026ff;font-size:9px;font-weight:900;letter-spacing:3px;text-transform:uppercase;margin:0 0 12px;">Tus ${orders.length} entradas están disponibles online</p>
+      <p style="color:#fff;font-size:14px;font-weight:900;margin:0 0 8px;line-height:1.3;">Accede a tu billetera de entradas</p>
+      <a href="${APP_URL}" style="background:#b026ff;color:#fff;padding:14px 28px;border-radius:100px;text-decoration:none;font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:2px;display:inline-block;">VER MIS ENTRADAS →</a>
+    </div>
+  ` : `
+    <div style="margin:60px 0;text-align:center;border-top:1px solid rgba(255,255,255,.1);padding-top:40px;">
+      <a href="${APP_URL}" style="background:#490F7C;color:#fff;padding:18px 36px;border-radius:100px;text-decoration:none;font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:2px;display:inline-block;">IR A MIDNIGHT</a>
+    </div>
+  `;
+
+  const html = `
+    <!DOCTYPE html><html>
+    <body style="background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:0;margin:0;">
+      <div style="max-width:500px;margin:0 auto;padding:40px 20px;">
+        <div style="text-align:center;margin-bottom:40px;">
+          <h1 style="margin:0;font-size:24px;letter-spacing:10px;text-transform:uppercase;font-weight:900;">MIDNIGHT</h1>
+          <p style="color:#490F7C;font-size:8px;margin-top:5px;letter-spacing:5px;font-weight:bold;">WORLDWIDE</p>
+        </div>
+        <div style="margin-bottom:40px;text-align:center;">
+          <h2 style="margin:0;font-size:32px;font-weight:900;text-transform:uppercase;letter-spacing:-1px;line-height:1;">${eventTitle}</h2>
+          <p style="color:#8E9299;margin:15px 0 0;font-size:14px;font-weight:500;">${eventDate}</p>
+          <p style="color:#490F7C;margin:5px 0 0;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:1px;">${eventVenue} • ${eventCity}</p>
+        </div>
+        <div>${ticketsHtml}</div>
+        ${multiBlock}
+        <div style="text-align:center;border-top:1px solid rgba(255,255,255,.1);padding-top:40px;">
+          <p style="color:#444;font-size:9px;margin:0;line-height:1.6;">Presenta estos códigos en la entrada.<br/>© ${new Date().getFullYear()} MIDNIGHT CORP.</p>
+        </div>
+      </div>
+    </body></html>
+  `;
+
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${RESEND_KEY}` },
+      body: JSON.stringify({
+        from: `Midnight Corp <tickets@${DOMAIN}>`,
+        to: [mainOrder.customer_email],
+        subject: `TUS ENTRADAS: ${eventTitle}`,
+        html,
+      }),
+    });
+    const body = await res.json();
+    if (res.ok) console.log(`📧 Email enviado a ${mainOrder.customer_email} | id: ${body.id}`);
+    else console.error('❌ Error Resend:', JSON.stringify(body));
+  } catch (err: any) {
+    console.error('❌ Error de red al enviar email:', err.message);
+  }
+}
 
 export {};
