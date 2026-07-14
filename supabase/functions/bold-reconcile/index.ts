@@ -12,6 +12,17 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  // MODO SEGURO: si recover_only=true, SOLO completamos las aprobadas y nunca
+  // marcamos nada como 'failed' (las importantes/pagadas no se tocan aunque
+  // Bold responda raro). Recomendado para el rescate de las 25 colgadas.
+  let recoverOnly = false
+  try {
+    if (req.method === 'POST') {
+      const body = await req.clone().json().catch(() => ({}))
+      recoverOnly = body?.recover_only === true
+    }
+  } catch { /* sin body */ }
+
   // @ts-ignore
   // Preferimos BOLD_API_KEY; si no está, caemos a BOLD_SECRET_KEY (la que ya
   // existe en los secrets) para no quedar sin red de seguridad.
@@ -117,19 +128,23 @@ Deno.serve(async (req) => {
         }
 
       } else if (boldStatus === 'REJECTED' || boldStatus === 'FAILED' || boldStatus === 'VOIDED') {
-        console.log(`❌ ${headOrder.order_number} RECHAZADO en Bold — marcando failed`)
-
-        if (headOrder.group_id) {
-          await supabase.from('orders').update({ status: 'failed' }).eq('group_id', headOrder.group_id)
+        if (recoverOnly) {
+          console.log(`↩️ ${headOrder.order_number} rechazado en Bold — modo seguro, NO se toca`)
+          results.still_pending++
         } else {
-          await supabase.from('orders').update({ status: 'failed' }).eq('order_number', headOrder.order_number)
+          console.log(`❌ ${headOrder.order_number} RECHAZADO en Bold — marcando failed`)
+          if (headOrder.group_id) {
+            await supabase.from('orders').update({ status: 'failed' }).eq('group_id', headOrder.group_id)
+          } else {
+            await supabase.from('orders').update({ status: 'failed' }).eq('order_number', headOrder.order_number)
+          }
+          results.failed++
         }
-        results.failed++
 
       } else if (boldStatus === 'NOT_FOUND') {
         // El usuario nunca completó el pago en Bold — después de 2 horas marcar failed
         const ageMinutes = (Date.now() - new Date(headOrder.created_at).getTime()) / 60000
-        if (ageMinutes > 120) {
+        if (ageMinutes > 120 && !recoverOnly) {
           console.log(`🗑️ ${headOrder.order_number} no existe en Bold y tiene ${Math.round(ageMinutes)} min — marcando failed`)
           if (headOrder.group_id) {
             await supabase.from('orders').update({ status: 'failed' }).eq('group_id', headOrder.group_id)
