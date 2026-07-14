@@ -13,7 +13,9 @@ Deno.serve(async (req) => {
   }
 
   // @ts-ignore
-  const BOLD_API_KEY  = Deno.env.get('BOLD_API_KEY') ?? ''
+  // Preferimos BOLD_API_KEY; si no está, caemos a BOLD_SECRET_KEY (la que ya
+  // existe en los secrets) para no quedar sin red de seguridad.
+  const BOLD_API_KEY  = Deno.env.get('BOLD_API_KEY') ?? Deno.env.get('BOLD_SECRET_KEY') ?? ''
   // @ts-ignore
   const SUPABASE_URL  = Deno.env.get('SUPABASE_URL') ?? ''
   // @ts-ignore

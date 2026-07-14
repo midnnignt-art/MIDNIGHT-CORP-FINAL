@@ -13,6 +13,23 @@ const motion = _motion as any;
 // Easing premium (Posh/Shotgun-style smooth entrance)
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 
+// Formatea la hora de apertura. `doors_open` puede venir como fecha ISO o como
+// hora suelta ("22:07") — esta última rompía `new Date()` → "Invalid Date".
+export function formatDoors(doorsOpen?: string | null): string {
+  if (!doorsOpen) return '10:00 PM';
+  const d = new Date(doorsOpen);
+  if (!isNaN(d.getTime())) {
+    return d.toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit', hour12: true });
+  }
+  const m = String(doorsOpen).match(/^(\d{1,2}):(\d{2})/);
+  if (m) {
+    const dd = new Date();
+    dd.setHours(Number(m[1]), Number(m[2]), 0, 0);
+    return dd.toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit', hour12: true });
+  }
+  return '10:00 PM';
+}
+
 interface ShowcaseProps {
   onBuy: (event: Event) => void;
   onNavigate?: (page: string) => void;
@@ -156,9 +173,7 @@ const HeroEvent: React.FC<HeroEventProps> = ({ event, tiers, index, totalEvents,
     weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
   }).toUpperCase().replace('.', '');
 
-  const doorsTime = event.doors_open
-    ? new Date(event.doors_open).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit', hour12: true })
-    : '10:00 PM';
+  const doorsTime = formatDoors(event.doors_open);
 
   const subtitle = event.artists?.length
     ? `A ${event.artists.slice(0, 3).join(' × ').toUpperCase()} NIGHT`

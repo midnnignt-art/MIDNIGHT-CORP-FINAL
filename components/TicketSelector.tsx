@@ -19,9 +19,12 @@ export default function TicketSelector({ tiers, selectedTiers, onSelect, classNa
 
   const getAvailable = (tier: TicketTier) => Math.max(0, (tier.quantity || 0) - (tier.sold || 0));
 
+  // Orden lógico de etapas: de más barata a más cara (presale → taquilla).
+  const orderedTiers = [...tiers].sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0));
+
   return (
     <div className={cn('rounded-2xl border border-moonlight/10 overflow-hidden divide-y divide-moonlight/[0.06]', className)}>
-      {tiers.map((tier) => {
+      {orderedTiers.map((tier) => {
         const available = getAvailable(tier);
         const selected  = selectedTiers[tier.id] || 0;
         const isSelected = selected > 0;

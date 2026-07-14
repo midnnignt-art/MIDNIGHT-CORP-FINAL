@@ -4,6 +4,7 @@ import { ArrowRight, MapPin, Clock, Users, Shirt, Calendar, ChevronLeft, ArrowUp
 import { useStore } from '../context/StoreContext';
 import { Event, TicketTier } from '../types';
 import { CountdownTimer } from '../components/CountdownTimer';
+import { formatDoors } from './Showcase';
 
 const motion = _motion as any;
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
@@ -20,7 +21,8 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBuy, onBack }) => {
 
   const event = useMemo(() => events.find(e => e.id === eventId), [events, eventId]);
   const eventTiers = useMemo(
-    () => tiers.filter(t => t.event_id === eventId && t.active),
+    () => tiers.filter(t => t.event_id === eventId && t.active)
+               .sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0)),
     [tiers, eventId]
   );
 
@@ -71,9 +73,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBuy, onBack }) => {
   const formattedDateLong = eventDate.toLocaleDateString('es-CO', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   });
-  const doorsTime = event.doors_open
-    ? new Date(event.doors_open).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit', hour12: true })
-    : '10:00 PM';
+  const doorsTime = formatDoors(event.doors_open);
 
   const gmapsHref = event.venue_address
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${event.venue} ${event.venue_address} ${event.city}`)}`
