@@ -16,8 +16,10 @@ function timingSafeEqual(a: string, b: string): boolean {
   return result === 0
 }
 
-// HMAC-SHA256(secret, payload) → hex
-async function hmacSha256Hex(secret: string, payload: string): Promise<string> {
+// HMAC-SHA256(secret, payload) → { hex, base64 }
+// Bold puede enviar la firma en hex O en base64 según la integración, por eso
+// devolvemos ambas y comparamos contra las dos (antes solo hex → 401 siempre).
+async function hmacSha256(secret: string, payload: string): Promise<{ hex: string; base64: string }> {
   const enc = new TextEncoder()
   const key = await crypto.subtle.importKey(
     'raw',
@@ -26,10 +28,12 @@ async function hmacSha256Hex(secret: string, payload: string): Promise<string> {
     false,
     ['sign']
   )
-  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(payload))
-  return Array.from(new Uint8Array(sig))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('')
+  const sigBuf = await crypto.subtle.sign('HMAC', key, enc.encode(payload))
+  const bytes = new Uint8Array(sigBuf)
+  const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')
+  // @ts-ignore btoa existe en el runtime de Deno Edge
+  const base64 = btoa(String.fromCharCode(...bytes))
+  return { hex, base64 }
 }
 
 // @ts-ignore
@@ -55,9 +59,14 @@ Deno.serve(async (req) => {
     const signatureHeader = req.headers.get('x-bold-signature') ?? req.headers.get('X-Bold-Signature') ?? ''
 
     if (WEBHOOK_SECRET) {
-      const expected = await hmacSha256Hex(WEBHOOK_SECRET, rawBody)
-      const provided = signatureHeader.trim().toLowerCase()
-      const valid = provided.length > 0 && timingSafeEqual(expected, provided)
+      const { hex, base64 } = await hmacSha256(WEBHOOK_SECRET, rawBody)
+      const providedRaw = signatureHeader.trim()
+      const provided = providedRaw.toLowerCase()
+      const valid = providedRaw.length > 0 && (
+        timingSafeEqual(hex, provided) ||
+        timingSafeEqual(base64, providedRaw) ||
+        timingSafeEqual(base64.toLowerCase(), provided)
+      )
 
       if (!valid) {
         if (REQUIRE_SIGNATURE) {
