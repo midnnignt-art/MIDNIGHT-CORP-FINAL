@@ -233,7 +233,9 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
             description: event.description,
             venue: event.venue,
             city: event.city,
-            date: event.event_date.split('T')[0],
+            // Fecha en hora Bogotá (no UTC): el guardado escribe con -05:00, así
+            // que leer con split('T')[0] (UTC) corría el día +1 en cada edición.
+            date: new Date(event.event_date).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }),
             time: event.doors_open,
             cover_image: event.cover_image,
             dress_code: event.dress_code ?? 'Strict Nightlife',
