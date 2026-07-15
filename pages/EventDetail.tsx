@@ -21,7 +21,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBuy, onBack }) => {
 
   const event = useMemo(() => events.find(e => e.id === eventId), [events, eventId]);
   const eventTiers = useMemo(
-    () => tiers.filter(t => t.event_id === eventId && t.active)
+    () => tiers.filter(t => t.event_id === eventId && t.active && !(t as any).is_table)
                .sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0)),
     [tiers, eventId]
   );

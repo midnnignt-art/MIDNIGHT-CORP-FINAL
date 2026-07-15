@@ -448,7 +448,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 commission_fixed: Number(t.commission_manager) || Number(t.commission_fixed) || 0,
                 commission_manager: Number(t.commission_manager) || 0,
                 commission_promoter_min: Number(t.commission_promoter_min) || 0,
-                stage: t.stage || 'general'
+                stage: t.stage || 'general',
+                is_table: !!t.is_table,
             }));
 
             await supabase.from('ticket_tiers').insert(tiersToInsert);
@@ -521,6 +522,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                             commission_manager: Number(tier.commission_manager) || 0,
                             commission_promoter_min: Number(tier.commission_promoter_min) || 0,
                             stage: tier.stage,
+                            is_table: !!tier.is_table,
                             active: true
                         })
                         .eq('id', tier.id);
@@ -537,6 +539,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                             commission_manager: Number(tier.commission_manager) || 0,
                             commission_promoter_min: Number(tier.commission_promoter_min) || 0,
                             stage: tier.stage || 'general',
+                            is_table: !!tier.is_table,
                             active: true
                         });
                     if (insErr) console.error("Error inserting tier:", insErr);

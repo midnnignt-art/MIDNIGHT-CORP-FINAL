@@ -4,7 +4,7 @@ import { Event } from '../types';
 import { motion as _motion, AnimatePresence } from 'framer-motion';
 import { CountdownTimer } from '../components/CountdownTimer';
 import { MouseTrail } from '../components/MouseTrail';
-import { ArrowRight, Barcode, ChevronDown } from 'lucide-react';
+import { ArrowRight, Barcode, ChevronDown, Crown } from 'lucide-react';
 import { EclipseLoader } from '../components/EclipseLoader';
 import MarqueeGallery from '../components/MarqueeGallery';
 
@@ -31,7 +31,7 @@ export function formatDoors(doorsOpen?: string | null): string {
 }
 
 interface ShowcaseProps {
-  onBuy: (event: Event) => void;
+  onBuy: (event: Event, mode?: 'tickets' | 'tables') => void;
   onNavigate?: (page: string) => void;
 }
 
@@ -141,7 +141,7 @@ interface HeroEventProps {
   tiers: any[];
   index: number;
   totalEvents: number;
-  onBuy: (event: Event) => void;
+  onBuy: (event: Event, mode?: 'tickets' | 'tables') => void;
 }
 
 const HeroEvent: React.FC<HeroEventProps> = ({ event, tiers, index, totalEvents, onBuy }) => {
@@ -157,16 +157,21 @@ const HeroEvent: React.FC<HeroEventProps> = ({ event, tiers, index, totalEvents,
   }, [event.id]);
 
   // Stats: precio mínimo + % vendido
-  const { fromPrice, soldPercent, isLowStock } = useMemo(() => {
-    if (tiers.length === 0) {
-      return { fromPrice: null, soldPercent: 0, isLowStock: false };
+  const { fromPrice, soldPercent, isLowStock, hasTables } = useMemo(() => {
+    // Las mesas VIP tienen su propio flujo/botón — no cuentan para el "FROM"
+    // de entradas ni para el % vendido de tickets.
+    const tableTiers  = tiers.filter((t: any) => t.is_table);
+    const ticketTiers = tiers.filter((t: any) => !t.is_table);
+    const hasTables = tableTiers.some((t: any) => (Number(t.quantity) || 0) > 0);
+    if (ticketTiers.length === 0) {
+      return { fromPrice: null, soldPercent: 0, isLowStock: false, hasTables };
     }
-    const active = tiers.filter((t: any) => t.quantity > 0);
+    const active = ticketTiers.filter((t: any) => t.quantity > 0);
     const fromPrice = active.length > 0 ? Math.min(...active.map((t: any) => Number(t.price) || 0)) : null;
-    const totalQty = tiers.reduce((s: number, t: any) => s + (Number(t.quantity) || 0), 0);
-    const totalSold = tiers.reduce((s: number, t: any) => s + (Number(t.sold) || 0), 0);
+    const totalQty = ticketTiers.reduce((s: number, t: any) => s + (Number(t.quantity) || 0), 0);
+    const totalSold = ticketTiers.reduce((s: number, t: any) => s + (Number(t.sold) || 0), 0);
     const pct = totalQty > 0 ? Math.min(100, Math.round((totalSold / totalQty) * 100)) : 0;
-    return { fromPrice, soldPercent: pct, isLowStock: pct >= 80 && pct < 100 };
+    return { fromPrice, soldPercent: pct, isLowStock: pct >= 80 && pct < 100, hasTables };
   }, [tiers]);
 
   const formattedDateLong = eventDate.toLocaleDateString('es-CO', {
@@ -352,7 +357,7 @@ const HeroEvent: React.FC<HeroEventProps> = ({ event, tiers, index, totalEvents,
             className="flex flex-col sm:flex-row gap-3 pt-2"
           >
             <button
-              onClick={() => !isSoldOut && onBuy(event)}
+              onClick={() => !isSoldOut && onBuy(event, 'tickets')}
               disabled={isSoldOut}
               className={`group relative overflow-hidden flex-1 py-5 md:py-6 rounded-lg transition-all duration-300 active:scale-[0.98] ${
                 isSoldOut
@@ -378,6 +383,23 @@ const HeroEvent: React.FC<HeroEventProps> = ({ event, tiers, index, totalEvents,
               Lineup & Detalles
             </button>
           </motion.div>
+
+          {/* Mesas VIP — solo si el evento tiene mesas configuradas */}
+          {hasTables && (
+            <motion.button
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 1.05, duration: 0.4, ease: EASE_OUT }}
+              onClick={() => onBuy(event, 'tables')}
+              className="group w-full py-5 md:py-6 rounded-lg border transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-3"
+              style={{ borderColor: 'rgba(201,168,76,0.5)', background: 'rgba(201,168,76,0.06)' }}
+            >
+              <Crown className="w-4 h-4" style={{ color: '#C9A84C' }} />
+              <span className="text-[11px] md:text-xs font-black tracking-[0.5em] uppercase" style={{ color: '#C9A84C' }}>Mesas VIP</span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform duration-300" style={{ color: '#C9A84C' }} />
+            </motion.button>
+          )}
 
           {/* Trust strip */}
           <motion.p

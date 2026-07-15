@@ -10,14 +10,18 @@ interface CheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
   referralStaffId?: string | null;
+  mode?: 'tickets' | 'tables';
 }
 
-export const CheckoutModal: React.FC<CheckoutModalProps> = ({ event, isOpen, onClose, referralStaffId }) => {
+export const CheckoutModal: React.FC<CheckoutModalProps> = ({ event, isOpen, onClose, referralStaffId, mode = 'tickets' }) => {
   const { getEventTiers, createOrder } = useStore();
 
   if (!isOpen || !event) return null;
 
-  const tiers = getEventTiers(event.id);
+  // Mesas VIP vs entradas normales: cada flujo muestra solo sus tiers.
+  const tiers = getEventTiers(event.id).filter(t =>
+    mode === 'tables' ? (t as any).is_table : !(t as any).is_table
+  );
 
   const handleComplete = async (data: any) => {
       // Pasar referralStaffId explícitamente — evita depender de localStorage

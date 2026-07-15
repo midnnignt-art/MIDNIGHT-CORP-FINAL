@@ -99,6 +99,7 @@ export interface TicketTier {
   color: string;
   perks: string[];
   active: boolean;
+  is_table?: boolean; // true = mesa VIP (se vende en el flujo "Mesas VIP", no en entradas)
 }
 
 export interface Order {

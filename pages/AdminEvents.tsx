@@ -248,7 +248,8 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
             commission_manager: t.commission_manager || t.commission_fixed || 0,
             commission_promoter_min: t.commission_promoter_min || 0,
             quantity: t.quantity,
-            stage: t.stage
+            stage: t.stage,
+            is_table: !!(t as any).is_table,
         })));
         setIsCreatingEvent(true);
     };
@@ -316,7 +317,8 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
             quantity: Number(t.quantity) || 0,
             commission_manager: Number(t.commission_manager) || 0,
             commission_promoter_min: Number(t.commission_promoter_min) || 0,
-            stage: t.stage || 'general'
+            stage: t.stage || 'general',
+            is_table: !!t.is_table,
         }));
 
         try {
@@ -897,6 +899,13 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                                      <option value="general">General</option>
                                                      <option value="door">Puerta</option>
                                                  </select>
+                                            </div>
+                                            <div className="col-span-2 md:col-span-12">
+                                                <label className="flex items-center gap-2 cursor-pointer select-none">
+                                                    <input type="checkbox" checked={!!tier.is_table} onChange={e => handleTierChange(idx, 'is_table', e.target.checked)} className="accent-[#C9A84C] w-4 h-4" />
+                                                    <span className="text-xs font-bold uppercase tracking-wide" style={{ color: tier.is_table ? '#C9A84C' : '#a1a1aa' }}>👑 Es Mesa VIP</span>
+                                                    <span className="text-[10px] text-zinc-600">— aparece en "Mesas VIP", no en entradas. Cantidad = # de mesas. Poné la zona y personas en el nombre (ej: "Mesa Zona A · 8 pers").</span>
+                                                </label>
                                             </div>
                                         </div>
                                     ))}
