@@ -342,12 +342,16 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
         setTierRows([{ id: undefined, name: 'General', price: 0, commission_manager: 0, commission_promoter_min: 0, quantity: 0, stage: 'general' }]);
     };
 
-    const handleCreateTeam = () => {
+    const handleCreateTeam = async () => {
         if (!newTeamName) { toast.error("Ingresa un nombre para el equipo."); return; }
         if (!selectedManagerId) { toast.error("Debes seleccionar un manager."); return; }
-        createTeam(newTeamName, selectedManagerId);
-        setNewTeamName(''); setSelectedManagerId('');
-        toast.success('Squad creado exitosamente');
+        try {
+            await createTeam(newTeamName, selectedManagerId);
+            setNewTeamName(''); setSelectedManagerId('');
+            toast.success('Squad creado exitosamente');
+        } catch (e: any) {
+            toast.error(`Error al crear el squad: ${e?.message || 'intenta de nuevo'}`);
+        }
     };
 
     const handleCreateStaff = async () => {

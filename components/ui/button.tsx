@@ -1,22 +1,51 @@
 import React from 'react';
+import { Loader2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg' | 'icon';
   fullWidth?: boolean;
+  /** Fuerza el estado de carga (spinner + deshabilitado). */
+  loading?: boolean;
 }
 
-export const Button: React.FC<ButtonProps> = ({ 
-  children, 
-  variant = 'primary', 
-  size = 'md', 
+export const Button: React.FC<ButtonProps> = ({
+  children,
+  variant = 'primary',
+  size = 'md',
   fullWidth = false,
   className = '',
-  ...props 
+  loading = false,
+  onClick,
+  disabled,
+  ...props
 }) => {
-  const baseStyles = "inline-flex items-center justify-center rounded-xl font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-midnight-950 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-[0.97]";
-  
+  // Auto-loading: si el onClick devuelve una promesa, mostramos spinner y
+  // deshabilitamos el botón hasta que resuelva. Esto evita el doble/triple
+  // click en toda la app (la gente pensaba que "se quedó pensando").
+  const [busy, setBusy] = React.useState(false);
+  const mountedRef = React.useRef(true);
+  React.useEffect(() => () => { mountedRef.current = false; }, []);
+
+  const isBusy = loading || busy;
+  const isDisabled = disabled || isBusy;
+
+  const handleClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (isDisabled) return;
+    const result = onClick?.(e) as unknown;
+    if (result && typeof (result as Promise<unknown>).then === 'function') {
+      setBusy(true);
+      try {
+        await result;
+      } finally {
+        if (mountedRef.current) setBusy(false);
+      }
+    }
+  };
+
+  const baseStyles = "inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-midnight-950 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-[0.97]";
+
   const variants = {
     primary: "bg-white text-black hover:bg-gray-200 focus:ring-white",
     secondary: "bg-midnight-800 text-white border border-midnight-700 hover:border-gray-500 hover:bg-midnight-700 focus:ring-gray-500",
@@ -33,16 +62,20 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   return (
-    <button 
+    <button
       className={cn(
-        baseStyles, 
-        variants[variant], 
-        sizes[size], 
+        baseStyles,
+        variants[variant],
+        sizes[size],
         fullWidth && 'w-full',
         className
       )}
+      onClick={onClick ? handleClick : undefined}
+      disabled={isDisabled}
+      aria-busy={isBusy}
       {...props}
     >
+      {isBusy && <Loader2 className="w-4 h-4 animate-spin shrink-0" />}
       {children}
     </button>
   );
