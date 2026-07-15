@@ -1176,7 +1176,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
 
         try {
-            // OPTIMIZATION: Use RPC for atomic validation and burn
+            // Preferir el edge function validate-qr: entiende el QR ROTATIVO
+            // (uuid:ts:hmac, case-sensitive) Y el order_number plano, con todos
+            // los estados. Antes este scanner solo hacía RPC por order_number, por
+            // eso el QR rotativo de la app salía "no pertenece a la plataforma".
+            try {
+                const { data: vq, error: vqErr } = await supabase.functions.invoke('validate-qr', {
+                    body: { qr_payload: String(orderNumber).trim(), event_id: eventId }
+                });
+                if (!vqErr && vq && typeof vq.status === 'string') {
+                    const st = vq.status as string;
+                    if (st === 'success' && vq.order_number) {
+                        setOrders(prev => prev.map(o => o.order_number === vq.order_number ? { ...o, used: true, used_at: new Date().toISOString() } : o));
+                    }
+                    const uiStatus = st === 'success' ? 'success' : st === 'used' ? 'used' : 'invalid';
+                    return { success: st === 'success', status: uiStatus as 'success' | 'used' | 'invalid', message: vq.message || '' };
+                }
+            } catch { /* edge caído → seguimos al RPC (order_number plano) */ }
+
+            // Fallback: RPC atómico (solo resuelve order_number plano)
             const { data, error } = await supabase
                 .rpc('validate_and_burn_ticket', {
                     p_order_number: orderNumber.trim().toUpperCase(),

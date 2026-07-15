@@ -91,7 +91,9 @@ const QRScanner: React.FC<QRScannerProps> = ({ eventId, onClose }) => {
                     navigator.vibrate(100);
                 }
 
-                const result = await validarYQuemarTicket(decodedText.trim().toUpperCase(), selectedEventId);
+                // NO uppercasear: el QR rotativo (uuid:ts:hmac) es case-sensitive.
+                // validate-qr normaliza el order_number plano server-side.
+                const result = await validarYQuemarTicket(decodedText.trim(), selectedEventId);
                 
                 if (isMounted) {
                     setScanResult({
