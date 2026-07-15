@@ -29,11 +29,12 @@ function rrect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h
 export const MidnightTicketCard: React.FC<MidnightTicketCardProps> = ({ order, event, onTransfer }) => {
     const [isDownloading, setIsDownloading] = React.useState(false);
 
-    // Token QR rotativo (server-side firmado). Si el server no tiene
-    // QR_HMAC_SECRET configurado, el hook devuelve null y caemos al
-    // order_number estático (backward compat con bouncers actuales).
-    const { token: dynamicToken } = useDynamicQrToken(order.used ? null : order.id);
-    const qrPayload = dynamicToken ?? order.order_number;
+    // QR ESTABLE (order_number) para máxima confiabilidad en puerta: no expira,
+    // no cambia en pantalla, siempre escanea. El QR rotativo anti-reventa quedó
+    // en pausa para este evento (el hook sigue disponible para reactivarlo en el
+    // evento grande — basta con `paused: false` y volver a qrPayload = token).
+    useDynamicQrToken(order.used ? null : order.id, { paused: true });
+    const qrPayload = order.order_number;
 
     const qrUrl = `https://quickchart.io/qr?text=${encodeURIComponent(qrPayload)}&size=400&ecLevel=H&margin=1`;
 

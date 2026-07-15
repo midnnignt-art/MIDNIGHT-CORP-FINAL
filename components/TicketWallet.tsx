@@ -35,6 +35,19 @@ export default function TicketWallet() {
     }).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   }, [orders, effectiveEmail]);
 
+  // Eventos para el dropdown de filtro: EXACTAMENTE los que el usuario tiene
+  // boletas (derivado de allMyOrders, no de un cruce orders+email que quedaba
+  // vacío). Título desde events, con fallback para que nunca falte la opción.
+  const myEventOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const o of allMyOrders) {
+      if (!o.event_id || map.has(o.event_id)) continue;
+      const ev = events.find(e => e.id === o.event_id);
+      map.set(o.event_id, ev?.title || (o as any).event_title || 'Evento');
+    }
+    return Array.from(map, ([id, title]) => ({ id, title }));
+  }, [allMyOrders, events]);
+
   // Filtrar por tab (upcoming/past) + filterEventId
   const myOrders = useMemo(() => {
     const now = Date.now();
@@ -113,9 +126,7 @@ export default function TicketWallet() {
           setFilterEventId={(v: string) => { setFilterEventId(v); setPage([0, 0]); }}
           viewMode={viewMode}
           setViewMode={setViewMode}
-          events={events}
-          orders={orders}
-          effectiveEmail={effectiveEmail}
+          eventOptions={myEventOptions}
           showViewToggle={false}
         />
         <div className="text-center py-16 md:py-20 px-6 border border-moonlight/8 rounded-3xl bg-midnight/30 backdrop-blur-sm">
@@ -249,9 +260,7 @@ export default function TicketWallet() {
           setFilterEventId={(v: string) => { setFilterEventId(v); setPage([0, 0]); }}
           viewMode={viewMode}
           setViewMode={setViewMode}
-          events={events}
-          orders={orders}
-          currentCustomer={currentCustomer}
+          eventOptions={myEventOptions}
           showViewToggle
         />
       )}
@@ -567,7 +576,7 @@ const ReferralsTab: React.FC<{ email: string | null; customerName: string }> = (
 };
 
 /* ── Filter Bar sub-component ──────────────────────────────────────────────── */
-function FilterBar({ filterEventId, setFilterEventId, viewMode, setViewMode, events, orders, effectiveEmail, showViewToggle }: any) {
+function FilterBar({ filterEventId, setFilterEventId, viewMode, setViewMode, eventOptions = [], showViewToggle }: any) {
   return (
     <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-8">
       <select
@@ -576,11 +585,9 @@ function FilterBar({ filterEventId, setFilterEventId, viewMode, setViewMode, eve
         className="bg-midnight/60 border border-moonlight/10 rounded-2xl px-4 h-11 text-[10px] font-black text-moonlight uppercase tracking-widest focus:border-eclipse outline-none w-full sm:w-52 backdrop-blur-sm transition-colors appearance-none"
       >
         <option value="all">Todos los eventos</option>
-        {events
-          .filter((e: any) => orders.some((o: any) => o.event_id === e.id && o.customer_email?.toLowerCase().trim() === effectiveEmail?.toLowerCase().trim()))
-          .map((e: any) => (
-            <option key={e.id} value={e.id}>{e.title}</option>
-          ))}
+        {eventOptions.map((e: any) => (
+          <option key={e.id} value={e.id}>{e.title}</option>
+        ))}
       </select>
 
       {showViewToggle && (
