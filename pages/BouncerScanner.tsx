@@ -4,7 +4,9 @@ import { supabase } from '../lib/supabase';
 import { CheckCircle2, XCircle, AlertTriangle, Loader2, ScanLine } from 'lucide-react';
 
 type LinkState = 'loading' | 'invalid' | 'ready';
-type ScanStatus = 'idle' | 'success' | 'used' | 'invalid';
+// Estados de validación (spec bouncers): verde/rojo/amarillo/negro
+type ScanStatus = 'idle' | 'success' | 'used' | 'wrong_event' | 'not_registered' | 'invalid';
+interface ScanResult { status: ScanStatus; message: string; customer_name?: string; used_at?: string }
 
 interface BouncerLink {
   token: string;
@@ -29,7 +31,7 @@ const BouncerScanner: React.FC = () => {
   const [scanning,  setScanning]    = useState(false);
   const [camReady,  setCamReady]    = useState(false);
   const [camError,  setCamError]    = useState<string | null>(null);
-  const [result,    setResult]      = useState<{ status: ScanStatus; message: string }>({ status: 'idle', message: '' });
+  const [result,    setResult]      = useState<ScanResult>({ status: 'idle', message: '' });
 
   const scannerRef   = useRef<Html5Qrcode | null>(null);
   const processingRef = useRef(false);
@@ -128,11 +130,8 @@ const BouncerScanner: React.FC = () => {
       });
 
       if (!error && data) {
-        const r = data as { status: string; message: string };
-        return {
-          status: r.status as ScanStatus,
-          message: r.message,
-        };
+        const r = data as ScanResult;
+        return { status: r.status as ScanStatus, message: r.message, customer_name: r.customer_name, used_at: r.used_at };
       }
 
       // Fallback (edge function caída) — llamar RPC directo asumiendo legacy
@@ -143,8 +142,8 @@ const BouncerScanner: React.FC = () => {
       });
 
       if (!rpcError && rpcData) {
-        const r = rpcData as { status: string; message: string };
-        return { status: r.status as ScanStatus, message: r.message };
+        const r = rpcData as ScanResult;
+        return { status: r.status as ScanStatus, message: r.message, customer_name: r.customer_name, used_at: r.used_at };
       }
 
       // Último recurso: query manual
@@ -154,13 +153,13 @@ const BouncerScanner: React.FC = () => {
         .eq('order_number', orderNumber)
         .maybeSingle();
 
-      if (!order)                     return { status: 'invalid' as ScanStatus, message: '⚠️ Boleto no encontrado' };
+      if (!order)                     return { status: 'not_registered' as ScanStatus, message: '❌ Código no válido · no pertenece a la plataforma' };
       if (order.status !== 'completed') return { status: 'invalid' as ScanStatus, message: '⚠️ Pago no confirmado' };
-      if (order.event_id !== eventId) return { status: 'invalid' as ScanStatus, message: '⚠️ Boleto para otro evento' };
-      if (order.used)                 return { status: 'used'    as ScanStatus, message: '🚫 Boleto ya utilizado' };
+      if (order.event_id !== eventId) return { status: 'wrong_event' as ScanStatus, message: '🟡 Boleta de otro evento', customer_name: order.customer_name };
+      if (order.used)                 return { status: 'used'    as ScanStatus, message: '🚫 Boleta ya ingresada', customer_name: order.customer_name, used_at: order.used_at };
 
       await supabase.from('orders').update({ used: true, used_at: new Date().toISOString() }).eq('id', order.id);
-      return { status: 'success' as ScanStatus, message: `✅ ${order.customer_name || 'Acceso Permitido'}` };
+      return { status: 'success' as ScanStatus, message: '✅ Ingreso autorizado', customer_name: order.customer_name };
     } catch {
       return { status: 'invalid' as ScanStatus, message: '⚠️ Error de conexión' };
     }
@@ -322,18 +321,36 @@ const BouncerScanner: React.FC = () => {
           </div>
         )}
 
-        {/* Result overlay */}
+        {/* Result overlay — spec bouncers: verde (ok) / rojo (ya ingresó) /
+            amarillo (otro evento) / negro (no registrado) / gris (otro error) */}
         {result.status !== 'idle' && (
           <div
             className={`absolute inset-0 z-20 flex flex-col items-center justify-center p-8 text-center transition-all duration-300 ${
-              result.status === 'success' ? 'bg-emerald-900' :
-              result.status === 'used'    ? 'bg-red-950'    : 'bg-amber-950'
+              result.status === 'success'        ? 'bg-emerald-600' :
+              result.status === 'used'           ? 'bg-red-700'     :
+              result.status === 'wrong_event'    ? 'bg-amber-500'   :
+              result.status === 'not_registered' ? 'bg-black'       :
+              'bg-neutral-800'
             }`}
           >
-            {result.status === 'success' && <CheckCircle2  size={100} className="text-white mb-6" />}
-            {result.status === 'used'    && <XCircle       size={100} className="text-white mb-6" />}
-            {result.status === 'invalid' && <AlertTriangle size={100} className="text-white mb-6" />}
-            <h2 className="text-3xl font-black text-white uppercase tracking-tighter">{result.message}</h2>
+            {result.status === 'success'        && <CheckCircle2  size={96} className="text-white mb-5" />}
+            {result.status === 'used'           && <XCircle       size={96} className="text-white mb-5" />}
+            {result.status === 'wrong_event'    && <AlertTriangle size={96} className="text-black mb-5" />}
+            {result.status === 'not_registered' && <XCircle       size={96} className="text-red-500 mb-5" />}
+            {result.status === 'invalid'        && <AlertTriangle size={96} className="text-white mb-5" />}
+            <h2 className={`text-3xl font-black uppercase tracking-tighter ${result.status === 'wrong_event' ? 'text-black' : 'text-white'}`}>
+              {result.message}
+            </h2>
+            {result.customer_name && (
+              <p className={`text-lg font-bold mt-3 ${result.status === 'wrong_event' ? 'text-black/80' : 'text-white/85'}`}>
+                {result.customer_name}
+              </p>
+            )}
+            {result.status === 'used' && result.used_at && (
+              <p className="text-base font-semibold text-white/90 mt-2">
+                Ingresó: {new Date(result.used_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
+              </p>
+            )}
           </div>
         )}
       </div>

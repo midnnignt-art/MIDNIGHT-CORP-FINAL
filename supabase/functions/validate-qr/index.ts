@@ -77,18 +77,16 @@ Deno.serve(async (req) => {
         .eq('id', orderId)
         .maybeSingle();
 
-      if (!order) return json({ status: 'invalid', message: '⚠️ Orden no encontrada' });
-      if (order.status !== 'completed') return json({ status: 'invalid', message: '⚠️ Pago no confirmado' });
-      if (order.event_id !== eventId) return json({ status: 'invalid', message: '⚠️ QR de otro evento' });
+      // Sin orden no se puede verificar la firma → código externo / no registrado
+      if (!order) return json({ status: 'not_registered', message: '❌ Código no válido · no pertenece a la plataforma' });
 
       const expected = await hmacHex(SECRET, `${order.id}|${ts}|${order.event_id}`);
       if (!timingSafeEqual(expected, sig.toLowerCase())) {
         return json({ status: 'invalid', message: '⚠️ Firma QR inválida' });
       }
 
-      if (order.used) return json({ status: 'used', message: '🚫 Boleto ya utilizado' });
-
-      // Burn vía RPC (atómico) usando order_number resuelto
+      // Las validaciones de negocio (pago/evento/duplicado) las resuelve el RPC
+      // de forma atómica y con los estados unificados (wrong_event/used/used_at).
       return await burnTicket(supabase, order.order_number, eventId);
     }
 
@@ -119,13 +117,13 @@ async function burnTicket(supabase: any, orderNumber: string, eventId: string): 
     .eq('order_number', orderNumber)
     .maybeSingle();
 
-  if (!order) return json({ status: 'invalid', message: '⚠️ Boleto no encontrado' });
+  if (!order) return json({ status: 'not_registered', message: '❌ Código no válido · no pertenece a la plataforma' });
   if (order.status !== 'completed') return json({ status: 'invalid', message: '⚠️ Pago no confirmado' });
-  if (order.event_id !== eventId) return json({ status: 'invalid', message: '⚠️ Boleto para otro evento' });
-  if (order.used) return json({ status: 'used', message: '🚫 Boleto ya utilizado' });
+  if (order.event_id !== eventId) return json({ status: 'wrong_event', message: '🟡 Boleta de otro evento', customer_name: order.customer_name });
+  if (order.used) return json({ status: 'used', message: '🚫 Boleta ya ingresada', customer_name: order.customer_name, used_at: order.used_at });
 
   await supabase.from('orders').update({ used: true, used_at: new Date().toISOString() }).eq('id', order.id);
-  return json({ status: 'success', message: `✅ ${order.customer_name || 'Acceso Permitido'}` });
+  return json({ status: 'success', message: '✅ Ingreso autorizado', customer_name: order.customer_name });
 }
 
 async function hmacHex(secret: string, payload: string): Promise<string> {
