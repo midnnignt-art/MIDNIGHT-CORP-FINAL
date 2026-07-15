@@ -30,6 +30,9 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
     
     const [activeTab, setActiveTab] = useState<'events' | 'archived' | 'staff' | 'system'>('events');
     const [staffView, setStaffView] = useState<'all' | 'teams'>('all');
+    // Buscador + filtro de rol para la estructura de staff
+    const [staffSearch, setStaffSearch] = useState('');
+    const [staffRoleFilter, setStaffRoleFilter] = useState<string>('ALL');
     
     // --- ESTADO: Navegación de Detalles de Evento ---
     const [selectedAuditId, setSelectedAuditId] = useState<string | null>(null);
@@ -179,6 +182,33 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
     const teamToEdit = teams.find(t => t.id === viewingTeamEditId);
     const teamMembers = promoters.filter(p => p.sales_team_id === viewingTeamEditId);
     const availableStaff = promoters.filter(p => !p.sales_team_id && !isAdminLevel(p.role));
+
+    // --- ESTRUCTURA STAFF: buscador + filtros ---
+    const teamById = useMemo(() => Object.fromEntries(teams.map(t => [t.id, t])), [teams]);
+    const squadById = useMemo(() => Object.fromEntries(superSquads.map(s => [s.id, s])), [superSquads]);
+    // Equipo y super squad de una persona (para mostrar su ubicación en la estructura)
+    const teamOf = (p: any) => (p.sales_team_id ? teamById[p.sales_team_id] : null);
+    const squadOf = (p: any) => {
+        const t = teamOf(p);
+        const ssId = p.super_squad_id || (t as any)?.super_squad_id;
+        return ssId ? squadById[ssId] : null;
+    };
+    const q = staffSearch.trim().toLowerCase();
+    const matchesText = (...vals: (string | undefined | null)[]) =>
+        !q || vals.some(v => (v || '').toLowerCase().includes(q));
+
+    const filteredPromoters = useMemo(() => promoters.filter(p => {
+        if (staffRoleFilter !== 'ALL' && (p.role || '').toUpperCase() !== staffRoleFilter) return false;
+        return matchesText(p.name, p.email, p.code, teamOf(p)?.name, squadOf(p)?.name);
+    }), [promoters, staffRoleFilter, q, teamById, squadById]);
+
+    const filteredTeams = useMemo(() => teams.filter(t =>
+        matchesText(t.name, promoters.find(p => p.user_id === t.manager_id)?.name, squadById[(t as any).super_squad_id]?.name)
+    ), [teams, q, promoters, squadById]);
+
+    const filteredSuperSquads = useMemo(() => superSquads.filter(ss =>
+        matchesText(ss.name, promoters.find(p => p.user_id === ss.head_id)?.name)
+    ), [superSquads, q, promoters]);
 
     // --- HANDLERS: Event ---
     const handleAddTierRow = () => {
@@ -1028,11 +1058,35 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                         </div>
 
                         <div className="lg:col-span-2 space-y-8">
+                            {/* Buscador + filtro de rol — encontrar gente y ver la estructura rápido */}
+                            <div className="bg-zinc-900 border border-white/10 p-4 rounded-2xl sticky top-2 z-10 space-y-3">
+                                <div className="relative">
+                                    <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                                    <input
+                                        value={staffSearch}
+                                        onChange={e => setStaffSearch(e.target.value)}
+                                        placeholder="Buscar por nombre, email, código, equipo o squad…"
+                                        className="w-full bg-black border border-zinc-800 pl-9 pr-3 py-2.5 rounded-xl text-white text-sm"
+                                    />
+                                    {staffSearch && (
+                                        <button onClick={() => setStaffSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"><X size={14} /></button>
+                                    )}
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {['ALL','PROMOTER','MANAGER','HEAD','HEAD_OF_SALES','BOUNCER','ADMIN'].map(r => (
+                                        <button key={r} onClick={() => setStaffRoleFilter(r)}
+                                            className={`text-[10px] font-black uppercase tracking-wide px-2.5 py-1 rounded-full transition-colors ${staffRoleFilter === r ? 'bg-white text-black' : 'bg-white/5 text-zinc-400 hover:bg-white/10'}`}>
+                                            {r === 'ALL' ? 'Todos' : r === 'PROMOTER' ? 'Promotores' : r === 'MANAGER' ? 'Managers' : r === 'HEAD' ? 'Cabezas' : r === 'HEAD_OF_SALES' ? 'Head Sales' : r === 'BOUNCER' ? 'Bouncers' : 'Admins'}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
                             <div>
-                                <h3 className="text-lg font-black text-white mb-4">Equipos Activos</h3>
+                                <h3 className="text-lg font-black text-white mb-4">Equipos Activos <span className="text-zinc-600 text-sm font-bold">({filteredTeams.length})</span></h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {teams.length === 0 && <p className="text-zinc-500 text-sm">No hay equipos creados.</p>}
-                                    {teams.map(team => (
+                                    {filteredTeams.length === 0 && <p className="text-zinc-500 text-sm">{q ? 'Ningún equipo coincide con la búsqueda.' : 'No hay equipos creados.'}</p>}
+                                    {filteredTeams.map(team => (
                                         <div key={team.id} className="bg-black/40 border border-white/5 p-4 rounded-2xl">
                                             <div className="flex justify-between items-start">
                                                 <div>
@@ -1053,9 +1107,10 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
 
                             {superSquads.length > 0 && (
                                 <div>
-                                    <h3 className="text-lg font-black mb-4" style={{ color: '#C9A84C' }}>Super Squads Activos</h3>
+                                    <h3 className="text-lg font-black mb-4" style={{ color: '#C9A84C' }}>Super Squads Activos <span className="text-zinc-600 text-sm font-bold">({filteredSuperSquads.length})</span></h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {superSquads.map(ss => {
+                                        {filteredSuperSquads.length === 0 && <p className="text-zinc-500 text-sm md:col-span-2">Ningún super squad coincide con la búsqueda.</p>}
+                                        {filteredSuperSquads.map(ss => {
                                             const head = promoters.find(p => p.user_id === ss.head_id);
                                             const linkedTeams = teams.filter(t => t.super_squad_id === ss.id);
                                             return (
@@ -1106,9 +1161,12 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                             )}
 
                             <div>
-                                <h3 className="text-lg font-black text-white mb-4">Lista Maestra</h3>
+                                <h3 className="text-lg font-black text-white mb-4">Lista Maestra <span className="text-zinc-600 text-sm font-bold">({filteredPromoters.length} de {promoters.length})</span></h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {promoters.map(p => (
+                                    {filteredPromoters.length === 0 && <p className="text-zinc-500 text-sm md:col-span-2">Nadie coincide con la búsqueda / filtro.</p>}
+                                    {filteredPromoters.map(p => {
+                                        const pTeam = teamOf(p); const pSquad = squadOf(p);
+                                        return (
                                         <div key={p.user_id} className="bg-zinc-900 border border-white/5 p-4 rounded-2xl flex justify-between items-center">
                                             <div>
                                                 <p className="font-bold">{p.name}</p>
@@ -1116,6 +1174,12 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                                     <span className="text-neon-blue font-black text-xs">CODE: {p.code}</span>
                                                     <span className="text-zinc-500 text-[10px]">{p.email}</span>
                                                     <span className="text-zinc-500 text-xs uppercase font-bold">{p.role}</span>
+                                                    {(pTeam || pSquad) && (
+                                                        <div className="flex flex-wrap gap-1 mt-1">
+                                                            {pTeam && <span className="text-[9px] px-2 py-0.5 rounded-full bg-neon-purple/15 text-neon-purple font-bold">{pTeam.name}</span>}
+                                                            {pSquad && <span className="text-[9px] px-2 py-0.5 rounded-full font-bold" style={{ background: '#C9A84C20', color: '#C9A84C' }}>{pSquad.name}</span>}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                             <div className="flex gap-2">
@@ -1123,7 +1187,8 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                                 <button onClick={() => { if (confirm(`¿Eliminar a ${p.name}?`)) deleteStaff(p.user_id); }} className="text-zinc-700 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
                                             </div>
                                         </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </div>
