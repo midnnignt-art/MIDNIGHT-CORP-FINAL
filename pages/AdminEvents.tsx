@@ -30,7 +30,8 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
     
     const [activeTab, setActiveTab] = useState<'events' | 'archived' | 'staff' | 'system'>('events');
     const [staffView, setStaffView] = useState<'all' | 'teams'>('all');
-    // Buscador + filtro de rol para la estructura de staff
+    // Sub-sección + buscador + filtro de rol para la estructura de staff
+    const [staffSection, setStaffSection] = useState<'people' | 'teams' | 'squads' | 'create'>('people');
     const [staffSearch, setStaffSearch] = useState('');
     const [staffRoleFilter, setStaffRoleFilter] = useState<string>('ALL');
     
@@ -951,9 +952,20 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
             )}
 
             {activeTab === 'staff' && (
-                <div className="space-y-8">
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        <div className="space-y-8">
+                <div className="space-y-6">
+                    {/* Sub-navegación de la estructura — cada vista enfocada */}
+                    <div className="flex gap-2 flex-wrap">
+                        {([['people','Personas'],['teams','Equipos'],['squads','Super Squads'],['create','Crear / Reclutar']] as const).map(([k, label]) => (
+                            <button key={k} onClick={() => setStaffSection(k)}
+                                className={`text-xs font-black uppercase tracking-wide px-4 py-2 rounded-full transition-colors ${staffSection === k ? 'bg-white text-black' : 'bg-white/5 text-zinc-400 hover:bg-white/10'}`}>
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* ── CREAR / RECLUTAR ─────────────────────────────────── */}
+                    {staffSection === 'create' && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div className="bg-zinc-900 border border-white/10 p-6 rounded-3xl">
                                 <h2 className="text-xl font-black mb-6 text-neon-blue">Autorizar Staff</h2>
                                 <p className="text-xs text-zinc-500 mb-4">El staff ingresa con su email — recibirá un código cada vez que quiera acceder.</p>
@@ -1058,24 +1070,25 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                     </div>
                                 )}
                             </div>
-                            {/* ------------------------------- */}
-                        </div>
+                    </div>
+                    )}
 
-                        <div className="lg:col-span-2 space-y-8">
-                            {/* Buscador + filtro de rol — encontrar gente y ver la estructura rápido */}
-                            <div className="bg-zinc-900 border border-white/10 p-4 rounded-2xl sticky top-2 z-10 space-y-3">
-                                <div className="relative">
-                                    <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                                    <input
-                                        value={staffSearch}
-                                        onChange={e => setStaffSearch(e.target.value)}
-                                        placeholder="Buscar por nombre, email, código, equipo o squad…"
-                                        className="w-full bg-black border border-zinc-800 pl-9 pr-3 py-2.5 rounded-xl text-white text-sm"
-                                    />
-                                    {staffSearch && (
-                                        <button onClick={() => setStaffSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"><X size={14} /></button>
-                                    )}
-                                </div>
+                    {/* Buscador — solo en las vistas de lista (Personas/Equipos/Super Squads) */}
+                    {staffSection !== 'create' && (
+                        <div className="bg-zinc-900 border border-white/10 p-4 rounded-2xl space-y-3">
+                            <div className="relative">
+                                <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                                <input
+                                    value={staffSearch}
+                                    onChange={e => setStaffSearch(e.target.value)}
+                                    placeholder="Buscar por nombre, email, código, equipo o squad…"
+                                    className="w-full bg-black border border-zinc-800 pl-9 pr-3 py-2.5 rounded-xl text-white text-sm"
+                                />
+                                {staffSearch && (
+                                    <button onClick={() => setStaffSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"><X size={14} /></button>
+                                )}
+                            </div>
+                            {staffSection === 'people' && (
                                 <div className="flex flex-wrap gap-1.5">
                                     {['ALL','PROMOTER','MANAGER','HEAD','HEAD_OF_SALES','BOUNCER','ADMIN'].map(r => (
                                         <button key={r} onClick={() => setStaffRoleFilter(r)}
@@ -1084,8 +1097,12 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                         </button>
                                     ))}
                                 </div>
-                            </div>
+                            )}
+                        </div>
+                    )}
 
+                    {/* ── EQUIPOS ─────────────────────────────────────────── */}
+                    {staffSection === 'teams' && (
                             <div>
                                 <h3 className="text-lg font-black text-white mb-4">Equipos Activos <span className="text-zinc-600 text-sm font-bold">({filteredTeams.length})</span></h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1108,8 +1125,10 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                     ))}
                                 </div>
                             </div>
+                    )}
 
-                            {superSquads.length > 0 && (
+                    {/* ── SUPER SQUADS ────────────────────────────────────── */}
+                    {staffSection === 'squads' && (
                                 <div>
                                     <h3 className="text-lg font-black mb-4" style={{ color: '#C9A84C' }}>Super Squads Activos <span className="text-zinc-600 text-sm font-bold">({filteredSuperSquads.length})</span></h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1164,6 +1183,8 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                 </div>
                             )}
 
+                    {/* ── PERSONAS (Lista Maestra) ─────────────────────────── */}
+                    {staffSection === 'people' && (
                             <div>
                                 <h3 className="text-lg font-black text-white mb-4">Lista Maestra <span className="text-zinc-600 text-sm font-bold">({filteredPromoters.length} de {promoters.length})</span></h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1195,8 +1216,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                     })}
                                 </div>
                             </div>
-                        </div>
-                    </div>
+                    )}
                 </div>
             )}
 
