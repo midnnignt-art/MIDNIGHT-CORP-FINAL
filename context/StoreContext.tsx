@@ -889,24 +889,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             if (initialStatus === 'completed') {
                 const statsPromises: Promise<any>[] = [];
 
-                // Group by Tier ID for updates
-                const tierCounts: {[key: string]: number} = {};
-                expandedItems.forEach(item => {
-                    tierCounts[item.tier_id] = (tierCounts[item.tier_id] || 0) + 1;
-                });
-
-                // 1. Update Tier Inventory
-                for (const [tierId, count] of Object.entries(tierCounts)) {
-                    const tier = tiers.find(t => t.id === tierId);
-                    if (tier) {
-                         statsPromises.push(
-                            supabase.from('ticket_tiers')
-                                .update({ sold: (tier.sold || 0) + count })
-                                .eq('id', tierId)
-                                .then() as Promise<any>
-                        );
-                    }
-                }
+                // 1. Tier inventory (ticket_tiers.sold): NO se toca acá. Lo mantiene
+                // exacto el trigger sync_tier_sold desde las órdenes reales. Escribirlo
+                // a mano (con el estado local) corrompía el conteo y habilitaba sobreventa.
 
                 // 2. Update Event Stats
                 const event = events.find(e => e.id === eventId);

@@ -233,10 +233,12 @@ Deno.serve(async (req) => {
       status: 200,
     });
   } catch (err: any) {
-    console.error('❌ wompi-webhook CRÍTICO:', err.message);
+    // 500 para que Wompi REINTENTE ante un error transitorio (no dejar un pago
+    // real sin confirmar por un blip de DB/red).
+    console.error('❌ wompi-webhook CRÍTICO (500, se pedirá reintento):', err.message);
     return new Response(JSON.stringify({ error: err.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
+      status: 500,
     });
   }
 });

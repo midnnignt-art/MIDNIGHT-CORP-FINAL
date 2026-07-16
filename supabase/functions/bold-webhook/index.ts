@@ -249,10 +249,13 @@ Deno.serve(async (req) => {
     );
 
   } catch (error: any) {
-    console.error("❌ Error Webhook:", error.message);
+    // 500 (no 200): un error transitorio (blip de DB/red) en un pago REAL debe
+    // hacer que Bold REINTENTE, no darlo por entregado y dejar la orden atascada
+    // en pending sin boleta.
+    console.error("❌ Error Webhook (500, se pedirá reintento):", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
+      status: 500,
     });
   }
 })
