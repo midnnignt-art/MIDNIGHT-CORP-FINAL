@@ -9,6 +9,7 @@ import { supabase } from '../lib/supabase';
 import PromoterRanking from '../components/PromoterRanking';
 import { motion as _motion, AnimatePresence } from 'framer-motion';
 import QRScanner from '../components/QRScanner';
+import { MidnightTicketCard } from '../components/MidnightTicketCard';
 
 const motion = _motion as any;
 
@@ -30,7 +31,7 @@ const compressImage = (file: File, maxPx = 1400, quality = 0.75): Promise<Blob> 
   });
 
 export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
-  const { events, promoters, orders, tiers, createOrder, getEventTiers, currentUser, teams, superSquads, promoterPayouts, upsertPromoterPayout, addStaff, validateTicket, fetchData, settlements, addSettlement } = useStore();
+  const { events, promoters, orders, tiers, createOrder, generateCortesias, deleteOrder, getEventTiers, currentUser, teams, superSquads, promoterPayouts, upsertPromoterPayout, addStaff, validateTicket, fetchData, settlements, addSettlement } = useStore();
   const [showDebtUpload, setShowDebtUpload] = useState<{ eventId: string; eventTitle: string; promoterId: string; dineroAEnviar: number; totalEnviado: number } | null>(null);
   const [debtUploadForm, setDebtUploadForm] = useState({ amount: '', method: 'transfer', notes: '' });
   const [debtImageFile, setDebtImageFile] = useState<File | null>(null);
@@ -54,6 +55,16 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
   const [debtUploadProgress, setDebtUploadProgress] = useState('');
   const debtFileRef = useRef<HTMLInputElement>(null);
   const [showManualSale, setShowManualSale] = useState(false);
+  // Gestión de boletas (admin): cortesías + eliminar
+  const [showTicketMgmt, setShowTicketMgmt] = useState(false);
+  const [cortesiaQty, setCortesiaQty] = useState(1);
+  const [cortesiaLabel, setCortesiaLabel] = useState('');
+  const [cortesiaEventId, setCortesiaEventId] = useState('');
+  const [isGeneratingCortesias, setIsGeneratingCortesias] = useState(false);
+  const [cortesiaResult, setCortesiaResult] = useState<any[]>([]);
+  const [deleteOrderNumber, setDeleteOrderNumber] = useState('');
+  const [deleteFound, setDeleteFound] = useState<any | null>(null);
+  const [isDeletingTicket, setIsDeletingTicket] = useState(false);
   const [showRecruitmentModal, setShowRecruitmentModal] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [scannerEventId, setScannerEventId] = useState<string | undefined>(undefined);
@@ -748,7 +759,45 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
     }
   };
 
+  // ── Cortesías: generar boletas gratis con QR descargable ──────────────────
+  const handleGenerateCortesias = async () => {
+    if (!cortesiaEventId) { toast.error('Seleccioná un evento'); return; }
+    const qty = Math.max(1, Math.min(200, Math.floor(cortesiaQty) || 1));
+    setIsGeneratingCortesias(true);
+    try {
+      const created = await generateCortesias(cortesiaEventId, qty, cortesiaLabel);
+      setCortesiaResult(created);
+      toast.success(`${created.length} cortesía${created.length > 1 ? 's' : ''} generada${created.length > 1 ? 's' : ''}`);
+    } catch (e: any) {
+      toast.error(`Error generando cortesías: ${e?.message || 'intentá de nuevo'}`);
+    } finally {
+      setIsGeneratingCortesias(false);
+    }
+  };
 
+  // ── Eliminar boleta por número de orden ───────────────────────────────────
+  const handleFindTicketToDelete = () => {
+    const num = deleteOrderNumber.trim().toUpperCase();
+    if (!num) { setDeleteFound(null); return; }
+    const found = orders.find(o => o.order_number?.toUpperCase() === num);
+    if (!found) { toast.error('No se encontró esa boleta'); setDeleteFound(null); return; }
+    setDeleteFound(found);
+  };
+
+  const handleDeleteTicket = async () => {
+    if (!deleteFound) return;
+    if (!confirm(`¿Eliminar la boleta ${deleteFound.order_number} de ${deleteFound.customer_name}? Esto no se puede deshacer.`)) return;
+    setIsDeletingTicket(true);
+    const ok = await deleteOrder(deleteFound.id);
+    setIsDeletingTicket(false);
+    if (ok) {
+      toast.success('Boleta eliminada');
+      setDeleteFound(null);
+      setDeleteOrderNumber('');
+    } else {
+      toast.error('No se pudo eliminar la boleta');
+    }
+  };
 
   const handleLinkExistingStaff = async () => {
       if (!selectedStaffIdToLink) { toast.error("Selecciona un promotor disponible."); return; }
@@ -873,6 +922,11 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
             <Button onClick={() => setShowManualSale(true)} className="bg-neon-blue text-black font-black h-10 md:h-12 px-4 md:px-6 rounded-lg md:rounded-xl border-none text-xs md:text-sm flex-1 md:flex-none">
                 <Banknote className="mr-2 w-3 h-3 md:w-4 md:h-4" /> VENTA MANUAL
             </Button>
+            {isAdmin && (
+                <Button onClick={() => { setShowTicketMgmt(true); setCortesiaResult([]); setCortesiaEventId(selectedEventFilter || ''); }} className="bg-neon-purple text-white font-black h-10 md:h-12 px-4 md:px-6 rounded-lg md:rounded-xl border-none text-xs md:text-sm flex-1 md:flex-none">
+                    <Ticket className="mr-2 w-3 h-3 md:w-4 md:h-4" /> BOLETAS
+                </Button>
+            )}
         </div>
       </div>
 
@@ -2297,6 +2351,73 @@ export const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
               )}
           </div>
       )}
+
+      {/* MODAL GESTIÓN DE BOLETAS — Cortesías + Eliminar (admin) */}
+      <AnimatePresence>
+        {showTicketMgmt && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[150] flex items-start justify-center p-4 bg-black/90 backdrop-blur-md overflow-y-auto">
+                <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-zinc-900 border border-white/10 p-6 md:p-8 rounded-3xl w-full max-w-2xl shadow-2xl relative my-6">
+                    <button onClick={() => setShowTicketMgmt(false)} className="absolute top-5 right-5 text-zinc-600 hover:text-white"><X size={22} /></button>
+                    <h2 className="text-2xl font-black text-white uppercase mb-6 flex items-center gap-2"><Ticket className="text-neon-purple" /> Gestión de Boletas</h2>
+
+                    {/* ── CORTESÍAS ── */}
+                    <div className="bg-black/40 border border-white/5 rounded-2xl p-5 mb-5">
+                        <h3 className="text-sm font-black text-neon-purple uppercase tracking-widest mb-1">Generar cortesías</h3>
+                        <p className="text-[11px] text-zinc-500 mb-4">Boletas gratis con QR. No consumen el cupo de venta ni mandan correo — las descargás y las enviás vos.</p>
+                        <div className="space-y-3">
+                            <select value={cortesiaEventId} onChange={e => setCortesiaEventId(e.target.value)} className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-bold">
+                                <option value="">Seleccionar evento</option>
+                                {events.filter(e => e.status !== 'archived').map(e => <option key={e.id} value={e.id}>{e.title}</option>)}
+                            </select>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-[9px] text-zinc-500 uppercase font-bold">Cantidad</label>
+                                    <input type="number" min={1} max={200} value={cortesiaQty} onChange={e => setCortesiaQty(Math.max(1, Math.min(200, parseInt(e.target.value) || 1)))} className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-bold" />
+                                </div>
+                                <div>
+                                    <label className="text-[9px] text-zinc-500 uppercase font-bold">Nombre / nota (opcional)</label>
+                                    <input value={cortesiaLabel} onChange={e => setCortesiaLabel(e.target.value)} className="w-full bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-bold" placeholder="Ej: Prensa, DJ, Invitado" />
+                                </div>
+                            </div>
+                            <Button onClick={handleGenerateCortesias} loading={isGeneratingCortesias} disabled={!cortesiaEventId} fullWidth className="bg-neon-purple text-white font-black h-12 rounded-xl">
+                                Generar {cortesiaQty} cortesía{cortesiaQty > 1 ? 's' : ''}
+                            </Button>
+                        </div>
+
+                        {cortesiaResult.length > 0 && (
+                            <div className="mt-5 pt-5 border-t border-white/10">
+                                <p className="text-[11px] text-emerald-400 font-bold uppercase tracking-widest mb-3">✓ {cortesiaResult.length} cortesía(s) — descargá cada QR y enviala</p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[50vh] overflow-y-auto pr-1">
+                                    {cortesiaResult.map(o => (
+                                        <MidnightTicketCard key={o.id} order={o} event={events.find(e => e.id === o.event_id)} />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* ── ELIMINAR BOLETA ── */}
+                    <div className="bg-black/40 border border-red-500/15 rounded-2xl p-5">
+                        <h3 className="text-sm font-black text-red-400 uppercase tracking-widest mb-1">Eliminar boleta</h3>
+                        <p className="text-[11px] text-zinc-500 mb-4">Pegá el número de orden (ID de la boleta, ej. MID-260714-01861). Se elimina y libera el cupo.</p>
+                        <div className="flex gap-2">
+                            <input value={deleteOrderNumber} onChange={e => { setDeleteOrderNumber(e.target.value); setDeleteFound(null); }} className="flex-1 bg-black border border-white/10 rounded-xl px-4 h-12 text-sm text-white font-bold uppercase" placeholder="MID-XXXXXX-XXXXX" />
+                            <Button onClick={handleFindTicketToDelete} className="bg-white/10 text-white font-black h-12 px-5 rounded-xl">Buscar</Button>
+                        </div>
+                        {deleteFound && (
+                            <div className="mt-4 flex items-center justify-between gap-3 bg-red-500/5 border border-red-500/20 rounded-xl p-4">
+                                <div className="min-w-0">
+                                    <p className="text-sm font-bold text-white truncate">{deleteFound.customer_name}</p>
+                                    <p className="text-[10px] text-zinc-500">{deleteFound.order_number} · {deleteFound.status} · {events.find(e => e.id === deleteFound.event_id)?.title || 'Evento'}{deleteFound.used ? ' · YA USADA' : ''}</p>
+                                </div>
+                                <Button onClick={handleDeleteTicket} loading={isDeletingTicket} className="bg-red-600 text-white font-black h-11 px-5 rounded-xl shrink-0"><Trash2 size={14} className="mr-1.5" /> Eliminar</Button>
+                            </div>
+                        )}
+                    </div>
+                </motion.div>
+            </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* MODAL VENTA MANUAL */}
       <AnimatePresence>

@@ -48,6 +48,8 @@ interface StoreContextType {
     updateStaffTeam: (userId: string, teamId: string | null) => Promise<void>;
     deleteTeam: (teamId: string) => Promise<void>;
     createOrder: (eventId: string, cartItems: any[], method: string, staffId?: string, customerInfo?: any, skipEmail?: boolean, skipRefresh?: boolean) => Promise<Order | null>;
+    generateCortesias: (eventId: string, quantity: number, label?: string) => Promise<Order[]>;
+    deleteOrder: (orderId: string) => Promise<boolean>;
     clearDatabase: () => Promise<void>;
     updateGallery: (items: GalleryItem[]) => Promise<void>;
     validateTicket: (orderNumber: string) => Promise<{ success: boolean; message: string; order?: Order }>;
@@ -977,9 +979,53 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
     };
 
+    // ── Cortesías: boletas gratis con QR, sin correo, sin consumir el cupo
+    //    pagado (no llevan tier). Se descargan y se envían a mano. El QR es el
+    //    order_number y escanea igual en la puerta (status completed). ──────
+    const generateCortesias = async (eventId: string, quantity: number, label?: string): Promise<Order[]> => {
+        const n = Math.max(1, Math.min(200, Math.floor(quantity) || 1));
+        const created: any[] = [];
+        for (let i = 0; i < n; i++) {
+            const orderNumber = `MID-${Date.now().toString().slice(-8)}-C${i}${Math.floor(Math.random() * 100).toString().padStart(2, '0')}`.toUpperCase();
+            const payload = {
+                order_number: orderNumber,
+                event_id: eventId,
+                customer_name: (label?.trim() || 'CORTESÍA'),
+                customer_email: 'cortesia@midnight.local',
+                total: 0,
+                status: 'completed',
+                payment_method: 'cortesia',
+                staff_id: null,
+                commission_amount: 0,
+                net_amount: 0,
+                used: false,
+            };
+            const { data, error } = await supabase.from('orders').insert(payload).select().single();
+            if (error) { console.error('[generateCortesias] error:', error); throw error; }
+            created.push({ ...data, items: [], timestamp: data.created_at });
+        }
+        await fetchData();
+        return created as Order[];
+    };
+
+    // Eliminar una boleta (orden). El trigger sync_tier_sold recomputa el cupo.
+    const deleteOrder = async (orderId: string): Promise<boolean> => {
+        try {
+            await supabase.from('order_items').delete().eq('order_id', orderId);
+            const { error } = await supabase.from('orders').delete().eq('id', orderId);
+            if (error) throw error;
+            setOrders(prev => prev.filter(o => o.id !== orderId));
+            await fetchData();
+            return true;
+        } catch (e: any) {
+            console.error('[deleteOrder] error:', e?.message ?? e);
+            return false;
+        }
+    };
+
     const updateGallery = async (items: GalleryItem[]) => {
         setGalleryItems(items);
-        
+
         try {
             // 1. Delete all existing items (simple sync strategy)
             await supabase.from('gallery_marquee').delete().neq('id', '00000000-0000-0000-0000-000000000000');
@@ -1279,7 +1325,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             events, tiers, promoters, orders, teams, superSquads, promoterPayouts, galleryItems, accountingMovements, settlements, currentUser, currentCustomer, dbStatus,
             login, logout, requestCustomerOtp, verifyOtpUnified, verifyCustomerOtp, customerLogout,
             getEventTiers, addEvent, updateEvent, archiveEvent, restoreEvent, hardDeleteEvent, setEventStatus,
-            addStaff, updateStaff, deleteStaff, createTeam, updateStaffTeam, deleteTeam, createOrder, clearDatabase,
+            addStaff, updateStaff, deleteStaff, createTeam, updateStaffTeam, deleteTeam, createOrder, generateCortesias, deleteOrder, clearDatabase,
             addEventCost, deleteEventCost, updateCostStatus, updateCostActual, updateGallery, validateTicket, validarYQuemarTicket,
             addAccountingMovement, deleteAccountingMovement, addSettlement, deleteSettlement, transferTicket,
             createSuperSquad, deleteSuperSquad, assignTeamToSuperSquad, assignSuperSquadHeadOfSales, upsertPromoterPayout, fetchData
