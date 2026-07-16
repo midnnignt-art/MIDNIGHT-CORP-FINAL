@@ -44,6 +44,7 @@ const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<string>('portal');
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [checkoutMode, setCheckoutMode] = useState<'tickets' | 'tables'>('tickets');
   const [isMagicOpen, setIsMagicOpen] = useState(false);
 
   // Feature flag para mostrar el planeta SOLSTICE en el portal. Mientras la
@@ -188,8 +189,9 @@ const App: React.FC = () => {
     return () => window.removeEventListener('popstate', onPop);
   }, []);
 
-  const handleBuyTicket = (event: Event) => {
+  const handleBuyTicket = (event: Event, mode: 'tickets' | 'tables' = 'tickets') => {
     setSelectedEvent(event);
+    setCheckoutMode(mode);
     setIsCheckoutOpen(true);
   };
 
@@ -230,6 +232,7 @@ const App: React.FC = () => {
         isOpen={isCheckoutOpen}
         onClose={handlePurchaseComplete}
         referralStaffId={referralStaffId}
+        mode={checkoutMode}
       />
       <ToastContainer />
     </>
@@ -345,6 +348,7 @@ const App: React.FC = () => {
         isOpen={isCheckoutOpen}
         onClose={handlePurchaseComplete}
         referralStaffId={referralStaffId}
+        mode={checkoutMode}
       />
 
       <MagicPanel
