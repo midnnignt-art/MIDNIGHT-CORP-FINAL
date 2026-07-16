@@ -756,15 +756,26 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 }
             }
 
-            // 2. Validate tier availability — count real tickets from completed orders
+            // 2. Validate tier availability. IMPORTANTE: un comprador anónimo no
+            // ve las órdenes de otros (RLS), así que contar desde `orders` daba 0
+            // y permitía sobreventa. Usamos el `ticket_tiers.sold` (mantenido
+            // exacto por el trigger sync_tier_sold) como fuente real. Además
+            // re-leemos el sold fresco de la BD para minimizar la carrera.
             for (const item of cartItems) {
                 const tier = tiers.find(t => t.id === item.tier_id);
                 if (!tier) throw new Error(`Tier no encontrado: ${item.tier_id}`);
-                const soldTickets = orders
+                let dbSold = Number(tier.sold) || 0;
+                try {
+                    const { data: freshTier } = await supabase
+                        .from('ticket_tiers').select('sold').eq('id', item.tier_id).maybeSingle();
+                    if (freshTier && typeof freshTier.sold === 'number') dbSold = freshTier.sold;
+                } catch { /* usamos tier.sold */ }
+                const clientSold = orders
                     .filter(o => o.status === 'completed')
                     .flatMap(o => o.items || [])
                     .filter(i => i.tier_id === item.tier_id)
                     .reduce((s, i) => s + (i.quantity || 1), 0);
+                const soldTickets = Math.max(clientSold, dbSold);
                 const available = tier.quantity - soldTickets;
                 if (item.quantity > available) {
                     throw new Error(
