@@ -113,7 +113,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
     const [staffCode, setStaffCode] = useState(''); // LOGIN CREDENTIAL 1
     const [staffPassword, setStaffPassword] = useState('1234'); // LOGIN CREDENTIAL 2
     const [staffEmail, setStaffEmail] = useState(''); 
-    const [staffRole, setStaffRole] = useState<'PROMOTER' | 'MANAGER' | 'HEAD_OF_SALES' | 'HEAD' | 'ADMIN' | 'SUPER_ADMIN' | 'BOUNCER'>('PROMOTER');
+    const [staffRole, setStaffRole] = useState<'PROMOTER' | 'MANAGER' | 'HEAD_OF_SALES' | 'HEAD' | 'ADMIN' | 'SUPER_ADMIN' | 'BOUNCER' | 'SOCIO_EVENTO'>('PROMOTER');
     const [staffHidden, setStaffHidden] = useState(false);
 
     if (!isAdminLevel(role)) {
@@ -1006,6 +1006,7 @@ export const AdminEvents: React.FC<AdminEventsProps> = ({ role }) => {
                                             <option value="MANAGER">Manager (Gerente)</option>
                                             <option value="HEAD">Cabeza de Super Squad</option>
                                             <option value="HEAD_OF_SALES">Head of Sales (Director Global)</option>
+                                            <option value="SOCIO_EVENTO">Socio Evento (solo resumen)</option>
                                             <option value="ADMIN">Admin (Acceso total)</option>
                                             {currentUser?.role === UserRole.SUPER_ADMIN && (
                                                 <option value="SUPER_ADMIN">Super Admin (oculto)</option>

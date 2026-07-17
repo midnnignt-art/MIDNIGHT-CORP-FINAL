@@ -288,7 +288,7 @@ async function sendTicketEmail(orders: any[], supabase: any) {
 
   const eventTitle   = event?.title    ?? 'Midnight Event';
   const eventDate    = event?.event_date
-    ? new Date(event.event_date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
+    ? new Date(event.event_date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Bogota' })
     : '';
   const eventVenue   = event?.venue ?? '';
   const eventCity    = event?.city  ?? '';

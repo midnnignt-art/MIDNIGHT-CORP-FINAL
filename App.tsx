@@ -33,6 +33,7 @@ const GuestListLanding  = lazy(() => import('./pages/GuestListLanding'));
 const DiscountLanding   = lazy(() => import('./pages/DiscountLanding'));
 const NotFound          = lazy(() => import('./pages/NotFound'));
 const EventDetail       = lazy(() => import('./pages/EventDetail').then(m => ({ default: m.EventDetail })));
+const EventPartnerDashboard = lazy(() => import('./pages/EventPartnerDashboard').then(m => ({ default: m.EventPartnerDashboard })));
 
 // Code-split: sub-marca completa (Solstice tiene su propio splash al cargar)
 const SolsticeApp = lazy(() => import('./brands/solstice/SolsticeApp'));
@@ -238,6 +239,12 @@ const App: React.FC = () => {
     </>
   );
   if (!isKnownRoute)   return <Suspense fallback={null}><NotFound /></Suspense>;
+
+  // Cuenta SOCIO EVENTO: vista de resumen aislada, solo su evento (sin ranking
+  // ni controles). No toca ninguna otra ruta/rol.
+  if (currentUser?.role === 'SOCIO_EVENTO') {
+    return <Suspense fallback={null}><EventPartnerDashboard /></Suspense>;
+  }
 
   const isSolstice = currentPage === 'solstice-preview';
   const isPortal = currentPage === 'portal';
