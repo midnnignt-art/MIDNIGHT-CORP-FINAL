@@ -114,12 +114,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     useEffect(() => {
         fetchData();
         checkCustomerSession();
-        
-        // Real-time subscription for orders (Access Control Panel)
+
+        // Real-time subscription for orders. THROTTLE: un fetchData() completo por
+        // CADA cambio de orden saturaba la BD en noche de evento (cada compra hacía
+        // que TODOS los clientes recargaran todo). Ahora recargamos como máximo cada
+        // 12s por más eventos que lleguen — suficiente para el panel en vivo.
+        let lastFetch = 0;
+        let pendingTimer: any = null;
+        const throttledFetch = () => {
+            const since = Date.now() - lastFetch;
+            const MIN = 12000;
+            if (since >= MIN) { lastFetch = Date.now(); fetchData(); }
+            else if (!pendingTimer) {
+                pendingTimer = setTimeout(() => { pendingTimer = null; lastFetch = Date.now(); fetchData(); }, MIN - since);
+            }
+        };
         const ordersSubscription = (supabase as any)
             .channel('orders_realtime')
             .on('postgres_changes', { event: '*', table: 'orders' }, () => {
-                fetchData();
+                throttledFetch();
             })
             .subscribe();
 
